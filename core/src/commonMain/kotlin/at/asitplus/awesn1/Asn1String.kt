@@ -1,0 +1,443 @@
+package at.asitplus.awesn1
+
+import at.asitplus.awesn1.BERTags.BMP_STRING
+import at.asitplus.awesn1.BERTags.GENERAL_STRING
+import at.asitplus.awesn1.BERTags.GRAPHIC_STRING
+import at.asitplus.awesn1.BERTags.IA5_STRING
+import at.asitplus.awesn1.BERTags.NUMERIC_STRING
+import at.asitplus.awesn1.BERTags.PRINTABLE_STRING
+import at.asitplus.awesn1.BERTags.T61_STRING
+import at.asitplus.awesn1.BERTags.UNIVERSAL_STRING
+import at.asitplus.awesn1.BERTags.UNRESTRICTED_STRING
+import at.asitplus.awesn1.BERTags.UTF8_STRING
+import at.asitplus.awesn1.BERTags.VIDEOTEX_STRING
+import at.asitplus.awesn1.BERTags.VISIBLE_STRING
+import at.asitplus.awesn1.encoding.decodeFromAsn1ContentBytes
+import at.asitplus.awesn1.encoding.decodeToBmpString
+import at.asitplus.awesn1.encoding.decodeToGeneralString
+import at.asitplus.awesn1.encoding.decodeToGraphicString
+import at.asitplus.awesn1.encoding.decodeToIa5String
+import at.asitplus.awesn1.encoding.decodeToNumericString
+import at.asitplus.awesn1.encoding.decodeToPrintableString
+import at.asitplus.awesn1.encoding.decodeToTeletextString
+import at.asitplus.awesn1.encoding.decodeToUniversalString
+import at.asitplus.awesn1.encoding.decodeToUnrestrictedString
+import at.asitplus.awesn1.encoding.decodeToUtf8String
+import at.asitplus.awesn1.encoding.decodeToVideotexString
+import at.asitplus.awesn1.encoding.decodeToVisibleString
+import at.asitplus.awesn1.serialization.Asn1Serializer
+import at.asitplus.awesn1.serialization.internal.DerDecoder
+import at.asitplus.awesn1.serialization.internal.DerEncoder
+import kotlinx.serialization.Serializable
+
+
+/**
+ * ASN.1 String class used as wrapper do discriminate between different ASN.1 string types
+ * By default, the string value is decoded using UTF-8. If a different charset or custom decoding
+ * is needed, the [rawValue] property can be used directly.
+ *
+ * To enable parsing of non-compliant strings without exploding, every String is internally represented
+ * as raw [ByteArray] and not validated during decoding from ASN.1.
+ * The [isValid] property indicates whether the bytes contained in an ASN.1 String object type are valid
+ * according to the validation rules of that type.
+ */
+@Serializable(with = Asn1String.Companion::class)
+sealed class Asn1String(
+    val rawValue: ByteArray,
+    val performValidation: Boolean
+) : Asn1Encodable<Asn1Primitive> {
+    abstract val tag: ULong
+
+    /**
+     * Always the UTF-8 interpretation of [rawValue].
+     * The decoding is performed via [String.decodeFromAsn1ContentBytes], which internally uses
+     * the standard library's [ByteArray.decodeToString].
+     */
+    val value: String by lazy { String.decodeFromAsn1ContentBytes(rawValue) }
+
+    /**
+     * Returns whether this string is valid:
+     * - `true`: validation succeeded
+     * - `false`: validation failed
+     * - `null`: no validation implemented
+     */
+    abstract val isValid: Boolean?
+
+
+    /**
+     * UTF8 STRING (verbatim String)
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class UTF8 private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.UTF8_STRING.toULong()
+
+        override val isValid: Boolean by lazy {
+            !value.contains('\uFFFD')
+        }
+
+        /**
+         * @throws Asn1Exception if illegal characters are provided
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(value.encodeToByteArray(), true) {
+            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+        }
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * UNIVERSAL STRING (no checks)
+     * Validation is not implemented. This string format is deprecated for HTTPS certificates and its use in generally discouraged in favor of UTF-8 strings (see [Asn1String.UTF8]).
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class Universal private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.UNIVERSAL_STRING.toULong()
+
+        /**
+         * Always `null`, since no validation logic is implemented
+         */
+        override val isValid: Boolean? = null
+
+        constructor(value: String) : this(value.encodeToByteArray(), false)
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * VISIBLE STRING (checked)
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class Visible private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.VISIBLE_STRING.toULong()
+
+        override val isValid: Boolean by lazy {
+            Regex("[\\x20-\\x7E]*").matches(value)
+        }
+
+        /**
+         * @throws Asn1Exception if illegal characters are provided
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(value.encodeToByteArray(), true) {
+            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+        }
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * IA5 STRING (checked)
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class IA5 private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.IA5_STRING.toULong()
+
+        override val isValid: Boolean by lazy {
+            Regex("[\\x00-\\x7E]*").matches(value)
+        }
+
+        /**
+         * @throws Asn1Exception if illegal characters are provided
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(value.encodeToByteArray(), true) {
+            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+        }
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * TELETEX STRING (checked).
+     *  This string format is deprecated for HTTPS certificates and its use in generally discouraged in favor of UTF-8 strings (see [Asn1String.UTF8]).
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class Teletex private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.T61_STRING.toULong()
+
+        override val isValid: Boolean by lazy {
+            Regex("[\\u0000-\\u00FF]*").matches(value)
+        }
+
+        /**
+         * @throws Asn1Exception if illegal characters are provided
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(value.encodeToByteArray(), true) {
+            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+        }
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * BMP STRING (unchecked).
+     * Validation is not implemented. This string format is deprecated for HTTPS certificates and its use in generally discouraged in favor of UTF-8 strings (see [Asn1String.UTF8]).
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class BMP private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.BMP_STRING.toULong()
+
+        /**
+         * Always `null`, since no validation logic is implemented
+         */
+        override val isValid: Boolean? = null
+
+        constructor(value: String) : this(value.encodeToByteArray(), false)
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * GENERAL STRING (checked)
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class General private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.GENERAL_STRING.toULong()
+
+        override val isValid: Boolean by lazy {
+            Regex("[\\x00-\\x7E]*").matches(value)
+        }
+
+        /**
+         * @throws Asn1Exception if illegal characters are provided
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(value.encodeToByteArray(), true) {
+            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+        }
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * GRAPHIC STRING (checked)
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class Graphic private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.GRAPHIC_STRING.toULong()
+
+        override val isValid: Boolean by lazy {
+            Regex("[\\x20-\\x7E]*").matches(value)
+        }
+
+        /**
+         * @throws Asn1Exception if illegal characters are provided
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(value.encodeToByteArray(), true) {
+            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+        }
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * CHARACTER/UNRESTRICTED STRING (no checks)
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class Unrestricted private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.UNRESTRICTED_STRING.toULong()
+
+        /**
+         * Always `null`, since no validation logic is implemented
+         */
+        override val isValid: Boolean? = null
+
+        constructor(value: String) : this(value.encodeToByteArray(), false)
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * VIDEOTEX STRING (no checks)
+     * Validation is not implemented. This type is no longer used in practice.
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class Videotex private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.VIDEOTEX_STRING.toULong()
+
+        /**
+         * Always `null`, since no validation logic is implemented
+         */
+        override val isValid: Boolean? = null
+
+        constructor(value: String) : this(value.encodeToByteArray(), false)
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * PRINTABLE STRING (checked)
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class Printable private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.PRINTABLE_STRING.toULong()
+
+        override val isValid: Boolean by lazy {
+            Regex("[a-zA-Z0-9 '()+,-./:=?]*").matches(value)
+        }
+
+        /**
+         * @throws Asn1Exception if illegal characters are provided
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(value.encodeToByteArray(), true) {
+            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+        }
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    /**
+     * NUMERIC STRING (checked)
+     */
+    @Serializable(with = Asn1String.Companion::class)
+    class Numeric private constructor(
+        rawValue: ByteArray,
+        performValidation: Boolean
+    ) : Asn1String(rawValue, performValidation) {
+        override val tag = BERTags.NUMERIC_STRING.toULong()
+
+        override val isValid: Boolean by lazy {
+            Regex("[0-9 ]*").matches(value)
+        }
+
+        /**
+         * @throws Asn1Exception if illegal characters are provided
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(value.encodeToByteArray(), true) {
+            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+        }
+
+        @PublishedApi
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
+    }
+
+    override fun encodeToTlv() = Asn1Primitive(tag, rawValue)
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as Asn1String
+
+        if (tag != other.tag) return false
+        if (value != other.value) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = tag.hashCode()
+        result = 31 * result + value.hashCode()
+        return result
+    }
+
+    companion object : Asn1Serializer<Asn1Primitive, Asn1String> {
+        override val leadingTags: Set<Asn1Element.Tag> = setOf(
+            Asn1Element.Tag.STRING_UTF8,
+            Asn1Element.Tag.STRING_BMP,
+            Asn1Element.Tag.STRING_NUMERIC,
+            Asn1Element.Tag.STRING_T61,
+            Asn1Element.Tag.STRING_VISIBLE,
+            Asn1Element.Tag.STRING_UNIVERSAL,
+            Asn1Element.Tag.STRING_PRINTABLE,
+            Asn1Element.Tag.STRING_IA5,
+            Asn1Element.Tag.STRING_GENERAL,
+            Asn1Element.Tag.STRING_GRAPHIC,
+            Asn1Element.Tag.STRING_UNRESTRICTED,
+            Asn1Element.Tag.STRING_VIDEOTEX,
+        )
+
+        /**
+         * Decodes an [Asn1Primitive] into a specific [Asn1String] subtype based on its tag.
+         *
+         * For cases where an implicit tag is required, see the helper extension methods
+         * like [decodeToUtf8String], [decodeToPrintableString], etc., which allow specifying an optional tag override.
+         *
+         * @param src the ASN.1 primitive to decode
+         * @return the corresponding [Asn1String] subtype
+         * @throws Asn1Exception if decoding fails or the tag is unsupported
+         */
+        @Throws(Asn1Exception::class)
+        override fun doDecode(src: Asn1Primitive): Asn1String = runRethrowing {
+            when (src.tag.tagValue) {
+                UTF8_STRING.toULong() -> src.decodeToUtf8String()
+                UNIVERSAL_STRING.toULong() -> src.decodeToUniversalString()
+                IA5_STRING.toULong() -> src.decodeToIa5String()
+                BMP_STRING.toULong() -> src.decodeToBmpString()
+                T61_STRING.toULong() -> src.decodeToTeletextString()
+                PRINTABLE_STRING.toULong() -> src.decodeToPrintableString()
+                NUMERIC_STRING.toULong() -> src.decodeToNumericString()
+                VISIBLE_STRING.toULong() -> src.decodeToVisibleString()
+                GENERAL_STRING.toULong() -> src.decodeToGeneralString()
+                GRAPHIC_STRING.toULong() -> src.decodeToGraphicString()
+                UNRESTRICTED_STRING.toULong() -> src.decodeToUnrestrictedString()
+                VIDEOTEX_STRING.toULong() -> src.decodeToVideotexString()
+                else -> throw Asn1Exception("Not an Asn1String!")
+            }
+        }
+
+        override fun serialize(encoder: kotlinx.serialization.encoding.Encoder, value: Asn1String) {
+            if (encoder is DerEncoder) {
+                super<Asn1Serializer>.serialize(encoder, value)
+            } else {
+                encoder.encodeString(value.value)
+            }
+        }
+
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Asn1String {
+            return if (decoder is DerDecoder) {
+                super<Asn1Serializer>.deserialize(decoder)
+            } else {
+                UTF8(decoder.decodeString())
+            }
+        }
+    }
+}

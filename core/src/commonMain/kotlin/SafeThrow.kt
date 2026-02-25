@@ -1,0 +1,76 @@
+package at.asitplus.awesn1
+
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+
+expect inline fun Throwable.safeThrow(): Throwable
+
+/**
+ * Non-fatal-only-catching version of stdlib's [runCatching], returning a [Result] --
+ * Re-throws any fatal exceptions, such as `OutOfMemoryError`. Re-implements [Arrow](https://arrow-kt.io)'s
+ * [nonFatalOrThrow](https://apidocs.arrow-kt.io/arrow-core/arrow.core/non-fatal-or-throw.html)
+ * logic to avoid a dependency on Arrow for a single function.
+ */
+@OptIn(ExperimentalContracts::class)
+@Suppress("NOTHING_TO_INLINE")
+inline fun <T> catchingUnwrapped(block: () -> T): Result<T> {
+    contract { callsInPlace(block, InvocationKind.AT_MOST_ONCE) }
+    return try {
+        Result.success(block())
+    } catch (e: Throwable) {
+        Result.failure(e.safeThrow())
+    }
+}
+
+/** @see catchingUnwrapped */
+@OptIn(ExperimentalContracts::class)
+@Suppress("NOTHING_TO_INLINE")
+inline fun <T, R> T.catchingUnwrapped(block: T.() -> R): Result<R> {
+    contract { callsInPlace(block, InvocationKind.AT_MOST_ONCE) }
+    return try {
+        Result.success(block())
+    } catch (e: Throwable) {
+        Result.failure(e.safeThrow())
+    }
+}
+
+/**
+ * Runs the specified function [block], returning a [Result].
+ * Any non-fatal exception will be wrapped as the specified exception, unless it is already the specified type.
+ *
+ * Usage: `catchingUnwrappedAs(type = ::ThrowableType) { block }`.
+ */
+@OptIn(ExperimentalContracts::class)
+inline fun <reified E : Throwable, T> catchingUnwrappedAs(a: (String?, Throwable) -> E, block: () -> T): Result<T> {
+    contract {
+        callsInPlace(a, InvocationKind.AT_MOST_ONCE)
+        callsInPlace(block, InvocationKind.AT_MOST_ONCE)
+    }
+    return catchingUnwrapped(block).wrapAs(a)
+}
+
+/**
+ * If the underlying [Result] is successful, returns it unchanged.
+ * If it failed, and the contained exception is of the specified type, returns it unchanged.
+ * Otherwise, wraps the contained exception in the specified type.
+ *
+ * Usage: `Result.wrapAs(a = ::ThrowableType)`
+ */
+@OptIn(ExperimentalContracts::class)
+inline fun <reified E : Throwable, T> Result<T>.wrapAs(a: (String?, Throwable) -> E): Result<T> {
+    contract { callsInPlace(a, InvocationKind.AT_MOST_ONCE) }
+    return exceptionOrNull().let { x ->
+        if ((x == null) || (x is E)) this@wrapAs
+        else Result.failure(a(x.message, x))
+    }
+}
+
+/** @see wrapAs */
+@OptIn(ExperimentalContracts::class)
+@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@kotlin.internal.LowPriorityInOverloadResolution
+inline fun <reified E : Throwable, R> Result<R>.wrapAs(a: (Throwable) -> E): Result<R> {
+    contract { callsInPlace(a, InvocationKind.AT_MOST_ONCE) }
+    return wrapAs(a = { _, x -> a(x) })
+}
