@@ -1,9 +1,9 @@
-site_name: awesn.1 | Awesome Syntax Notation One
-site_url: https://a-sit-plus.github.io/awesn.1/
+site_name: Awesome Syntax Notation One
+site_url: https://a-sit-plus.github.io/awesn1/
 
 theme:
   name: material
-  logo: assets/awesn1.svg
+  logo: assets/icon.svg
   favicon: assets/icon.svg
   custom_dir: overrides
   features:
@@ -17,20 +17,23 @@ theme:
     - announce.dismiss
   icon:
     repo: github
+  font:
+    text: Roboto
 
   palette:
-      scheme: dark
-      font:
-        text: Roboto
+    scheme: slate
 
 
 extra_css:
   - stylesheets/extra.css
+  - stylesheets/landing.css
+extra_javascript:
+  - javascripts/inner-scroll-toc.js
 
-repo_url: https://github.com/a-sit-plus/awesn.1
-repo_name: a-sit-plus/awesn.1
+repo_url: https://github.com/a-sit-plus/awesn1
+repo_name: Free Play
 
-copyright: Copyright &copy; 2026 A-SIT Plus &bull; <a href="https://plus.a-sit.at/imprint.html" target="_blank">Imprint</a>
+copyright: Copyright &copy; 2026 A-SIT Plus &bull; <a href="https://a-sit-plus.github.io/awesn1/imprint/">Imprint</a>
 
 plugins:
   - social
@@ -73,11 +76,8 @@ markdown_extensions:
   - attr_list
 
 nav:
-  - Manual:
-      - Overview: core.md
-      - CHANGELOG.md
-      - Examples: examples.md
-      - Addons: addons.md
-  - Feature Matrix: features.md
-  - Showcase App: app.md
+  - Overview: core.md
+  - Examples: examples.md
+  - Addons: addons.md
+  - CHANGELOG.md
   - API Docs: dokka/index.html

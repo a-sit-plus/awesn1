@@ -41,10 +41,6 @@ dokka {
     }
 }
 
-subprojects {
-    if(!name.startsWith("internals")) rootProject.dependencies.add("dokka", this)
-}
-
 allprojects {
     apply(plugin = "org.jetbrains.dokka")
     group = rootProject.group

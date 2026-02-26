@@ -8,7 +8,7 @@ plugins {
 signumConventions {
     android("at.asitplus.awesn1.core")
     mavenPublish(
-        name = "awesn.1 core",
+        name = "awesn1 core",
         description = "Awesome Syntax Notation One - Kotlin Multiplatform ASN.1 Engine"
     )
 }

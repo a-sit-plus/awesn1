@@ -1,24 +1,38 @@
-![Indispensable ASN.1](assets/asn1-dark-large.png#only-light)
-![Indispensable ASN.1](assets/asn1-light-large.png#only-dark)
+---
+hide:
+  - navigation
+---
 
-[![Maven Central](https://img.shields.io/maven-central/v/at.asitplus.signum/indispensable-asn1?label=maven-central)](https://mvnrepository.com/artifact/at.asitplus.signum.indispensable/)
 
-# Indispensable ASN.1 Engine
+<div class="core-badges-centered">
+  <img src="../assets/awesn1.svg" width="200" alt="awesn1">
+  <p>
+    <a href="https://plus.a-sit.at/open-source.html"><img alt="A-SIT Plus Official" src="https://raw.githubusercontent.com/a-sit-plus/a-sit-plus.github.io/709e802b3e00cb57916cbb254ca5e1a5756ad2a8/A-SIT%20Plus_%20official_opt.svg"></a>
+    <a href="http://www.apache.org/licenses/LICENSE-2.0"><img alt="GitHub license" src="https://img.shields.io/badge/license-Apache%20License%202.0-brightgreen.svg"></a>
+    <a href="http://kotlinlang.org"><img alt="Kotlin Multiplatform" src="https://img.shields.io/badge/kotlin-multiplatform-orange.svg?logo=kotlin"></a>
+    <a href="http://kotlinlang.org"><img alt="Kotlin 2.3.0" src="https://img.shields.io/badge/kotlin-2.3.0-blue.svg?logo=kotlin"></a>
+    <a href="https://www.oracle.com/java/technologies/downloads/#java17"><img alt="Java 17" src="https://img.shields.io/badge/java-17-blue.svg?logo=OPENJDK"></a>
+    <a href="https://mvnrepository.com/artifact/at.asitplus.awesn1/core"><img alt="Maven Central" src="https://img.shields.io/maven-central/v/at.asitplus.awesn1/core"></a>
+  </p>
+</div>
+
+# Overview
 
 This [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html) library provides the most sophisticated KMP ASN.1 engine in the known universe. kotlinx-* dependencies aside, it only depends only on [KmmResult](https://github.com/a-sit-plus/kmmresult) for extra-smooth iOS interop.
 It features:
 
-* **ASN.1 Parser and Encoder including a DSL to generate ASN.1 structures**
+* **ASN.1 Codec + kotlinx.serialization format, including a DSL to generate ASN.1 structures**
 * ObjectIdentifier Class with human-readable notation (e.g. 1.2.9.6245.3.72.13.4.7.6)
-* ASN.1 Integer (variable length integer)
+* ASN.1 Integer (arbitrary precision integer)
+* ASN.1 Real (arbitrary precision floating point number)
 * 100% pure Kotlin BitSet
 * Generic ASN.1 abstractions to operate on and create arbitrary ASN.1 Data
-* Support for all targets but wasm/WASI (due to Kotest not supporting it)
+* Support for all targets but wasm/WASI
 
 This in short, you can work with arbitrary ASN.1 structures anywhere!
 
 !!! tip
-    **Do check out the full API docs [here](dokka/indispensable-asn1/index.html)**!
+    **Do check out the full API docs [here](dokka/)**!
 
 ## Using it in your Projects
 
@@ -27,13 +41,10 @@ This library was built for [Kotlin Multiplatform](https://kotlinlang.org/docs/mu
 Simply declare the desired dependency to get going:
 
 ```kotlin 
-implementation("at.asitplus.signum:indispensable-asn1:$version")
+implementation("at.asitplus.awesn1:core:$version")
 ```
 
-## Structure and Class Overview
-As the name _Indispensable ASN.1_ implies, this module is indispensable, if you work with ASN.1 structures.
-
-### Package Organisation
+## Package Organisation
 
 The `asn1` package contains a 100% pure Kotlin (read: no platform dependencies) ASN.1 engine and data types:
 
@@ -69,23 +80,8 @@ The `asn1.encoding` package contains the ASN.1 builder DSL, as well as encoding 
 -- both for whole ASN.1 elements, as well as for encoding/decoding primitive data types to/from DER-conforming byte arrays.
 Most prominently, it comes with ASN.1 unsigned varint and minimum-length encoding of signed numbers.
 
-## ASN.1 Core
 
-The ASN.1 engine allows decoding and encoding arbitrary structures from/to `ByteArray`s, as well as kotlinx.io `Source` and `Sink`.
-
-Relevant _Indispensable_ classes like `CryptoPublicKey`, `X509Certificate`, `Pkcs10CertificationRequest`, etc. all
-implement `Asn1Encodable` and their respective companions implement `Asn1Decodable`.
-This is an essential pattern, making the ASN.1 engine work the way it does.
-We have opted against using kotlinx.serialization for maximum flexibility and more convenient debugging.  
-The following section provides more details on the various patterns used for ASN.1 encoding and decoding.
-
-### Generic Patterns
-Recalling the classes in the `asn1` package described before already hints how ASN.1 elements are constructed.
-In effect, it is just a nesting of those classes.
-This works well for parsing and encoding but lacks higher-level semantics (in contrast to `X509Certificate` from the _Indispensable_ module, for example).
-
-
-### Decoding
+## Raw ASN.1 Decoding
 Decoding functions come in two categories: high-level functions, wich are used to map ASN.1 elements to types with enriched semantics
 (such as certificates, public keys, etc.) and low-level ones, operating on the encoded values of TLV structures (i.e. decoding the _V_ in TLV).
 Hence, a typical decoding pipeline looks as follows:
@@ -97,7 +93,7 @@ Hence, a typical decoding pipeline looks as follows:
 | `06052B81040022` | `Asn1Element.parse()` |  `Primitive(tag=6 (=06), length=5, overallLength=7) 2B81040022`  | `ObjectIdentifier.decodeFromTlv()` | `ObjectIdentifier("1.3.132.0.34")` |
 
 
-#### High-Level
+### High-Level
 
 !!! Tip
     Structured, iterator-based decoding of `Asn1Structure` has been introduced, by letting `Asn1Structure` implement `Iterable<Asn1Element>`.
@@ -108,8 +104,6 @@ Hence, a typical decoding pipeline looks as follows:
 `Asn1Decodable` provides the following functions for decoding data:
 
 * `doDecode()`, which is the only function that needs to be implemented by high-level types implementing `Asn1Encodable`.
-  To provide a concrete example: This function needs to contain all parsing/decoding logic to construct a `CryptoPublicKey` from an `Asn1Sequence`,
-  as demonstrated in the [_Indispensable_ source code](https://github.com/a-sit-plus/signum/blob/main/indispensable/src/commonMain/kotlin/at/asitplus/signum/indispensable/CryptoPublicKey.kt#L109).
 * `verifyTag()` already implements optional tag assertion. The default implementation of  `decodeFromTlv()` (see below) calls this before invoking `doDecode()`.
 * `decodeFromTlv()` takes an ASN.1 element and optional tag to assert, and returns a high-level type. Throws!
 * `decodeFromTlvSafe()` does not throw, but returns a KmmResult, encapsulating the result of `decodeFromTlv()`
@@ -133,7 +127,7 @@ This function throws various exceptions on illegal input. Has the same semantics
 All of these return one or more `Asn1Element`s, which can then be passed to `decodeFromTlv()` if desired.
 Low-level decoding functions deal with the actual decoding of payloads in TLV structures.
 
-#### Low-Level
+### Low-Level
 
 Some low-level decoding functions are implemented as extension functions in `Asn1Primitive` for convenience (since CONSTRUCTED elements contain child nodes, but no raw data).
 The base decoding function is called `decode()` and has the following signature:
@@ -214,7 +208,7 @@ and returns the tag-asserted element on success:
 
 * `Asn1Element.assertTag()` takes either an `Asn1Element.Tag` or an `ULong` tag number
 
-### Encoding
+## Raw ASN.1 Encoding
 Similarly to decoding function, encoding function also come as high-level and low-level ones.
 The general idea is the same: `Asn1Encodable` should be implemented by any custom type that needs encoding to ASN.1,
 while low-level encoding functions create the raw bytes contained in an `Asn1Primitive`.
@@ -225,7 +219,7 @@ Hence, a typical encoding pipeline looks as follows:
 | `ObjectIdentifier("1.3.132.0.34")`  | `oid.encodeToTlv()` |  `Primitive(tag=6 (=06), length=5, overallLength=7) 2B81040022`  | `Asn1Element.derEncoded` | `06052B81040022` |
 
 
-#### High-Level
+### High-Level
 `Asn1Encodable` defines the following functions:
 
 * `encodeToTlv()` is the only function that need to be implemented. It defines how user-defined types are converted to an ASN.1 element. Throws on error.
@@ -237,7 +231,7 @@ Hence, a typical encoding pipeline looks as follows:
 
 `Asn1Element` and its subclasses come with the lazily-evaluated property `derEncoded` which produces a `ByteArray` conforming to DER.
 
-#### Low-Level
+### Low-Level
 Low-level encoding functions come in two flavours:
 On the one hand, functions exist to produce correctly tagged ASN.1 primitives exist, including tag, length, and the encoded value.
 On the other hand, there are functions responsible for producing only the content bytes of an `Asn1Primitive`. The first kind of functions rely on this second kind to encode values.
@@ -296,7 +290,7 @@ Asn1.Sequence { +Asn1.Int(42) } withImplicitTag (0x5EUL without CONSTRUCTED)
 
 
 ### Object Identifiers
-Signum's _Indispensable ASN.1_ engine comes with an expressive, convenient, and efficient ASN.1 `ObjectIdentifier` class.
+awesn1 comes with an expressive, convenient, and efficient ASN.1 `ObjectIdentifier` class.
 It can be constructed by either parsing a `ByteArray` containing ASN.1-encoded representation of an OID,
 or constructing it from a humanly-readable string representation (`"1.2.96"`, `"1 2 96"`).
 In addition, it is possible to pass OID node components as either `UInt` or decimal string representation to construct an OID:
@@ -341,7 +335,8 @@ To avoid this, simply keep the `Asn1Real` as-is.
 ## ASN.1 Builder DSL
 So far, custom high-level types and manually constructing low-level types was discussed.
 When actually constructing ASN.1 structures, a far more streamlined and intuitive approach exists.
-Signum's Indispensable ASN.1 engine comes with a powerful, expressive ASN.1 builder DSL, including shorthand functions
+
+awesn1 engine comes with a powerful, expressive ASN.1 builder DSL, including shorthand functions
 covering CONSTRUCTED types and primitives.
 Everything is grouped under a namespace object called `Asn1`. It not only streamlines the creation of complex ASN.1
 structures, but also provides maximum flexibility. The following snippet showcases how it can be used in practice:
@@ -426,15 +421,13 @@ ASN.1 primitive as-is.
 !!! tip
     The builder also takes any `Asn1Encodable`, so you can also add an `X509Certificate`, or a `CryptoPublicKey` using
     the same concise syntax.  
-    **Do checkout the [API docs](dokka/indispensable-asn1/at.asitplus.signum.indispensable.asn1.encoding/-asn1/index.html) for a full list of builder functions!**
-
+   
 ## Debugging and Pretty-Printing
-Signum's ASN.1 engine provides pretty-printing capabilities: 
+awesn1 provides pretty-printing capabilities: 
 `Asn1Encodable` and `Asn1Element` feature a `prettyPrint()` function.
 The output of this function is very verbose and aimed at humans debugging ASN.1 structures.
 It also ties in with OID descriptions;
 any OIDs described using `KnownOIDs` will be annotated.
-You likely want to call `KnownOIDs.describeAll()` (a part of [indispensable's ASN.1 addons](indispensable.md#notes-on-object-identifiers)) before pretty printing.
 For tags that are well-known, pretty-printing will automatically decode contents on a best-effort basis and display them.
 A pretty-printed certificate will look as follows:
 

@@ -9,8 +9,8 @@ gradlePlugin {
         create("awesn1Conventions") {
             id = "at.asitplus.awesn1.buildlogic"
             implementationClass = "at.asitplus.gradle.Awesn1ConventionsPlugin"
-            displayName = "awesn.1 Build Logic Conventions"
-            description = "Common build logic for awesn.1"
+            displayName = "awesn1 Build Logic Conventions"
+            description = "Common build logic for awesn1"
         }
     }
 }

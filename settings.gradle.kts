@@ -30,4 +30,4 @@ develocity {
 includeBuild("build-logic")
 
 include(":core")
-rootProject.name = "awesn.1"
+rootProject.name = "awesn1"

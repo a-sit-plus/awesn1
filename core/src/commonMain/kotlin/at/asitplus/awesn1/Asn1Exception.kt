@@ -34,4 +34,4 @@ inline fun <reified R> Asn1Structure.decodeRethrowing(
 ) = runRethrowing { this@decodeRethrowing.decodeAs(requireFullConsumption, decoder) }
 
 class ImplementationError(message: String? = null) :
-    Throwable("$message\nThis is an implementation error. Please report this bug at https://github.com/a-sit-plus/awesn.1/issues/new/")
+    Throwable("$message\nThis is an implementation error. Please report this bug at https://github.com/a-sit-plus/awesn1/issues/new/")

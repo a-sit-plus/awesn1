@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/awesn1.svg" width="400" alt="awesn.1">
+<img src="docs/docs/assets/awesn1.svg" width="400" alt="awesn1">
 
 # Awesome Syntax Notation One
 
@@ -9,7 +9,7 @@
 [![Kotlin](https://img.shields.io/badge/kotlin-multiplatform-orange.svg?logo=kotlin)](http://kotlinlang.org)
 [![Kotlin](https://img.shields.io/badge/kotlin-2.3.0-blue.svg?logo=kotlin)](http://kotlinlang.org)
 [![Java](https://img.shields.io/badge/java-17-blue.svg?logo=OPENJDK)](https://www.oracle.com/java/technologies/downloads/#java17)
-[![Maven Central](https://img.shields.io/maven-central/v/at.asitplus.maven/coordinates)](https://mvnrepository.com/artifact/at.asitplus.maven/coordinates)
+[![Maven Central](https://img.shields.io/maven-central/v/at.asitplus.awesn1/core)](https://mvnrepository.com/artifact/at.asitplus.awesn1/core)
 
 </div>
 

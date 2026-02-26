@@ -33,7 +33,7 @@ import java.util.*
 class Awesn1ConventionsPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
         target.keepAndroidJvmTarget = true // keep androidJvmMain wiring even if no AGP is applied
-        logger.info("awesn.1 Conventions Plugin applied to project: ${'$'}{target.path}")
+        logger.info("awesn1 Conventions Plugin applied to project: ${'$'}{target.path}")
         pluginManager.apply("org.jetbrains.kotlin.multiplatform")
         pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
         if (target.hasAndroidSdk()) pluginManager.apply("com.android.kotlin.multiplatform.library")
