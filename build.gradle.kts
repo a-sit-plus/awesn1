@@ -19,6 +19,7 @@ subprojects {
         mavenLocal()
     }
 }
+
 //work around nexus publish bug
 val awesn1Version: String by extra
 version = awesn1Version
