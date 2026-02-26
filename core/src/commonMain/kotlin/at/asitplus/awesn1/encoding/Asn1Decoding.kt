@@ -17,19 +17,6 @@ import kotlin.time.Instant
 
 
 /**
- * Convenience wrapper around [parse], taking a [ByteArray] as [source]
- * @see parse
- */
-@Throws(Asn1Exception::class)
-@Deprecated(
-    "Use a ByteArray or (even better) a kotlinx.io Source as input when possible. This method copies all bytes from the input twice and is inefficient.",
-    ReplaceWith("source.readAsn1Element(); require(source.exhausted())"),
-    DeprecationLevel.ERROR
-)
-fun Asn1Element.Companion.parse(input: ByteIterator): Asn1Element =
-    parse(mutableListOf<Byte>().also { while (input.hasNext()) it.add(input.nextByte()) }.toByteArray())
-
-/**
  * Parses the provided [input] into a single [Asn1Element]. Consumes all Bytes and throws if more than one Asn.1 Structure was found or trailing bytes were detected
  * @return the parsed [Asn1Element]
  *
@@ -42,23 +29,6 @@ fun Asn1Element.Companion.parse(source: ByteArray): Asn1Element =
             throw Asn1StructuralException("Trailing bytes found after the first ASN.1 element")
         it.first()
     }
-
-/**
- * Tries to parse the [input] into a list of [Asn1Element]s. Consumes all Bytes and throws if an invalid ASN.1 Structure is found at any point.
- * @return the parsed elements
- *
- * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [input]
- *
- */
-@Deprecated(
-    "Use a ByteArray or (even better) a kotlinx.io Source as input when possible. This method copies all bytes from the input twice and is inefficient.",
-    ReplaceWith("source.readFullyToAsn1Elements()"),
-    DeprecationLevel.ERROR
-)
-@Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parseAll(input: ByteIterator): List<Asn1Element> =
-    mutableListOf<Byte>().also { while (input.hasNext()) it.add(input.nextByte()) }.toByteArray().wrapInUnsafeSource()
-        .readFullyToAsn1Elements().first
 
 /**
  * Convenience wrapper around [parseAll], taking a [ByteArray] as [source]
@@ -323,31 +293,6 @@ inline fun Asn1Primitive.decodeToFloat(assertTag: Asn1Element.Tag = Asn1Element.
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToFloatOrNull(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL) =
     catchingUnwrapped { decodeToFloat(assertTag) }.getOrNull()
-
-/**
- * transforms this [Asn1Primitive] into an [Asn1String] subtype based on its tag
- *
- * @throws [Asn1Exception] all sorts of exceptions on invalid input
- */
-@Throws(Asn1Exception::class)
-@Deprecated(
-    "Doesn't support all the string types and doesn't behave well with implicit tags",
-    ReplaceWith("Asn1String.decodeFromTlv()")
-)
-// If the implicit tag is used, the caller needs to call one of the methods for decoding to specific Asn1String type
-fun Asn1Primitive.asAsn1String(): Asn1String = runRethrowing {
-    when (tag.tagValue) {
-        UTF8_STRING.toULong() -> Asn1String.UTF8(content)
-        UNIVERSAL_STRING.toULong() -> Asn1String.Universal(content)
-        IA5_STRING.toULong() -> Asn1String.IA5(content)
-        BMP_STRING.toULong() -> Asn1String.BMP(content)
-        T61_STRING.toULong() -> Asn1String.Teletex(content)
-        PRINTABLE_STRING.toULong() -> Asn1String.Printable(content)
-        NUMERIC_STRING.toULong() -> Asn1String.Numeric(content)
-        VISIBLE_STRING.toULong() -> Asn1String.Visible(content)
-        else -> TODO("Support other string tag $tag")
-    }
-}
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.UTF8]. [assertTag] defaults to [Asn1Element.Tag.STRING_UTF8], but can be

@@ -32,14 +32,6 @@ sealed class Asn1Element(
     }
 
     companion object {
-        /**
-         * Convenience method to directly parse a HEX-string representation of DER-encoded data.
-         * Ignores and strips all whitespace.
-         * @throws [Throwable] all sorts of errors on invalid input
-         */
-        @Throws(Throwable::class)
-        @Deprecated("Misleading name", ReplaceWith("parseFromDerHexString(derEncoded)"), DeprecationLevel.ERROR)
-        fun decodeFromDerHexString(derEncoded: String) = parseFromDerHexString(derEncoded)
 
         /**
          * Convenience method to directly parse a HEX-string representation of DER-encoded data.
@@ -65,9 +57,6 @@ sealed class Asn1Element(
      * For a structure, it is the sum of the number of bytes needed to encode all held child nodes.
      */
     abstract val contentLength: Int
-
-    @Deprecated("unclear name", ReplaceWith("contentLength"))
-    val length get() = contentLength
 
     /**
      * Total number of bytes required to represent the ths element, when encoding to ASN.1.
@@ -174,17 +163,6 @@ sealed class Asn1Element(
      */
     @Throws(Asn1StructuralException::class)
     fun asOctetString() = thisAs<Asn1OctetString>()
-
-    /**
-     * Convenience function to cast this element to an [Asn1PrimitiveOctetString]
-     * @throws Asn1StructuralException if this element is not an octet string containing raw data
-     */
-    @Throws(Asn1StructuralException::class)
-    @Deprecated("Use asOctetString instead to avoid copying", ReplaceWith("asOctetString"), DeprecationLevel.ERROR)
-    fun asPrimitiveOctetString() = when (this) {
-        is Asn1EncapsulatingOctetString -> Asn1PrimitiveOctetString(this.content)
-        else -> thisAs<Asn1PrimitiveOctetString>()
-    }
 
     @Throws(Asn1StructuralException::class)
     private inline fun <reified T> thisAs(): T =
@@ -535,126 +513,6 @@ sealed class Asn1Structure(
      * This could be false for parsing non-compliant SETs, for example.
      */
     val isActuallySorted: Boolean by if (sortChildren) lazyOf(true) else lazy { children.sortedBy { it.tag } == children }
-
-    private val backwardsCompatibilityIterator by lazy { iterator() }
-
-    /**
-     * Returns the next child held by this structure. Useful for iterating over its children when parsing complex structures.
-     * @throws [Asn1StructuralException] if no more children are available
-     *### Migration Examples:
-     *
-     * Using `decodeRethrowing`:
-     * ```kotlin
-     * val result = structure.decodeRethrowing {
-     *     val child = next()
-     *     // ...
-     *     DecodedStructure(...)
-     * }
-     * ```
-     *
-     * Manual iteration:
-     * ```kotlin
-     * val iterator = structure.iterator()
-     * while (iterator.hasNext()) {
-     *     val child = iterator.next()
-     *     // Process child
-     * }
-     * ```
-     */
-    @Deprecated(
-        message = "Use an explicit iterator()",
-        level = DeprecationLevel.ERROR
-    )
-    @Throws(Asn1StructuralException::class)
-    fun nextChild() = backwardsCompatibilityIterator.next()
-
-    /**
-     * Exception-free version of [nextChild]
-     *### Migration Examples:
-     *
-     * Using `decodeRethrowing`:
-     * ```kotlin
-     * val result = structure.decodeRethrowing {
-     *     val child = nextOrNull()
-     *     // ...
-     *     DecodedStructure(...)
-     * }
-     * ```
-     *
-     * Manual iteration:
-     * ```kotlin
-     * val iterator = structure.iterator()
-     * while (iterator.hasNext()) {
-     *     val child = iterator.nextOrNull()
-     *     // Process child
-     * }
-     * ```
-     */
-    @Deprecated(
-        message = "Use an explicit iterator()",
-        level = DeprecationLevel.ERROR
-    )
-    fun nextChildOrNull() = backwardsCompatibilityIterator.peek()?.also { backwardsCompatibilityIterator.next() }
-
-    /**
-     * Returns `true` if more children can be retrieved by [nextChild]. `false` otherwise
-     * ### Migration Examples:
-     *
-     * Using `decodeRethrowing`:
-     * ```kotlin
-     * structure.decodeRethrowing {
-     *     if (hasNext()) {
-     *         // ...
-     *     }
-     *     DecodedStructure(...)
-     * }
-     * ```
-     *
-     * Manual iteration:
-     * ```kotlin
-     * val iterator = structure.iterator()
-     * if (iterator.hasNext()) {
-     *     // ...
-     * }
-     * ```
-     */
-    @Deprecated(
-        message = "Use an explicit iterator()",
-        level = DeprecationLevel.ERROR
-    )
-    fun hasMoreChildren() = backwardsCompatibilityIterator.hasNext()
-
-    /**
-     * Returns the current child or `null`, if there are no children left
-     * (useful when iterating over this structure's children).
-     * ### Migration Examples:
-     *
-     * Using `decodeRethrowing`:
-     * ```kotlin
-     * structure.decodeRethrowing {
-     *     val decodedChild = peek()?.let {
-     *         // Inspect or conditionally consume the child
-     *         val child = next()
-     *         // ...
-     *     }
-     *     DecodedStructure(...)
-     * }
-     * ```
-     *
-     * Manual iteration:
-     * ```kotlin
-     * val iterator = structure.iterator()
-     * val child = iterator.peek()
-     * if (child != null) {
-     *     // Inspect child without consuming it
-     * }
-     * ```
-     */
-    @Deprecated(
-        message = "Use an explicit iterator()",
-        level = DeprecationLevel.ERROR
-    )
-    fun peek() = backwardsCompatibilityIterator.peek()
 
     override operator fun iterator() = Iterator(isForward = true)
     fun reverseIterator() = Iterator(isForward = false)
