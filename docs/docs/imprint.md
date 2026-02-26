@@ -6,7 +6,7 @@ hide:
 
 # Imprint
 Awesome Syntax Notation One (awesn1)  
-Created 2026 by A-SIT&nbsp;Plus with **invaluable** support
+Created 2026 by [A-SIT&nbsp;Plus](https://plus.a-sit.at) with **invaluable** support
 from [Oleg&nbsp;Yukhnevich](https://github.com/whyoleg/).
 {:.imprint-mono}
 

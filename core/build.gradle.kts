@@ -24,7 +24,6 @@ kotlin {
     sourceSets {
         commonMain {
             dependencies {
-                api(libs.kotlinx.io.core)
                 api(serialization("json"))
             }
         }

@@ -3,7 +3,6 @@ package at.asitplus.awesn1.encoding
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.VarUInt.Companion.decodeAsn1VarBigUInt
 import at.asitplus.awesn1.VarUInt.Companion.writeAsn1VarInt
-import kotlinx.io.*
 import kotlin.math.ceil
 
 private const val UVARINT_SINGLEBYTE_MAXVALUE_UBYTE: UByte = 0x80u
@@ -334,7 +333,7 @@ val Int.bitLength inline get() = Int.SIZE_BITS - this.countLeadingZeroBits()
  * @throws IllegalArgumentException if the number is larger than [ULong.MAX_VALUE]
  */
 @Throws(IllegalArgumentException::class)
-fun Source.decodeAsn1VarULong(): Pair<ULong, ByteArray> = decodeAsn1VarInt(ULong.SIZE_BITS)
+fun Source<*>.decodeAsn1VarULong(): Pair<ULong, ByteArray> = decodeAsn1VarInt(ULong.SIZE_BITS)
 
 /**
  * Decodes an ASN.1 unsigned varint to an [UInt], copying all bytes from the source into a [ByteArray].
@@ -343,7 +342,7 @@ fun Source.decodeAsn1VarULong(): Pair<ULong, ByteArray> = decodeAsn1VarInt(ULong
  * @throws IllegalArgumentException if the number is larger than [UInt.MAX_VALUE]
  */
 @Throws(IllegalArgumentException::class)
-fun Source.decodeAsn1VarUInt(): Pair<UInt, ByteArray> =
+fun Source<*>.decodeAsn1VarUInt(): Pair<UInt, ByteArray> =
     decodeAsn1VarInt(UInt.SIZE_BITS).let { (n, b) -> n.toUInt() to b }
 
 /**
@@ -356,10 +355,10 @@ fun Source.decodeAsn1VarUInt(): Pair<UInt, ByteArray> =
  * @throws IllegalArgumentException if the resulting number requires more than [bits] many bits to be represented
  */
 @Throws(IllegalArgumentException::class)
-private fun Source.decodeAsn1VarInt(bits: Int): Pair<ULong, ByteArray> {
+private fun Source<*>.decodeAsn1VarInt(bits: Int): Pair<ULong, ByteArray> {
     var offset = 0
     var result = 0uL
-    val accumulator = Buffer()
+    val accumulator = ByteArraySink()//TODO
     while (!exhausted()) {
         val current = readUByte()
         accumulator.writeUByte(current)
@@ -400,7 +399,7 @@ fun Sink.writeTwosComplementUInt(number: UInt) = writeTwosComplementLong(number.
  * @throws IllegalArgumentException if too much or too little data is present
  */
 @Throws(IllegalArgumentException::class)
-fun Source.readTwosComplementULong(nBytes: Int): ULong = ULong.fromTwosComplementByteArray(readByteArray(nBytes))
+fun Source<*>.readTwosComplementULong(nBytes: Int): ULong = ULong.fromTwosComplementByteArray(readByteArray(nBytes))
 
 
 /**
@@ -409,7 +408,7 @@ fun Source.readTwosComplementULong(nBytes: Int): ULong = ULong.fromTwosComplemen
  * @throws IllegalArgumentException if too much or too little data is present
  */
 @Throws(IllegalArgumentException::class)
-fun Source.readTwosComplementLong(nBytes: Int): Long = Long.fromTwosComplementByteArray(readByteArray(nBytes))
+fun Source<*>.readTwosComplementLong(nBytes: Int): Long = Long.fromTwosComplementByteArray(readByteArray(nBytes))
 
 
 /**
@@ -418,7 +417,7 @@ fun Source.readTwosComplementLong(nBytes: Int): Long = Long.fromTwosComplementBy
  * @throws IllegalArgumentException if too much or too little data is present
  */
 @Throws(IllegalArgumentException::class)
-fun Source.readTwosComplementInt(nBytes: Int): Int = Int.fromTwosComplementByteArray(readByteArray(nBytes))
+fun Source<*>.readTwosComplementInt(nBytes: Int): Int = Int.fromTwosComplementByteArray(readByteArray(nBytes))
 
 /**
  * Consumes exactly [nBytes] remaining data from this source and interprets it as a [UInt]
@@ -426,7 +425,7 @@ fun Source.readTwosComplementInt(nBytes: Int): Int = Int.fromTwosComplementByteA
  * @throws IllegalArgumentException if no or too much data is present
  */
 @Throws(IllegalArgumentException::class)
-fun Source.readTwosComplementUInt(nBytes: Int): UInt = UInt.fromTwosComplementByteArray(readByteArray(nBytes))
+fun Source<*>.readTwosComplementUInt(nBytes: Int): UInt = UInt.fromTwosComplementByteArray(readByteArray(nBytes))
 
 /**
  *  Encodes a positive Long to a minimum-size unsigned byte array, omitting the leading zero
@@ -463,7 +462,7 @@ fun Sink.writeAsn1VarInt(number: Asn1Integer): Int {
  *
  * @return the decoded [Asn1Integer] and the underlying varint-encoded bytes as [ByteArray]
  */
-fun Source.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> =
+fun Source<*>.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> =
     decodeAsn1VarBigUInt().let { (uint, bytes) -> Asn1Integer.Positive(uint) to bytes }
 
 /**

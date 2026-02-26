@@ -1,10 +1,10 @@
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.encoding.ByteArraySink
+import at.asitplus.awesn1.encoding.Sink
 import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
-import kotlinx.io.Buffer
-import kotlinx.io.Sink
-import kotlinx.io.readByteArray
+
 import java.math.BigInteger
 import kotlin.div
 import kotlin.experimental.and
@@ -73,4 +73,4 @@ fun Sink.writeAsn1VarInt(number: BigInteger): Int {
  * while the highest bit indicates if more bytes are to come
  */
 @Throws(IllegalArgumentException::class)
-fun BigInteger.toAsn1VarInt(): ByteArray = Buffer().also { it.writeAsn1VarInt(this) }.readByteArray()
+fun BigInteger.toAsn1VarInt(): ByteArray = ByteArraySink().also { it.writeAsn1VarInt(this) }.readByteArray()

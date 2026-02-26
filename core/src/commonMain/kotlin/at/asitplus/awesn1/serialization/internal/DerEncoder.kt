@@ -2,12 +2,12 @@ package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.encoding.Sink
 import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.asn1Tag
 import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
-import kotlinx.io.Sink
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.PolymorphicKind
 import kotlinx.serialization.descriptors.SerialDescriptor

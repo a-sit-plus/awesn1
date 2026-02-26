@@ -30,4 +30,5 @@ develocity {
 includeBuild("build-logic")
 
 include(":core")
+include(":kxio")
 rootProject.name = "awesn1"

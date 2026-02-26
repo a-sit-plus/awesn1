@@ -1,17 +1,15 @@
 package at.asitplus.awesn1
 
-import kotlinx.io.*
-import kotlinx.io.unsafe.UnsafeBufferOperations
+import at.asitplus.awesn1.encoding.ByteArraySink
+import at.asitplus.awesn1.encoding.ByteArraySource
+import at.asitplus.awesn1.encoding.Source
 
 /**
  * Directly moves the byte array to a buffer without copying. Thus, it keeps bytes managed by a Buffer accessible.
  * The bytes may be overwritten through the Buffer or even recycled to be used by another buffer.
  * Therefore, operating on these bytes after wrapping leads to undefined behaviour.
  */
-@UnsafeIoApi
-fun ByteArray.wrapInUnsafeSource(): Source = Buffer().apply {
-    UnsafeBufferOperations.moveToTail(this, this@wrapInUnsafeSource)
-}
+fun ByteArray.wrapInUnsafeSource(): Source<*> = wrapInUnsafeSource(this)
 
 /**
  * Directly moves the byte array to a buffer without copying. Thus, it keeps bytes managed by a Buffer accessible.
@@ -19,37 +17,17 @@ fun ByteArray.wrapInUnsafeSource(): Source = Buffer().apply {
  * Therefore, operating on these bytes after wrapping leads to undefined behaviour.
  * [startIndex] is inclusive, [endIndex] is exclusive.
  */
-@UnsafeIoApi
-internal fun wrapInUnsafeSource(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size) = Buffer().apply {
-    require(startIndex in 0..endIndex) { "StartIndex bust be between 0 and $endIndex" }
-    UnsafeBufferOperations.moveToTail(this, bytes, startIndex, endIndex)
-}
+internal fun wrapInUnsafeSource(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size) = ByteArraySource(bytes, startIndex, endIndex-1)
 
 /**
  * Helper to create a buffer, operate on it and return its contents as a [ByteArray]
  */
-internal inline fun throughBuffer(operation: (Buffer) -> Unit): ByteArray =
-    Buffer().also(operation).readByteArray()
+internal inline fun throughBuffer(operation: (ByteArraySink) -> Unit): ByteArray =
+    ByteArraySink().also(operation).readByteArray()
 
-@OptIn(UnsafeIoApi::class)
-internal inline fun <reified T> ByteArray.throughBuffer(operation: (Source) -> T): T =
+internal inline fun <reified T> ByteArray.throughBuffer(operation: (Source<*>) -> T): T =
     operation(wrapInUnsafeSource())
 
-
-/**
- * Directly appends [bytes] to this Sink's internal Buffer without copying. Thus, it keeps bytes managed by a Buffer accessible.
- * The bytes may be overwritten through the Buffer or even recycled to be used by another buffer.
- * Therefore, operating on these bytes after wrapping leads to undefined behaviour.
- * [startIndex] is inclusive, [endIndex] is exclusive.
- */
-@OptIn(DelicateIoApi::class, UnsafeIoApi::class)
-internal fun Sink.appendUnsafe(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size): Int {
-    require(startIndex in 0..<endIndex) { "StartIndex must be between 0 and $endIndex" }
-    writeToInternalBuffer {
-        UnsafeBufferOperations.moveToTail(it, bytes, startIndex, endIndex)
-    }
-    return endIndex - startIndex
-}
 
 /** Drops bytes at the start, or adds zero bytes at the start, until the [size] is reached */
 fun ByteArray.ensureSize(size: Int): ByteArray = (this.size - size).let { toDrop ->

@@ -78,8 +78,8 @@ val Asn1NumberEncodingTest by testSuite {
                     val toTwosComplementByteArray = it.toTwosComplementByteArray()
                     toTwosComplementByteArray.wrapInUnsafeSource()
                         .readTwosComplementLong(toTwosComplementByteArray.size) shouldBe it
-                    Buffer().apply { writeTwosComplementLong(it) }.snapshot()
-                        .toByteArray() shouldBe toTwosComplementByteArray
+                    ByteArraySink().apply { writeTwosComplementLong(it) }
+                        .readByteArray() shouldBe toTwosComplementByteArray
 
                 }
             }

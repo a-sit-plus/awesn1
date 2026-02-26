@@ -10,7 +10,6 @@ import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.asn1Tag
 import at.asitplus.awesn1.serialization.isAsn1BitString
 import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
-import kotlinx.io.Source
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.builtins.serializer
@@ -41,7 +40,7 @@ class DerDecoder internal constructor(
 ) : AbstractDecoder(), at.asitplus.awesn1.serialization.DerDecoder {
 
     internal constructor(
-        source: Source,
+        source: Source<*>,
         serializersModule: SerializersModule = EmptySerializersModule(),
         der: Der = Der(),
         layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),

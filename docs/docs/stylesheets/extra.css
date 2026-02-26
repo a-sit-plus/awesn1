@@ -521,4 +521,8 @@ h6,
 .md-copyright {
   font-family: "VT323", monospace;
   font-size: 1rem;
+  line-height: 1;
+}
+.md-copyright__highlight > a{
+  color: var(--awesn-amber-1) !important;
 }

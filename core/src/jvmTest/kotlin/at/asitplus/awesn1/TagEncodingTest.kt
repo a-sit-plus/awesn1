@@ -34,7 +34,7 @@ val TagEncodingTest by testSuite {
 
     "length encoding" - {
         checkAll(Arb.positiveInt()) {
-           Buffer().apply { encodeLength(it.toLong()) }.snapshot().toByteArray() shouldBe it.encodeLength()
+           ByteArraySink().apply { encodeLength(it.toLong()) }.readByteArray() shouldBe it.encodeLength()
         }
     }
 

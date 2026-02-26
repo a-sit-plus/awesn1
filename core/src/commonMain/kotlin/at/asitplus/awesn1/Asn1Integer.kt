@@ -2,16 +2,20 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.Asn1Integer.Companion.fromTwosComplement
 import at.asitplus.awesn1.VarUInt.Companion.decimalPlus
+import at.asitplus.awesn1.encoding.ByteArraySink
+import at.asitplus.awesn1.encoding.Sink
+import at.asitplus.awesn1.encoding.Source
 import at.asitplus.awesn1.encoding.UVARINT_MASK_UBYTE
 import at.asitplus.awesn1.encoding.UVARINT_SINGLEBYTE_MAXVALUE
 import at.asitplus.awesn1.encoding.bitLength
 import at.asitplus.awesn1.encoding.decodeToAsn1Integer
 import at.asitplus.awesn1.encoding.toTwosComplementByteArray
 import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
+import at.asitplus.awesn1.encoding.readUByte
+import at.asitplus.awesn1.encoding.writeUByte
 import at.asitplus.awesn1.serialization.Asn1Serializer
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
-import kotlinx.io.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -412,11 +416,10 @@ internal value class VarUInt private constructor(val words: UByteArray) {
             return result.reverse().toMutableList()
         }
 
-        @OptIn(UnsafeIoApi::class)
         internal fun ByteArray.decodeAsn1VarBigUInt() = wrapInUnsafeSource().decodeAsn1VarBigUInt().first
 
-        internal fun Source.decodeAsn1VarBigUInt(): Pair<VarUInt, ByteArray> {
-            val accumulator = Buffer()
+        internal fun Source<*>.decodeAsn1VarBigUInt(): Pair<VarUInt, ByteArray> {
+            val accumulator = ByteArraySink()//TODO hog
             var result = VarUInt()
             val mask = 0x7Fu.toUByte()
             while (!exhausted()) {

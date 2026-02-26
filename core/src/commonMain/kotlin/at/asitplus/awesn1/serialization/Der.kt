@@ -5,8 +5,9 @@ import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
 import at.asitplus.awesn1.ImplementationError
-import kotlinx.io.Buffer
-import kotlinx.io.readByteArray
+import at.asitplus.awesn1.encoding.ByteArraySink
+import at.asitplus.awesn1.encoding.ByteArraySource
+import kotlinx.serialization.BinaryFormat
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
@@ -27,7 +28,38 @@ import kotlin.reflect.typeOf
  */
 class Der internal constructor(
     val configuration: DerConfiguration = DerConfiguration()
-)
+): BinaryFormat {
+    override val serializersModule: SerializersModule
+        get() = configuration.serializersModule
+
+    override fun <T> encodeToByteArray(
+        serializer: SerializationStrategy<T>,
+        value: T
+    ): ByteArray {
+        val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(serializer.descriptor) }
+        val encoder = DerEncoder(
+            serializersModule = configuration.serializersModule,
+            der = this,
+            layoutPlan = layoutPlan,
+        )
+        encoder.encodeSerializableValue(serializer, value)
+        return ByteArraySink().also { encoder.writeTo(it) }.readByteArray()
+    }
+
+    override fun <T> decodeFromByteArray(
+        deserializer: DeserializationStrategy<T>,
+        bytes: ByteArray
+    ): T {
+        val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
+        val decoder = DerDecoder(
+            ByteArraySource(bytes),
+            serializersModule = configuration.serializersModule,
+            der = this,
+            layoutPlan = layoutPlan,
+        )
+        return decoder.decodeSerializableValue(deserializer)
+    }
+}
 
 /**
  * DER format options.
@@ -106,16 +138,7 @@ inline fun <reified T> Der.decodeFromTlv(source: Asn1Element): T =
  */
 @ExperimentalSerializationApi
 @Throws(SerializationException::class)
-fun <T> Der.encodeToDer(serializer: SerializationStrategy<T>, value: T): ByteArray {
-    val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(serializer.descriptor) }
-    val encoder = DerEncoder(
-        serializersModule = configuration.serializersModule,
-        der = this,
-        layoutPlan = layoutPlan,
-    )
-    encoder.encodeSerializableValue(serializer, value)
-    return Buffer().also { encoder.writeTo(it) }.readByteArray()
-}
+fun <T> Der.encodeToDer(serializer: SerializationStrategy<T>, value: T): ByteArray =encodeToByteArray(serializer, value)
 
 /**
  * Encodes [value] with the given [serializer] into a single ASN.1 TLV element.
@@ -145,16 +168,7 @@ fun <T> Der.encodeToTlv(serializer: SerializationStrategy<T>, value: T): Asn1Ele
  */
 @ExperimentalSerializationApi
 @Throws(SerializationException::class)
-fun <T> Der.decodeFromDer(source: ByteArray, deserializer: DeserializationStrategy<T>): T {
-    val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
-    val decoder = DerDecoder(
-        Buffer().also { it.write(source) },
-        serializersModule = configuration.serializersModule,
-        der = this,
-        layoutPlan = layoutPlan,
-    )
-    return decoder.decodeSerializableValue(deserializer)
-}
+fun <T> Der.decodeFromDer(source: ByteArray, deserializer: DeserializationStrategy<T>): T =decodeFromByteArray(deserializer, source)
 
 /**
  * Decodes a single TLV [source] using the given [deserializer].

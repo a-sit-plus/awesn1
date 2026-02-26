@@ -10,10 +10,6 @@ import at.asitplus.awesn1.BERTags.T61_STRING
 import at.asitplus.awesn1.BERTags.UNIVERSAL_STRING
 import at.asitplus.awesn1.BERTags.UTF8_STRING
 import at.asitplus.awesn1.BERTags.VISIBLE_STRING
-import kotlinx.io.Source
-import kotlinx.io.UnsafeIoApi
-import kotlinx.io.readByteArray
-import kotlinx.io.readUByte
 import kotlin.enums.enumEntries
 import kotlin.experimental.and
 import kotlin.jvm.JvmName
@@ -39,7 +35,6 @@ fun Asn1Element.Companion.parse(input: ByteIterator): Asn1Element =
  *
  * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [input]
  */
-@OptIn(UnsafeIoApi::class)
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parse(source: ByteArray): Asn1Element =
     source.wrapInUnsafeSource().readFullyToAsn1Elements().first.let {
@@ -62,7 +57,6 @@ fun Asn1Element.Companion.parse(source: ByteArray): Asn1Element =
 )
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parseAll(input: ByteIterator): List<Asn1Element> =
-    @OptIn(UnsafeIoApi::class)
     mutableListOf<Byte>().also { while (input.hasNext()) it.add(input.nextByte()) }.toByteArray().wrapInUnsafeSource()
         .readFullyToAsn1Elements().first
 
@@ -70,7 +64,6 @@ fun Asn1Element.Companion.parseAll(input: ByteIterator): List<Asn1Element> =
  * Convenience wrapper around [parseAll], taking a [ByteArray] as [source]
  * @see parse
  */
-@OptIn(UnsafeIoApi::class)
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parseAll(source: ByteArray): List<Asn1Element> =
     source.wrapInUnsafeSource().readFullyToAsn1Elements().first
@@ -80,16 +73,15 @@ fun Asn1Element.Companion.parseAll(source: ByteArray): List<Asn1Element> =
  * @return a pair of the first parsed [Asn1Element] mapped to the remaining bytes
  * @see readAsn1Element
  */
-@OptIn(UnsafeIoApi::class)
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parseFirst(source: ByteArray): Pair<Asn1Element, ByteArray> =
     source.wrapInUnsafeSource().readAsn1Element()
         .let { Pair(it.first, source.copyOfRange(it.second.toInt(), source.size)) }
 
 @Suppress("NOTHING_TO_INLINE")
-private inline fun Source.doParseExactly(nBytes: Long): List<Asn1Element> = doParseExactly(nBytes.toULong())
+private inline fun Source<*>.doParseExactly(nBytes: Long): List<Asn1Element> = doParseExactly(nBytes.toULong())
 @JvmName("doParseExactlyULong")
-private fun Source.doParseExactly(nBytes: ULong): List<Asn1Element> = mutableListOf<Asn1Element>().also { list ->
+private fun Source<*>.doParseExactly(nBytes: ULong): List<Asn1Element> = mutableListOf<Asn1Element>().also { list ->
     require(nBytes <= Long.MAX_VALUE.toULong()) { "Max number of bytes to read exceeds ${Long.MAX_VALUE}: $nBytes" }
     var nBytesRead: ULong = 0u
     while (nBytesRead < nBytes) {
@@ -113,7 +105,7 @@ private fun Source.doParseExactly(nBytes: ULong): List<Asn1Element> = mutableLis
  * @throws Asn1Exception on error if any illegal element or any trailing bytes are encountered
  */
 @Throws(Asn1Exception::class)
-fun Source.readFullyToAsn1Elements(): Pair<List<Asn1Element>, Long> = mutableListOf<Asn1Element>().let { list ->
+fun Source<*>.readFullyToAsn1Elements(): Pair<List<Asn1Element>, Long> = mutableListOf<Asn1Element>().let { list ->
     var bytesRead = 0L
     while (!exhausted()) readAsn1Element().also { (elem, nBytes) ->
         bytesRead += nBytes
@@ -125,7 +117,7 @@ fun Source.readFullyToAsn1Elements(): Pair<List<Asn1Element>, Long> = mutableLis
 /**
  * Reads a [TagAndLength] and the number of consumed bytes from the source without consuming it
  */
-private fun Source.peekTagAndLen() = peek().readTagAndLength()
+private fun Source<*>.peekTagAndLen() = peek().readTagAndLength()
 
 /**
  * Decodes a single [Asn1Element] from this source.
@@ -133,7 +125,7 @@ private fun Source.peekTagAndLen() = peek().readTagAndLength()
  * @return the decoded element and the number of bytes read from the source
  */
 @Throws(Asn1Exception::class)
-fun Source.readAsn1Element(): Pair<Asn1Element, Long> = runRethrowing {
+fun Source<*>.readAsn1Element(): Pair<Asn1Element, Long> = runRethrowing {
     val (readTagAndLength, bytesRead) = readTagAndLength()
     readAsn1Element(readTagAndLength, bytesRead)
 }
@@ -142,7 +134,7 @@ fun Source.readAsn1Element(): Pair<Asn1Element, Long> = runRethrowing {
  * RAW decoding of an ASN.1 element after tag and length have already been decoded and consumed from the source
  */
 @Throws(Asn1Exception::class)
-private fun Source.readAsn1Element(tagAndLength: TagAndLength, tagAndLengthBytes: Int): Pair<Asn1Element, Long> =
+private fun Source<*>.readAsn1Element(tagAndLength: TagAndLength, tagAndLengthBytes: Int): Pair<Asn1Element, Long> =
     runRethrowing {
         val (tag, length) = tagAndLength
 
@@ -649,7 +641,7 @@ private val TagAndLength.length: Long get() = second
 /**
  * Reads [TagAndLength] and the number of consumed bytes from the source
  */
-private fun Source.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowing {
+private fun Source<*>.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowing {
     if (exhausted()) throw IllegalArgumentException("Can't read TLV, input empty")
 
     val tag = readAsn1Tag()
@@ -663,7 +655,7 @@ private fun Source.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowing {
  * @return the decoded length and the number of bytes consumed
  */
 @Throws(IllegalArgumentException::class)
-private fun Source.decodeLength(): Pair<Long, Int> =
+private fun Source<*>.decodeLength(): Pair<Long, Int> =
     readByte().let { firstByte ->
         if (firstByte.isBerShortForm()) {
             Pair(firstByte.toUByte().toLong(), 1)
@@ -689,7 +681,7 @@ private fun Byte.isBerShortForm() = this byteMask 0x80 == 0x00.toUByte()
 
 internal infix fun Byte.byteMask(mask: Int) = (this and mask.toUInt().toByte()).toUByte()
 
-fun Source.readAsn1Tag(): Asn1Element.Tag =
+fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
     readByte().let { firstByte ->
         (firstByte byteMask 0x1F).let { tagNumber ->
             if (tagNumber <= 30U) Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))

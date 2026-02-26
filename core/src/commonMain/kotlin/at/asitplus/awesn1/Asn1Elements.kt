@@ -6,9 +6,6 @@ package at.asitplus.awesn1
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.serialization.Asn1ElementSerializer
-import kotlinx.io.Buffer
-import kotlinx.io.Sink
-import kotlinx.io.readByteArray
 import kotlinx.serialization.Serializable
 import kotlin.experimental.ExperimentalObjCName
 import kotlin.getValue
@@ -78,7 +75,7 @@ sealed class Asn1Element(
     val overallLength by lazy { contentLength + tag.encodedTagLength + encodedLength.size }
 
 
-    private val derEncodedLazy = lazy { Buffer().also { encodeTo(it) }.readByteArray() }
+    private val derEncodedLazy = lazy { ByteArraySink().also { encodeTo(it) }.readByteArray() } //TODO performance hog?
 
     /**
      * Lazily-evaluated DER-encoded representation of this ASN.1 element
@@ -1155,11 +1152,12 @@ internal fun Sink.encodeLength(len: Long): Int {
     return when {
         (len < 0x80) -> writeByte(len.toByte()).run { 1 } /* short form */
         else -> { /* long form */
-            val length = Buffer()
+            val length = ByteArraySink()
             val lengthLength = length.writeMagnitudeLong(len)
             check(lengthLength < 0x80)
             writeByte((lengthLength or 0x80).toByte())
-            length.transferTo(this)
+            write(length.readByteArray())//TODO this is a huge performance hog
+            //length.transferTo(this)
             1 + lengthLength
         }
     }

@@ -74,8 +74,8 @@ val UVarIntTest by testSuite {
                 val bigIntVarInt = bigInteger.toJavaBigInteger().toAsn1VarInt()
 
                 bigIntVarInt shouldBe uLongVarInt
-                Buffer().apply { writeAsn1VarInt(bigInteger.toJavaBigInteger()) }.snapshot().toByteArray() shouldBe bigIntVarInt
-                Buffer().apply { writeAsn1VarInt(long) }.snapshot().toByteArray() shouldBe uLongVarInt
+                ByteArraySink().apply { writeAsn1VarInt(bigInteger.toJavaBigInteger()) }.readByteArray() shouldBe bigIntVarInt
+                ByteArraySink().apply { writeAsn1VarInt(long) }.readByteArray() shouldBe uLongVarInt
 
                 val rnd = Random.nextBytes(8)
                 val src = uLongVarInt.asList() + rnd.asList()
