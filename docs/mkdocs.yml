@@ -1,0 +1,83 @@
+site_name: awesn.1 | Awesome Syntax Notation One
+site_url: https://a-sit-plus.github.io/awesn.1/
+
+theme:
+  name: material
+  logo: assets/awesn1.svg
+  favicon: assets/icon.svg
+  custom_dir: overrides
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - announce.dismiss
+  icon:
+    repo: github
+
+  palette:
+      scheme: dark
+      font:
+        text: Roboto
+
+
+extra_css:
+  - stylesheets/extra.css
+
+repo_url: https://github.com/a-sit-plus/awesn.1
+repo_name: a-sit-plus/awesn.1
+
+copyright: Copyright &copy; 2026 A-SIT Plus &bull; <a href="https://plus.a-sit.at/imprint.html" target="_blank">Imprint</a>
+
+plugins:
+  - social
+  - search
+  - macros
+  - open-in-new-tab
+
+extra:
+  social:
+    - icon: fontawesome/solid/earth-americas
+      link: https://a-sit-plus.github.io
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:<opensource@a-sit.at>
+
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      check_paths: true
+      dedent_subsections: true
+      base_path:
+        - ../supreme/verifier/src/jvmTest/kotlin/examples/
+        - ../supreme/client/src/commonTest/kotlin/examples/
+        - docs/examples/
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tilde
+  - md_in_html
+  - attr_list
+
+nav:
+  - Manual:
+      - Overview: core.md
+      - CHANGELOG.md
+      - Examples: examples.md
+      - Addons: addons.md
+  - Feature Matrix: features.md
+  - Showcase App: app.md
+  - API Docs: dokka/index.html

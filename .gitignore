@@ -5,3 +5,6 @@ build/
 */build/
 metrics/
 .idea
+/docs/docs/CHANGELOG.md
+/docs/site
+

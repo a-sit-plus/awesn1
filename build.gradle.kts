@@ -20,8 +20,8 @@ subprojects {
     }
 }
 //work around nexus publish bug
-val indispensableVersion: String by extra
-version = indispensableVersion
+val awesn1Version: String by extra
+version = awesn1Version
 
 nexusPublishing {
     transitionCheckOptions {
@@ -54,16 +54,10 @@ tasks.register<Copy>("copyChangelog") {
     into(rootDir.resolve("docs/docs"))
     from("CHANGELOG.md")
 }
-tasks.register<Copy>("copyAppLegend") {
-    into(rootDir.resolve("docs/docs/assets"))
-    from("demoapp/legend.png")
-    from("demoapp/app.png")
-}
 
 tasks.register<Copy>("mkDocsPrepare") {
     dependsOn("dokkaGenerate")
     dependsOn("copyChangelog")
-    dependsOn("copyAppLegend")
     into(rootDir.resolve("docs/docs/dokka"))
     from(dokkaDir)
 }

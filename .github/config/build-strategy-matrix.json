@@ -1,0 +1,12 @@
+{
+  "include" : [
+    {
+      "module": "core",
+      "artifactName": "core"
+    },
+    {
+      "module": "kxio",
+      "artifactName": "kotlinx-io"
+    }
+  ]
+}
