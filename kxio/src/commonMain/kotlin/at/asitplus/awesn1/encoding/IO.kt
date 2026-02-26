@@ -21,7 +21,8 @@ value class KxIoSource(val source: kotlinx.io.Source) : Source<KxIoSink> {
 
 }
 
-class KxIoSink(internal val sink: kotlinx.io.Sink) : Sink {
+@JvmInline
+value class KxIoSink(internal val sink: kotlinx.io.Sink) : Sink {
     override fun writeByte(byte: Byte) =sink.writeByte(byte)
 
     override fun write(bytes: ByteArray, startIndex: Int, endIndex: Int)=sink.write(bytes, startIndex, endIndex)
