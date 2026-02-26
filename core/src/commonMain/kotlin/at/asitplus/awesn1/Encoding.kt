@@ -9,6 +9,7 @@ import at.asitplus.awesn1.encoding.Source
  * The bytes may be overwritten through the Buffer or even recycled to be used by another buffer.
  * Therefore, operating on these bytes after wrapping leads to undefined behaviour.
  */
+//Dunno, maybe a real source would be nice
 fun ByteArray.wrapInUnsafeSource(): Source<*> = wrapInUnsafeSource(this)
 
 /**
@@ -22,11 +23,9 @@ internal fun wrapInUnsafeSource(bytes: ByteArray, startIndex: Int = 0, endIndex:
 /**
  * Helper to create a buffer, operate on it and return its contents as a [ByteArray]
  */
+//a buffer would be nice here
 internal inline fun throughBuffer(operation: (ByteArraySink) -> Unit): ByteArray =
     ByteArraySink().also(operation).readByteArray()
-
-internal inline fun <reified T> ByteArray.throughBuffer(operation: (Source<*>) -> T): T =
-    operation(wrapInUnsafeSource())
 
 
 /** Drops bytes at the start, or adds zero bytes at the start, until the [size] is reached */

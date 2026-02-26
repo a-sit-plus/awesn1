@@ -13,7 +13,7 @@ val SerializationTutorial07AmbiguityReject by testSuite(
 ) {
     "Ambiguous nullable layout is rejected" {
         shouldThrow<SerializationException> {
-            DER.encodeToDer(TutorialAmbiguous(first = null, second = 9))
+            DER.encodeToByteArray(TutorialAmbiguous(first = null, second = 9))
         }.message.shouldContain("Ambiguous ASN.1 layout")
     }
 }

@@ -14,9 +14,9 @@ val SerializationTestAsn1String by testSuite(
 ) {
     "String" {
         val str = Asn1String.UTF8("foo")
-        val serialized = DER.encodeToDer(str)
+        val serialized = DER.encodeToByteArray(str)
 
-        DER.decodeFromDer<Asn1String>(serialized) shouldBe str
-        DER.decodeFromDer<Asn1String.UTF8>(serialized) shouldBe str
+        DER.decodeFromByteArray<Asn1String>(serialized) shouldBe str
+        DER.decodeFromByteArray<Asn1String.UTF8>(serialized) shouldBe str
     }
 }

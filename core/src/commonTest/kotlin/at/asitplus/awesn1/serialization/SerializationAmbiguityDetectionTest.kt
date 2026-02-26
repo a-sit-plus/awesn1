@@ -17,10 +17,10 @@ val SerializationTestAmbiguityDetection by testSuite(
     "Generic nullable ambiguity is rejected at runtime" {
         val ambiguous = AmbiguousNullableStringLayout("first", null, "third")
         shouldThrow<SerializationException> {
-            DER.encodeToDer(ambiguous)
+            DER.encodeToByteArray(ambiguous)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<AmbiguousNullableStringLayout>("300e0c0566697273740c057468697264".hexToByteArray())
+            DER.decodeFromByteArray<AmbiguousNullableStringLayout>("300e0c0566697273740c057468697264".hexToByteArray())
         }
     }
 
@@ -28,8 +28,8 @@ val SerializationTestAmbiguityDetection by testSuite(
         val valueWithoutSecond = TaggedNullableStringLayout("first", null, "third")
         val valueWithSecond = TaggedNullableStringLayout("first", "second", "third")
 
-        DER.decodeFromDer<TaggedNullableStringLayout>(DER.encodeToDer(valueWithoutSecond)) shouldBe valueWithoutSecond
-        DER.decodeFromDer<TaggedNullableStringLayout>(DER.encodeToDer(valueWithSecond)) shouldBe valueWithSecond
+        DER.decodeFromByteArray<TaggedNullableStringLayout>(DER.encodeToByteArray(valueWithoutSecond)) shouldBe valueWithoutSecond
+        DER.decodeFromByteArray<TaggedNullableStringLayout>(DER.encodeToByteArray(valueWithSecond)) shouldBe valueWithSecond
     }
 
     "Consecutive nullable numeric fields are ambiguous without tags" {
@@ -43,10 +43,10 @@ val SerializationTestAmbiguityDetection by testSuite(
         )
 
         shouldThrow<SerializationException> {
-            DER.encodeToDer(value)
+            DER.encodeToByteArray(value)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<ConsecutiveNumericNullables>("3000".hexToByteArray())
+            DER.decodeFromByteArray<ConsecutiveNumericNullables>("3000".hexToByteArray())
         }
     }
 
@@ -68,8 +68,8 @@ val SerializationTestAmbiguityDetection by testSuite(
             doubleValue = 6.25
         )
 
-        DER.decodeFromDer<TaggedConsecutiveNumericNullables>(DER.encodeToDer(mostlyNull).also { println("!: "+it.toHexString()) }) shouldBe mostlyNull
-        DER.decodeFromDer<TaggedConsecutiveNumericNullables>(DER.encodeToDer(mostlySet).also { println("2: "+it.toHexString()) }) shouldBe mostlySet
+        DER.decodeFromByteArray<TaggedConsecutiveNumericNullables>(DER.encodeToByteArray(mostlyNull).also { println("!: "+it.toHexString()) }) shouldBe mostlyNull
+        DER.decodeFromByteArray<TaggedConsecutiveNumericNullables>(DER.encodeToByteArray(mostlySet).also { println("2: "+it.toHexString()) }) shouldBe mostlySet
     }
 
     "Consecutive nullable fields with distinct ASN.1 primitive kinds are unambiguous without tags" {
@@ -79,7 +79,7 @@ val SerializationTestAmbiguityDetection by testSuite(
             floatValue = 1.25f,
             stringValue = "ok"
         )
-        DER.decodeFromDer<ConsecutiveDistinctNullableKinds>(DER.encodeToDer(value)) shouldBe value
+        DER.decodeFromByteArray<ConsecutiveDistinctNullableKinds>(DER.encodeToByteArray(value)) shouldBe value
     }
 
     "Partially tagged nullable numeric fields can still be ambiguous" {
@@ -93,10 +93,10 @@ val SerializationTestAmbiguityDetection by testSuite(
         )
 
         shouldThrow<SerializationException> {
-            DER.encodeToDer(value)
+            DER.encodeToByteArray(value)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<PartiallyTaggedAmbiguousNumericNullables>("3000".hexToByteArray())
+            DER.decodeFromByteArray<PartiallyTaggedAmbiguousNumericNullables>("3000".hexToByteArray())
         }
     }
 
@@ -118,16 +118,16 @@ val SerializationTestAmbiguityDetection by testSuite(
             doubleValue = 7.5
         )
 
-        DER.decodeFromDer<PartiallyTaggedUnambiguousNumericNullables>(DER.encodeToDer(mostlyNull)) shouldBe mostlyNull
-        DER.decodeFromDer<PartiallyTaggedUnambiguousNumericNullables>(DER.encodeToDer(mostlySet)) shouldBe mostlySet
+        DER.decodeFromByteArray<PartiallyTaggedUnambiguousNumericNullables>(DER.encodeToByteArray(mostlyNull)) shouldBe mostlyNull
+        DER.decodeFromByteArray<PartiallyTaggedUnambiguousNumericNullables>(DER.encodeToByteArray(mostlySet)) shouldBe mostlySet
     }
 
     "Tag class is considered for ambiguity disambiguation" {
         val withoutTagged = ContextSpecificVsUniversalInt(null, 7)
         val withTagged = ContextSpecificVsUniversalInt(5, 7)
 
-        DER.decodeFromDer<ContextSpecificVsUniversalInt>(DER.encodeToDer(withoutTagged)) shouldBe withoutTagged
-        DER.decodeFromDer<ContextSpecificVsUniversalInt>(DER.encodeToDer(withTagged)) shouldBe withTagged
+        DER.decodeFromByteArray<ContextSpecificVsUniversalInt>(DER.encodeToByteArray(withoutTagged)) shouldBe withoutTagged
+        DER.decodeFromByteArray<ContextSpecificVsUniversalInt>(DER.encodeToByteArray(withTagged)) shouldBe withTagged
     }
 
     "Class-level tags participate in ambiguity detection" {
@@ -136,10 +136,10 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = PlainIntBox(7)
         )
         shouldThrow<SerializationException> {
-            DER.encodeToDer(ambiguous)
+            DER.encodeToByteArray(ambiguous)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<NullablePlainIntBoxThenPlainIntBox>("3000".hexToByteArray())
+            DER.decodeFromByteArray<NullablePlainIntBoxThenPlainIntBox>("3000".hexToByteArray())
         }
 
         val taggedWithoutFirst = NullableClassTaggedIntBoxes(
@@ -151,8 +151,8 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = ClassTaggedIntBoxB(7)
         )
 
-        DER.decodeFromDer<NullableClassTaggedIntBoxes>(DER.encodeToDer(taggedWithoutFirst)) shouldBe taggedWithoutFirst
-        DER.decodeFromDer<NullableClassTaggedIntBoxes>(DER.encodeToDer(taggedWithFirst)) shouldBe taggedWithFirst
+        DER.decodeFromByteArray<NullableClassTaggedIntBoxes>(DER.encodeToByteArray(taggedWithoutFirst)) shouldBe taggedWithoutFirst
+        DER.decodeFromByteArray<NullableClassTaggedIntBoxes>(DER.encodeToByteArray(taggedWithFirst)) shouldBe taggedWithFirst
     }
 
     "Mixed property and class-level tags can still be ambiguous" {
@@ -161,10 +161,10 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = ClassImplicitIntBoxB(9)
         )
         shouldThrow<SerializationException> {
-            DER.encodeToDer(ambiguous)
+            DER.encodeToByteArray(ambiguous)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<NullableMixedTagLayeringStillAmbiguous>("3000".hexToByteArray())
+            DER.decodeFromByteArray<NullableMixedTagLayeringStillAmbiguous>("3000".hexToByteArray())
         }
     }
 
@@ -178,8 +178,8 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = ClassImplicitIntBoxB(9)
         )
 
-        DER.decodeFromDer<NullableMixedTagLayeringDisambiguated>(DER.encodeToDer(withoutFirst)) shouldBe withoutFirst
-        DER.decodeFromDer<NullableMixedTagLayeringDisambiguated>(DER.encodeToDer(withFirst)) shouldBe withFirst
+        DER.decodeFromByteArray<NullableMixedTagLayeringDisambiguated>(DER.encodeToByteArray(withoutFirst)) shouldBe withoutFirst
+        DER.decodeFromByteArray<NullableMixedTagLayeringDisambiguated>(DER.encodeToByteArray(withFirst)) shouldBe withFirst
     }
 
     "Property implicit and class explicit layering works with nullable fields" {
@@ -192,8 +192,8 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = ClassExplicitIntBox(5)
         )
 
-        DER.decodeFromDer<NullablePropertyImplicitClassExplicit>(DER.encodeToDer(withoutFirst)) shouldBe withoutFirst
-        DER.decodeFromDer<NullablePropertyImplicitClassExplicit>(DER.encodeToDer(withFirst)) shouldBe withFirst
+        DER.decodeFromByteArray<NullablePropertyImplicitClassExplicit>(DER.encodeToByteArray(withoutFirst)) shouldBe withoutFirst
+        DER.decodeFromByteArray<NullablePropertyImplicitClassExplicit>(DER.encodeToByteArray(withFirst)) shouldBe withFirst
     }
 
     "explicitNulls=true removes omission ambiguity for nullable properties" {
@@ -204,10 +204,10 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = 7
         )
         shouldThrow<SerializationException> {
-            DER.encodeToDer(ambiguous)
+            DER.encodeToByteArray(ambiguous)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<NullableIntThenIntAmbiguous>("3000".hexToByteArray())
+            DER.decodeFromByteArray<NullableIntThenIntAmbiguous>("3000".hexToByteArray())
         }
 
         val explicitNullsEncodedNull = NullableIntThenIntAmbiguous(
@@ -219,11 +219,11 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = 7
         )
 
-        derExplicitNulls.decodeFromDer<NullableIntThenIntAmbiguous>(
-            derExplicitNulls.encodeToDer(explicitNullsEncodedNull)
+        derExplicitNulls.decodeFromByteArray<NullableIntThenIntAmbiguous>(
+            derExplicitNulls.encodeToByteArray(explicitNullsEncodedNull)
         ) shouldBe explicitNullsEncodedNull
-        derExplicitNulls.decodeFromDer<NullableIntThenIntAmbiguous>(
-            derExplicitNulls.encodeToDer(explicitNullsEncodedSet)
+        derExplicitNulls.decodeFromByteArray<NullableIntThenIntAmbiguous>(
+            derExplicitNulls.encodeToByteArray(explicitNullsEncodedSet)
         ) shouldBe explicitNullsEncodedSet
     }
 
@@ -235,10 +235,10 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = PlainIntBox(7)
         )
         shouldThrow<SerializationException> {
-            DER.encodeToDer(ambiguous)
+            DER.encodeToByteArray(ambiguous)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<NullablePlainObjectThenPlainIntBox>("3000".hexToByteArray())
+            DER.decodeFromByteArray<NullablePlainObjectThenPlainIntBox>("3000".hexToByteArray())
         }
 
         val explicitNullsEncodedNull = NullablePlainObjectThenPlainIntBox(
@@ -250,11 +250,11 @@ val SerializationTestAmbiguityDetection by testSuite(
             second = PlainIntBox(7)
         )
 
-        derExplicitNulls.decodeFromDer<NullablePlainObjectThenPlainIntBox>(
-            derExplicitNulls.encodeToDer(explicitNullsEncodedNull)
+        derExplicitNulls.decodeFromByteArray<NullablePlainObjectThenPlainIntBox>(
+            derExplicitNulls.encodeToByteArray(explicitNullsEncodedNull)
         ) shouldBe explicitNullsEncodedNull
-        derExplicitNulls.decodeFromDer<NullablePlainObjectThenPlainIntBox>(
-            derExplicitNulls.encodeToDer(explicitNullsEncodedSet)
+        derExplicitNulls.decodeFromByteArray<NullablePlainObjectThenPlainIntBox>(
+            derExplicitNulls.encodeToByteArray(explicitNullsEncodedSet)
         ) shouldBe explicitNullsEncodedSet
     }
 }

@@ -14,15 +14,15 @@ val SerializationTutorial06Choice by testSuite(
     "Sealed CHOICE uses sealed polymorphism" - {
         "INT" {
             val value = (TutorialChoiceInt(7))
-            val der = DER.encodeToDer(value)
+            val der = DER.encodeToByteArray(value)
             der.toHexString() shouldBe "3003020107"
-            DER.decodeFromDer<TutorialChoice>(der) shouldBe value
+            DER.decodeFromByteArray<TutorialChoice>(der) shouldBe value
         }
         "BOOL" {
             val value = (TutorialChoiceBool(true))
-            val der = DER.encodeToDer(value)
+            val der = DER.encodeToByteArray(value)
             der.toHexString() shouldBe "bf8a39030101ff"
-            DER.decodeFromDer<TutorialChoice>(der) shouldBe value
+            DER.decodeFromByteArray<TutorialChoice>(der) shouldBe value
         }
     }
 }

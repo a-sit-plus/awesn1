@@ -16,7 +16,7 @@ val SerializationTestMapSupport by testSuite(
 ) {
     "Map roundtrip is supported" {
         val plainMap = mapOf(1 to true, 2 to false, 3 to true)
-        DER.decodeFromDer<Map<Int, Boolean>>(DER.encodeToDer(plainMap)) shouldBe plainMap
+        DER.decodeFromByteArray<Map<Int, Boolean>>(DER.encodeToByteArray(plainMap)) shouldBe plainMap
 
         val wrapped = MapInEnvelope(
             prefix = "map-check",
@@ -24,7 +24,7 @@ val SerializationTestMapSupport by testSuite(
             suffix = listOf(7, 8, 9)
         )
 
-        DER.decodeFromDer<MapInEnvelope>(DER.encodeToDer(wrapped)) shouldBe wrapped
+        DER.decodeFromByteArray<MapInEnvelope>(DER.encodeToByteArray(wrapped)) shouldBe wrapped
     }
 
     "Nullable map/list ambiguity is rejected unless tagged" {
@@ -33,10 +33,10 @@ val SerializationTestMapSupport by testSuite(
             values = listOf(1, 2, 3)
         )
         shouldThrow<SerializationException> {
-            DER.encodeToDer(ambiguous)
+            DER.encodeToByteArray(ambiguous)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<AmbiguousNullableMapThenList>("3000".hexToByteArray())
+            DER.decodeFromByteArray<AmbiguousNullableMapThenList>("3000".hexToByteArray())
         }
 
         val taggedWithoutMap = TaggedNullableMapThenList(
@@ -48,8 +48,8 @@ val SerializationTestMapSupport by testSuite(
             values = listOf(1, 2, 3)
         )
 
-        DER.decodeFromDer<TaggedNullableMapThenList>(DER.encodeToDer(taggedWithoutMap)) shouldBe taggedWithoutMap
-        DER.decodeFromDer<TaggedNullableMapThenList>(DER.encodeToDer(taggedWithMap)) shouldBe taggedWithMap
+        DER.decodeFromByteArray<TaggedNullableMapThenList>(DER.encodeToByteArray(taggedWithoutMap)) shouldBe taggedWithoutMap
+        DER.decodeFromByteArray<TaggedNullableMapThenList>(DER.encodeToByteArray(taggedWithMap)) shouldBe taggedWithMap
     }
 }
 

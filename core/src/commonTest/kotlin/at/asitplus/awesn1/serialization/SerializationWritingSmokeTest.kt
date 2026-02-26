@@ -21,7 +21,7 @@ val SerializationTestWritingSmoke by testSuite(
             println("Property '$name' (index $i) annotations: $annotations")
         }
 
-        val derEncoded = DER.encodeToDer(
+        val derEncoded = DER.encodeToByteArray(
             TypesUmbrella(
                 str = "foo",
                 i = 2u,
@@ -40,12 +40,12 @@ val SerializationTestWritingSmoke by testSuite(
         println(derEncoded.toHexString())
 
         val string = "Foo"
-        println(DER.encodeToDer(string).toHexString())
+        println(DER.encodeToByteArray(string).toHexString())
 
-        println(DER.encodeToDer(SimpleLong(666L)).toHexString())
-        println(DER.encodeToDer(3.141516).toHexString())
-        println(DER.encodeToDer(Simple("a")).toHexString())
-        println(DER.encodeToDer(NumberTypesUmbrella(1, 2, 3.0f, 4.0, true, 'd')).toHexString())
+        println(DER.encodeToByteArray(SimpleLong(666L)).toHexString())
+        println(DER.encodeToByteArray(3.141516).toHexString())
+        println(DER.encodeToByteArray(Simple("a")).toHexString())
+        println(DER.encodeToByteArray(NumberTypesUmbrella(1, 2, 3.0f, 4.0, true, 'd')).toHexString())
     }
 }
 

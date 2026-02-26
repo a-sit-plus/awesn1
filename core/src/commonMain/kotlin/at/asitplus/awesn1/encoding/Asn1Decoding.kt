@@ -17,10 +17,10 @@ import kotlin.time.Instant
 
 
 /**
- * Parses the provided [input] into a single [Asn1Element]. Consumes all Bytes and throws if more than one Asn.1 Structure was found or trailing bytes were detected
+ * Parses the provided [source] into a single [Asn1Element]. Consumes all Bytes and throws if more than one Asn.1 Structure was found or trailing bytes were detected
  * @return the parsed [Asn1Element]
  *
- * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [input]
+ * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [source]
  */
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parse(source: ByteArray): Asn1Element =
@@ -83,6 +83,13 @@ fun Source<*>.readFullyToAsn1Elements(): Pair<List<Asn1Element>, Long> = mutable
     }
     Pair(list, bytesRead)
 }
+/**
+ * Reads all parsable ASN.1 elements from this source.
+ *
+ * @throws Asn1Exception on error if any illegal element or any trailing bytes are encountered
+ */
+@Throws(Asn1Exception::class)
+fun ByteArray.readFullyToAsn1Elements(): Pair<List<Asn1Element>, Long> = ByteArraySource(this).readFullyToAsn1Elements()
 
 /**
  * Reads a [TagAndLength] and the number of consumed bytes from the source without consuming it
@@ -99,6 +106,14 @@ fun Source<*>.readAsn1Element(): Pair<Asn1Element, Long> = runRethrowing {
     val (readTagAndLength, bytesRead) = readTagAndLength()
     readAsn1Element(readTagAndLength, bytesRead)
 }
+
+/**
+ * Decodes a single [Asn1Element] from this source.
+ *
+ * @return the decoded element and the number of bytes read from the source
+ */
+@Throws(Asn1Exception::class)
+fun ByteArray.readAsn1Element(): Pair<Asn1Element, Long> = ByteArraySource(this).readAsn1Element()
 
 /**
  * RAW decoding of an ASN.1 element after tag and length have already been decoded and consumed from the source
@@ -626,7 +641,7 @@ private fun Byte.isBerShortForm() = this byteMask 0x80 == 0x00.toUByte()
 
 internal infix fun Byte.byteMask(mask: Int) = (this and mask.toUInt().toByte()).toUByte()
 
-fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
+private fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
     readByte().let { firstByte ->
         (firstByte byteMask 0x1F).let { tagNumber ->
             if (tagNumber <= 30U) Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))

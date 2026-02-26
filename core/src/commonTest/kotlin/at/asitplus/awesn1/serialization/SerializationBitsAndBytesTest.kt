@@ -20,26 +20,26 @@ val SerializationTestBitsAndBytes by testSuite(
             val valueClassEmpty = BitSetValue(empty)
             val valueClass = BitSetValue(byteArrayOf(1, 2, 3))
 
-            DER.decodeFromDer<BitSetValue>(
-                DER.encodeToDer(valueClassEmpty).also { it.toHexString() shouldBe "030100" }
+            DER.decodeFromByteArray<BitSetValue>(
+                DER.encodeToByteArray(valueClassEmpty).also { it.toHexString() shouldBe "030100" }
             ).bytes shouldBe valueClassEmpty.bytes
 
-            DER.decodeFromDer<BitSetValue>(
-                DER.encodeToDer(valueClass).also { it.toHexString() shouldBe "030400010203" }
+            DER.decodeFromByteArray<BitSetValue>(
+                DER.encodeToByteArray(valueClass).also { it.toHexString() shouldBe "030400010203" }
             ).bytes shouldBe valueClass.bytes
 
             val tagged = BitSetValueTagged(byteArrayOf(0x01, 0x02))
-            DER.decodeFromDer<BitSetValueTagged>(DER.encodeToDer(tagged)).bytes.toList() shouldBe tagged.bytes.toList()
+            DER.decodeFromByteArray<BitSetValueTagged>(DER.encodeToByteArray(tagged)).bytes.toList() shouldBe tagged.bytes.toList()
         }
 
         "octet string" {
             val empty = byteArrayOf()
-            DER.decodeFromDer<ByteArray>(
-                DER.encodeToDer(empty).also { it.toHexString() shouldBe "0400" }
+            DER.decodeFromByteArray<ByteArray>(
+                DER.encodeToByteArray(empty).also { it.toHexString() shouldBe "0400" }
             ) shouldBe empty
             val threeBytes = byteArrayOf(1, 2, 3)
-            DER.decodeFromDer<ByteArray>(
-                DER.encodeToDer(threeBytes).also { it.toHexString() shouldBe "0403010203" }
+            DER.decodeFromByteArray<ByteArray>(
+                DER.encodeToByteArray(threeBytes).also { it.toHexString() shouldBe "0403010203" }
             ) shouldBe threeBytes
         }
     }

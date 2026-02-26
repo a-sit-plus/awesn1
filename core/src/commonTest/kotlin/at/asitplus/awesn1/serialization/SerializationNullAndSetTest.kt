@@ -15,35 +15,35 @@ val SerializationTestNullAndSet by testSuite(
 ) {
     "SET semantics" {
         val set = setOf("Foo", "Bar", "Baz")
-        DER.decodeFromDer<Set<String>>(
-            DER.encodeToDer(set).also { it.toHexString() shouldBe "310f0c03466f6f0c034261720c0342617a" }
+        DER.decodeFromByteArray<Set<String>>(
+            DER.encodeToByteArray(set).also { it.toHexString() shouldBe "310f0c03466f6f0c034261720c0342617a" }
         ) shouldBe set
     }
 
     "Nulls and Noughts" {
         val derExplicitNulls = DER { explicitNulls = true }
-        DER.encodeToDer<NullAsAsn1Null?>(null) shouldBe byteArrayOf()
-        derExplicitNulls.encodeToDer<NullAsAsn1Null?>(null) shouldBe Asn1Null.derEncoded
+        DER.encodeToByteArray<NullAsAsn1Null?>(null) shouldBe byteArrayOf()
+        derExplicitNulls.encodeToByteArray<NullAsAsn1Null?>(null) shouldBe Asn1Null.derEncoded
 
         val nullable: String? = null
-        DER.encodeToDer(nullable) shouldBe byteArrayOf()
-        DER.decodeFromDer<String?>(byteArrayOf()) shouldBe null
+        DER.encodeToByteArray(nullable) shouldBe byteArrayOf()
+        DER.decodeFromByteArray<String?>(byteArrayOf()) shouldBe null
 
         val taggedNull = TaggedNullableInt(value = null)
-        derExplicitNulls.decodeFromDer<TaggedNullableInt>(derExplicitNulls.encodeToDer(taggedNull)) shouldBe taggedNull
+        derExplicitNulls.decodeFromByteArray<TaggedNullableInt>(derExplicitNulls.encodeToByteArray(taggedNull)) shouldBe taggedNull
 
         val taggedValue = TaggedNullableInt(value = 5)
-        derExplicitNulls.decodeFromDer<TaggedNullableInt>(derExplicitNulls.encodeToDer(taggedValue)) shouldBe taggedValue
+        derExplicitNulls.decodeFromByteArray<TaggedNullableInt>(derExplicitNulls.encodeToByteArray(taggedValue)) shouldBe taggedValue
 
         val omitted = TaggedNullableIntOmit(value = null)
-        DER.decodeFromDer<TaggedNullableIntOmit>(DER.encodeToDer(omitted)) shouldBe omitted
+        DER.decodeFromByteArray<TaggedNullableIntOmit>(DER.encodeToByteArray(omitted)) shouldBe omitted
 
         // Regression: empty primitive values must not be mistaken for null when explicitNulls=false.
         val emptyString = NullablePlainString("")
-        DER.decodeFromDer<NullablePlainString>(DER.encodeToDer(emptyString)) shouldBe emptyString
+        DER.decodeFromByteArray<NullablePlainString>(DER.encodeToByteArray(emptyString)) shouldBe emptyString
 
         val nullString = NullablePlainString(null)
-        DER.decodeFromDer<NullablePlainString>(DER.encodeToDer(nullString)) shouldBe nullString
+        DER.decodeFromByteArray<NullablePlainString>(DER.encodeToByteArray(nullString)) shouldBe nullString
     }
 }
 

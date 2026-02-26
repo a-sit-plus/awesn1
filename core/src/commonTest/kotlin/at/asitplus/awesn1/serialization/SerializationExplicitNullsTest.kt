@@ -16,18 +16,18 @@ val SerializationTestExplicitNulls by testSuite(
         val derImplicitNulls = DER { explicitNulls = false }
         val value = ExplicitNullsSingleNullable(null)
 
-        val encoded = derImplicitNulls.encodeToDer(value)
+        val encoded = derImplicitNulls.encodeToByteArray(value)
         encoded.toHexString() shouldBe "3000"
-        derImplicitNulls.decodeFromDer<ExplicitNullsSingleNullable>(encoded) shouldBe value
+        derImplicitNulls.decodeFromByteArray<ExplicitNullsSingleNullable>(encoded) shouldBe value
     }
 
     "explicitNulls=true encodes nullable null properties as ASN.1 NULL" {
         val derExplicitNulls = DER { explicitNulls = true }
         val value = ExplicitNullsSingleNullable(null)
 
-        val encoded = derExplicitNulls.encodeToDer(value)
+        val encoded = derExplicitNulls.encodeToByteArray(value)
         encoded.toHexString() shouldBe "30020500"
-        derExplicitNulls.decodeFromDer<ExplicitNullsSingleNullable>(encoded) shouldBe value
+        derExplicitNulls.decodeFromByteArray<ExplicitNullsSingleNullable>(encoded) shouldBe value
     }
 
     "explicitNulls=true disambiguates otherwise-ambiguous nullable omission layouts" {
@@ -38,9 +38,9 @@ val SerializationTestExplicitNulls by testSuite(
             third = "third",
         )
 
-        val encoded = derExplicitNulls.encodeToDer(value)
+        val encoded = derExplicitNulls.encodeToByteArray(value)
         encoded.toHexString() shouldBe "30100c05666972737405000c057468697264"
-        derExplicitNulls.decodeFromDer<AmbiguousNullableStringLayout>(encoded) shouldBe value
+        derExplicitNulls.decodeFromByteArray<AmbiguousNullableStringLayout>(encoded) shouldBe value
     }
 }
 

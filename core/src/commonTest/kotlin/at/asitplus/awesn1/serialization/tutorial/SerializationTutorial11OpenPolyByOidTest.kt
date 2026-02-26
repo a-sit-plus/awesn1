@@ -26,9 +26,9 @@ val SerializationTutorial11OpenPolyByOid by testSuite(
         }
 
         val value: TutorialOpenByOid = TutorialOpenByOidInt(value = 9)
-        val der = derCodec.encodeToDer(value)
+        val der = derCodec.encodeToByteArray(value)
         der.toHexString() shouldBe "30190614698192b2e2c8dbfcf294f58cc9b5f2ac87948247020109"
-        derCodec.decodeFromDer<TutorialOpenByOid>("30190614698192b2e2c8dbfcf294f58cc9b5f2ac87948247020109".hexToByteArray()) shouldBe value
+        derCodec.decodeFromByteArray<TutorialOpenByOid>("30190614698192b2e2c8dbfcf294f58cc9b5f2ac87948247020109".hexToByteArray()) shouldBe value
     }
 }
 

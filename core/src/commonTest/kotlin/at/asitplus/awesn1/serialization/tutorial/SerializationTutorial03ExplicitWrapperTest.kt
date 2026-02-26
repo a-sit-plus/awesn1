@@ -14,9 +14,9 @@ val SerializationTutorial03ExplicitWrapper by testSuite(
         val value = TutorialExplicitCarrier(
             wrapped = ExplicitlyTagged(5),
         )
-        val der = DER.encodeToDer(value)
+        val der = DER.encodeToByteArray(value)
         der.toHexString() shouldBe "3005a003020105"
-        DER.decodeFromDer<TutorialExplicitCarrier>(der) shouldBe value
+        DER.decodeFromByteArray<TutorialExplicitCarrier>(der) shouldBe value
     }
 }
 

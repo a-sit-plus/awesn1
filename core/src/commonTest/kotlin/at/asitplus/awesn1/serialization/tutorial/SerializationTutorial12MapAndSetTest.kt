@@ -15,9 +15,9 @@ val SerializationTutorial12MapAndSet by testSuite(
             map = mapOf(1 to 2),
             set = setOf(3),
         )
-        val der = DER.encodeToDer(value)
+        val der = DER.encodeToByteArray(value)
         der.toHexString() shouldBe "300d30060201010201023103020103"
-        DER.decodeFromDer<TutorialMapAndSet>(der) shouldBe value
+        DER.decodeFromByteArray<TutorialMapAndSet>(der) shouldBe value
     }
 }
 

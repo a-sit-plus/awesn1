@@ -22,8 +22,8 @@ val SerializationTestOpenPolymorphismByTag by testSuite(
         val intValue: OpenByTag = OpenByTagInt(7)
         val strValue: OpenByTag = OpenByTagString("hello")
 
-        der.decodeFromDer<OpenByTag>(der.encodeToDer(intValue)) shouldBe intValue
-        der.decodeFromDer<OpenByTag>(der.encodeToDer(strValue)) shouldBe strValue
+        der.decodeFromByteArray<OpenByTag>(der.encodeToByteArray(intValue)) shouldBe intValue
+        der.decodeFromByteArray<OpenByTag>(der.encodeToByteArray(strValue)) shouldBe strValue
     }
 
     "Additional subtype can be enabled by extending the DER serializers module" {
@@ -32,14 +32,14 @@ val SerializationTestOpenPolymorphismByTag by testSuite(
         val boolValue: OpenByTag = OpenByTagBool(true)
 
         shouldThrow<SerializationException> {
-            strictDer.encodeToDer(boolValue)
+            strictDer.encodeToByteArray(boolValue)
         }.message.shouldContain("No registered open-polymorphic subtype")
 
-        val encoded = extendedDer.encodeToDer(boolValue)
-        extendedDer.decodeFromDer<OpenByTag>(encoded) shouldBe boolValue
+        val encoded = extendedDer.encodeToByteArray(boolValue)
+        extendedDer.decodeFromByteArray<OpenByTag>(encoded) shouldBe boolValue
 
         shouldThrow<SerializationException> {
-            strictDer.decodeFromDer<OpenByTag>(encoded)
+            strictDer.decodeFromByteArray<OpenByTag>(encoded)
         }.message.shouldContain("No registered open-polymorphic subtype")
     }
 }

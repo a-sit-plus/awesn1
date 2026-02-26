@@ -1,8 +1,10 @@
 package at.asitplus.awesn1.encoding
 
-import at.asitplus.awesn1.*
+import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.VarUInt.Companion.decodeAsn1VarBigUInt
 import at.asitplus.awesn1.VarUInt.Companion.writeAsn1VarInt
+import at.asitplus.awesn1.throughBuffer
 import kotlin.math.ceil
 
 private const val UVARINT_SINGLEBYTE_MAXVALUE_UBYTE: UByte = 0x80u
@@ -259,7 +261,7 @@ private fun List<Byte>.fromBack(it: Int) = this[size - 1 - it]
  * @throws IllegalArgumentException if the number is larger than [ULong.MAX_VALUE]
  */
 @Throws(IllegalArgumentException::class)
-fun ByteArray.decodeAsn1VarULong(): Pair<ULong, ByteArray> = this.throughBuffer { it.decodeAsn1VarULong() }
+fun ByteArray.decodeAsn1VarULong(): Pair<ULong, ByteArray> = ByteArraySource(this).decodeAsn1VarULong()
 
 /**
  * Decodes an UInt from bytes using varint encoding as used within ASN.1: groups of seven bits are encoded into a byte,
@@ -269,7 +271,7 @@ fun ByteArray.decodeAsn1VarULong(): Pair<ULong, ByteArray> = this.throughBuffer 
  * @throws IllegalArgumentException if the number is larger than [UInt.MAX_VALUE]
  */
 @Throws(IllegalArgumentException::class)
-fun ByteArray.decodeAsn1VarUInt(): Pair<UInt, ByteArray> = this.throughBuffer { it.decodeAsn1VarUInt() }
+fun ByteArray.decodeAsn1VarUInt(): Pair<UInt, ByteArray> = ByteArraySource(this).decodeAsn1VarUInt()
 
 
 ///////////KTX-IO
@@ -334,6 +336,7 @@ val Int.bitLength inline get() = Int.SIZE_BITS - this.countLeadingZeroBits()
  */
 @Throws(IllegalArgumentException::class)
 fun Source<*>.decodeAsn1VarULong(): Pair<ULong, ByteArray> = decodeAsn1VarInt(ULong.SIZE_BITS)
+
 
 /**
  * Decodes an ASN.1 unsigned varint to an [UInt], copying all bytes from the source into a [ByteArray].
@@ -401,6 +404,13 @@ fun Sink.writeTwosComplementUInt(number: UInt) = writeTwosComplementLong(number.
 @Throws(IllegalArgumentException::class)
 fun Source<*>.readTwosComplementULong(nBytes: Int): ULong = ULong.fromTwosComplementByteArray(readByteArray(nBytes))
 
+/**
+ * Consumes exactly [nBytes] from this source and interprets it as a signed [ULong].
+ *
+ * @throws IllegalArgumentException if too much or too little data is present
+ */
+@Throws(IllegalArgumentException::class)
+fun ByteArray.readTwosComplementULong(nBytes: Int): ULong = ByteArraySource(this).readTwosComplementULong(nBytes)
 
 /**
  * Consumes exactly [nBytes] from this source and interprets it as a [Long].
@@ -410,6 +420,13 @@ fun Source<*>.readTwosComplementULong(nBytes: Int): ULong = ULong.fromTwosComple
 @Throws(IllegalArgumentException::class)
 fun Source<*>.readTwosComplementLong(nBytes: Int): Long = Long.fromTwosComplementByteArray(readByteArray(nBytes))
 
+/**
+ * Consumes exactly [nBytes] from this source and interprets it as a [Long].
+ *
+ * @throws IllegalArgumentException if too much or too little data is present
+ */
+@Throws(IllegalArgumentException::class)
+fun ByteArray.readTwosComplementLong(nBytes: Int): Long = ByteArraySource(this).readTwosComplementLong(nBytes)
 
 /**
  * Consumes exactly [nBytes] from this source and interprets it as a signed [Int]
@@ -420,12 +437,28 @@ fun Source<*>.readTwosComplementLong(nBytes: Int): Long = Long.fromTwosComplemen
 fun Source<*>.readTwosComplementInt(nBytes: Int): Int = Int.fromTwosComplementByteArray(readByteArray(nBytes))
 
 /**
+ * Consumes exactly [nBytes] from this source and interprets it as a signed [Int]
+ *
+ * @throws IllegalArgumentException if too much or too little data is present
+ */
+@Throws(IllegalArgumentException::class)
+fun ByteArray.readTwosComplementInt(nBytes: Int): Int = ByteArraySource(this).readTwosComplementInt(nBytes)
+
+/**
  * Consumes exactly [nBytes] remaining data from this source and interprets it as a [UInt]
  *
  * @throws IllegalArgumentException if no or too much data is present
  */
 @Throws(IllegalArgumentException::class)
 fun Source<*>.readTwosComplementUInt(nBytes: Int): UInt = UInt.fromTwosComplementByteArray(readByteArray(nBytes))
+
+/**
+ * Consumes exactly [nBytes] remaining data from this source and interprets it as a [UInt]
+ *
+ * @throws IllegalArgumentException if no or too much data is present
+ */
+@Throws(IllegalArgumentException::class)
+fun ByteArray.readTwosComplementUInt(nBytes: Int): UInt = ByteArraySource(this).readTwosComplementUInt(nBytes)
 
 /**
  *  Encodes a positive Long to a minimum-size unsigned byte array, omitting the leading zero
@@ -471,4 +504,4 @@ fun Source<*>.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> =
  *
  * @return the decoded unsigned BigInteger and the underlying varint-encoded bytes as `ByteArray`
  */
-fun ByteArray.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> = this.throughBuffer { it.decodeAsn1VarBigInt() }
+fun ByteArray.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> = ByteArraySource(this).decodeAsn1VarBigInt()

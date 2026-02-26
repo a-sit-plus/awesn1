@@ -18,16 +18,16 @@ val SerializationTestPolymorphismAndChoice by testSuite(
     "Number of elements" {
         val withThreeOtherNull = WithThreeNullable("first", null, "3")
 
-        DER.encodeToDer(withThreeOtherNull).apply {
+        DER.encodeToByteArray(withThreeOtherNull).apply {
             toHexString() shouldBe "bf8a3d0a0c0566697273740c0133"
-            DER.decodeFromDer<WithThreeNullable>(this) shouldBe withThreeOtherNull
+            DER.decodeFromByteArray<WithThreeNullable>(this) shouldBe withThreeOtherNull
         }
 
         val withThreeOther = WithThreeNullable("first", 2, "3")
 
-        DER.encodeToDer(withThreeOther).apply {
+        DER.encodeToByteArray(withThreeOther).apply {
             toHexString() shouldBe "bf8a3d0d0c0566697273740201020c0133"
-            DER.decodeFromDer<WithThreeNullable>(this) shouldBe withThreeOther
+            DER.decodeFromByteArray<WithThreeNullable>(this) shouldBe withThreeOther
         }
 
         val without = Without
@@ -36,31 +36,31 @@ val SerializationTestPolymorphismAndChoice by testSuite(
         val withTwoOther = WithTwoOther("1", 2)
         val withThree = WithThree("1", "3", "3")
 
-        DER.encodeToDer(without).apply {
+        DER.encodeToByteArray(without).apply {
             toHexString() shouldBe "3000"
-            DER.decodeFromDer<Without>(this) shouldBe without
+            DER.decodeFromByteArray<Without>(this) shouldBe without
         }
 
-        shouldThrow<SerializationException> { DER.decodeFromDer<Without>("30020c00".hexToByteArray()) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<Without>("30020c00".hexToByteArray()) }
 
-        DER.encodeToDer(withOne).apply {
+        DER.encodeToByteArray(withOne).apply {
             toHexString() shouldBe "bf8a39020c00"
-            DER.decodeFromDer<WithOne>(this) shouldBe withOne
+            DER.decodeFromByteArray<WithOne>(this) shouldBe withOne
         }
 
-        DER.encodeToDer(withTwo).apply {
+        DER.encodeToByteArray(withTwo).apply {
             toHexString() shouldBe "bf8a3a060c01310c0132"
-            DER.decodeFromDer<WithTwo>(this) shouldBe withTwo
+            DER.decodeFromByteArray<WithTwo>(this) shouldBe withTwo
         }
 
-        DER.encodeToDer(withTwoOther).apply {
+        DER.encodeToByteArray(withTwoOther).apply {
             toHexString() shouldBe "bf8a3b060c0131020102"
-            DER.decodeFromDer<WithTwoOther>(this) shouldBe withTwoOther
+            DER.decodeFromByteArray<WithTwoOther>(this) shouldBe withTwoOther
         }
 
-        DER.encodeToDer(withThree).apply {
+        DER.encodeToByteArray(withThree).apply {
             toHexString() shouldBe "bf8a3c090c01310c01330c0133"
-            DER.decodeFromDer<WithThree>(this) shouldBe withThree
+            DER.decodeFromByteArray<WithThree>(this) shouldBe withThree
         }
     }
 
@@ -74,7 +74,7 @@ val SerializationTestPolymorphismAndChoice by testSuite(
 
         //not registered
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<List<AnInterface>>(
+            DER.decodeFromByteArray<List<AnInterface>>(
                 "30293000bf8a39020c00bf8a3a060c01310c0132bf8a3b060c0131020102bf8a3c090c01310c01330c0133".hexToByteArray()
             )
         }
@@ -92,20 +92,20 @@ val SerializationTestPolymorphismAndChoice by testSuite(
 
         val listOf = listOf(without, withOne, withTwo, withTwoOther, withThree)
         //Registered
-        der.decodeFromDer<List<AnInterface>>(
+        der.decodeFromByteArray<List<AnInterface>>(
             "30293000bf8a39020c00bf8a3a060c01310c0132bf8a3b060c0131020102bf8a3c090c01310c01330c0133".hexToByteArray()
         ) shouldBe listOf
 
 
         //junk
         shouldThrow<SerializationException> {
-            der.decodeFromDer<List<AnInterface>>(
+            der.decodeFromByteArray<List<AnInterface>>(
                 "3082017730430c3f61742e61736974706c75732e7369676e756d2e696e64697370656e7361626c652e61736e312e73657269616c697a6174696f6e2e6170692e576974686f7574300030450c3f61742e61736974706c75732e7369676e756d2e696e64697370656e7361626c652e61736e312e73657269616c697a6174696f6e2e6170692e576974684f6e6530020c0030490c3f61742e61736974706c75732e7369676e756d2e696e64697370656e7361626c652e61736e312e73657269616c697a6174696f6e2e6170692e5769746854776f30060c01310c0132304e0c4461742e61736974706c75732e7369676e756d2e696e64697370656e7361626c652e61736e312e73657269616c697a6174696f6e2e6170692e5769746854776f4f7468657230060c0131020102304e0c4161742e61736974706c75732e7369676e756d2e696e64697370656e7361626c652e61736e312e73657269616c697a6174696f6e2e6170692e57697468546872656530090c01310c01330c0133".hexToByteArray()
             )
         }
 
-        der.decodeFromDer<List<AnInterface>>(
-            der.encodeToDer(listOf)
+        der.decodeFromByteArray<List<AnInterface>>(
+            der.encodeToByteArray(listOf)
                 .also { println(it.toHexString()) }
         ) shouldBe listOf
     }
@@ -114,17 +114,17 @@ val SerializationTestPolymorphismAndChoice by testSuite(
         val intChoice = ChoiceContainer(ChoiceInt(7))
         val taggedStringChoice = ChoiceContainer(ChoiceTaggedString("foo"))
 
-        DER.decodeFromDer<ChoiceContainer>(DER.encodeToDer(intChoice)) shouldBe intChoice
-        DER.decodeFromDer<ChoiceContainer>(DER.encodeToDer(taggedStringChoice)) shouldBe taggedStringChoice
+        DER.decodeFromByteArray<ChoiceContainer>(DER.encodeToByteArray(intChoice)) shouldBe intChoice
+        DER.decodeFromByteArray<ChoiceContainer>(DER.encodeToByteArray(taggedStringChoice)) shouldBe taggedStringChoice
 
         val list = listOf<ChoiceInterface>(ChoiceInt(1), ChoiceTaggedString("bar"))
-        DER.decodeFromDer<List<ChoiceInterface>>(DER.encodeToDer(list)) shouldBe list
+        DER.decodeFromByteArray<List<ChoiceInterface>>(DER.encodeToByteArray(list)) shouldBe list
     }
 
     "Choice ambiguity is rejected at runtime" {
-        val encoded = DER.encodeToDer(AmbiguousChoiceA("foo"))
+        val encoded = DER.encodeToByteArray(AmbiguousChoiceA("foo"))
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<AmbiguousChoice>(encoded)
+            DER.decodeFromByteArray<AmbiguousChoice>(encoded)
         }
     }
 }

@@ -20,38 +20,38 @@ val SerializationTestCoverageGaps by testSuite(
 ) {
     "Asn1Tag INFER keeps primitive base class/constructed while overriding tag number" {
         val value = InferTagOnPrimitive(1)
-        val element = Asn1Element.parse(DER.encodeToDer(value)).asStructure().children.single()
+        val element = Asn1Element.parse(DER.encodeToByteArray(value)).asStructure().children.single()
 
         // Current behavior: INFER still resolves to CONTEXT_SPECIFIC for class/tag class.
         element.tag.tagClass shouldBe TagClass.CONTEXT_SPECIFIC
         element.tag.isConstructed shouldBe false
         element.tag.tagValue shouldBe 9UL
-        DER.decodeFromDer<InferTagOnPrimitive>(DER.encodeToDer(value)) shouldBe value
+        DER.decodeFromByteArray<InferTagOnPrimitive>(DER.encodeToByteArray(value)) shouldBe value
     }
 
     "Asn1Tag constructed=INFER keeps constructed=true for class-level structures" {
         val value = InferConstructedOnClass(7)
-        val element = Asn1Element.parse(DER.encodeToDer(value))
+        val element = Asn1Element.parse(DER.encodeToByteArray(value))
 
         element.tag.tagClass shouldBe TagClass.CONTEXT_SPECIFIC
         element.tag.isConstructed shouldBe true
         element.tag.tagValue shouldBe 3UL
-        DER.decodeFromDer<InferConstructedOnClass>(DER.encodeToDer(value)) shouldBe value
+        DER.decodeFromByteArray<InferConstructedOnClass>(DER.encodeToByteArray(value)) shouldBe value
     }
 
     "Asn1Explicit requires an explicit context-specific constructed tag" {
         shouldThrow<SerializationException> {
-            DER.encodeToDer(ExplicitNoTag(ExplicitlyTagged(5)))
+            DER.encodeToByteArray(ExplicitNoTag(ExplicitlyTagged(5)))
         }
         shouldThrow<SerializationException> {
-            DER.encodeToDer(
+            DER.encodeToByteArray(
                 ExplicitWrongClass(
                     ExplicitlyTagged(5)
                 )
             )
         }
         shouldThrow<SerializationException> {
-            DER.encodeToDer(
+            DER.encodeToByteArray(
                 ExplicitWrongConstructed(
                     ExplicitlyTagged(5)
                 )
@@ -61,9 +61,9 @@ val SerializationTestCoverageGaps by testSuite(
 
     "Asn1BitString on non-ByteArray targets is currently ignored (no shape change)" {
         val value = InvalidBitStringTarget(1)
-        val encoded = DER.encodeToDer(value)
+        val encoded = DER.encodeToByteArray(value)
         encoded.toHexString() shouldBe "3003020101"
-        DER.decodeFromDer<InvalidBitStringTarget>(encoded) shouldBe value
+        DER.decodeFromByteArray<InvalidBitStringTarget>(encoded) shouldBe value
     }
 
     "Open polymorphism by tag rejects duplicate leading-tag mappings" {
@@ -108,8 +108,8 @@ val SerializationTestCoverageGaps by testSuite(
 
         val valueA: CustomSelectorBase = CustomSelectorA(payload = 10)
         val valueB: CustomSelectorBase = CustomSelectorB(payload = "x")
-        selectorDer.decodeFromDer<CustomSelectorBase>(selectorDer.encodeToDer(valueA)) shouldBe valueA
-        selectorDer.decodeFromDer<CustomSelectorBase>(selectorDer.encodeToDer(valueB)) shouldBe valueB
+        selectorDer.decodeFromByteArray<CustomSelectorBase>(selectorDer.encodeToByteArray(valueA)) shouldBe valueA
+        selectorDer.decodeFromByteArray<CustomSelectorBase>(selectorDer.encodeToByteArray(valueB)) shouldBe valueB
     }
 
     "encodeDefaults=false and explicitNulls=true compose as expected" {
@@ -119,13 +119,13 @@ val SerializationTestCoverageGaps by testSuite(
         }
 
         val withRequiredNull = CombinedFlagsModel(requiredNullable = null)
-        val encoded = der.encodeToDer(withRequiredNull)
+        val encoded = der.encodeToByteArray(withRequiredNull)
 
         // Only requiredNullable is emitted as ASN.1 NULL:
         // - defaultedNullable is omitted due to encodeDefaults=false
         // - trailingDefault is omitted due to encodeDefaults=false
         encoded.toHexString() shouldBe "30020500"
-        der.decodeFromDer<CombinedFlagsModel>(encoded) shouldBe withRequiredNull
+        der.decodeFromByteArray<CombinedFlagsModel>(encoded) shouldBe withRequiredNull
     }
 }
 

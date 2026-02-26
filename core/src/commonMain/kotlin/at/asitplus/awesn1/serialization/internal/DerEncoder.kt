@@ -444,7 +444,7 @@ class DerEncoder internal constructor(
     /**
      * Writes fully encoded DER bytes to [destination].
      */
-    internal fun writeTo(destination: Sink) {
+    fun writeTo(destination: Sink) {
         encodeToTLV().forEach { it.encodeTo(destination) }
     }
 

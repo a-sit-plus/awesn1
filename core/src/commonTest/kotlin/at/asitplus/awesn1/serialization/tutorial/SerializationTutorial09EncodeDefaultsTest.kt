@@ -13,9 +13,9 @@ val SerializationTutorial09EncodeDefaults by testSuite(
     "encodeDefaults=false omits default-valued properties" {
         val format = DER { encodeDefaults = false }
         val value = TutorialDefaults()
-        val der = format.encodeToDer(value)
+        val der = format.encodeToByteArray(value)
         der.toHexString() shouldBe "3000"
-        format.decodeFromDer<TutorialDefaults>(der) shouldBe value
+        format.decodeFromByteArray<TutorialDefaults>(der) shouldBe value
     }
 }
 

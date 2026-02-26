@@ -17,65 +17,65 @@ val SerializationTestPrimitiveNullAmbiguity by testSuite(
     val derExplicitNulls = DER { explicitNulls = true }
 
     "Implicit+explicitNulls is rejected for empty-capable primitives" {
-        shouldThrow<SerializationException> { derExplicitNulls.encodeToDer(PrimitiveImplicitStringAmbiguous(null)) }
-        shouldThrow<SerializationException> { derExplicitNulls.decodeFromDer<PrimitiveImplicitStringAmbiguous>("3000".hexToByteArray()) }
+        shouldThrow<SerializationException> { derExplicitNulls.encodeToByteArray(PrimitiveImplicitStringAmbiguous(null)) }
+        shouldThrow<SerializationException> { derExplicitNulls.decodeFromByteArray<PrimitiveImplicitStringAmbiguous>("3000".hexToByteArray()) }
 
-        shouldThrow<SerializationException> { derExplicitNulls.encodeToDer(PrimitiveImplicitFloatAmbiguous(null)) }
-        shouldThrow<SerializationException> { derExplicitNulls.decodeFromDer<PrimitiveImplicitFloatAmbiguous>("3000".hexToByteArray()) }
+        shouldThrow<SerializationException> { derExplicitNulls.encodeToByteArray(PrimitiveImplicitFloatAmbiguous(null)) }
+        shouldThrow<SerializationException> { derExplicitNulls.decodeFromByteArray<PrimitiveImplicitFloatAmbiguous>("3000".hexToByteArray()) }
 
-        shouldThrow<SerializationException> { derExplicitNulls.encodeToDer(PrimitiveImplicitDoubleAmbiguous(null)) }
-        shouldThrow<SerializationException> { derExplicitNulls.decodeFromDer<PrimitiveImplicitDoubleAmbiguous>("3000".hexToByteArray()) }
+        shouldThrow<SerializationException> { derExplicitNulls.encodeToByteArray(PrimitiveImplicitDoubleAmbiguous(null)) }
+        shouldThrow<SerializationException> { derExplicitNulls.decodeFromByteArray<PrimitiveImplicitDoubleAmbiguous>("3000".hexToByteArray()) }
 
-        shouldThrow<SerializationException> { derExplicitNulls.encodeToDer(PrimitiveImplicitOctetStringAmbiguous(null)) }
+        shouldThrow<SerializationException> { derExplicitNulls.encodeToByteArray(PrimitiveImplicitOctetStringAmbiguous(null)) }
         shouldThrow<SerializationException> {
-            derExplicitNulls.decodeFromDer<PrimitiveImplicitOctetStringAmbiguous>("3000".hexToByteArray())
+            derExplicitNulls.decodeFromByteArray<PrimitiveImplicitOctetStringAmbiguous>("3000".hexToByteArray())
         }
     }
 
     "Implicit+explicitNulls is accepted for non-empty-capable primitives" {
         val longNull = PrimitiveImplicitLongSafe(null)
-        derExplicitNulls.decodeFromDer<PrimitiveImplicitLongSafe>(derExplicitNulls.encodeToDer(longNull)) shouldBe longNull
+        derExplicitNulls.decodeFromByteArray<PrimitiveImplicitLongSafe>(derExplicitNulls.encodeToByteArray(longNull)) shouldBe longNull
         val longSet = PrimitiveImplicitLongSafe(7L)
-        derExplicitNulls.decodeFromDer<PrimitiveImplicitLongSafe>(derExplicitNulls.encodeToDer(longSet)) shouldBe longSet
+        derExplicitNulls.decodeFromByteArray<PrimitiveImplicitLongSafe>(derExplicitNulls.encodeToByteArray(longSet)) shouldBe longSet
 
         val intNull = PrimitiveImplicitIntSafe(null)
-        derExplicitNulls.decodeFromDer<PrimitiveImplicitIntSafe>(derExplicitNulls.encodeToDer(intNull)) shouldBe intNull
+        derExplicitNulls.decodeFromByteArray<PrimitiveImplicitIntSafe>(derExplicitNulls.encodeToByteArray(intNull)) shouldBe intNull
         val intSet = PrimitiveImplicitIntSafe(7)
-        derExplicitNulls.decodeFromDer<PrimitiveImplicitIntSafe>(derExplicitNulls.encodeToDer(intSet)) shouldBe intSet
+        derExplicitNulls.decodeFromByteArray<PrimitiveImplicitIntSafe>(derExplicitNulls.encodeToByteArray(intSet)) shouldBe intSet
 
         val shortNull = PrimitiveImplicitShortSafe(null)
-        derExplicitNulls.decodeFromDer<PrimitiveImplicitShortSafe>(derExplicitNulls.encodeToDer(shortNull)) shouldBe shortNull
+        derExplicitNulls.decodeFromByteArray<PrimitiveImplicitShortSafe>(derExplicitNulls.encodeToByteArray(shortNull)) shouldBe shortNull
         val shortSet = PrimitiveImplicitShortSafe(7)
-        derExplicitNulls.decodeFromDer<PrimitiveImplicitShortSafe>(derExplicitNulls.encodeToDer(shortSet)) shouldBe shortSet
+        derExplicitNulls.decodeFromByteArray<PrimitiveImplicitShortSafe>(derExplicitNulls.encodeToByteArray(shortSet)) shouldBe shortSet
     }
 
     "No implicit tags remain unambiguous for empty-capable primitives" {
         val stringNull = PrimitiveNoImplicitStringSafe(null)
-        DER.decodeFromDer<PrimitiveNoImplicitStringSafe>(DER.encodeToDer(stringNull)) shouldBe stringNull
+        DER.decodeFromByteArray<PrimitiveNoImplicitStringSafe>(DER.encodeToByteArray(stringNull)) shouldBe stringNull
         val stringEmpty = PrimitiveNoImplicitStringSafe("")
-        DER.decodeFromDer<PrimitiveNoImplicitStringSafe>(DER.encodeToDer(stringEmpty)) shouldBe stringEmpty
+        DER.decodeFromByteArray<PrimitiveNoImplicitStringSafe>(DER.encodeToByteArray(stringEmpty)) shouldBe stringEmpty
 
         val floatNull = PrimitiveNoImplicitFloatSafe(null)
-        DER.decodeFromDer<PrimitiveNoImplicitFloatSafe>(DER.encodeToDer(floatNull)) shouldBe floatNull
+        DER.decodeFromByteArray<PrimitiveNoImplicitFloatSafe>(DER.encodeToByteArray(floatNull)) shouldBe floatNull
         val floatZero = PrimitiveNoImplicitFloatSafe(0f)
-        DER.decodeFromDer<PrimitiveNoImplicitFloatSafe>(DER.encodeToDer(floatZero)) shouldBe floatZero
+        DER.decodeFromByteArray<PrimitiveNoImplicitFloatSafe>(DER.encodeToByteArray(floatZero)) shouldBe floatZero
 
         val doubleNull = PrimitiveNoImplicitDoubleSafe(null)
-        DER.decodeFromDer<PrimitiveNoImplicitDoubleSafe>(DER.encodeToDer(doubleNull)) shouldBe doubleNull
+        DER.decodeFromByteArray<PrimitiveNoImplicitDoubleSafe>(DER.encodeToByteArray(doubleNull)) shouldBe doubleNull
         val doubleZero = PrimitiveNoImplicitDoubleSafe(0.0)
-        DER.decodeFromDer<PrimitiveNoImplicitDoubleSafe>(DER.encodeToDer(doubleZero)) shouldBe doubleZero
+        DER.decodeFromByteArray<PrimitiveNoImplicitDoubleSafe>(DER.encodeToByteArray(doubleZero)) shouldBe doubleZero
     }
 
     "Explicit wrapper does not rescue an inner ambiguous primitive/null encoding" {
         shouldThrow<SerializationException> {
-            derExplicitNulls.encodeToDer(
+            derExplicitNulls.encodeToByteArray(
                 PrimitiveImplicitThenExplicitStringSafe(
                     ExplicitlyTagged(PrimitiveInnerImplicitNullableString(null))
                 )
             )
         }
         shouldThrow<SerializationException> {
-            derExplicitNulls.decodeFromDer<PrimitiveImplicitThenExplicitStringSafe>("3000".hexToByteArray())
+            derExplicitNulls.decodeFromByteArray<PrimitiveImplicitThenExplicitStringSafe>("3000".hexToByteArray())
         }
     }
 
@@ -83,44 +83,44 @@ val SerializationTestPrimitiveNullAmbiguity by testSuite(
         val valueNull = PrimitiveOctetStringSafe(
             OctetStringEncapsulated(PrimitiveInnerPlainNullableString(null))
         )
-        DER.decodeFromDer<PrimitiveOctetStringSafe>(DER.encodeToDer(valueNull)) shouldBe valueNull
+        DER.decodeFromByteArray<PrimitiveOctetStringSafe>(DER.encodeToByteArray(valueNull)) shouldBe valueNull
 
         val valueEmpty = PrimitiveOctetStringSafe(
             OctetStringEncapsulated(PrimitiveInnerPlainNullableString(""))
         )
-        DER.decodeFromDer<PrimitiveOctetStringSafe>(DER.encodeToDer(valueEmpty)) shouldBe valueEmpty
+        DER.decodeFromByteArray<PrimitiveOctetStringSafe>(DER.encodeToByteArray(valueEmpty)) shouldBe valueEmpty
 
         val octetsNull = PrimitiveNoImplicitOctetStringSafe(null)
-        val decodedOctetsNull = DER.decodeFromDer<PrimitiveNoImplicitOctetStringSafe>(DER.encodeToDer(octetsNull))
+        val decodedOctetsNull = DER.decodeFromByteArray<PrimitiveNoImplicitOctetStringSafe>(DER.encodeToByteArray(octetsNull))
         decodedOctetsNull.value shouldBe null
 
         val octetsEmpty = PrimitiveNoImplicitOctetStringSafe(byteArrayOf())
-        val decodedOctetsEmpty = DER.decodeFromDer<PrimitiveNoImplicitOctetStringSafe>(DER.encodeToDer(octetsEmpty))
+        val decodedOctetsEmpty = DER.decodeFromByteArray<PrimitiveNoImplicitOctetStringSafe>(DER.encodeToByteArray(octetsEmpty))
         decodedOctetsEmpty.value?.toList() shouldBe octetsEmpty.value?.toList()
     }
 
     "Octet wrapping does not disambiguate if implicit remains innermost" {
         shouldThrow<SerializationException> {
-            derExplicitNulls.encodeToDer(
+            derExplicitNulls.encodeToByteArray(
                 PrimitiveOctetThenImplicitStringAmbiguous(
                     OctetStringEncapsulated(PrimitiveInnerImplicitNullableString41(null))
                 )
             )
         }
         shouldThrow<SerializationException> {
-            derExplicitNulls.decodeFromDer<PrimitiveOctetThenImplicitStringAmbiguous>("3000".hexToByteArray())
+            derExplicitNulls.decodeFromByteArray<PrimitiveOctetThenImplicitStringAmbiguous>("3000".hexToByteArray())
         }
     }
 
     "Bit string with implicit+explicitNulls remains unambiguous" {
         val valueNull = PrimitiveImplicitBitStringSafe(null)
-        val encodedNull = derExplicitNulls.encodeToDer(valueNull)
-        val decodedNull = derExplicitNulls.decodeFromDer<PrimitiveImplicitBitStringSafe>(encodedNull)
+        val encodedNull = derExplicitNulls.encodeToByteArray(valueNull)
+        val decodedNull = derExplicitNulls.decodeFromByteArray<PrimitiveImplicitBitStringSafe>(encodedNull)
         decodedNull.value shouldBe null
 
         val valueSet = PrimitiveImplicitBitStringSafe(byteArrayOf(0x01, 0x02))
-        val encodedSet = derExplicitNulls.encodeToDer(valueSet)
-        val decodedSet = derExplicitNulls.decodeFromDer<PrimitiveImplicitBitStringSafe>(encodedSet)
+        val encodedSet = derExplicitNulls.encodeToByteArray(valueSet)
+        val decodedSet = derExplicitNulls.decodeFromByteArray<PrimitiveImplicitBitStringSafe>(encodedSet)
         decodedSet.value?.toList() shouldBe valueSet.value?.toList()
     }
 }

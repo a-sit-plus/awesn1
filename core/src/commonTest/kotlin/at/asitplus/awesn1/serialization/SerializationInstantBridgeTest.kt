@@ -21,28 +21,28 @@ val SerializationTestInstantBridge by testSuite(
 ) {
     "Top-level kotlin.time.Instant encodes as ASN.1 UTCTime and round-trips" {
         val instant = Instant.parse("2049-12-31T23:59:59Z")
-        val encoded = DER.encodeToDer(instant)
+        val encoded = DER.encodeToByteArray(instant)
         Asn1Element.parse(encoded).tag shouldBe Asn1Element.Tag.TIME_UTC
-        DER.decodeFromDer<Instant>(encoded) shouldBe instant
+        DER.decodeFromByteArray<Instant>(encoded) shouldBe instant
     }
 
     "Top-level kotlin.time.Instant encodes as ASN.1 GeneralizedTime after 2050 threshold" {
         val instant = Instant.parse("2051-01-01T00:00:00Z")
-        val encoded = DER.encodeToDer(instant)
+        val encoded = DER.encodeToByteArray(instant)
         Asn1Element.parse(encoded).tag shouldBe Asn1Element.Tag.TIME_GENERALIZED
-        DER.decodeFromDer<Instant>(encoded) shouldBe instant
+        DER.decodeFromByteArray<Instant>(encoded) shouldBe instant
     }
 
     "Implicitly tagged kotlin.time.Instant property remains decodable" {
         val value = TaggedInstantBox(Instant.parse("2040-06-30T12:34:56Z"))
-        val encoded = DER.encodeToDer(value)
+        val encoded = DER.encodeToByteArray(value)
         val childTag = (Asn1Element.parse(encoded) as Asn1Sequence).children.single().tag
         childTag shouldBe Asn1Element.Tag(
             tagValue = 0u,
             tagClass = at.asitplus.awesn1.TagClass.CONTEXT_SPECIFIC,
             constructed = false
         )
-        DER.decodeFromDer<TaggedInstantBox>(encoded) shouldBe value
+        DER.decodeFromByteArray<TaggedInstantBox>(encoded) shouldBe value
     }
 
     "Nullable Instant followed by nullable Int is unambiguous" {
@@ -54,8 +54,8 @@ val SerializationTestInstantBridge by testSuite(
             first = Instant.parse("2030-01-01T00:00:00Z"),
             second = null,
         )
-        DER.decodeFromDer<NullableInstantThenInt>(DER.encodeToDer(withoutInstant)) shouldBe withoutInstant
-        DER.decodeFromDer<NullableInstantThenInt>(DER.encodeToDer(withInstant)) shouldBe withInstant
+        DER.decodeFromByteArray<NullableInstantThenInt>(DER.encodeToByteArray(withoutInstant)) shouldBe withoutInstant
+        DER.decodeFromByteArray<NullableInstantThenInt>(DER.encodeToByteArray(withInstant)) shouldBe withInstant
     }
 
     "Consecutive nullable Instant fields are rejected as ambiguous" {
@@ -64,7 +64,7 @@ val SerializationTestInstantBridge by testSuite(
             second = Instant.parse("2030-01-01T00:00:00Z"),
         )
         shouldThrow<SerializationException> {
-            DER.encodeToDer(value)
+            DER.encodeToByteArray(value)
         }.message.shouldContain("Ambiguous ASN.1 layout")
     }
 }

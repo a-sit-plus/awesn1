@@ -23,10 +23,10 @@ val SerializationTestShapeContract by testSuite(
             suffix = 2
         )
         shouldThrow<SerializationException> {
-            DER.encodeToDer(value)
+            DER.encodeToByteArray(value)
         }
         shouldThrow<SerializationException> {
-            DER.decodeFromDer<AmbiguousMiddleNullableRawAsn1>("3006020101020102".hexToByteArray())
+            DER.decodeFromByteArray<AmbiguousMiddleNullableRawAsn1>("3006020101020102".hexToByteArray())
         }
     }
 
@@ -36,14 +36,14 @@ val SerializationTestShapeContract by testSuite(
             extension = null,
             suffix = 2
         )
-        DER.decodeFromDer<DisambiguatedMiddleNullableRawAsn1>(DER.encodeToDer(withoutExtension)) shouldBe withoutExtension
+        DER.decodeFromByteArray<DisambiguatedMiddleNullableRawAsn1>(DER.encodeToByteArray(withoutExtension)) shouldBe withoutExtension
 
         val withExtension = DisambiguatedMiddleNullableRawAsn1(
             prefix = 1,
             extension = ExplicitlyTagged(99.encodeToAsn1Primitive()),
             suffix = 2
         )
-        DER.decodeFromDer<DisambiguatedMiddleNullableRawAsn1>(DER.encodeToDer(withExtension)) shouldBe withExtension
+        DER.decodeFromByteArray<DisambiguatedMiddleNullableRawAsn1>(DER.encodeToByteArray(withExtension)) shouldBe withExtension
     }
 
     "Trailing nullable raw ASN.1 element remains supported" {
@@ -51,13 +51,13 @@ val SerializationTestShapeContract by testSuite(
             prefix = 7,
             extension = null
         )
-        DER.decodeFromDer<TrailingNullableRawAsn1>(DER.encodeToDer(withoutExtension)) shouldBe withoutExtension
+        DER.decodeFromByteArray<TrailingNullableRawAsn1>(DER.encodeToByteArray(withoutExtension)) shouldBe withoutExtension
 
         val withExtension = TrailingNullableRawAsn1(
             prefix = 7,
             extension = 11.encodeToAsn1Primitive()
         )
-        DER.decodeFromDer<TrailingNullableRawAsn1>(DER.encodeToDer(withExtension)) shouldBe withExtension
+        DER.decodeFromByteArray<TrailingNullableRawAsn1>(DER.encodeToByteArray(withExtension)) shouldBe withExtension
     }
 }
 

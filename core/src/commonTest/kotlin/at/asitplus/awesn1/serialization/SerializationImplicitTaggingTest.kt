@@ -16,125 +16,125 @@ val SerializationTestImplicitTagging by testSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Implicit tagging" - {
-        val imlNothing = DER.encodeToDer(NothingOnClass("foo"))
-        val imlClass = DER.encodeToDer(ImplicitOnClass("foo"))
-        val imlProp = DER.encodeToDer(ImplicitOnProperty("foo"))
-        val imlBoth = DER.encodeToDer(ImplicitOnBoth("foo"))
+        val imlNothing = DER.encodeToByteArray(NothingOnClass("foo"))
+        val imlClass = DER.encodeToByteArray(ImplicitOnClass("foo"))
+        val imlProp = DER.encodeToByteArray(ImplicitOnProperty("foo"))
+        val imlBoth = DER.encodeToByteArray(ImplicitOnBoth("foo"))
 
-        DER.decodeFromDer<NothingOnClass>(imlNothing) shouldBe NothingOnClass("foo")
-        DER.decodeFromDer<ImplicitOnClass>(imlClass) shouldBe ImplicitOnClass("foo")
-        DER.decodeFromDer<ImplicitOnProperty>(imlProp) shouldBe ImplicitOnProperty("foo")
-        DER.decodeFromDer<ImplicitOnBoth>(imlBoth) shouldBe ImplicitOnBoth("foo")
+        DER.decodeFromByteArray<NothingOnClass>(imlNothing) shouldBe NothingOnClass("foo")
+        DER.decodeFromByteArray<ImplicitOnClass>(imlClass) shouldBe ImplicitOnClass("foo")
+        DER.decodeFromByteArray<ImplicitOnProperty>(imlProp) shouldBe ImplicitOnProperty("foo")
+        DER.decodeFromByteArray<ImplicitOnBoth>(imlBoth) shouldBe ImplicitOnBoth("foo")
 
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnProperty>(imlClass) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnProperty>(imlBoth) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnProperty>(imlNothing) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnProperty>(imlClass) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnProperty>(imlBoth) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnProperty>(imlNothing) }
 
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnClass>(imlNothing) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnClass>(imlBoth) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnClass>(imlProp) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnClass>(imlNothing) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnClass>(imlBoth) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnClass>(imlProp) }
 
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnBoth>(imlProp) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnBoth>(imlClass) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnBoth>(imlNothing) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBoth>(imlProp) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBoth>(imlClass) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBoth>(imlNothing) }
 
-        shouldThrow<SerializationException> { DER.decodeFromDer<NothingOnClass>(imlClass) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<NothingOnClass>(imlProp) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<NothingOnClass>(imlBoth) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<NothingOnClass>(imlClass) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<NothingOnClass>(imlProp) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<NothingOnClass>(imlBoth) }
 
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnClassWrong>(imlClass) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnPropertyWrong>(imlProp) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnBothWrong>(imlBoth) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnBothWrongClass>(imlBoth) }
-        shouldThrow<SerializationException> { DER.decodeFromDer<ImplicitOnBothWrongProperty>(imlBoth) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnClassWrong>(imlClass) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnPropertyWrong>(imlProp) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBothWrong>(imlBoth) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBothWrongClass>(imlBoth) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBothWrongProperty>(imlBoth) }
 
         "Nested" {
-            val nothingOnClassNested = DER.encodeToDer(NothingOnClassNested(NothingOnClass("foo")))
-            val nothingOnClassNestedOnClass = DER.encodeToDer(NothingOnClassNestedOnClass(ImplicitOnClass("foo")))
-            val nothingOnClassNestedOnProperty = DER.encodeToDer(NothingOnClassNestedOnProperty(NothingOnClass("foo")))
+            val nothingOnClassNested = DER.encodeToByteArray(NothingOnClassNested(NothingOnClass("foo")))
+            val nothingOnClassNestedOnClass = DER.encodeToByteArray(NothingOnClassNestedOnClass(ImplicitOnClass("foo")))
+            val nothingOnClassNestedOnProperty = DER.encodeToByteArray(NothingOnClassNestedOnProperty(NothingOnClass("foo")))
             val nothingOnClassNestedOnPropertyOverride =
-                DER.encodeToDer(NothingOnClassNestedOnPropertyOverride(ImplicitOnClass("foo")))
+                DER.encodeToByteArray(NothingOnClassNestedOnPropertyOverride(ImplicitOnClass("foo")))
 
             nothingOnClassNested.toHexString() shouldBe "300730050c03666f6f"
             nothingOnClassNestedOnClass.toHexString() shouldBe "3009bf8a39050c03666f6f"
             nothingOnClassNestedOnProperty.toHexString() shouldBe "3009bf8a39050c03666f6f"
             nothingOnClassNestedOnPropertyOverride.toHexString() shouldBe "3009bf851a050c03666f6f"
 
-            DER.decodeFromDer<NothingOnClassNested>(nothingOnClassNested)
-            DER.decodeFromDer<NothingOnClassNestedOnClass>(nothingOnClassNestedOnClass)
-            DER.decodeFromDer<NothingOnClassNestedOnClass>(nothingOnClassNestedOnProperty)
-            DER.decodeFromDer<NothingOnClassNestedOnProperty>(nothingOnClassNestedOnProperty)
-            DER.decodeFromDer<NothingOnClassNestedOnProperty>(nothingOnClassNestedOnClass)
+            DER.decodeFromByteArray<NothingOnClassNested>(nothingOnClassNested)
+            DER.decodeFromByteArray<NothingOnClassNestedOnClass>(nothingOnClassNestedOnClass)
+            DER.decodeFromByteArray<NothingOnClassNestedOnClass>(nothingOnClassNestedOnProperty)
+            DER.decodeFromByteArray<NothingOnClassNestedOnProperty>(nothingOnClassNestedOnProperty)
+            DER.decodeFromByteArray<NothingOnClassNestedOnProperty>(nothingOnClassNestedOnClass)
 
-            DER.decodeFromDer<NothingOnClassNestedOnPropertyOverride>(nothingOnClassNestedOnPropertyOverride)
+            DER.decodeFromByteArray<NothingOnClassNestedOnPropertyOverride>(nothingOnClassNestedOnPropertyOverride)
 
-            shouldThrow<SerializationException> { DER.decodeFromDer<NothingOnClassNested>(nothingOnClassNestedOnClass) }
+            shouldThrow<SerializationException> { DER.decodeFromByteArray<NothingOnClassNested>(nothingOnClassNestedOnClass) }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNested>(nothingOnClassNestedOnProperty)
+                DER.decodeFromByteArray<NothingOnClassNested>(nothingOnClassNestedOnProperty)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNested>(nothingOnClassNestedOnPropertyOverride)
+                DER.decodeFromByteArray<NothingOnClassNested>(nothingOnClassNestedOnPropertyOverride)
             }
 
-            shouldThrow<SerializationException> { DER.decodeFromDer<NothingOnClassNestedOnClass>(nothingOnClassNested) }
+            shouldThrow<SerializationException> { DER.decodeFromByteArray<NothingOnClassNestedOnClass>(nothingOnClassNested) }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnClass>(nothingOnClassNestedOnPropertyOverride)
-            }
-
-            shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnProperty>(nothingOnClassNested)
-            }
-            shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnProperty>(nothingOnClassNestedOnPropertyOverride)
+                DER.decodeFromByteArray<NothingOnClassNestedOnClass>(nothingOnClassNestedOnPropertyOverride)
             }
 
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyOverride>(nothingOnClassNested)
+                DER.decodeFromByteArray<NothingOnClassNestedOnProperty>(nothingOnClassNested)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyOverride>(nothingOnClassNestedOnProperty)
-            }
-            shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyOverride>(nothingOnClassNestedOnClass)
+                DER.decodeFromByteArray<NothingOnClassNestedOnProperty>(nothingOnClassNestedOnPropertyOverride)
             }
 
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnClassWrong>(nothingOnClassNested)
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyOverride>(nothingOnClassNested)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnClassWrong>(nothingOnClassNestedOnClass)
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyOverride>(nothingOnClassNestedOnProperty)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnClassWrong>(nothingOnClassNestedOnProperty)
-            }
-            shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnClassWrong>(nothingOnClassNestedOnPropertyOverride)
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyOverride>(nothingOnClassNestedOnClass)
             }
 
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyWrong>(nothingOnClassNested)
+                DER.decodeFromByteArray<NothingOnClassNestedOnClassWrong>(nothingOnClassNested)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyWrong>(nothingOnClassNestedOnClass)
+                DER.decodeFromByteArray<NothingOnClassNestedOnClassWrong>(nothingOnClassNestedOnClass)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyWrong>(nothingOnClassNestedOnProperty)
+                DER.decodeFromByteArray<NothingOnClassNestedOnClassWrong>(nothingOnClassNestedOnProperty)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyWrong>(nothingOnClassNestedOnPropertyOverride)
+                DER.decodeFromByteArray<NothingOnClassNestedOnClassWrong>(nothingOnClassNestedOnPropertyOverride)
             }
 
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyOverrideWrong>(nothingOnClassNested)
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyWrong>(nothingOnClassNested)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyOverrideWrong>(nothingOnClassNestedOnClass)
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyWrong>(nothingOnClassNestedOnClass)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyOverrideWrong>(nothingOnClassNestedOnProperty)
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyWrong>(nothingOnClassNestedOnProperty)
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<NothingOnClassNestedOnPropertyOverrideWrong>(nothingOnClassNestedOnPropertyOverride)
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyWrong>(nothingOnClassNestedOnPropertyOverride)
+            }
+
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyOverrideWrong>(nothingOnClassNested)
+            }
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyOverrideWrong>(nothingOnClassNestedOnClass)
+            }
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyOverrideWrong>(nothingOnClassNestedOnProperty)
+            }
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<NothingOnClassNestedOnPropertyOverrideWrong>(nothingOnClassNestedOnPropertyOverride)
             }
         }
     }

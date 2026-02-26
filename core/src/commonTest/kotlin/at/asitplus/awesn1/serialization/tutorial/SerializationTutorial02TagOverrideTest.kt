@@ -12,9 +12,9 @@ val SerializationTutorial02TagOverride by testSuite(
 ) {
     "Implicit tag override with @Asn1Tag" {
         val value = TutorialTaggedInt(value = 5)
-        val der = DER.encodeToDer(value)
+        val der = DER.encodeToByteArray(value)
         der.toHexString() shouldBe "3003800105"
-        DER.decodeFromDer<TutorialTaggedInt>(der) shouldBe value
+        DER.decodeFromByteArray<TutorialTaggedInt>(der) shouldBe value
     }
 }
 

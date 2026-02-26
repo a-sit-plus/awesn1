@@ -12,9 +12,9 @@ val SerializationTutorial01Baseline by testSuite(
 ) {
     "Baseline mapping without ASN.1 annotations" {
         val value = TutorialPerson(name = "A", age = 5)
-        val der = DER.encodeToDer(value)
+        val der = DER.encodeToByteArray(value)
         der.toHexString() shouldBe "30060c0141020105"
-        DER.decodeFromDer<TutorialPerson>(der) shouldBe value
+        DER.decodeFromByteArray<TutorialPerson>(der) shouldBe value
     }
 }
 

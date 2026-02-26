@@ -14,41 +14,41 @@ val SerializationTestEncodeDefaults by testSuite(
 ) {
     "Default DER instance encodes default-valued properties" {
         val value = EncodeDefaultsSimple()
-        val encoded = DER.encodeToDer(value)
+        val encoded = DER.encodeToByteArray(value)
         encoded.toHexString() shouldBe "30060201010c0178"
-        DER.decodeFromDer<EncodeDefaultsSimple>(encoded) shouldBe value
+        DER.decodeFromByteArray<EncodeDefaultsSimple>(encoded) shouldBe value
     }
 
     "encodeDefaults=false omits default-valued properties" {
         val derNoDefaults = DER { encodeDefaults = false }
 
         val value = EncodeDefaultsSimple()
-        val encoded = derNoDefaults.encodeToDer(value)
+        val encoded = derNoDefaults.encodeToByteArray(value)
         encoded.toHexString() shouldBe "3000"
-        derNoDefaults.decodeFromDer<EncodeDefaultsSimple>(encoded) shouldBe value
+        derNoDefaults.decodeFromByteArray<EncodeDefaultsSimple>(encoded) shouldBe value
     }
 
     "encodeDefaults=false still encodes non-default values" {
         val derNoDefaults = DER { encodeDefaults = false }
 
         val value = EncodeDefaultsSimple(number = 2, text = "y")
-        val encoded = derNoDefaults.encodeToDer(value)
+        val encoded = derNoDefaults.encodeToByteArray(value)
         encoded.toHexString() shouldBe "30060201020c0179"
-        derNoDefaults.decodeFromDer<EncodeDefaultsSimple>(encoded) shouldBe value
+        derNoDefaults.decodeFromByteArray<EncodeDefaultsSimple>(encoded) shouldBe value
     }
 
     "encodeDefaults=false omits only defaulted fields in mixed classes" {
         val derNoDefaults = DER { encodeDefaults = false }
 
         val defaultsOnly = EncodeDefaultsMixed(required = 5)
-        val defaultsOnlyEncoded = derNoDefaults.encodeToDer(defaultsOnly)
+        val defaultsOnlyEncoded = derNoDefaults.encodeToByteArray(defaultsOnly)
         defaultsOnlyEncoded.toHexString() shouldBe "3003020105"
-        derNoDefaults.decodeFromDer<EncodeDefaultsMixed>(defaultsOnlyEncoded) shouldBe defaultsOnly
+        derNoDefaults.decodeFromByteArray<EncodeDefaultsMixed>(defaultsOnlyEncoded) shouldBe defaultsOnly
 
         val withOverrides = EncodeDefaultsMixed(required = 5, optionalInt = 8, optionalText = "a")
-        val withOverridesEncoded = derNoDefaults.encodeToDer(withOverrides)
+        val withOverridesEncoded = derNoDefaults.encodeToByteArray(withOverrides)
         withOverridesEncoded.toHexString() shouldBe "30090201050201080c0161"
-        derNoDefaults.decodeFromDer<EncodeDefaultsMixed>(withOverridesEncoded) shouldBe withOverrides
+        derNoDefaults.decodeFromByteArray<EncodeDefaultsMixed>(withOverridesEncoded) shouldBe withOverrides
     }
 }
 

@@ -13,9 +13,9 @@ val SerializationTutorial08ExplicitNulls by testSuite(
     "explicitNulls=true encodes null as ASN.1 NULL" {
         val format = DER { explicitNulls = true }
         val value = TutorialNullableInt(value = null)
-        val der = format.encodeToDer(value)
+        val der = format.encodeToByteArray(value)
         der.toHexString() shouldBe "30020500"
-        format.decodeFromDer<TutorialNullableInt>(der) shouldBe value
+        format.decodeFromByteArray<TutorialNullableInt>(der) shouldBe value
     }
 }
 

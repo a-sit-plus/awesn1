@@ -2,7 +2,6 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.serialization.*
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.testSuite
@@ -17,43 +16,43 @@ import kotlin.jvm.JvmInline
 val TaggedTest by testSuite {
     withData(0, 2, 3, 4, 5, 6, 7, 8, 9) - { int ->
         "UntaggedInt" {
-            DER.encodeToDer(UntaggedInt(int)).toHexString() shouldBe "300302010$int".also {
-                DER.decodeFromDer<UntaggedInt>(it.hexToByteArray()) shouldBe UntaggedInt(
+            DER.encodeToByteArray(UntaggedInt(int)).toHexString() shouldBe "300302010$int".also {
+                DER.decodeFromByteArray<UntaggedInt>(it.hexToByteArray()) shouldBe UntaggedInt(
                     int
                 )
             }
         }
         "UntaggedAsn1Integer" {
 
-            DER.encodeToDer(UntaggedAsn1Integer(int)).toHexString() shouldBe "300302010$int".also {
-                DER.decodeFromDer<UntaggedAsn1Integer>(it.hexToByteArray()) shouldBe UntaggedAsn1Integer(
+            DER.encodeToByteArray(UntaggedAsn1Integer(int)).toHexString() shouldBe "300302010$int".also {
+                DER.decodeFromByteArray<UntaggedAsn1Integer>(it.hexToByteArray()) shouldBe UntaggedAsn1Integer(
                     int
                 )
             }
         }
         "UntaggedElement" {
-            DER.encodeToDer(UntaggedElement(int)).toHexString() shouldBe "300302010$int".also {
-                DER.decodeFromDer<UntaggedElement>(it.hexToByteArray()) shouldBe UntaggedElement(
+            DER.encodeToByteArray(UntaggedElement(int)).toHexString() shouldBe "300302010$int".also {
+                DER.decodeFromByteArray<UntaggedElement>(it.hexToByteArray()) shouldBe UntaggedElement(
                     int
                 )
             }
         }
         "ImplicitlyTaggedElement" {
             shouldThrow<SerializationException> {
-                DER.encodeToDer(ImplicitlyTaggedElement(int))
+                DER.encodeToByteArray(ImplicitlyTaggedElement(int))
             }
             shouldThrow<SerializationException> {
-                DER.decodeFromDer<ImplicitlyTaggedElement>("300389010$int".hexToByteArray())
+                DER.decodeFromByteArray<ImplicitlyTaggedElement>("300389010$int".hexToByteArray())
             }
         }
 
         "ValueClassImplicitlyTaggedElement" {
-            DER.encodeToDer(ValueClassImplicitlyTaggedElement(int)).toHexString() shouldBe "300389010$int".also {
-               val decoded=  DER.decodeFromDer<ValueClassImplicitlyTaggedElement>(it.hexToByteArray()) shouldBe ValueClassImplicitlyTaggedElement(
+            DER.encodeToByteArray(ValueClassImplicitlyTaggedElement(int)).toHexString() shouldBe "300389010$int".also {
+               val decoded=  DER.decodeFromByteArray<ValueClassImplicitlyTaggedElement>(it.hexToByteArray()) shouldBe ValueClassImplicitlyTaggedElement(
                     int
                 )
                 shouldThrow<SerializationException> {
-                    DER.decodeFromDer<ValueClassImplicitlyTaggedElement>("300302010$int".hexToByteArray())
+                    DER.decodeFromByteArray<ValueClassImplicitlyTaggedElement>("300302010$int".hexToByteArray())
                 }
 
                 decoded.rawValue.tag.tagValue shouldBe 9uL

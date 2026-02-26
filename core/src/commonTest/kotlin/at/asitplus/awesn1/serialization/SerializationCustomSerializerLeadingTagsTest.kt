@@ -30,10 +30,10 @@ val SerializationTestCustomSerializerLeadingTags by testSuite(
         )
 
         shouldThrow<SerializationException> {
-            derNoDefaults.encodeToDer(value)
+            derNoDefaults.encodeToByteArray(value)
         }
         shouldThrow<SerializationException> {
-            derNoDefaults.decodeFromDer<UnknownLeadingTagsOptionalMiddle>("3006020101020102".hexToByteArray())
+            derNoDefaults.decodeFromByteArray<UnknownLeadingTagsOptionalMiddle>("3006020101020102".hexToByteArray())
         }
     }
 
@@ -48,7 +48,7 @@ val SerializationTestCustomSerializerLeadingTags by testSuite(
             extension = null,
             suffix = 2,
         )
-        derNoDefaults.decodeFromDer<KnownLeadingTagsOptionalMiddle>(derNoDefaults.encodeToDer(omitted)) shouldBe omitted
+        derNoDefaults.decodeFromByteArray<KnownLeadingTagsOptionalMiddle>(derNoDefaults.encodeToByteArray(omitted)) shouldBe omitted
 
         val present = KnownLeadingTagsOptionalMiddle(
             prefix = 1,
@@ -62,14 +62,14 @@ val SerializationTestCustomSerializerLeadingTags by testSuite(
         extensionTag.tagValue shouldBe 42UL
         extensionTag.isConstructed shouldBe false
 
-        val encodedDer = derNoDefaults.encodeToDer(present)
-        val reparsed = derNoDefaults.decodeFromDer<Asn1Element>(encodedDer).asStructure()
+        val encodedDer = derNoDefaults.encodeToByteArray(present)
+        val reparsed = derNoDefaults.decodeFromByteArray<Asn1Element>(encodedDer).asStructure()
         val reparsedExtensionTag = reparsed.children[1].tag
         reparsedExtensionTag.tagClass shouldBe TagClass.CONTEXT_SPECIFIC
         reparsedExtensionTag.tagValue shouldBe 42UL
         reparsedExtensionTag.isConstructed shouldBe false
 
-        derNoDefaults.decodeFromDer<KnownLeadingTagsOptionalMiddle>(encodedDer) shouldBe present
+        derNoDefaults.decodeFromByteArray<KnownLeadingTagsOptionalMiddle>(encodedDer) shouldBe present
     }
 }
 

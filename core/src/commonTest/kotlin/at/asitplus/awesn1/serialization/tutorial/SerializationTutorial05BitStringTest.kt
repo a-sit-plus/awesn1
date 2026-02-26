@@ -13,9 +13,9 @@ val SerializationTutorial05BitString by testSuite(
 ) {
     "BIT STRING mapping with @Asn1BitString on ByteArray" {
         val value = TutorialBitStringCarrier(byteArrayOf(0xAA.toByte()))
-        val der = DER.encodeToDer(value)
+        val der = DER.encodeToByteArray(value)
         der.toHexString() shouldBe "3004030200aa"
-        val decoded = DER.decodeFromDer<TutorialBitStringCarrier>(der)
+        val decoded = DER.decodeFromByteArray<TutorialBitStringCarrier>(der)
         decoded shouldNotBe value
         decoded.bits.contentToString() shouldBe value.bits.contentToString()
     }

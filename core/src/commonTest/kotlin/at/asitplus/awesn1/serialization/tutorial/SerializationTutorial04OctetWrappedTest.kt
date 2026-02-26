@@ -14,9 +14,9 @@ val SerializationTutorial04OctetWrapped by testSuite(
         val value = TutorialOctetCarrier(
             wrapped = OctetStringEncapsulated(5),
         )
-        val der = DER.encodeToDer(value)
+        val der = DER.encodeToByteArray(value)
         der.toHexString() shouldBe "30050403020105"
-        DER.decodeFromDer<TutorialOctetCarrier>(der) shouldBe value
+        DER.decodeFromByteArray<TutorialOctetCarrier>(der) shouldBe value
     }
 }
 

@@ -470,7 +470,7 @@ class DerDecoder internal constructor(
 
         val isEncodedNull =
             processedElement.isAsn1NullElement() ||
-                    (nullEncodingAnalysis.canDecodeNullByZeroLength && processedElement.length == 0) ||
+                    (nullEncodingAnalysis.canDecodeNullByZeroLength && processedElement.contentLength == 0) ||
                     (nullEncodingAnalysis.canDecodeNullByConstructedBit && !processedElement.tag.isConstructed)
 
         if (nullEncodingAnalysis.encodeNullEnabled && isEncodedNull) {

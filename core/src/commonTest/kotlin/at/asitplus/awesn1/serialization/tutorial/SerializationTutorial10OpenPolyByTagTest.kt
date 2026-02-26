@@ -27,30 +27,30 @@ val SerializationTutorial10OpenPolyByTag by testSuite(
 
         "INT value class" {
             val value: TutorialOpenByTag = TutorialOpenByTagInt(7)
-            val der = derCodec.encodeToDer(value)
+            val der = derCodec.encodeToByteArray(value)
             der.toHexString() shouldBe "020107"
-            derCodec.decodeFromDer<TutorialOpenByTag>(der) shouldBe value
+            derCodec.decodeFromByteArray<TutorialOpenByTag>(der) shouldBe value
         }
 
         "BOOL value class" {
             val value: TutorialOpenByTag = TutorialOpenByTagBool(true)
-            val der = derCodec.encodeToDer(value)
+            val der = derCodec.encodeToByteArray(value)
             der.toHexString() shouldBe "0101ff"
-            derCodec.decodeFromDer<TutorialOpenByTag>(der) shouldBe value
+            derCodec.decodeFromByteArray<TutorialOpenByTag>(der) shouldBe value
         }
 
         "SEQUENCE regular class" {
             val value: TutorialOpenByTag = TutorialOpenByTagSeqNoInline(true)
-            val der = derCodec.encodeToDer(value)
+            val der = derCodec.encodeToByteArray(value)
             der.toHexString() shouldBe "30030101ff"
-            derCodec.decodeFromDer<TutorialOpenByTag>(der) shouldBe value
+            derCodec.decodeFromByteArray<TutorialOpenByTag>(der) shouldBe value
         }
 
         "SEQUENCE manually tagged" {
             val value: TutorialOpenByTag = TutorialOpenByTagSeqNoInlineManuallyTagged(false)
-            val der = derCodec.encodeToDer(value)
+            val der = derCodec.encodeToByteArray(value)
             der.toHexString() shouldBe "bf6303010100"
-            derCodec.decodeFromDer<TutorialOpenByTag>(der) shouldBe value
+            derCodec.decodeFromByteArray<TutorialOpenByTag>(der) shouldBe value
         }
 
     }

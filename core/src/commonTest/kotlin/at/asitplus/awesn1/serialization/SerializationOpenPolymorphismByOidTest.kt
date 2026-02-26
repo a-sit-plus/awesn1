@@ -24,8 +24,8 @@ val SerializationTestOpenPolymorphismByOid by testSuite(
         val intValue: OpenByOid = OpenByOidInt(value = 7)
         val strValue: OpenByOid = OpenByOidString(value = "hello")
 
-        der.decodeFromDer<OpenByOid>(der.encodeToDer(intValue)) shouldBe intValue
-        der.decodeFromDer<OpenByOid>(der.encodeToDer(strValue)) shouldBe strValue
+        der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(intValue)) shouldBe intValue
+        der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(strValue)) shouldBe strValue
     }
 
     "Additional OID subtype can be enabled by extending the DER serializers module" {
@@ -34,22 +34,22 @@ val SerializationTestOpenPolymorphismByOid by testSuite(
         val boolValue: OpenByOid = OpenByOidBool(value = true)
 
         shouldThrow<SerializationException> {
-            strictDer.encodeToDer(boolValue)
+            strictDer.encodeToByteArray(boolValue)
         }.message.shouldContain("No registered open-polymorphic subtype")
 
-        val encoded = extendedDer.encodeToDer(boolValue)
-        extendedDer.decodeFromDer<OpenByOid>(encoded) shouldBe boolValue
+        val encoded = extendedDer.encodeToByteArray(boolValue)
+        extendedDer.decodeFromByteArray<OpenByOid>(encoded) shouldBe boolValue
 
         shouldThrow<SerializationException> {
-            strictDer.decodeFromDer<OpenByOid>(encoded)
+            strictDer.decodeFromByteArray<OpenByOid>(encoded)
         }.message.shouldContain("for OID")
     }
 
     "Missing OID discriminator fails decode" {
         val der = derWithOpenByOid(includeBool = false)
-        val encodedNoOid = der.encodeToDer(NoOidEnvelope.serializer(), NoOidEnvelope(value = 1))
+        val encodedNoOid = der.encodeToByteArray(NoOidEnvelope.serializer(), NoOidEnvelope(value = 1))
         shouldThrow<SerializationException> {
-            der.decodeFromDer<OpenByOid>(encodedNoOid)
+            der.decodeFromByteArray<OpenByOid>(encodedNoOid)
         }.message.shouldContain("Could not extract discriminator OID")
     }
 }
