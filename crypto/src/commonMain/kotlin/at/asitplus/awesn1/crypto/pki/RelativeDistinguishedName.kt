@@ -1,0 +1,153 @@
+// SPDX-FileCopyrightText: Copyright (c) A-SIT Plus GmbH
+// SPDX-License-Identifier: Apache-2.0
+
+package at.asitplus.awesn1.crypto.pki
+
+import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.Asn1Encodable
+import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.Asn1Primitive
+import at.asitplus.awesn1.Asn1Sequence
+import at.asitplus.awesn1.Asn1Set
+import at.asitplus.awesn1.Asn1String
+import at.asitplus.awesn1.Identifiable
+import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.decodeRethrowing
+import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.readOid
+import at.asitplus.awesn1.serialization.Asn1Serializable
+import kotlinx.serialization.Serializable
+
+@Serializable(with = RelativeDistinguishedName.Companion::class)
+open class RelativeDistinguishedName(val attrsAndValues: List<AttributeTypeAndValue>) : Asn1Encodable<Asn1Set> {
+
+    constructor(singleItem: AttributeTypeAndValue) : this(listOf(singleItem))
+
+    override fun encodeToTlv() = Asn1.Set {
+        attrsAndValues.forEach { +it }
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RelativeDistinguishedName) return false
+        return attrsAndValues == other.attrsAndValues
+    }
+
+    override fun hashCode(): Int = attrsAndValues.hashCode()
+
+    companion object : Asn1Serializable<Asn1Set, RelativeDistinguishedName> {
+        override val leadingTags = setOf(Asn1Element.Tag.SET)
+
+        @Throws(Asn1Exception::class)
+        override fun doDecode(src: Asn1Set): RelativeDistinguishedName = src.decodeRethrowing {
+            buildList {
+                while (hasNext()) {
+                    val child = next().asSequence()
+                    add(AttributeTypeAndValue.decodeFromTlv(child))
+                }
+            }.let(::RelativeDistinguishedName)
+        }
+    }
+}
+
+@Serializable(with = AttributeTypeAndValue.Companion::class)
+open class AttributeTypeAndValue protected constructor(
+    final override val oid: ObjectIdentifier,
+    open val value: Asn1Element
+) : Asn1Encodable<Asn1Sequence>, Identifiable {
+
+    override fun toString() = value.toString()
+
+    open class CommonName(override val value: Asn1Element) : AttributeTypeAndValue(OID, value) {
+
+        constructor(str: Asn1String) : this(Asn1Primitive(str.tag, str.value.encodeToByteArray()))
+
+        companion object {
+            val OID = ObjectIdentifier("2.5.4.3")
+        }
+    }
+
+    open class Country(override val value: Asn1Element) : AttributeTypeAndValue(OID, value) {
+
+        constructor(str: Asn1String) : this(Asn1Primitive(str.tag, str.value.encodeToByteArray()))
+
+        companion object {
+            val OID = ObjectIdentifier("2.5.4.6")
+        }
+    }
+
+    open class Organization(override val value: Asn1Element) : AttributeTypeAndValue(OID, value) {
+
+        constructor(str: Asn1String) : this(Asn1Primitive(str.tag, str.value.encodeToByteArray()))
+
+        companion object {
+            val OID = ObjectIdentifier("2.5.4.10")
+        }
+    }
+
+    open class OrganizationalUnit(override val value: Asn1Element) : AttributeTypeAndValue(OID, value) {
+
+        constructor(str: Asn1String) : this(Asn1Primitive(str.tag, str.value.encodeToByteArray()))
+
+        companion object {
+            val OID = ObjectIdentifier("2.5.4.11")
+        }
+    }
+
+    open class Other(oid: ObjectIdentifier, override val value: Asn1Element) : AttributeTypeAndValue(oid, value) {
+        constructor(oid: ObjectIdentifier, str: Asn1String) : this(
+            oid,
+            Asn1Primitive(str.tag, str.value.encodeToByteArray())
+        )
+    }
+
+    override fun encodeToTlv() = Asn1.Sequence {
+        +oid
+        +value
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as AttributeTypeAndValue
+
+        if (value != other.value) return false
+        if (oid != other.oid) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = value.hashCode()
+        result = 31 * result + oid.hashCode()
+        return result
+    }
+
+    companion object : Asn1Serializable<Asn1Sequence, AttributeTypeAndValue> {
+        override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
+
+        @Throws(Asn1Exception::class)
+        override fun doDecode(src: Asn1Sequence): AttributeTypeAndValue = src.decodeRethrowing {
+            val oid = next().asPrimitive().readOid()
+            if (oid.nodes.size >= 3 && oid.toString().startsWith("2.5.4.")) {
+                val asn1String = next().asPrimitive()
+                val str = runCatching { Asn1String.decodeFromTlv(asn1String) }
+                return@decodeRethrowing when (oid) {
+                    CommonName.OID -> str.fold(onSuccess = { CommonName(it) }, onFailure = { CommonName(asn1String) })
+                    Country.OID -> str.fold(onSuccess = { Country(it) }, onFailure = { Country(asn1String) })
+                    Organization.OID -> str.fold(
+                        onSuccess = { Organization(it) },
+                        onFailure = { Organization(asn1String) })
+
+                    OrganizationalUnit.OID -> str.fold(
+                        onSuccess = { OrganizationalUnit(it) },
+                        onFailure = { OrganizationalUnit(asn1String) })
+
+                    else -> Other(oid, asn1String)
+                }
+            }
+            Other(oid, next())
+        }
+    }
+}

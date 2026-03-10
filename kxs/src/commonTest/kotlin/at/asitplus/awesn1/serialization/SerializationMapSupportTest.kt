@@ -1,0 +1,84 @@
+package at.asitplus.awesn1.serialization
+
+import at.asitplus.testballoon.invoke
+import de.infix.testBalloon.framework.core.TestConfig
+import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import de.infix.testBalloon.framework.core.invocation
+import de.infix.testBalloon.framework.core.testSuite
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.matchers.shouldBe
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
+
+@OptIn(ExperimentalStdlibApi::class)
+val SerializationTestMapSupport by testSuite(
+    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
+) {
+    "Map roundtrip is supported" {
+        val plainMap = mapOf(1 to true, 2 to false, 3 to true)
+        DER.decodeFromByteArray<Map<Int, Boolean>>(
+            DER.encodeToByteArray(plainMap)
+        ) shouldBe plainMap
+
+        val wrapped = MapInEnvelope(
+            prefix = "map-check",
+            values = plainMap,
+            suffix = listOf(7, 8, 9)
+        )
+
+        DER.decodeFromByteArray<MapInEnvelope>(
+            DER.encodeToByteArray(wrapped)
+        ) shouldBe wrapped
+    }
+
+    "Nullable map/list ambiguity is rejected unless tagged" {
+        val ambiguous = AmbiguousNullableMapThenList(
+            maybeMap = null,
+            values = listOf(1, 2, 3)
+        )
+        shouldThrow<SerializationException> {
+            DER.encodeToByteArray(ambiguous)
+        }
+        shouldThrow<SerializationException> {
+            DER.decodeFromByteArray<AmbiguousNullableMapThenList>("3000".hexToByteArray())
+        }
+
+        val taggedWithoutMap = TaggedNullableMapThenList(
+            maybeMap = null,
+            values = listOf(1, 2, 3)
+        )
+        val taggedWithMap = TaggedNullableMapThenList(
+            maybeMap = mapOf(1 to true),
+            values = listOf(1, 2, 3)
+        )
+
+        DER.decodeFromByteArray<TaggedNullableMapThenList>(
+            DER.encodeToByteArray(taggedWithoutMap)
+        ) shouldBe taggedWithoutMap
+        DER.decodeFromByteArray<TaggedNullableMapThenList>(
+            DER.encodeToByteArray(taggedWithMap)
+        ) shouldBe taggedWithMap
+    }
+}
+
+@Serializable
+data class AmbiguousNullableMapThenList(
+    val maybeMap: Map<Int, Boolean>?,
+    val values: List<Int>,
+)
+
+@Serializable
+data class TaggedNullableMapThenList(
+    @Asn1Tag(tagNumber = 40u)
+    val maybeMap: Map<Int, Boolean>?,
+    val values: List<Int>,
+)
+
+@Serializable
+data class MapInEnvelope(
+    val prefix: String,
+    val values: Map<Int, Boolean>,
+    val suffix: List<Int>,
+)

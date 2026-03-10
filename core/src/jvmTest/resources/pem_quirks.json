@@ -1,0 +1,60 @@
+{
+  "cases": [
+    {
+      "name": "leading and trailing text are ignored",
+      "pem_lines": [
+        "some preface text",
+        "-----BEGIN CERTIFICATE-----",
+        "AQID",
+        "-----END CERTIFICATE-----",
+        "some trailing text"
+      ],
+      "expected_labels": ["CERTIFICATE"]
+    },
+    {
+      "name": "headers with and without post-colon space",
+      "pem_lines": [
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "Proc-Type: 4,ENCRYPTED",
+        "DEK-Info:AES-256-CBC,00112233445566778899AABBCCDDEEFF",
+        "",
+        "AQID",
+        "-----END RSA PRIVATE KEY-----"
+      ],
+      "expected_labels": ["RSA PRIVATE KEY"],
+      "expected_header_names_by_block": [["Proc-Type", "DEK-Info"]]
+    },
+    {
+      "name": "blank lines in payload are tolerated",
+      "pem_lines": [
+        "-----BEGIN PUBLIC KEY-----",
+        "AQID",
+        "",
+        "BAUG",
+        "-----END PUBLIC KEY-----"
+      ],
+      "expected_labels": ["PUBLIC KEY"]
+    },
+    {
+      "name": "mixed types in one document are supported",
+      "pem_lines": [
+        "-----BEGIN CERTIFICATE-----",
+        "AQID",
+        "-----END CERTIFICATE-----",
+        "-----BEGIN PUBLIC KEY-----",
+        "BAUG",
+        "-----END PUBLIC KEY-----"
+      ],
+      "expected_labels": ["CERTIFICATE", "PUBLIC KEY"]
+    },
+    {
+      "name": "boundary mismatch fails",
+      "pem_lines": [
+        "-----BEGIN CERTIFICATE-----",
+        "AQID",
+        "-----END PRIVATE KEY-----"
+      ],
+      "should_fail": true
+    }
+  ]
+}

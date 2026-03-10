@@ -1,0 +1,24 @@
+{
+  "include" : [
+    {
+      "module": "core",
+      "artifactName": "core"
+    },
+    {
+      "module": "kxs",
+      "artifactName": "kxs"
+    },
+    {
+      "module": "io",
+      "artifactName": "io"
+    },
+    {
+      "module": "kxs-io",
+      "artifactName": "kxs-io"
+    },
+    {
+      "module": "oid",
+      "artifactName": "oids"
+    }
+  ]
+}

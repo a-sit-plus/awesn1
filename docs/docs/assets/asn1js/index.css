@@ -1,0 +1,362 @@
+html {
+    --main-bg-color: #C0C0C0;
+    --main-text-color: #000000;
+    --headline-text-color: #8be9fd;
+    --button-border-color: #767676;
+    --button-bg-color: #efefef;
+    --button-bghover-color: #e5e5e5;
+    --input-border-color: #767676;
+    --input-bg-color: #ffffff;
+    --link-color: darkblue;
+    --link-hover-color: blue;
+    --header-bg-color: #999999;
+    --page-bg-color: #6e6e6e;
+    --license-bg-color: #D0D0D0;
+    --license-border-color: white;
+    --sub-border-color: #E0E0E0;
+    --preview-bg-color: #808080;
+    --preview-border-color: #505050;
+    --dump-bg-color: #C0C0C0;
+    --dump-border-color: #E0E0E0;
+    --dump-tag: blue;
+    --dump-dlen: darkcyan;
+    --dump-ulen: darkgreen;
+    --dump-intro: blue;
+    --dump-outro: darkgreen;
+    --dump-skip: #666666;
+    --dump-skip-bg: #C0C0C0;
+    --dump-hex-current: #808080;
+    --dump-hex-current-hex: #A0A0A0;
+    --dump-hex-current-dlen: #004040;
+    --hover-bg-color: #E0E0E0;
+    --tree-zoom-fix: -1px;
+    --tree-line: #999;
+}
+html[data-theme="dark"] {
+    --main-bg-color: #0d1116;
+    --main-text-color: #f8f8f2;
+    --headline-text-color: #8be9fd;
+    --button-border-color: #505050;
+    --button-bg-color: #303030;
+    --button-bghover-color: #404040;
+    --input-border-color: #505050;
+    --input-bg-color: #0c0e11;
+    --link-color: #58a6ff;
+    --link-hover-color: #9b9bea;
+    --header-bg-color: #161b22;
+    --page-bg-color: #000000;
+    --license-bg-color: #4b4a4a;
+    --license-border-color: black;
+    --sub-border-color: #383838;
+    --preview-bg-color: #989797;
+    --preview-border-color: #b5b3b3;
+    --dump-bg-color: #0c0e11;
+    --dump-border-color: #505050;
+    --dump-tag: #58a6ff;
+    --dump-dlen: darkcyan;
+    --dump-ulen: #00b6b6;
+    --dump-intro: #58a6ff;
+    --dump-outro: #00b6b6;
+    --dump-skip: #707070;
+    --dump-skip-bg: #222222;
+    --dump-hex-current: #727272;
+    --dump-hex-current-hex: #474747;
+    --dump-hex-current-dlen: #00b6b6;
+    --hover-bg-color: #505050;
+    --tree-line: #333;
+}
+html, body {
+    background-color: var(--page-bg-color);
+    color: var(--main-text-color);
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: justify;
+    font-size: 10pt;
+    margin: 0px;
+}
+header {
+    display: flex;
+    flex: nowrap;
+}
+header > .title {
+    flex: auto;
+}
+header > .menu {
+    display: flex;
+    align-items: center;
+    padding-right: 10px;
+}
+input,
+textarea {
+    background-color: var(--input-bg-color);
+    color: var(--main-text-color);
+    border: 1px solid var(--input-border-color);
+}
+input[type="button"] {
+    background-color: var(--button-bg-color);
+    color: var(--main-text-color);
+    border: 1px solid var(--button-border-color);
+}
+input[type="button"]:hover {
+    background-color: var(--button-bghover-color);
+}
+::file-selector-button,
+::-webkit-file-upload-button {
+    background-color: var(--button-bg-color);
+    color: var(--main-text-color);
+    border: 0px;
+    border-right: 1px solid var(--button-border-color);
+}
+::-webkit-file-upload-button:hover {
+    background-color: var(--button-bghover-color);
+}
+::file-selector-button:hover {
+    background-color: var(--button-bghover-color);
+}
+select {
+    background-color: var(--input-bg-color);
+    color: var(--main-text-color);
+    border: 1px solid var(--input-border-color);
+
+}
+a {
+    color: var(--link-color);
+}
+header {
+    background-color: var(--header-bg-color);
+    padding: 8px;
+    padding-left: 16px;
+}
+#main-page {
+    background-color: var(--main-bg-color);
+    border: 0px;
+    padding: 5px;
+}
+#main-page > div {
+    position: relative;
+    padding-bottom: 1em;
+}
+#help {
+    margin: 0px;
+    padding: 4px;
+    padding-left: 20px;
+}
+.tt {
+    font-family: monospace;
+}
+.license {
+    position: relative;
+}
+.license .hidden {
+    visibility: hidden;
+    position: absolute;
+    top: 0px;
+    background-color: #D0D0D0; /*minimal support for IE11*/
+    background-color: var(--license-bg-color);
+    border: solid 1px var(--license-border-color);
+    padding: 2px;
+    margin-left: 15%;
+    margin-right: 15%;
+}
+.license:hover .hidden {
+    /*display: block;*/
+    visibility: visible;
+}
+.head {
+    height: 1em;
+    white-space: nowrap;
+}
+.node:hover > .head, .node.hover > .head {
+    color: var(--link-color);
+    background-color: var(--hover-bg-color);
+}
+.node:hover > .head:hover, .node.hover > .head.hover {
+    color: var(--link-hover-color);
+}
+.node.collapsed {
+    font-style: italic;
+}
+.node.collapsed > .sub {
+    display: none;
+}
+.node.collapsed.hover > .sub {
+    display: block;
+}
+.name {
+    margin-right: 1em;
+    color: var(--preview-border-color);
+}
+.name.id {
+    color: var(--main-text-color);
+}
+.value {
+    display: none;
+    position: absolute;
+    z-index: 2;
+    top: 1.2em;
+    left: 30px;
+    background-color: #efefef; /*minimal support for IE11*/
+    background-color: var(--button-bg-color);
+    border: solid 1px var(--button-border-color);
+    padding: 2px;
+}
+.head:hover + .value, .head.hover + .value {
+    display: block;
+}
+.preview {
+    margin-left: 1em;
+    color: var(--preview-border-color);
+    font-weight: normal;
+}
+.preview > .oid {
+    margin-left: 1em;
+    color: var(--preview-bg-color);
+    font-weight: normal;
+}
+.spaces {
+    font-size: 0px;
+}
+#tree {
+    font-family: monospace;
+}
+#tree > p {
+    font-family: Arial, Helvetica, sans-serif;
+}
+#dump {
+    position: absolute;
+    right: 0px;
+    z-index: 1;
+    background-color: var(--dump-bg-color);
+    border: solid 1px var(--dump-border-color);
+    font-family: monospace;
+    white-space: pre;
+    padding: 5px;
+}
+#dump .tag             { color: var(--dump-tag); }
+#dump .dlen            { color: var(--dump-dlen); }
+#dump .ulen            { color: var(--dump-ulen); }
+#dump .intro           { color: var(--dump-intro); }
+#dump .outro           { color: var(--dump-outro); }
+#dump .skip            { color: var(--dump-skip); background-color: var(--dump-skip-bg); }
+#dump .hexCurrent      { background-color: var(--dump-hex-current); }
+#dump .hexCurrent .hex { background-color: var(--dump-hex-current-hex); }
+#dump .hexCurrent .dlen { color: var(--dump-hex-current-dlen); }
+#file { display: none; }
+#area { width: 100%; }
+#contextmenu {
+    position: absolute;
+    visibility: hidden;
+    top: 0;
+    left: 0;
+    padding: 2px;
+    background-color: var(--button-bg-color);
+    border: 1px solid var(--button-bg-color);
+    z-index: 2;
+}
+#contextmenu > button {
+    display: block;
+    width: 120px;
+    background-color: var(--button-bg-color);
+    color: var(--main-text-color);
+    border: 1px solid var(--button-border-color);
+    text-align: left;
+}
+#contextmenu > button:hover {
+    background-color: var(--button-bghover-color);
+}
+
+.treecollapse {
+    --spacing: 1.5rem;
+    --radius: 7px;
+    padding-inline-start: 0px;
+}
+.treecollapse li{
+    display: block;
+    position: relative;
+    padding-left: calc(2 * var(--spacing) - var(--radius) - 2px);
+}
+.treecollapse ul{
+    padding-left: 0;
+    margin-left: calc(var(--radius) - var(--spacing));
+}
+.treecollapse ul li{
+    border-left: 1px solid var(--tree-line);
+}
+.treecollapse ul li:last-child{
+    border-color: transparent;
+}
+.treecollapse ul li::before{
+    content: '';
+    display: block;
+    position: absolute;
+    top: calc(var(--spacing) / -1.6);
+    left: var(--tree-zoom-fix);
+    width: calc(var(--spacing) + 2px);
+    height: calc(var(--spacing) + 1px);
+    border: solid var(--tree-line);
+    border-width: 0 0 1px 1px;
+}
+.treecollapse summary{
+    display : block;
+    cursor  : pointer;
+}
+.treecollapse summary::marker,
+.treecollapse summary::-webkit-details-marker{
+    display : none;
+}
+.treecollapse summary:focus{
+    outline : none;
+}
+.treecollapse summary:focus-visible{
+    outline : 1px dotted #000;
+}
+.treecollapse summary::before{
+    content: '';
+    display: block;
+    position: absolute;
+    top: calc(var(--spacing) / 2 - var(--radius));
+    left: calc(var(--spacing) - var(--radius) - 1px);
+    width: calc(2 * var(--radius));
+    height: calc(2 * var(--radius));
+}
+.treecollapse summary::before{
+    z-index: 1;
+    top: 1px;
+    background: url('tree-icon-light.svg');
+}
+html[data-theme="dark"] .treecollapse summary::before{
+    background: url('tree-icon-dark.svg');
+}
+.treecollapse details[open] > summary::before{
+    background-position : calc(-2 * var(--radius)) 0;
+}
+
+/*
+Zoom fix to have straight lines in treeview
+Zoom level and dpi resolution:
+- 175%: 336dpi
+- 150%: 288dpi
+- 110%: 212dpi
+- 100%: 192dpi
+- 90%:  173dpi
+- 80%:  154dpi
+*/
+@media (resolution <= 154dpi) {
+    :root{
+        --tree-zoom-fix: -0.6px;
+    }
+}
+@media (155dpi <= resolution < 192dpi) {
+    :root{
+        --tree-zoom-fix: -0.7px;
+    }
+}
+@media (192dpi <= resolution < 336dpi) {
+    :root{
+        --tree-zoom-fix: -1px;
+    }
+}
+@media (336dpi <= resolution) {
+    :root{
+        --tree-zoom-fix: -0.9px;
+    }
+}

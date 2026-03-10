@@ -1,0 +1,148 @@
+/* Dedicated homepage styling (docs/index.md) */
+.md-content .landing {
+  --landing-line: #177c7f;
+  --landing-text: #d6fff7;
+  --landing-muted: #96d6ce;
+  --landing-amber-1: #f5ec7b;
+  --landing-amber-2: #ffd169;
+  --landing-panel: rgba(7, 27, 30, 0.74);
+  --landing-shadow-a: #0b5c63;
+  --landing-shadow-b: rgba(0, 0, 0, 0.55);
+  color: var(--landing-text);
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.58rem;
+}
+
+.md-content .landing,
+.md-content .landing * {
+  font-family: "Press Start 2P", monospace;
+}
+
+.md-content .landing p {
+  margin: 0;
+  color: var(--landing-muted);
+  font-family: "VT323", monospace;
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+.md-content .landing p ruby {
+  font-family: "VT323", monospace;
+}
+.md-content .landing p ruby rt {
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+  font-size: 0.5em;
+}
+
+.md-content .landing-hero,
+.md-content .landing-card {
+  border: 2px solid var(--landing-line);
+  background: var(--landing-panel);
+  box-shadow: 3px 3px 0 var(--landing-shadow-a), 6px 6px 0 var(--landing-shadow-b);
+}
+
+.md-content .landing-hero {
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.md-content .landing-logo {
+  display: block;
+  width: min(480px, 100%);
+  margin: 0 auto 0.8rem;
+}
+
+.md-content .landing h1,
+.md-content .landing h2 {
+  margin: 0 0 0.65rem;
+  font-family: "Press Start 2P", monospace;
+  text-transform: uppercase;
+}
+
+.md-content .landing h1 {
+  color: #b9efe8;
+  font-size: 1.2rem;
+  text-transform: none;
+}
+
+.md-content .landing h2 {
+  color: var(--landing-amber-1);
+  font-size: 0.6rem;
+}
+
+.md-content .landing-hero p + p {
+  margin-top: 0.7rem;
+}
+
+.md-content .landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.md-content .landing-btn {
+  border: 2px solid;
+  font-family: "Press Start 2P", monospace;
+  font-size: 0.54rem;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 0.6rem 0.8rem;
+}
+
+.md-content .landing-btn-main {
+  border-color: rgba(255, 209, 105, 0.9);
+  color:var(--md-default-bg-color) !important;
+  background: linear-gradient(180deg, var(--landing-amber-1), var(--landing-amber-2));
+}
+
+a.landing-btn-main:hover {
+  color: black !important;
+}
+
+.md-content .landing-btn-alt {
+  border-color: rgba(255, 209, 105, 0.72);
+  color: var(--landing-amber-1);
+  background: rgba(255, 187, 94, 0.15);
+}
+
+.md-content .landing-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.md-content .landing-card {
+  padding: 0.85rem;
+}
+
+@media screen and (max-width: 48em) {
+  .md-content .landing-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+body:has(.landing) {
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: 100% 100vh;
+}
+
+/* Landing-only header simplification */
+body:has(.landing) .md-header .md-header__button.md-logo,
+body:has(.landing) .md-header label.md-header__button[for="__drawer"],
+body:has(.landing) .md-header label.md-header__button[for="__search"],
+body:has(.landing) .md-header .md-search {
+  display: none !important;
+}
+
+body:has(.landing) .md-content__inner {
+  border: 0;
+  background: transparent !important;
+  box-shadow: none;
+  padding: 0;
+  margin-bottom: 0;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}

@@ -1,0 +1,93 @@
+site_name: awesn1
+site_url: https://a-sit-plus.github.io/awesn1/
+
+theme:
+  name: material
+  logo: assets/icon.svg
+  favicon: assets/icon.svg
+  custom_dir: overrides
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.annotate
+    - announce.dismiss
+  icon:
+    repo: github
+    search: search
+  font: false
+
+  palette:
+    scheme: slate
+
+
+extra_css:
+  - stylesheets/extra.css
+  - stylesheets/landing.css
+extra_javascript:
+  - javascripts/inner-scroll-toc.js
+
+repo_url: https://github.com/a-sit-plus/awesn1
+repo_name: Free Play
+
+copyright: Copyright &copy; 2026 A-SIT Plus &bull; <a href="https://a-sit-plus.github.io/awesn1/imprint/">Imprint</a>
+
+plugins:
+  - social
+  - search
+  - macros
+  - open-in-new-tab
+
+extra:
+  social:
+    - icon: globe
+      link: https://a-sit-plus.github.io
+    - icon: envelope
+      link: mailto:<opensource@a-sit.at>
+
+markdown_extensions:
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      check_paths: true
+      dedent_subsections: true
+      base_path:
+        - ../core/src/jvmTest/kotlin/
+        - ../core/src/commonTest/kotlin/
+        - ../kxs/src/jvmTest/kotlin/
+        - ../kxs/src/commonTest/kotlin/
+  - pymdownx.superfences
+  - admonition
+  - pymdownx.details
+  - pymdownx.tilde
+  - md_in_html
+  - attr_list
+
+nav:
+  - Overview: core.md
+  - Serialization : kxs.md
+  - Low-Level ASN.1: lowlevel.md
+  - Crypto: crypto.md
+  - Addons: addons.md
+  - SBOM:
+      - Overview: sbom.md
+      - Core: sbom/modules/core.md
+      - IO: sbom/modules/io.md
+      - KXS: sbom/modules/kxs.md
+      - KXS-IO: sbom/modules/kxs-io.md
+      - OIDs: sbom/modules/oids.md
+  - CHANGELOG.md
+  - API Docs: dokka/index.html

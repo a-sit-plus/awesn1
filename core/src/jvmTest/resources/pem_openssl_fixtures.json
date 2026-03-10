@@ -1,0 +1,49 @@
+{
+  "fixtures": [
+    {
+      "file": "certificate.pem",
+      "expected_labels": ["CERTIFICATE"],
+      "expected_header_names_by_block": [[]]
+    },
+    {
+      "file": "certificate-chain.pem",
+      "expected_labels": ["CERTIFICATE", "CERTIFICATE"],
+      "expected_header_names_by_block": [[], []]
+    },
+    {
+      "file": "rsa-public.pem",
+      "expected_labels": ["PUBLIC KEY"],
+      "expected_header_names_by_block": [[]]
+    },
+    {
+      "file": "rsa-private-traditional.pem",
+      "expected_labels": ["RSA PRIVATE KEY"],
+      "expected_header_names_by_block": [[]]
+    },
+    {
+      "file": "rsa-private-traditional-encrypted.pem",
+      "expected_labels": ["RSA PRIVATE KEY"],
+      "expected_header_names_by_block": [["Proc-Type", "DEK-Info"]]
+    },
+    {
+      "file": "rsa-private-pkcs8.pem",
+      "expected_labels": ["PRIVATE KEY"],
+      "expected_header_names_by_block": [[]]
+    },
+    {
+      "file": "rsa-private-pkcs8-encrypted.pem",
+      "expected_labels": ["ENCRYPTED PRIVATE KEY"],
+      "expected_header_names_by_block": [[]]
+    },
+    {
+      "file": "ec-private-traditional.pem",
+      "expected_labels": ["EC PRIVATE KEY"],
+      "expected_header_names_by_block": [[]]
+    },
+    {
+      "file": "mixed-bundle.pem",
+      "expected_labels": ["CERTIFICATE", "PUBLIC KEY", "ENCRYPTED PRIVATE KEY"],
+      "expected_header_names_by_block": [[], [], []]
+    }
+  ]
+}
