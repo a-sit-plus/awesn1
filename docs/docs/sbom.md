@@ -86,3 +86,9 @@ links to the corresponding JSON/XML SBOM files, plus detached signature links wh
 These SBOMs are standard CycloneDX documents and can be consumed directly by established tooling such as
 Dependency-Track, OWASP Dependency-Check integrations that support CycloneDX, Syft/Grype workflows, and other
 CycloneDX-compatible scanners and inventory systems.
+
+
+## Why not GitHub Dependency Graph
+GitHub’s dependency graph and its automatic generation are certainly very convenient. Unfortunately, however, both their usefulness and, even more importantly, their explanatory value are limited. The reason is that GitHub publishes not only the dependencies of the released artifacts, but all dependencies indiscriminately, regardless of whether they are test dependencies or dependencies of the toolchain, and does so without reflection or categorization.
+
+For that reason, we decided to generate meaningful SBOMs ourselves, publish them automatically with each release, and document them here as part of the documentation.
