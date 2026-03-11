@@ -12,8 +12,8 @@ import kotlin.time.toKotlinInstant
 
 val Asn1TimeTest by testSuite {
 
-    val utcLowerBound = kotlinx.datetime.Instant.parse("1950-01-01T00:00:00Z")
-    val utcUpperBound = kotlinx.datetime.Instant.parse("2050-01-01T00:00:00Z")
+    val utcLowerBound = kotlin.time.Instant.parse("1950-01-01T00:00:00Z")
+    val utcUpperBound = kotlin.time.Instant.parse("2050-01-01T00:00:00Z")
 
     "Asn1Time test equals and hashCode" - {
         checkAll(

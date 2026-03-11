@@ -33,7 +33,7 @@ subtypes: those additional serializers must be registered before the default `DE
 
 !!! warning "`SignatureValue` Registration"
     awesn1 keeps the `DER` registry generic. Built-in `SignatureValue` support must be manually installed when using the `crypto` module by calling
-    [`registerSignatureValueForDefaultDer()`](https://a-sit-plus.github.io/awesn1/crypto/) **before any call to `DER`**!  
+    `DerDefaults.registerDerSerializers()` **before any call to `DER`**!  
     Signum's own mandatory serialization hook calls it by default:
     [`registerSignumDefaultDerSerializers()`](https://a-sit-plus.github.io/signum/indispensable/#registry-initialization-and-extension-registration).
 

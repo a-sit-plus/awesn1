@@ -16,8 +16,8 @@ import at.asitplus.awesn1.encoding.decodeToInt
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
 
-@Serializable(with = EcPrivateKey.Companion::class)
-open class EcPrivateKey(
+@Serializable(with = EcPrivateKeyInfo.Companion::class)
+open class EcPrivateKeyInfo(
     val version: Int,
     val privateKey: ByteArray,
     val parameters: ObjectIdentifier? = null,
@@ -32,7 +32,7 @@ open class EcPrivateKey(
     }
 
     override fun equals(other: Any?): Boolean =
-        other is EcPrivateKey &&
+        other is EcPrivateKeyInfo &&
             version == other.version &&
             privateKey.contentEquals(other.privateKey) &&
             parameters == other.parameters &&
@@ -46,11 +46,11 @@ open class EcPrivateKey(
         return result
     }
 
-    companion object : Asn1Serializable<Asn1Sequence, EcPrivateKey> {
+    companion object : Asn1Serializable<Asn1Sequence, EcPrivateKeyInfo> {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
 
         @Throws(Asn1Exception::class)
-        override fun doDecode(src: Asn1Sequence): EcPrivateKey = src.decodeRethrowing {
+        override fun doDecode(src: Asn1Sequence): EcPrivateKeyInfo = src.decodeRethrowing {
             val version = next().asPrimitive().decodeToInt()
             val privateKey = next().asOctetString().content
 
@@ -76,7 +76,7 @@ open class EcPrivateKey(
                 }
             }
 
-            EcPrivateKey(version, privateKey, parameters, publicKey)
+            EcPrivateKeyInfo(version, privateKey, parameters, publicKey)
         }
     }
 }

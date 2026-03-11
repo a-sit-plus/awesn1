@@ -571,6 +571,7 @@ private fun propertyWithBridgeRoundTrip(): Pair<ByteArray, TutorialDocAsn1Serial
 
 // --8<-- [start:kxs-raw-set-preservation-definitions]
 @Serializable
+@ConsistentCopyVisibility
 private data class TutorialDocThirdPartyAlgorithms private constructor(
     val rawAlgorithms: Asn1Set,
 ) {

@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
 @Serializable(with = BitStringSignatureValue.Companion::class)
 open class BitStringSignatureValue(
     val bitString: Asn1BitString,
-) : SignatureValue, at.asitplus.awesn1.Asn1Encodable<Asn1Primitive> {
+) : SignatureValue<Asn1Primitive> {
 
     override fun encodeToTlv() = Asn1.BitString(bitString.rawBytes)
 

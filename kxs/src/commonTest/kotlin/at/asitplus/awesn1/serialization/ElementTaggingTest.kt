@@ -132,6 +132,7 @@ data class ImplicitlyTaggedElement private constructor(@Asn1Tag(9u) private val 
 value class ImplicitlyTaggedInt(val value: Int)
 
 @Serializable
+@ConsistentCopyVisibility
 data class ValueClassImplicitlyTaggedElement private constructor(val rawValue: Asn1Element) {
     constructor(value: Int) : this((DER.encodeToTlv(ImplicitlyTaggedInt(value))))
 
@@ -148,6 +149,7 @@ data class ComplexPayload(val value: Int)
 value class ImplicitlyTaggedComplex(val value: ComplexPayload)
 
 @Serializable
+@ConsistentCopyVisibility
 data class ValueClassImplicitlyTaggedComplexElement private constructor(val rawValue: Asn1Element) {
     constructor(value: Int) : this(DER.encodeToTlv(ImplicitlyTaggedComplex(ComplexPayload(value))))
 
@@ -156,6 +158,7 @@ data class ValueClassImplicitlyTaggedComplexElement private constructor(val rawV
 }
 
 @Serializable
+@ConsistentCopyVisibility
 data class ImplicitlyTaggedGenericAsn1String private constructor(@Asn1Tag(9u) private val rawValue: Asn1String) {
     constructor(value: String) : this(Asn1String.UTF8(value))
 
@@ -169,6 +172,7 @@ data class ImplicitlyTaggedGenericAsn1String private constructor(@Asn1Tag(9u) pr
 value class ImplicitlyTaggedUtf8String(val value: Asn1String.UTF8)
 
 @Serializable
+@ConsistentCopyVisibility
 data class ValueClassImplicitlyTaggedGenericAsn1String private constructor(val rawValue: Asn1Element) {
     constructor(value: String) : this(DER.encodeToTlv(ImplicitlyTaggedUtf8String(Asn1String.UTF8(value))))
 

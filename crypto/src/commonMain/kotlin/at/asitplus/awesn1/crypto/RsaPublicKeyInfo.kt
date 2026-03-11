@@ -14,8 +14,8 @@ import at.asitplus.awesn1.encoding.decodeToAsn1Integer
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
 
-@Serializable(with = RsaPublicKey.Companion::class)
-open class RsaPublicKey(
+@Serializable(with = RsaPublicKeyInfo.Companion::class)
+open class RsaPublicKeyInfo(
     val modulus: Asn1Integer.Positive,
     val publicExponent: Asn1Integer.Positive,
 ) : Asn1Encodable<Asn1Sequence> {
@@ -26,18 +26,18 @@ open class RsaPublicKey(
     }
 
     override fun equals(other: Any?): Boolean =
-        other is RsaPublicKey &&
+        other is RsaPublicKeyInfo &&
             modulus == other.modulus &&
             publicExponent == other.publicExponent
 
     override fun hashCode(): Int = 31 * modulus.hashCode() + publicExponent.hashCode()
 
-    companion object : Asn1Serializable<Asn1Sequence, RsaPublicKey> {
+    companion object : Asn1Serializable<Asn1Sequence, RsaPublicKeyInfo> {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
 
         @Throws(Asn1Exception::class)
-        override fun doDecode(src: Asn1Sequence): RsaPublicKey = src.decodeRethrowing {
-            RsaPublicKey(
+        override fun doDecode(src: Asn1Sequence): RsaPublicKeyInfo = src.decodeRethrowing {
+            RsaPublicKeyInfo(
                 modulus = next().asPrimitive().decodeToAsn1Integer() as Asn1Integer.Positive,
                 publicExponent = next().asPrimitive().decodeToAsn1Integer() as Asn1Integer.Positive,
             )

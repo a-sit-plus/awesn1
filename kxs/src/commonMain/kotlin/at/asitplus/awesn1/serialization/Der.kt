@@ -210,6 +210,7 @@ private fun SerializersModuleBuilder.includeDefaultDerSnapshot(
 ) {
     snapshot.modules.forEach(::include)
     snapshot.tagOpenPolymorphism.forEach(::includeTagOpenPolymorphism)
+    //snapshot.oidOpenPolymorphism.forEach(::includeOidOpenPolymorphism)
 }
 
 @ExperimentalSerializationApi
@@ -236,6 +237,25 @@ private fun SerializersModuleBuilder.includeTagOpenPolymorphism(
         }
     }
 }
+/*
+@Suppress("UNCHECKED_CAST")
+@OptIn(InternalAwesn1Api::class)
+private fun SerializersModuleBuilder.includeOidOpenPolymorphism(
+    registration: DefaultDerOidOpenPolymorphicRegistration<*>,
+) {
+    registration as DefaultDerOidOpenPolymorphicRegistration<Identifiable>
+
+    polymorphicByOid(registration.baseClass, serialName = registration.serialName) {
+        registration.subtypes.forEach { sub ->
+            subtype(object: OidProvider<Identifiable> {
+                override val oid: ObjectIdentifier
+                    get() =sub.oid
+
+            })
+
+        }
+    }
+}*/
 
 @OptIn(ExperimentalSerializationApi::class)
 private object DefaultDerHolder {

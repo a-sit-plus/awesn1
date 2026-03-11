@@ -17,7 +17,7 @@ import kotlinx.serialization.Serializable
 open class EcdsaSignatureValue(
     val r: Asn1Integer.Positive,
     val s: Asn1Integer.Positive,
-) : SignatureValue, at.asitplus.awesn1.Asn1Encodable<Asn1Sequence> {
+) : SignatureValue<Asn1Sequence> {
 
     override fun encodeToTlv() = Asn1.Sequence {
         +r
