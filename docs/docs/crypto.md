@@ -5,7 +5,7 @@ hide:
 
 # Crypto
 
-The `crypto` module contains ASN.1-backed cryptographic and PKI model types built on top of awesn1 `core`.
+The `crypto` module provides ASN.1-backed cryptographic and PKI model types built on top of awesn1 `core`.
 If you are looking for certificates, public keys, private keys, PKCS#10 requests, or common algorithm identifiers,
 this is the module you want.
 
@@ -20,7 +20,7 @@ this is the module you want.
 - the generic ASN.1 serialization contract
 
 Cryptographic structures sit one level above that.
-They are still ASN.1, but they are no longer universally useful building blocks in the same way as
+They are still ASN.1, but they are not universally useful building blocks in the same way as
 `Asn1Integer`, `ObjectIdentifier`, or `Asn1Time`.
 Keeping them in a separate module keeps `core` small, generic, and reusable.
 
@@ -35,9 +35,12 @@ For `kotlinx.serialization` DER usage in your own code, add the `kxs` module.
 
 ## Scope
 
+At a high level, the module focuses on structural cryptographic and PKI data models rather than validation,
+policy enforcement, or cryptographic operations.
+
 ### Cryptographic Data Structures
 
-The module currently focuses on structural cryptographic and PKI data classes, including:
+The module currently includes models such as:
 
 - `SubjectPublicKeyInfo`
 - `PrivateKeyInfo`
@@ -72,17 +75,17 @@ The `crypto` module is not trying to provide:
 Those concerns are deliberately separate from the ASN.1 structural layer.
 
 !!! tip "Looking for a KMP crypto provider?"
-    [Signum](https://a-sit-plus.github.io/signum/) builds on awesn1 and provides a full Kotlin multiplatform cryptography stack. Batteries included.
-
-
+[Signum](https://a-sit-plus.github.io/signum/) builds on awesn1 and provides a full Kotlin multiplatform cryptography stack. Batteries included.
 
 ## Typical Use Cases
 
+The `crypto` already handles the most common cryptographic data structures out of the box. It lets you:
+
 - Parse X.509 certificates and inspect their structure
-- Read or emit `SubjectPublicKeyInfo` / `PrivateKeyInfo`
+- Read or write PEM-Encoded public keys
 - Handle PKCS#10 certificate signing requests
 - Preserve, round-trip, or transform cryptographic ASN.1 data in Kotlin Multiplatform code
-- Use these models as strongly typed payloads in DER serialization workflows
+- Use these models as strongly typed payloads in ASN.1/DER serialization workflows
 
 ## Relationship to Serialization
 
@@ -95,5 +98,3 @@ That means you can use them either:
 - or through `DER.encodeToByteArray(...)` / `DER.decodeFromByteArray(...)` from `kxs`
 
 For the general data-class-first serialization workflow, see the [Serialization Tutorial](kxs.md).
-
-
