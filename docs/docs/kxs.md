@@ -31,6 +31,12 @@ Typical reasons to add contributors are domain-specific open polymorphism and ra
 One concrete example is introducing new ASN.1 signature formats beyond awesn1's built-in `SignatureValue`
 subtypes: those additional serializers must be registered before the default `DER` instance is first used.
 
+!!! warning "`SignatureValue` Registration"
+    awesn1 keeps the `DER` registry generic. Built-in `SignatureValue` support must be manually installed when using the `crypto` module by calling
+    [`registerSignatureValueForDefaultDer()`](https://a-sit-plus.github.io/awesn1/crypto/) **before any call to `DER`**!  
+    Signum's own mandatory serialization hook calls it by default:
+    [`registerSignumDefaultDerSerializers()`](https://a-sit-plus.github.io/signum/indispensable/#registry-initialization-and-extension-registration).
+
 Sketch:
 
 ```kotlin
@@ -50,6 +56,7 @@ class Ed448SignatureValue(
 
 @OptIn(ExperimentalSerializationApi::class)
 fun registerEd448ForDefaultDer() {
+    registerSignatureValueForDefaultDer()
     DefaultDerSerializersModuleRegistry.register(
         SerializersModule {
             polymorphicByTag(
@@ -63,7 +70,9 @@ fun registerEd448ForDefaultDer() {
 }
 ```
 
-The important part is that the registration happens before the first access to `DER`.
+The important part is that the registration happens before the first access to `DER`. For a new signature family, first
+install the built-in `SignatureValue` hook from awesn1 crypto, then register your additional subtype mapping in the same
+pre-initialization phase.
 
 This design avoids a mutable global codec while still allowing library integrations to make raw-backed transient
 materialization work out of the box.

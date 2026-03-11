@@ -1,15 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) A-SIT Plus GmbH
 // SPDX-License-Identifier: Apache-2.0
 
+@file:OptIn(at.asitplus.awesn1.InternalAwesn1Api::class)
+
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.crypto.BitStringSignatureValue
-import at.asitplus.awesn1.crypto.EcdsaSignatureValue
-import at.asitplus.awesn1.crypto.SignatureValue
 import at.asitplus.awesn1.encoding.parseAll
-import at.asitplus.awesn1.serialization.Asn1DerDecoder
-import at.asitplus.awesn1.serialization.Asn1DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
@@ -207,45 +204,47 @@ fun DER(config: DerBuilder.() -> Unit = {}) =
         .build()
         .let { Der(it) }
 
-const val DEFAULT_DER_SIGNATURE_VALUE_SERIAL_NAME =
-    "at.asitplus.awesn1.crypto.SignatureValue"
+@OptIn(InternalAwesn1Api::class)
+private fun SerializersModuleBuilder.includeDefaultDerSnapshot(
+    snapshot: DefaultDerSerializersModuleRegistrySnapshot,
+) {
+    snapshot.modules.forEach(::include)
+    snapshot.tagOpenPolymorphism.forEach(::includeTagOpenPolymorphism)
+}
 
 @ExperimentalSerializationApi
 object DefaultDerSerializersModuleRegistry {
-    private val contributors = mutableListOf<SerializersModule>()
-    private var consumed = false
-
-    fun register(module: SerializersModule) {
-        check(!consumed) {
-            "Default DER serializers module registry has already been consumed during default DER initialization"
-        }
-        contributors += module
-    }
-
-    internal fun consume(): SerializersModule {
-        consumed = true
-        return SerializersModule {
-            includeDefaultDerBuiltIns()
-            contributors.forEach(::include)
-        }
-    }
+    fun register(module: SerializersModule) = InternalDefaultDerSerializersModuleRegistry.register(module)
 }
 
-private fun SerializersModuleBuilder.includeDefaultDerBuiltIns() {
+@Suppress("UNCHECKED_CAST")
+@OptIn(InternalAwesn1Api::class)
+private fun SerializersModuleBuilder.includeTagOpenPolymorphism(
+    registration: DefaultDerTagOpenPolymorphicRegistration<*>,
+) {
+    registration as DefaultDerTagOpenPolymorphicRegistration<Any>
     polymorphicByTag(
-        SignatureValue::class,
-        serialName = DEFAULT_DER_SIGNATURE_VALUE_SERIAL_NAME,
+        baseClass = registration.baseClass,
+        serialName = registration.serialName,
     ) {
-        subtype<BitStringSignatureValue>(Asn1Element.Tag.BIT_STRING)
-        subtype<EcdsaSignatureValue>(Asn1Element.Tag.SEQUENCE)
+        registration.subtypes.forEach { subtype ->
+            subtype(
+                serializer = subtype.serializer as KSerializer<Any>,
+                leadingTags = subtype.leadingTags,
+                matches = subtype.matches,
+            )
+        }
     }
 }
 
 @OptIn(ExperimentalSerializationApi::class)
 private object DefaultDerHolder {
     val instance: Der by lazy {
+        val snapshot = InternalDefaultDerSerializersModuleRegistry.consume()
         DER {
-            serializersModule = DefaultDerSerializersModuleRegistry.consume()
+            serializersModule = SerializersModule {
+                includeDefaultDerSnapshot(snapshot)
+            }
         }
     }
 }

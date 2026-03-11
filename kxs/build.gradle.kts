@@ -25,7 +25,6 @@ kotlin {
         commonMain {
             dependencies {
                 api(project(":core"))
-                implementation(project(":crypto"))
                 api(serialization("core"))
             }
         }
@@ -33,6 +32,7 @@ kotlin {
             dependencies {
                 implementation(kotest("property"))
                 implementation("at.asitplus.testballoon:property:${libs.versions.testballoonAddons.get()}")
+                implementation(project(":crypto"))
                 implementation(project(":oids"))
                 implementation("at.asitplus.signum:indispensable:3.19.3")
                 implementation("at.asitplus.signum:indispensable-oids:3.19.3")
