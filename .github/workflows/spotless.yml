@@ -1,0 +1,37 @@
+name: Test Everything (All OS/Arch)
+
+on:
+  #For caching
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      kotlin-version:
+        description: 'Override Kotlin version?'
+        required: false
+        default: ''
+        type: string
+      testballoon-version:
+        description: 'Override TestBalloon version (full version string)?'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  spotlessCheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: check
+        run: ./gradlew spotlessCheck

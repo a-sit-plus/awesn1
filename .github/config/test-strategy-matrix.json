@@ -12,12 +12,12 @@
     {
       "os": "macos-latest",
       "name": "jvmRunner",
-      "testCommand": "./gradlew jvmTest --scan"
+      "testCommand": "./gradlew spotlessCheck jvmTest --scan"
     },
     {
       "os": "ubuntu-latest",
       "name": "androidRunner",
-      "enableKvm": false,
+      "enableKvm": true,
       "testCommand": "./gradlew pixelAVDAndroidDeviceTest --scan"
     },
     {
