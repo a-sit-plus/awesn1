@@ -4,6 +4,9 @@
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
+import at.asitplus.awesn1.crypto.BitStringSignatureValue
+import at.asitplus.awesn1.crypto.EcdsaSignatureValue
+import at.asitplus.awesn1.crypto.SignatureValue
 import at.asitplus.awesn1.encoding.parseAll
 import at.asitplus.awesn1.serialization.Asn1DerDecoder
 import at.asitplus.awesn1.serialization.Asn1DerEncoder
@@ -15,6 +18,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlin.jvm.JvmName
 import kotlin.reflect.typeOf
 
@@ -203,4 +207,49 @@ fun DER(config: DerBuilder.() -> Unit = {}) =
         .build()
         .let { Der(it) }
 
-val DER = DER {}
+const val DEFAULT_DER_SIGNATURE_VALUE_SERIAL_NAME =
+    "at.asitplus.awesn1.crypto.SignatureValue"
+
+@ExperimentalSerializationApi
+object DefaultDerSerializersModuleRegistry {
+    private val contributors = mutableListOf<SerializersModule>()
+    private var consumed = false
+
+    fun register(module: SerializersModule) {
+        check(!consumed) {
+            "Default DER serializers module registry has already been consumed during default DER initialization"
+        }
+        contributors += module
+    }
+
+    internal fun consume(): SerializersModule {
+        consumed = true
+        return SerializersModule {
+            includeDefaultDerBuiltIns()
+            contributors.forEach(::include)
+        }
+    }
+}
+
+private fun SerializersModuleBuilder.includeDefaultDerBuiltIns() {
+    polymorphicByTag(
+        SignatureValue::class,
+        serialName = DEFAULT_DER_SIGNATURE_VALUE_SERIAL_NAME,
+    ) {
+        subtype<BitStringSignatureValue>(Asn1Element.Tag.BIT_STRING)
+        subtype<EcdsaSignatureValue>(Asn1Element.Tag.SEQUENCE)
+    }
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+private object DefaultDerHolder {
+    val instance: Der by lazy {
+        DER {
+            serializersModule = DefaultDerSerializersModuleRegistry.consume()
+        }
+    }
+}
+
+val DER: Der
+    @OptIn(ExperimentalSerializationApi::class)
+    get() = DefaultDerHolder.instance

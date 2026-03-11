@@ -11,6 +11,63 @@ This page shows how to use awesn1 with `kotlinx.serialization`. DER format suppo
 Core awesn1 types are serializable. When encoded with awesn1's `DER` format, they use proper ASN.1 TLV/DER encoding.
 When encoded with non-DER formats, fallback representations are used.
 
+## Default `DER` Registry
+
+The default `DER` instance is immutable once it has been initialized, but its serializers module can be extended
+before that first use through an opt-in registry.
+
+This exists for a practical reason: higher-level models often keep raw ASN.1 backing fields and derive transient
+semantic fields from those raw elements. If those transient fields need to decode through the default `DER` instance,
+the relevant contextual or open-polymorphic serializers must already be present without forcing every caller to
+manually rebuild the format.
+
+The contract is intentionally strict:
+
+- default-DER contributors must register before the first access to `DER`
+- after the default `DER` instance has been initialized, further registrations throw
+- `Der` itself stays immutable; only the pre-initialization contributor list is extensible
+
+Typical reasons to add contributors are domain-specific open polymorphism and raw-backed semantic wrappers.
+One concrete example is introducing new ASN.1 signature formats beyond awesn1's built-in `SignatureValue`
+subtypes: those additional serializers must be registered before the default `DER` instance is first used.
+
+Sketch:
+
+```kotlin
+@Serializable(with = Ed448SignatureValue.Companion::class)
+class Ed448SignatureValue(
+    val octets: Asn1OctetString,
+) : SignatureValue, Asn1Encodable<Asn1Primitive> {
+    override fun encodeToTlv(): Asn1Primitive = octets.encodeToTlv()
+
+    companion object : Asn1Serializable<Asn1Primitive, Ed448SignatureValue> {
+        override val leadingTags = setOf(Asn1Element.Tag.OCTET_STRING)
+
+        override fun doDecode(src: Asn1Primitive) =
+            Ed448SignatureValue(src.asAsn1OctetString())
+    }
+}
+
+@OptIn(ExperimentalSerializationApi::class)
+fun registerEd448ForDefaultDer() {
+    DefaultDerSerializersModuleRegistry.register(
+        SerializersModule {
+            polymorphicByTag(
+                SignatureValue::class,
+                serialName = DEFAULT_DER_SIGNATURE_VALUE_SERIAL_NAME,
+            ) {
+                subtype<Ed448SignatureValue>(Asn1Element.Tag.OCTET_STRING)
+            }
+        }
+    )
+}
+```
+
+The important part is that the registration happens before the first access to `DER`.
+
+This design avoids a mutable global codec while still allowing library integrations to make raw-backed transient
+materialization work out of the box.
+
 ??? info "Non-DER Fallback Representations"
 
     - `ObjectIdentifier` serializes as dotted-decimal text (`1.2.840...`)

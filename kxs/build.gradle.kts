@@ -25,6 +25,7 @@ kotlin {
         commonMain {
             dependencies {
                 api(project(":core"))
+                implementation(project(":crypto"))
                 api(serialization("core"))
             }
         }
