@@ -19,6 +19,7 @@ import at.asitplus.awesn1.encoding.decodeToBoolean
 import at.asitplus.awesn1.readOid
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 @Serializable(with = X509CertificateExtension.Companion::class)
 open class X509CertificateExtension @Throws(Asn1Exception::class) protected constructor(
@@ -27,8 +28,7 @@ open class X509CertificateExtension @Throws(Asn1Exception::class) protected cons
     private val rawCritical: Asn1Element? = null,
 ) : Asn1Encodable<Asn1Sequence>, Identifiable {
 
-    val critical: Boolean
-        get() = rawCritical?.asPrimitive()?.decodeToBoolean() ?: false
+    @Transient val critical: Boolean = rawCritical?.asPrimitive()?.decodeToBoolean() ?: false
 
     init {
         rawCritical?.let {

@@ -15,8 +15,8 @@ import at.asitplus.awesn1.readOid
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
 
-@Serializable(with = PrivateKeyInfo.Companion::class)
-open class PrivateKeyInfo(
+@Serializable(with = Pkcs8PrivateKeyInfo.Companion::class)
+open class Pkcs8PrivateKeyInfo(
     val version: Int,
     val privateKeyAlgorithm: Asn1Sequence,
     val privateKey: Asn1Element,
@@ -43,7 +43,7 @@ open class PrivateKeyInfo(
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other !is PrivateKeyInfo) return false
+        if (other !is Pkcs8PrivateKeyInfo) return false
         return version == other.version &&
             privateKeyAlgorithm == other.privateKeyAlgorithm &&
             privateKey == other.privateKey &&
@@ -59,20 +59,20 @@ open class PrivateKeyInfo(
     }
 
     @Throws(Asn1Exception::class)
-    fun decodeRsaPrivateKey(): RsaPrivateKey =
-        RsaPrivateKey.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next().asSequence() })
+    fun decodeRsaPrivateKey(): RsaPrivateKeyInfo =
+        RsaPrivateKeyInfo.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next().asSequence() })
 
     @Throws(Asn1Exception::class)
-    fun decodeEcPrivateKey(): EcPrivateKey =
-        EcPrivateKey.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next().asSequence() })
+    fun decodeEcPrivateKey(): EcPrivateKeyInfo =
+        EcPrivateKeyInfo.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next().asSequence() })
 
-    companion object : Asn1Serializable<Asn1Sequence, PrivateKeyInfo> {
+    companion object : Asn1Serializable<Asn1Sequence, Pkcs8PrivateKeyInfo> {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
 
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
-        fun rsa(privateKey: RsaPrivateKey, attributes: List<Asn1Element>? = null): PrivateKeyInfo = PrivateKeyInfo(
+        fun rsa(privateKey: RsaPrivateKeyInfo, attributes: List<Asn1Element>? = null): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
             version = 0,
             privateKeyAlgorithm = Asn1.Sequence {
                 +RSA_ENCRYPTION_OID
@@ -83,10 +83,10 @@ open class PrivateKeyInfo(
         )
 
         fun ec(
-            sec1Key: EcPrivateKey,
+            sec1Key: EcPrivateKeyInfo,
             curveOid: ObjectIdentifier?,
             attributes: List<Asn1Element>? = null
-        ): PrivateKeyInfo = PrivateKeyInfo(
+        ): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
             version = 0,
             privateKeyAlgorithm = Asn1.Sequence {
                 +EC_PUBLIC_KEY_OID
@@ -97,7 +97,7 @@ open class PrivateKeyInfo(
         )
 
         @Throws(Asn1Exception::class)
-        override fun doDecode(src: Asn1Sequence): PrivateKeyInfo = src.decodeRethrowing {
+        override fun doDecode(src: Asn1Sequence): Pkcs8PrivateKeyInfo = src.decodeRethrowing {
             val version = next().asPrimitive().decodeToInt()
             val algorithm = next().asSequence()
             val privateKey = next()
@@ -106,7 +106,7 @@ open class PrivateKeyInfo(
             } else {
                 null
             }
-            PrivateKeyInfo(version, algorithm, privateKey, attributes)
+            Pkcs8PrivateKeyInfo(version, algorithm, privateKey, attributes)
         }
     }
 }

@@ -1,12 +1,12 @@
 // SPDX-FileCopyrightText: Copyright (c) A-SIT Plus GmbH
 // SPDX-License-Identifier: Apache-2.0
 
+@file:OptIn(at.asitplus.awesn1.InternalAwesn1Api::class)
+
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.parseAll
-import at.asitplus.awesn1.serialization.Asn1DerDecoder
-import at.asitplus.awesn1.serialization.Asn1DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
@@ -15,6 +15,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlin.jvm.JvmName
 import kotlin.reflect.typeOf
 
@@ -203,4 +204,71 @@ fun DER(config: DerBuilder.() -> Unit = {}) =
         .build()
         .let { Der(it) }
 
-val DER = DER {}
+@OptIn(InternalAwesn1Api::class)
+private fun SerializersModuleBuilder.includeDefaultDerSnapshot(
+    snapshot: DefaultDerSerializersModuleRegistrySnapshot,
+) {
+    snapshot.modules.forEach(::include)
+    snapshot.tagOpenPolymorphism.forEach(::includeTagOpenPolymorphism)
+    //snapshot.oidOpenPolymorphism.forEach(::includeOidOpenPolymorphism)
+}
+
+@ExperimentalSerializationApi
+object DefaultDerSerializersModuleRegistry {
+    fun register(module: SerializersModule) = InternalDefaultDerSerializersModuleRegistry.register(module)
+}
+
+@Suppress("UNCHECKED_CAST")
+@OptIn(InternalAwesn1Api::class)
+private fun SerializersModuleBuilder.includeTagOpenPolymorphism(
+    registration: DefaultDerTagOpenPolymorphicRegistration<*>,
+) {
+    registration as DefaultDerTagOpenPolymorphicRegistration<Any>
+    polymorphicByTag(
+        baseClass = registration.baseClass,
+        serialName = registration.serialName,
+    ) {
+        registration.subtypes.forEach { subtype ->
+            subtype(
+                serializer = subtype.serializer as KSerializer<Any>,
+                leadingTags = subtype.leadingTags,
+                matches = subtype.matches,
+            )
+        }
+    }
+}
+/*
+@Suppress("UNCHECKED_CAST")
+@OptIn(InternalAwesn1Api::class)
+private fun SerializersModuleBuilder.includeOidOpenPolymorphism(
+    registration: DefaultDerOidOpenPolymorphicRegistration<*>,
+) {
+    registration as DefaultDerOidOpenPolymorphicRegistration<Identifiable>
+
+    polymorphicByOid(registration.baseClass, serialName = registration.serialName) {
+        registration.subtypes.forEach { sub ->
+            subtype(object: OidProvider<Identifiable> {
+                override val oid: ObjectIdentifier
+                    get() =sub.oid
+
+            })
+
+        }
+    }
+}*/
+
+@OptIn(ExperimentalSerializationApi::class)
+private object DefaultDerHolder {
+    val instance: Der by lazy {
+        val snapshot = InternalDefaultDerSerializersModuleRegistry.consume()
+        DER {
+            serializersModule = SerializersModule {
+                includeDefaultDerSnapshot(snapshot)
+            }
+        }
+    }
+}
+
+val DER: Der
+    @OptIn(ExperimentalSerializationApi::class)
+    get() = DefaultDerHolder.instance

@@ -19,6 +19,7 @@ import at.asitplus.awesn1.readOid
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
 
+//TODO also register open poly using OID of algorithmidentifier
 @Serializable(with = SubjectPublicKeyInfo.Companion::class)
 open class SubjectPublicKeyInfo(
     val algorithmIdentifier: Asn1Sequence,
@@ -38,13 +39,13 @@ open class SubjectPublicKeyInfo(
     }
 
     @Throws(Asn1Exception::class)
-    fun decodeRsaPublicKey(): RsaPublicKey {
+    fun decodeRsaPublicKey(): RsaPublicKeyInfo {
         if (algorithmOid != RSA_ENCRYPTION_OID) {
             throw Asn1Exception("SubjectPublicKeyInfo is not an RSA public key")
         }
         require(algorithmParameters.size == 1) { "RSA SubjectPublicKeyInfo must contain NULL params" }
         algorithmParameters.single().asPrimitive().readNull()
-        return RsaPublicKey.decodeFromTlv(Asn1Element.parse(subjectPublicKey.rawBytes).asSequence())
+        return RsaPublicKeyInfo.decodeFromTlv(Asn1Element.parse(subjectPublicKey.rawBytes).asSequence())
     }
 
     override fun equals(other: Any?): Boolean {
@@ -61,7 +62,7 @@ open class SubjectPublicKeyInfo(
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
-        fun rsa(publicKey: RsaPublicKey): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
+        fun rsa(publicKey: RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
             algorithmIdentifier = Asn1.Sequence {
                 +RSA_ENCRYPTION_OID
                 +Asn1.Null()
@@ -70,7 +71,7 @@ open class SubjectPublicKeyInfo(
         )
 
         fun rsa(modulus: Asn1Integer, exponent: Asn1Integer): SubjectPublicKeyInfo = rsa(
-            RsaPublicKey(
+            RsaPublicKeyInfo(
                 modulus as Asn1Integer.Positive,
                 exponent as Asn1Integer.Positive,
             )

@@ -17,7 +17,6 @@ import at.asitplus.awesn1.crypto.pki.TbsCertificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
@@ -125,7 +124,7 @@ private fun randomBitStringSignatureValue(random: Random) =
 private fun randomEcdsaSignatureValue(random: Random) =
     EcdsaSignatureValue(positiveAsn1Integer(random), positiveAsn1Integer(random))
 
-private fun randomEcPrivateKey(random: Random) = EcPrivateKey(
+private fun randomEcPrivateKey(random: Random) = EcPrivateKeyInfo(
     version = 1,
     privateKey = randomBytes(random, 32),
     parameters = randomOid(random).takeIf { random.nextBoolean() },
@@ -143,7 +142,7 @@ private fun randomRsaOtherPrimeInfo(random: Random) = RsaOtherPrimeInfo(
     coefficient = positiveAsn1Integer(random),
 )
 
-private fun randomRsaPrivateKey(random: Random) = RsaPrivateKey(
+private fun randomRsaPrivateKey(random: Random) = RsaPrivateKeyInfo(
     version = if (random.nextBoolean()) 0 else 1,
     modulus = positiveAsn1Integer(random),
     publicExponent = positiveAsn1Integer(random),
@@ -156,7 +155,7 @@ private fun randomRsaPrivateKey(random: Random) = RsaPrivateKey(
     otherPrimeInfos = List(random.nextInt(0, 3)) { randomRsaOtherPrimeInfo(random) }.ifEmpty { null },
 )
 
-private fun randomRsaPublicKey(random: Random) = RsaPublicKey(
+private fun randomRsaPublicKey(random: Random) = RsaPublicKeyInfo(
     modulus = positiveAsn1Integer(random),
     publicExponent = positiveAsn1Integer(random),
 )
@@ -199,14 +198,14 @@ private fun randomRelativeDistinguishedName(random: Random) =
 
 private fun randomAttribute(random: Random) = Attribute(randomOid(random), randomRawElement(random))
 
-private fun randomPrivateKeyInfo(random: Random): PrivateKeyInfo =
+private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
     if (random.nextBoolean()) {
-        PrivateKeyInfo.rsa(
+        Pkcs8PrivateKeyInfo.rsa(
             privateKey = randomRsaPrivateKey(random),
             attributes = null,
         )
     } else {
-        PrivateKeyInfo.ec(
+        Pkcs8PrivateKeyInfo.ec(
             sec1Key = randomEcPrivateKey(random),
             curveOid = randomOid(random),
             attributes = null,
