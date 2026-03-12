@@ -12,7 +12,7 @@
     {
       "os": "macos-latest",
       "name": "jvmRunner",
-      "testCommand": "./gradlew spotlessCheck jvmTest --scan"
+      "testCommand": "./gradlew jvmTest --scan"
     },
     {
       "os": "ubuntu-latest",

@@ -11,6 +11,7 @@ import org.gradle.api.Project
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.*
+import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -221,6 +222,20 @@ private fun Project.silence() {
         kmp.compilerOptions {
             freeCompilerArgs.add("-Xcontext-parameters")
         }
+/*
+        val signingKeyId: String? by project
+        signingKeyId?.let { _ ->*/
+            val signSbom by tasks.registering(Sign::class) {
+                dependsOn(tasks.get("cyclonedxPublishedBom"))
+
+                val files = File("${layout.buildDirectory.asFile.get().path}/reports/cyclonedx-publications").listFiles().filter { it.isDirectory }
+                    .toList().flatMap { subdir ->
+                        listOf("${subdir.path}/bom.xml", "${subdir.path}/bom.json")
+                    }.map { File(it) }.toTypedArray()
+                sign(*files)
+            //}
+        }
+
     }
 
 }

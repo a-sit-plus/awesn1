@@ -1,4 +1,6 @@
 import at.asitplus.gradle.dokka
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.time.Duration
 
 plugins {
@@ -87,7 +89,7 @@ val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
     val sbomRendererFile = rootProject.layout.projectDirectory.file("docs/tools/render_sbom_pages.py")
     val sortedProjects = subprojects.sortedBy { it.name }
 
-    dependsOn(sortedProjects.map { "${it.path}:cyclonedxPublishedBom" })
+    dependsOn(sortedProjects.map { "${it.path}:signSbom" })
     inputs.file(sbomTemplateFile)
     inputs.file(sbomRendererFile)
 
@@ -173,6 +175,19 @@ val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
 tasks.register<Copy>("copyChangelog") {
     into(rootDir.resolve("docs/docs"))
     from("CHANGELOG.md")
+    doLast {
+        val prefix = """
+            ---
+            hide:
+              - navigation
+            ---
+            
+            
+        """.trimIndent()
+        val path = File("docs/docs/CHANGELOG.md").toPath()
+        val original = Files.readString(path, StandardCharsets.UTF_8)
+        Files.writeString(path, prefix + original, StandardCharsets.UTF_8)
+    }
 }
 
 tasks.register<Copy>("mkDocsPrepare") {

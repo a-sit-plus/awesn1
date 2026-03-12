@@ -3,7 +3,7 @@ hide:
   - navigation
 ---
 
-# Crypto
+# Cryptographic Datastructures
 
 The `crypto` module provides ASN.1-backed cryptographic and PKI model types built on top of awesn1 `core`.
 If you are looking for certificates, public keys, private keys, PKCS#10 requests, or common algorithm identifiers,

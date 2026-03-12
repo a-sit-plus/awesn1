@@ -85,6 +85,7 @@ nav:
   - SBOM:
       - Overview: sbom.md
       - Core: sbom/modules/core.md
+      - Crypto: sbom/modules/crypto.md
       - IO: sbom/modules/io.md
       - KXS: sbom/modules/kxs.md
       - KXS-IO: sbom/modules/kxs-io.md
