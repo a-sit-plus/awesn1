@@ -32,13 +32,14 @@ If you want to model Kotlin types and get real ASN.1 bytes out the other end, aw
 
 ## Pick your module
 
-| Module | Use it when you need... |
-| --- | --- |
-| `core` | the ASN.1 element model, DER parsing/encoding helpers, PEM support, rich types, and the builder DSL |
-| `kxs` | `kotlinx.serialization` integration so Kotlin models encode and decode as ASN.1 DER |
-| `io` | low-level ASN.1 parsing and encoding on `kotlinx.io.Source` and `kotlinx.io.Sink` |
-| `kxs-io` | DER `kotlinx.serialization` flows directly on `Source`/`Sink` |
-| `oids` | a bundled registry of known object identifiers and human-readable descriptions |
+| Module   | Use it when you need...                                                                             |
+|----------|-----------------------------------------------------------------------------------------------------|
+| `core`   | the ASN.1 element model, DER parsing/encoding helpers, PEM support, rich types, and the builder DSL |
+| `kxs`    | `kotlinx.serialization` integration so Kotlin models encode and decode as ASN.1 DER                 |
+| `io`     | low-level ASN.1 parsing and encoding on `kotlinx.io.Source` and `kotlinx.io.Sink`                   |
+| `crypto` | cryptographic data structures, such as certificates, SPKIs, CSRs, etc.                              |
+| `kxs-io` | DER `kotlinx.serialization` flows directly on `Source`/`Sink`                                       |
+| `oids`   | a bundled registry of known object identifiers and human-readable descriptions                      |
 
 ## Get started
 
@@ -48,8 +49,6 @@ implementation("at.asitplus.awesn1:kxs:$version")
 ```
 
 Start with `core` if you want the low-level ASN.1 toolbox. Add `kxs` when you want the headline act: _Kotlin models in, DER out_.
-
-## Hero Example
 
 Model the data. Encode it. Decode it. No handwritten ASN.1 schema gymnastics required.
 

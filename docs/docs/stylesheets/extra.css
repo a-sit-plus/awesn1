@@ -814,3 +814,7 @@ h6,
     min-height: 12rem;
   }
 }
+
+.md-source__facts {
+  display: none;
+}

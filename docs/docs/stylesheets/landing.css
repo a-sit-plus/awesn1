@@ -52,6 +52,10 @@
   margin: 0 auto 0.8rem;
 }
 
+.md-nav {
+  display: none;
+}
+
 .md-content .landing h1,
 .md-content .landing h2 {
   margin: 0 0 0.65rem;
