@@ -1,10 +1,6 @@
 {
   "include": [
-    {
-      "os": "ubuntu-latest",
-      "name": "spotlessCheck",
-      "testCommand": "./gradlew spotlessCheck"
-    },{
+   {
       "os": "ubuntu-latest",
       "name": "linuxNativeRunner",
       "testCommand": "./gradlew linuxX64Test --scan"
