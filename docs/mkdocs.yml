@@ -26,7 +26,6 @@ theme:
 
 extra_css:
   - stylesheets/extra.css
-  - stylesheets/landing.css
 extra_javascript:
   - javascripts/inner-scroll-toc.js
 
