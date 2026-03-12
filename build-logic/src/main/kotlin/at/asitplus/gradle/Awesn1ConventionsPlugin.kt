@@ -8,8 +8,11 @@ import com.android.build.api.dsl.androidLibrary
 import com.android.build.api.variant.KotlinMultiplatformAndroidComponentsExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.publish.PublishingExtension
+import org.gradle.api.tasks.StopExecutionException
 import org.gradle.api.tasks.testing.Test
+import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.*
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
@@ -222,18 +225,35 @@ private fun Project.silence() {
         kmp.compilerOptions {
             freeCompilerArgs.add("-Xcontext-parameters")
         }
-/*
-        val signingKeyId: String? by project
-        signingKeyId?.let { _ ->*/
-            val signSbom by tasks.registering(Sign::class) {
-                dependsOn(tasks.get("cyclonedxPublishedBom"))
 
-                val files = File("${layout.buildDirectory.asFile.get().path}/reports/cyclonedx-publications").listFiles().filter { it.isDirectory }
-                    .toList().flatMap { subdir ->
-                        listOf("${subdir.path}/bom.xml", "${subdir.path}/bom.json")
-                    }.map { File(it) }.toTypedArray()
-                sign(*files)
-            //}
+        //TODO: cleanup, it's hackish
+        tasks.withType<Jar>().configureEach {
+            if (name.endsWith("SourcesJar")) filesMatching("**/SafeThrow.nonJvm.kt") {
+                duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+            }
+        }
+        val signSbom by tasks.registering {
+            dependsOn(tasks.named("cyclonedxPublishedBom"))
+
+            doLast {
+                val sbomFiles = layout.buildDirectory
+                    .dir("reports/cyclonedx-publications")
+                    .get()
+                    .asFileTree
+                    .matching {
+                        include("**/bom.xml", "**/bom.json")
+                    }
+                    .files
+                    .toTypedArray()
+
+                if (sbomFiles.isEmpty()) {
+                    throw StopExecutionException("No SBOM files found under build/reports/cyclonedx-publications")
+                }
+
+                project.extensions
+                    .getByType(SigningExtension::class.java)
+                    .sign(*sbomFiles)
+            }
         }
 
     }
