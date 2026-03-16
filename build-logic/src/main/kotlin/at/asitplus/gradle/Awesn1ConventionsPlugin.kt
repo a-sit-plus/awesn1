@@ -45,6 +45,7 @@ class Awesn1ConventionsPlugin : Plugin<Project> {
         pluginManager.apply("signing")
         pluginManager.apply("at.asitplus.gradle.conventions")
         pluginManager.apply("de.infix.testBalloon")
+        pluginManager.apply("at.asitplus.gradle.sbombastic")
     }
 }
 

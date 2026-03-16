@@ -1,0 +1,11 @@
+[
+  {
+    "groups": ["org.jetbrains.*", "org.jetbrains"],
+    "supplier": {
+      "name": "JetBrains s.r.o",
+      "urls": ["https://www.jetbrains.com"],
+      "contactName": "JetBrains",
+      "email": "compliance@jetbrains.com"
+    }
+  }
+]
