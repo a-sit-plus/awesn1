@@ -1,6 +1,7 @@
 [
   {
-    "groups": ["org.jetbrains.*", "org.jetbrains"],
+    "type": "mvn",
+    "groups": ["org.jetbrains.kotlin.*", "org.jetbrains.kotlinx.*"],
     "supplier": {
       "name": "JetBrains s.r.o",
       "urls": ["https://www.jetbrains.com"],

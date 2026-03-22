@@ -38,12 +38,6 @@ kotlin {
                 implementation("at.asitplus.signum:indispensable-oids:3.19.3")
             }
         }
-        jsMain {
-            dependencies {
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-react:2026.1.9-19.2.3")
-                implementation("org.jetbrains.kotlin-wrappers:kotlin-react-dom:2026.1.9-19.2.3")
-            }
-        }
     }
     jvm {
         compilerOptions {
