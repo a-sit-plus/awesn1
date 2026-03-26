@@ -24,12 +24,7 @@ class Asn1OidException(message: String, val oid: ObjectIdentifier) : Asn1Excepti
  */
 @Throws(Asn1Exception::class)
 inline fun <reified R> runRethrowing(block: () -> R) =
-    catchingUnwrapped(block).wrap<Asn1Exception, R>({ message: String?, cause: Throwable ->
-        Asn1Exception(
-            message,
-            cause
-        )
-    }).getOrThrow()
+    catchingUnwrapped(block).wrapAs(::Asn1Exception).getOrThrow()
 
 /**
  * Decodes this ASN.1 structure using the provided [decoder] lambda, rethrowing any caught exception
