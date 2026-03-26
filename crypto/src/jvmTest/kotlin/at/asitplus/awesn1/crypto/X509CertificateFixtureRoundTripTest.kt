@@ -1,5 +1,6 @@
 package at.asitplus.awesn1.crypto
 
+import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.encoding.decodeFromDer
@@ -7,6 +8,7 @@ import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.testSuite
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
 import java.nio.file.Path
@@ -29,9 +31,8 @@ val X509CertificateFixtureRoundTripTest by testSuite {
             }
 
             "pem" -> {
-                val blocks = decodeAllFromPem(path.readText()).filter { it.label == "CERTIFICATE" }
-                blocks.isNotEmpty() shouldBe true
-                blocks.forEach { block ->
+                val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.label == "CERTIFICATE" }
+                blocks.shouldNotBeEmpty().forEach { block ->
                     X509Certificate.decodeFromDer(block.payload).encodeToDer() shouldBe block.payload
                 }
             }
