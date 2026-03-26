@@ -19,7 +19,7 @@ val PemTest by testSuite {
         )
 
         val encoded = block.encodeToPem()
-        val decoded = decodeFromPem(encoded)
+        val decoded = PemBlock.decodeFromPem(encoded)
 
         decoded.label shouldBe block.label
         decoded.headers shouldBe block.headers
@@ -31,7 +31,7 @@ val PemTest by testSuite {
         val key = PemBlock("PRIVATE KEY", payload = byteArrayOf(4, 5, 6))
 
         val src = listOf(cert, key).encodeAllToPem()
-        val decoded = decodeAllFromPem(src)
+        val decoded = PemBlock.decodeAllFromPem(src)
 
         decoded.size shouldBe 2
         decoded[0].label shouldBe "CERTIFICATE"
@@ -48,7 +48,7 @@ val PemTest by testSuite {
         """.trimIndent()
 
         shouldThrow<IllegalArgumentException> {
-            decodeFromPem(src)
+            PemBlock.decodeFromPem(src)
         }
     }
 

@@ -235,7 +235,7 @@ private fun coreHookPemGeneric() {
         -----END PUBLIC KEY-----
     """.trimIndent()
 
-    val blocks: List<PemBlock> = decodeAllFromPem(source)
+    val blocks: List<PemBlock> = PemBlock.decodeAllFromPem(source)
     blocks.map { it.label } shouldBe listOf("CERTIFICATE", "PUBLIC KEY")
 
     val encryptedLegacy = PemBlock(
@@ -247,8 +247,8 @@ private fun coreHookPemGeneric() {
         payload = byteArrayOf(1, 2, 3)
     )
 
-    val pemText = encodeAllToPem(listOf(encryptedLegacy))
-    decodeFromPem(pemText).headers.map { it.name } shouldBe listOf("Proc-Type", "DEK-Info")
+    val pemText = listOf(encryptedLegacy).encodeAllToPem()
+    PemBlock.decodeFromPem(pemText).headers.map { it.name } shouldBe listOf("Proc-Type", "DEK-Info")
 // --8<-- [end:core-hook-pem-generic]
 }
 

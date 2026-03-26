@@ -29,16 +29,16 @@ val PemOpenSslFixtureTest by testSuite {
         val root = json.decodeFromString<PemOpenSslFixtureSet>(resourceText("pem_openssl_fixtures.json"))
         root.fixtures.forEach { fixture ->
             val src = resourceText("fixtures/openssl/${fixture.file}")
-            val decoded = decodeAllFromPem(src)
+            val decoded = PemBlock.decodeAllFromPem(src)
 
             decoded.map { it.label } shouldBe fixture.expectedLabels
             decoded.map { block -> block.headers.map { it.name } } shouldBe fixture.expectedHeaderNamesByBlock
 
-            val roundTrippedAll = decodeAllFromPem(decoded.encodeAllToPem())
+            val roundTrippedAll = PemBlock.decodeAllFromPem(decoded.encodeAllToPem())
             assertPemBlocksEqual(decoded, roundTrippedAll, fixture.file)
 
             decoded.forEachIndexed { i, block ->
-                val decodedAgain = decodeFromPem(block.encodeToPem())
+                val decodedAgain = PemBlock.decodeFromPem(block.encodeToPem())
                 assertPemBlocksEqual(listOf(block), listOf(decodedAgain), "${fixture.file}[$i]")
             }
         }
@@ -49,18 +49,18 @@ val PemOpenSslFixtureTest by testSuite {
         root.cases.forEach { fixture ->
             val src = fixture.pemLines.joinToString("\n")
             if (fixture.shouldFail) {
-                shouldThrow<IllegalArgumentException> { decodeAllFromPem(src) }
+                shouldThrow<IllegalArgumentException> { PemBlock.decodeAllFromPem(src) }
                 return@forEach
             }
 
-            val decoded = decodeAllFromPem(src)
+            val decoded = PemBlock.decodeAllFromPem(src)
             decoded.map { it.label } shouldBe fixture.expectedLabels
 
             if (fixture.expectedHeaderNamesByBlock.isNotEmpty()) {
                 decoded.map { block -> block.headers.map { it.name } } shouldBe fixture.expectedHeaderNamesByBlock
             }
 
-            val roundTripped = decodeAllFromPem(decoded.encodeAllToPem())
+            val roundTripped = PemBlock.decodeAllFromPem(decoded.encodeAllToPem())
             assertPemBlocksEqual(decoded, roundTripped, fixture.name)
         }
     }
