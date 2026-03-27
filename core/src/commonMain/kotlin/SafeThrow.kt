@@ -7,7 +7,7 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-expect inline fun Throwable.ifNotFatal(): Throwable
+internal expect inline fun Throwable.nonFatalOrThrow(): Throwable
 
 /**
  * Non-fatal-only-catching version of stdlib's [runCatching], returning a [Result] --
@@ -17,24 +17,24 @@ expect inline fun Throwable.ifNotFatal(): Throwable
  */
 @OptIn(ExperimentalContracts::class)
 @Suppress("NOTHING_TO_INLINE")
-inline fun <T> catchingUnwrapped(block: () -> T): Result<T> {
+internal inline fun <T> catchingUnwrapped(block: () -> T): Result<T> {
     contract { callsInPlace(block, InvocationKind.AT_MOST_ONCE) }
     return try {
         Result.success(block())
     } catch (e: Throwable) {
-        Result.failure(e.ifNotFatal())
+        Result.failure(e.nonFatalOrThrow())
     }
 }
 
 /** @see catchingUnwrapped */
 @OptIn(ExperimentalContracts::class)
 @Suppress("NOTHING_TO_INLINE")
-inline fun <T, R> T.catchingUnwrapped(block: T.() -> R): Result<R> {
+internal inline fun <T, R> T.catchingUnwrapped(block: T.() -> R): Result<R> {
     contract { callsInPlace(block, InvocationKind.AT_MOST_ONCE) }
     return try {
         Result.success(block())
     } catch (e: Throwable) {
-        Result.failure(e.ifNotFatal())
+        Result.failure(e.nonFatalOrThrow())
     }
 }
 
@@ -59,7 +59,8 @@ internal inline fun <reified E : Throwable, T> Result<T>.wrapAs(a: (String?, Thr
 @OptIn(ExperimentalContracts::class)
 @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 @kotlin.internal.LowPriorityInOverloadResolution
-inline fun <reified E : Throwable, R> Result<R>.wrapAs(a: (Throwable) -> E): Result<R> {
+@PublishedApi
+internal inline fun <reified E : Throwable, R> Result<R>.wrapAs(a: (Throwable) -> E): Result<R> {
     contract { callsInPlace(a, InvocationKind.AT_MOST_ONCE) }
     return wrapAs(a = { _, x -> a(x) })
 }
