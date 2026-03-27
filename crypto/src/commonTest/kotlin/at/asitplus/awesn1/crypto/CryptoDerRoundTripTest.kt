@@ -119,10 +119,10 @@ private fun randomAlgorithmIdentifier(random: Random) = Asn1.Sequence {
 }
 
 private fun randomBitStringSignatureValue(random: Random) =
-    BitStringSignatureValue(Asn1BitString(randomBytes(random)))
+    (Asn1BitString(randomBytes(random)))
 
 private fun randomEcdsaSignatureValue(random: Random) =
-    EcdsaSignatureValue(positiveAsn1Integer(random), positiveAsn1Integer(random))
+    SignatureValue(positiveAsn1Integer(random), positiveAsn1Integer(random))
 
 private fun randomEcPrivateKey(random: Random) = EcPrivateKeyInfo(
     version = 1,

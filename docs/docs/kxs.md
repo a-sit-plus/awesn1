@@ -25,54 +25,21 @@ The contract is intentionally strict:
 
 - default-DER contributors must register before the first access to `DER`
 - after the default `DER` instance has been initialized, further registrations throw
-- `Der` itself stays immutable; only the pre-initialization contributor list is extensible
+- A `Der` instance itself stays immutable; only the pre-initialization contributor list is extensible
 
 Typical reasons to add contributors are domain-specific open polymorphism and raw-backed semantic wrappers.
-One concrete example is introducing new ASN.1 signature formats beyond awesn1's built-in `SignatureValue`
-subtypes: those additional serializers must be registered before the default `DER` instance is first used.
+Functionally, the registry is just a pre-initialization list of `SerializersModule`s that are merged into the
+default `DER` instance during its lazy initialization.
 
-!!! warning "`SignatureValue` Registration"
-    awesn1 keeps the `DER` registry generic. Built-in `SignatureValue` support must be manually installed when using the `crypto` module by calling
-    `DerDefaults.registerDerSerializers()` **before any call to `DER`**!  
-    Signum's own mandatory serialization hook calls it by default:
-    [`registerSignumDefaultDerSerializers()`](https://a-sit-plus.github.io/signum/indispensable/#registry-initialization-and-extension-registration).
-
-Sketch:
+One realistic example is CMS or PKI open types that dispatch by OID. If your application introduces a custom
+CMS-style attribute value family and wants raw-backed models to decode those values through the default `DER`
+instance, register that serializers module up front:
 
 ```kotlin
-@Serializable(with = Ed448SignatureValue.Companion::class)
-class Ed448SignatureValue(
-    val octets: Asn1OctetString,
-) : SignatureValue, Asn1Encodable<Asn1Primitive> {
-    override fun encodeToTlv(): Asn1Primitive = octets.encodeToTlv()
-
-    companion object : Asn1Serializable<Asn1Primitive, Ed448SignatureValue> {
-        override val leadingTags = setOf(Asn1Element.Tag.OCTET_STRING)
-
-        override fun doDecode(src: Asn1Primitive) =
-            Ed448SignatureValue(src.asAsn1OctetString())
-    }
-}
-
-@OptIn(ExperimentalSerializationApi::class)
-fun registerEd448ForDefaultDer() {
-    registerSignatureValueForDefaultDer()
-    DefaultDerSerializersModuleRegistry.register(
-        SerializersModule {
-            polymorphicByTag(
-                SignatureValue::class,
-                serialName = DEFAULT_DER_SIGNATURE_VALUE_SERIAL_NAME,
-            ) {
-                subtype<Ed448SignatureValue>(Asn1Element.Tag.OCTET_STRING)
-            }
-        }
-    )
-}
+--8<-- "at/asitplus/awesn1/docs/DefaultDerRegistryDocumentationTest.kt:kxs-default-der-registry-definitions"
 ```
 
-The important part is that the registration happens before the first access to `DER`. For a new signature family, first
-install the built-in `SignatureValue` hook from awesn1 crypto, then register your additional subtype mapping in the same
-pre-initialization phase.
+The important part is that the registration happens before the first access to `DER`.
 
 This design avoids a mutable global codec while still allowing library integrations to make raw-backed transient
 materialization work out of the box.

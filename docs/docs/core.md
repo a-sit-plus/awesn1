@@ -49,7 +49,7 @@ Cryptographic structures such as X.509 certificates, `SubjectPublicKeyInfo`, `Pr
 and related PKI data classes live in the dedicated [crypto](crypto.md) module instead.
 
 That split keeps `core` small and broadly reusable, while `crypto` builds on top of it with
-cryptograph-specific data models.
+cryptography-specific data models.
 
 ## Supply Chain Metadata
 
