@@ -6,7 +6,7 @@ package at.asitplus.awesn1
 import kotlin.coroutines.cancellation.CancellationException
 
 @Suppress("NOTHING_TO_INLINE")
-internal actual inline fun Throwable.nonFatalOrThrow(): Throwable = when (this) {
+actual inline fun Throwable.nonFatalOrThrow(): Throwable = when (this) {
     is CancellationException -> throw this
     else -> this
 }

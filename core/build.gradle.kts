@@ -17,7 +17,7 @@ awesn1Conventions {
 }
 
 kotlin {
-    indispensableTargets()
+    awesn1Targets()
     //we cannot currently test this, so it is only enabled for publishing
     project.gradle.startParameter.taskNames.firstOrNull { it.contains("publish") }?.let {
         watchosDeviceArm64()
@@ -37,14 +37,11 @@ kotlin {
                 implementation("at.asitplus.signum:indispensable-oids:3.19.3")
             }
         }
-        val jvmTest by getting {
+        jvmTest {
             dependencies {
                 implementation(project(":kxs"))
                 implementation(serialization("json"))
             }
-        }
-        val nonJvmMain by creating {
-            kotlin.srcDir("$projectDir/src/nonJvmMain/kotlin")
         }
     }
     jvm {
@@ -53,26 +50,6 @@ kotlin {
             freeCompilerArgs.add("-Xemit-jvm-type-annotations")
         }
     }
-
-
-    sourceSets["nonJvmMain"].dependsOn(sourceSets.getByName("commonMain"))
-    sourceSets.filterNot {
-        it.name =="nonJvmMain" ||
-        it.name.startsWith("common")
-                || it.name.startsWith("jvm")
-                || it.name.startsWith("android")
-                || it.name.startsWith("apple")
-                || it.name.startsWith("macos")
-                || it.name.startsWith("mingw")
-                || it.name.startsWith("tvos")
-                || it.name.startsWith("watch")
-                || it.name.startsWith("linux")
-                || it.name.startsWith("ios")
-                || it.name.startsWith("web")
-    }
-        .filter { it.name.endsWith("Main") }.forEach { srcSet ->
-            srcSet.dependsOn(sourceSets.getByName("nonJvmMain"))
-        }
 
 }
 
