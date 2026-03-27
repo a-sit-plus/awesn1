@@ -10,18 +10,17 @@ import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.Asn1StructuralException
 import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.runRethrowing
 import at.asitplus.awesn1.encoding.Asn1
 
 open class GeneralNames @Throws(Throwable::class) constructor(
     val entries: List<Asn1Element>
 ) {
 
-    val dnsNames: List<String>? = parseStringSANs(GeneralNameImplicitTags.dNSName)
+    val dnsNames: List<String>? = parseStringSANs(GeneralNameImplicitTags.dnsName)
     val rfc822Names: List<String>? = parseStringSANs(GeneralNameImplicitTags.rfc822Name)
     val uris: List<String>? = parseStringSANs(GeneralNameImplicitTags.uniformResourceIdentifier)
 
-    val ipAddresses: List<ByteArray> = entries.filter { it.tag == GeneralNameImplicitTags.iPAddress }.apply {
+    val ipAddresses: List<ByteArray> = entries.filter { it.tag == GeneralNameImplicitTags.ipAddress }.apply {
         forEach {
             if (it !is Asn1Primitive)
                 throw Asn1StructuralException("Invalid iPAddress Alternative Name found: ${it.toDerHexString()}")
@@ -64,14 +63,12 @@ open class GeneralNames @Throws(Throwable::class) constructor(
 
     companion object {
         @Throws(Asn1Exception::class)
-        fun List<X509CertificateExtension>.findSubjectAltNames() = runRethrowing {
+        fun List<X509CertificateExtension>.findSubjectAltNames() =
             find(ObjectIdentifier("2.5.29.17"))?.let { GeneralNames(it) }
-        }
 
         @Throws(Asn1Exception::class)
-        fun List<X509CertificateExtension>.findIssuerAltNames() = runRethrowing {
+        fun List<X509CertificateExtension>.findIssuerAltNames() =
             find(ObjectIdentifier("2.5.29.18"))?.let { GeneralNames(it) }
-        }
 
         private fun List<X509CertificateExtension>.find(oid: ObjectIdentifier): List<Asn1Element>? {
             val matches = filter { it.oid == oid }
@@ -85,11 +82,11 @@ open class GeneralNames @Throws(Throwable::class) constructor(
 object GeneralNameImplicitTags {
     val otherName = Asn1.ImplicitTag(0uL)
     val rfc822Name = Asn1.ImplicitTag(1uL)
-    val dNSName = Asn1.ImplicitTag(2uL)
+    val dnsName = Asn1.ImplicitTag(2uL)
     val x400Address = Asn1.ImplicitTag(3uL)
     val directoryName = Asn1.ImplicitTag(4uL)
     val ediPartyName = Asn1.ImplicitTag(5uL)
     val uniformResourceIdentifier = Asn1.ImplicitTag(6uL)
-    val iPAddress = Asn1.ImplicitTag(7uL)
+    val ipAddress = Asn1.ImplicitTag(7uL)
     val registeredID = Asn1.ImplicitTag(8uL)
 }

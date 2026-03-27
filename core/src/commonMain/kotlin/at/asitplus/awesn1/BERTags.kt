@@ -84,7 +84,11 @@ enum class TagClass(val byteValue: UByte, val berTag: UByte) {
     PRIVATE(3u, BERTags.PRIVATE);
     companion object {
         fun fromByte(byteValue: Byte): Result<TagClass> =
-            catchingUnwrapped { entries.first { it.byteValue == ((byteValue byteMask 0xC0).toUInt().toInt() ushr 6).toUByte()  } }
+            catchingUnwrapped {
+                entries.first {
+                    it.byteValue == ((byteValue byteMask 0xC0).toUInt().toInt() ushr 6).toUByte()
+                }
+            }
     }
 
 }

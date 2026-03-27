@@ -6,10 +6,6 @@
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.Asn1Element.Tag
-import at.asitplus.awesn1.encoding.internal.Sink
-import at.asitplus.awesn1.encoding.internal.Source
-import at.asitplus.awesn1.encoding.internal.parse
-import at.asitplus.awesn1.encoding.parse
 
 /**
  * Interface providing methods to encode to ASN.1

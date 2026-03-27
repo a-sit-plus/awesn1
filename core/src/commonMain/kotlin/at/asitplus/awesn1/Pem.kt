@@ -77,6 +77,7 @@ interface Asn1PemEncodable<out A : Asn1Element> : PemEncodable, Asn1Encodable<A>
 }
 
 interface Asn1PemDecodable<A : Asn1Element, out T : Asn1Encodable<A>> : PemDecodable<T>, Asn1Decodable<A, T> {
+    // TODO: label checking
     @Throws(IllegalArgumentException::class)
     override fun decodeFromPemBlock(src: PemBlock): T =
         catchingUnwrapped { decodeFromDer(src.payload) }.wrapAs { IllegalArgumentException(it) }.getOrThrow()
@@ -99,7 +100,7 @@ fun Iterable<PemBlock>.encodeAllToPem(): String = joinToString("\n") { it.encode
 fun PemBlock.encodeToPem(): String {
     val begin = "$FENCE_PREFIX_BEGIN$label$FENCE_SUFFIX"
     val end = "$FENCE_PREFIX_END$label$FENCE_SUFFIX"
-    val payloadBase64 = encodeBase64Canonical(payload)
+    val payloadBase64 = payload.encodeBase64Canonical()
 
     return buildString {
         append(begin)
@@ -130,11 +131,11 @@ fun <T> PemDecodable<T>.decodeAllFromPem(src: String): List<T> =
     src.parseAsPemBlocks().map(this::decodeFromPemBlock)
 
 @Throws(IllegalArgumentException::class)
-fun String.parseAsPemBlock(): PemBlock = parseAsPemBlocks().singleOrNull()
+private fun String.parseAsPemBlock(): PemBlock = parseAsPemBlocks().singleOrNull()
     ?: throw IllegalArgumentException("Multiple PEM blocks found in string")
 
 @Throws(IllegalArgumentException::class)
-fun String.parseAsPemBlocks(): List<PemBlock> = buildList {
+private fun String.parseAsPemBlocks(): List<PemBlock> = buildList {
     val lines = lineSequence().iterator()
     while (lines.hasNext()) {
         val label = findBeginFence(lines.next()) ?: continue
@@ -200,8 +201,8 @@ private fun findEndFence(line: String) = when {
 }
 
 @OptIn(ExperimentalEncodingApi::class)
-private fun encodeBase64Canonical(bytes: ByteArray): List<String> =
-    Base64.Mime.encode(bytes)
+private fun ByteArray.encodeBase64Canonical(): List<String> =
+    Base64.Mime.encode(this)
         .lineSequence()
         .joinToString("")
         .chunked(64)
