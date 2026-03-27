@@ -1,4 +1,4 @@
-import at.asitplus.gradle.indispensableTargets
+import at.asitplus.gradle.awesn1Targets
 import at.asitplus.gradle.awesn1Conventions
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
@@ -219,7 +219,7 @@ awesn1Conventions {
 
 
 kotlin {
-    indispensableTargets()
+    awesn1Targets()
     //we cannot currently test this, so it is only enabled for publishing
     project.gradle.startParameter.taskNames.firstOrNull { it.contains("publish") }?.let {
         watchosDeviceArm64()

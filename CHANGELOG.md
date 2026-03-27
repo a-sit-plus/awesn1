@@ -1,6 +1,15 @@
 # Changelog
 
-## NEXT
+## 0.2
+
+### NEXT
+
+* make `PemBlock` also `PemEncodable`
+* normalize function naming surrounding PEM:
+  * `T.encodeToPem` and `T.Companion.decodeFromPem` for `String` <-> `T`
+  * `T.encodeAllToPem` and `T.Companion.decodeAllFromPem` for `String` <-> `Iterable<T>`
+  * `T` can be `PemBlock`, or any other `PemEncodable` (whose companion is `PemDecodable`)
+* make a bunch of things `internal` to avoid polluting the global namespace
 
 ## 0.1
 

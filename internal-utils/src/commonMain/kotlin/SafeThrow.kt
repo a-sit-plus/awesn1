@@ -7,7 +7,7 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-expect inline fun Throwable.ifNotFatal(): Throwable
+expect inline fun Throwable.nonFatalOrThrow(): Throwable
 
 /**
  * Non-fatal-only-catching version of stdlib's [runCatching], returning a [Result] --
@@ -22,7 +22,7 @@ inline fun <T> catchingUnwrapped(block: () -> T): Result<T> {
     return try {
         Result.success(block())
     } catch (e: Throwable) {
-        Result.failure(e.ifNotFatal())
+        Result.failure(e.nonFatalOrThrow())
     }
 }
 
@@ -34,7 +34,7 @@ inline fun <T, R> T.catchingUnwrapped(block: T.() -> R): Result<R> {
     return try {
         Result.success(block())
     } catch (e: Throwable) {
-        Result.failure(e.ifNotFatal())
+        Result.failure(e.nonFatalOrThrow())
     }
 }
 
@@ -46,8 +46,7 @@ inline fun <T, R> T.catchingUnwrapped(block: T.() -> R): Result<R> {
  * Usage: `Result.wrapAs(a = ::ThrowableType)`
  */
 @OptIn(ExperimentalContracts::class)
-@PublishedApi
-internal inline fun <reified E : Throwable, T> Result<T>.wrapAs(a: (String?, Throwable) -> E): Result<T> {
+inline fun <reified E : Throwable, T> Result<T>.wrapAs(a: (String?, Throwable) -> E): Result<T> {
     contract { callsInPlace(a, InvocationKind.AT_MOST_ONCE) }
     return exceptionOrNull().let { x ->
         if ((x == null) || (x is E)) this@wrapAs

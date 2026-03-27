@@ -22,8 +22,9 @@ class Asn1OidException(message: String, val oid: ObjectIdentifier) : Asn1Excepti
 /**
  * Runs [block] inside [catchingUnwrapped] and encapsulates any thrown exception in an [Asn1Exception] unless it already is one
  */
+@PublishedApi
 @Throws(Asn1Exception::class)
-inline fun <reified R> runRethrowing(block: () -> R) =
+internal inline fun <reified R> runRethrowing(block: () -> R) =
     catchingUnwrapped(block).wrapAs(::Asn1Exception).getOrThrow()
 
 /**
