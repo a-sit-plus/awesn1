@@ -7,7 +7,7 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-internal expect inline fun Throwable.nonFatalOrThrow(): Throwable
+expect inline fun Throwable.nonFatalOrThrow(): Throwable
 
 /**
  * Non-fatal-only-catching version of stdlib's [runCatching], returning a [Result] --
@@ -17,7 +17,7 @@ internal expect inline fun Throwable.nonFatalOrThrow(): Throwable
  */
 @OptIn(ExperimentalContracts::class)
 @Suppress("NOTHING_TO_INLINE")
-internal inline fun <T> catchingUnwrapped(block: () -> T): Result<T> {
+inline fun <T> catchingUnwrapped(block: () -> T): Result<T> {
     contract { callsInPlace(block, InvocationKind.AT_MOST_ONCE) }
     return try {
         Result.success(block())
@@ -29,7 +29,7 @@ internal inline fun <T> catchingUnwrapped(block: () -> T): Result<T> {
 /** @see catchingUnwrapped */
 @OptIn(ExperimentalContracts::class)
 @Suppress("NOTHING_TO_INLINE")
-internal inline fun <T, R> T.catchingUnwrapped(block: T.() -> R): Result<R> {
+inline fun <T, R> T.catchingUnwrapped(block: T.() -> R): Result<R> {
     contract { callsInPlace(block, InvocationKind.AT_MOST_ONCE) }
     return try {
         Result.success(block())
@@ -46,8 +46,7 @@ internal inline fun <T, R> T.catchingUnwrapped(block: T.() -> R): Result<R> {
  * Usage: `Result.wrapAs(a = ::ThrowableType)`
  */
 @OptIn(ExperimentalContracts::class)
-@PublishedApi
-internal inline fun <reified E : Throwable, T> Result<T>.wrapAs(a: (String?, Throwable) -> E): Result<T> {
+inline fun <reified E : Throwable, T> Result<T>.wrapAs(a: (String?, Throwable) -> E): Result<T> {
     contract { callsInPlace(a, InvocationKind.AT_MOST_ONCE) }
     return exceptionOrNull().let { x ->
         if ((x == null) || (x is E)) this@wrapAs
@@ -59,8 +58,7 @@ internal inline fun <reified E : Throwable, T> Result<T>.wrapAs(a: (String?, Thr
 @OptIn(ExperimentalContracts::class)
 @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 @kotlin.internal.LowPriorityInOverloadResolution
-@PublishedApi
-internal inline fun <reified E : Throwable, R> Result<R>.wrapAs(a: (Throwable) -> E): Result<R> {
+inline fun <reified E : Throwable, R> Result<R>.wrapAs(a: (Throwable) -> E): Result<R> {
     contract { callsInPlace(a, InvocationKind.AT_MOST_ONCE) }
     return wrapAs(a = { _, x -> a(x) })
 }

@@ -15,6 +15,7 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.*
 import org.gradle.plugins.signing.SigningExtension
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
@@ -67,6 +68,15 @@ class Awesn1ConventionsExtension(private val project: Project) {
             compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
             sourceSets.whenObjectAdded {
                 languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
+            }
+
+            if (project.name != "internal-utils") {
+                @OptIn(ExperimentalKotlinGradlePluginApi::class)
+                sourceSets.invokeWhenCreated("commonMain") {
+                    dependencies {
+                        implementation(project(":internal-utils"))
+                    }
+                }
             }
         }
 
@@ -289,7 +299,7 @@ val Project.disableNdkTargets
             }
         }.getOrNull()))
 
-fun KotlinMultiplatformExtension.indispensableTargets() {
+fun KotlinMultiplatformExtension.awesn1Targets() {
 
     jvm()
 
