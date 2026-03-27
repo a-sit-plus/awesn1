@@ -1,6 +1,8 @@
 # Changelog
 
 ## NEXT
+* Rework Signatures to a simple BIT STRING
+* DER registry was thinned out and now only lives in `kxs` module. It is now called `DefaultDer`
 
 ## 0.1
 

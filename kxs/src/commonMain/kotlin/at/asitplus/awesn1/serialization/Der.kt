@@ -15,7 +15,6 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlin.jvm.JvmName
 import kotlin.reflect.typeOf
 
@@ -204,71 +203,27 @@ fun DER(config: DerBuilder.() -> Unit = {}) =
         .build()
         .let { Der(it) }
 
-@OptIn(InternalAwesn1Api::class)
-private fun SerializersModuleBuilder.includeDefaultDerSnapshot(
-    snapshot: DefaultDerSerializersModuleRegistrySnapshot,
-) {
-    snapshot.modules.forEach(::include)
-    snapshot.tagOpenPolymorphism.forEach(::includeTagOpenPolymorphism)
-    //snapshot.oidOpenPolymorphism.forEach(::includeOidOpenPolymorphism)
-}
-
 @ExperimentalSerializationApi
-object DefaultDerSerializersModuleRegistry {
-    fun register(module: SerializersModule) = InternalDefaultDerSerializersModuleRegistry.register(module)
-}
+object DefaultDer {
+    private val contributors = mutableListOf<SerializersModule>()
+    private var consumed = false
 
-@Suppress("UNCHECKED_CAST")
-@OptIn(InternalAwesn1Api::class)
-private fun SerializersModuleBuilder.includeTagOpenPolymorphism(
-    registration: DefaultDerTagOpenPolymorphicRegistration<*>,
-) {
-    registration as DefaultDerTagOpenPolymorphicRegistration<Any>
-    polymorphicByTag(
-        baseClass = registration.baseClass,
-        serialName = registration.serialName,
-    ) {
-        registration.subtypes.forEach { subtype ->
-            subtype(
-                serializer = subtype.serializer as KSerializer<Any>,
-                leadingTags = subtype.leadingTags,
-                matches = subtype.matches,
-            )
+    fun register(module: SerializersModule) {
+        check(!consumed) {
+            "Default DER serializers module registry has already been consumed during default DER initialization"
         }
+        contributors += module
     }
-}
-/*
-@Suppress("UNCHECKED_CAST")
-@OptIn(InternalAwesn1Api::class)
-private fun SerializersModuleBuilder.includeOidOpenPolymorphism(
-    registration: DefaultDerOidOpenPolymorphicRegistration<*>,
-) {
-    registration as DefaultDerOidOpenPolymorphicRegistration<Identifiable>
 
-    polymorphicByOid(registration.baseClass, serialName = registration.serialName) {
-        registration.subtypes.forEach { sub ->
-            subtype(object: OidProvider<Identifiable> {
-                override val oid: ObjectIdentifier
-                    get() =sub.oid
-
-            })
-
-        }
-    }
-}*/
-
-@OptIn(ExperimentalSerializationApi::class)
-private object DefaultDerHolder {
-    val instance: Der by lazy {
-        val snapshot = InternalDefaultDerSerializersModuleRegistry.consume()
-        DER {
-            serializersModule = SerializersModule {
-                includeDefaultDerSnapshot(snapshot)
-            }
-        }
+    internal fun consumeSerializers(): SerializersModule {
+        consumed = true
+        return if (contributors.isEmpty()) EmptySerializersModule()
+        else SerializersModule { contributors.forEach(::include) }
     }
 }
 
-val DER: Der
-    @OptIn(ExperimentalSerializationApi::class)
-    get() = DefaultDerHolder.instance
+val DER: Der by lazy {
+    DER {
+        serializersModule = DefaultDer.consumeSerializers()
+    }
+}
