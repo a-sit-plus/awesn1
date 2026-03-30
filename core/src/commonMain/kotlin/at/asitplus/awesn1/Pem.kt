@@ -107,7 +107,7 @@ interface Asn1PemDecodable<A : Asn1Element, out T : Asn1Encodable<A>>
 
     @Throws(IllegalArgumentException::class)
     override fun decodeFromPemBlock(src: PemBlock): T = runRethrowing {
-        require(src.label != pemLabel) { "PEM label is ${src.label}, expected $pemLabel" }
+        require(src.label == pemLabel) { "PEM label is ${src.label}, expected $pemLabel" }
         decodeFromDerWithPemHeaders(src.headers, src.payload)
     }
 }
