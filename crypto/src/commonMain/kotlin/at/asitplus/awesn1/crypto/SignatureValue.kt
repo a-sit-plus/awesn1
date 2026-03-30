@@ -12,13 +12,24 @@ import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
+@JvmInline
 @Serializable(with = SignatureValue.Companion::class)
-class SignatureValue(val rawBytes: ByteArray) : Asn1Encodable<Asn1Primitive> {
+value class SignatureValue
+@Throws(Asn1Exception::class)
+constructor(val rawBitString: Asn1BitString) : Asn1Encodable<Asn1Primitive> {
+
+    init {
+        if (rawBitString.numPaddingBits != 0.toByte()) throw Asn1Exception("The signature value must have padding bits")
+    }
+
+    constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
     /**
      * Constructs a Signature value from [r] and [s] coordinates (as used by ECDSA, and DSA, for example)
      */
     constructor(r: Asn1Integer.Positive, s: Asn1Integer.Positive) : this(Asn1.Sequence { +r; +s }.derEncoded)
+
+    val rawBytes: ByteArray get() = rawBitString.rawBytes
 
     /**
      * Decodes r,s signature components from a SEQUENCE nested inside a signature values' BIT_STRING bytes.
@@ -32,26 +43,12 @@ class SignatureValue(val rawBytes: ByteArray) : Asn1Encodable<Asn1Primitive> {
         }
     }
 
-    override fun encodeToTlv(): Asn1Primitive = Asn1BitString(rawBytes).encodeToTlv()
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is SignatureValue) return false
-
-        if (!rawBytes.contentEquals(other.rawBytes)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        return rawBytes.contentHashCode()
-    }
+    override fun encodeToTlv(): Asn1Primitive = rawBitString.encodeToTlv()
 
     companion object : Asn1Serializable<Asn1Primitive, SignatureValue> {
         override val leadingTags = Asn1BitString.leadingTags
         override fun doDecode(src: Asn1Primitive): SignatureValue {
-            var bitString = src.asAsn1BitString()
-            if (bitString.numPaddingBits != 0.toByte()) throw Asn1Exception("Padding bits found in signature")
-            return SignatureValue(bitString.rawBytes)
+            return SignatureValue(src.asAsn1BitString())
         }
     }
 }
