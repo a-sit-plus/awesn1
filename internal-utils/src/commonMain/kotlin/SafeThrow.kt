@@ -62,3 +62,37 @@ inline fun <reified E : Throwable, R> Result<R>.wrapAs(a: (Throwable) -> E): Res
     contract { callsInPlace(a, InvocationKind.AT_MOST_ONCE) }
     return wrapAs(a = { _, x -> a(x) })
 }
+
+/**
+ * Runs the block. If any non-fatal exception is thrown, ensure that it is of the provided type.
+ *
+ * Usage: `runWrappingAs(a = ::ThrowableType) { ... }`
+ */
+@OptIn(ExperimentalContracts::class)
+inline fun <reified E: Throwable, T> runWrappingAs(a: (String?, Throwable) -> E, block: ()->T): T {
+    contract {
+        callsInPlace(a, InvocationKind.AT_MOST_ONCE)
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+    return try {
+        block()
+    } catch (x: Throwable) {
+        when (x.nonFatalOrThrow()) {
+            is E -> throw x
+            else -> throw a(x.message, x)
+        }
+    }
+}
+
+/** @see runWrappingAs */
+@OptIn(ExperimentalContracts::class)
+@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@kotlin.internal.LowPriorityInOverloadResolution
+@kotlin.internal.InlineOnly
+inline fun <reified E: Throwable, T> runWrappingAs(a: (Throwable) -> E, block: ()->T): T {
+    contract {
+        callsInPlace(a, InvocationKind.AT_MOST_ONCE)
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+    return runWrappingAs(a = { _, x -> a(x) }, block)
+}

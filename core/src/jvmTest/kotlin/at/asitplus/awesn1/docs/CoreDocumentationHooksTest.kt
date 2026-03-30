@@ -260,7 +260,9 @@ private fun coreHookPemAsn1() {
     }
 
     val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
-        Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {}
+        Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
+            override val pemLabel: String = "ASN1 INTEGER"
+        }
 
     val pem = source.encodeToPem()
     decoder.decodeFromPem(pem) shouldBe Asn1Integer(42)
