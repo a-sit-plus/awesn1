@@ -6,6 +6,8 @@ package at.asitplus.awesn1.crypto.pki
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.Asn1PemDecodable
+import at.asitplus.awesn1.Asn1PemEncodable
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.decodeRethrowing
 import at.asitplus.awesn1.encoding.Asn1
@@ -19,9 +21,9 @@ open class X509Certificate(
     val tbsCertificate: TbsCertificate,
     val signatureAlgorithm: SignatureAlgorithmIdentifier,
     val signatureValue: SignatureValue,
-) : at.asitplus.awesn1.Asn1PemEncodable<Asn1Sequence> {
+) : Asn1PemEncodable<Asn1Sequence> {
 
-    override val pemLabel: String = "CERTIFICATE"
+    override val pemLabel get() = PEM_LABEL
 
     override fun encodeToTlv() = Asn1.Sequence {
         +tbsCertificate
@@ -44,8 +46,13 @@ open class X509Certificate(
         return result
     }
 
-    companion object : Asn1Serializable<Asn1Sequence, X509Certificate> {
+    companion object :
+        Asn1Serializable<Asn1Sequence, X509Certificate>,
+        Asn1PemDecodable<Asn1Sequence, X509Certificate>
+    {
+        const val PEM_LABEL = "CERTIFICATE"
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
+        override val pemLabel get() = PEM_LABEL
 
         @Throws(Asn1Exception::class)
         override fun doDecode(src: Asn1Sequence): X509Certificate = src.decodeRethrowing {
