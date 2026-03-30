@@ -222,7 +222,7 @@ private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10Certifi
 private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10CertificationRequest(
     certificationRequestInfo = randomPkcs10CertificationRequestInfo(random),
     signatureAlgorithm = randomSignatureAlgorithmIdentifier(random),
-    signatureValue = Asn1BitString(randomBytes(random, 32)),
+    signatureValue = SignatureValue(randomBytes(random, 32)),
 )
 
 private fun randomTbsCertificate(random: Random): TbsCertificate {

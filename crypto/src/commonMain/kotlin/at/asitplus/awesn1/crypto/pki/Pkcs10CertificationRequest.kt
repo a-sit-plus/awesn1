@@ -10,6 +10,7 @@ import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.decodeRethrowing
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.crypto.SignatureAlgorithmIdentifier
+import at.asitplus.awesn1.crypto.SignatureValue
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
 
@@ -17,7 +18,7 @@ import kotlinx.serialization.Serializable
 open class Pkcs10CertificationRequest(
     val certificationRequestInfo: Pkcs10CertificationRequestInfo,
     val signatureAlgorithm: SignatureAlgorithmIdentifier,
-    val signatureValue: Asn1BitString,
+    val signatureValue: SignatureValue,
 ) : at.asitplus.awesn1.Asn1PemEncodable<Asn1Sequence> {
 
     override val pemLabel: String = "CERTIFICATE REQUEST"
@@ -50,7 +51,7 @@ open class Pkcs10CertificationRequest(
         override fun doDecode(src: Asn1Sequence): Pkcs10CertificationRequest = src.decodeRethrowing {
             val info = Pkcs10CertificationRequestInfo.decodeFromTlv(next().asSequence())
             val signatureAlgorithm = SignatureAlgorithmIdentifier.decodeFromTlv(next().asSequence())
-            val signatureValue = Asn1BitString.decodeFromTlv(next().asPrimitive())
+            val signatureValue = SignatureValue.decodeFromTlv(next().asPrimitive())
             Pkcs10CertificationRequest(info, signatureAlgorithm, signatureValue)
         }
     }
