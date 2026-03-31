@@ -47,10 +47,20 @@ value class GeneralNames @Throws(Throwable::class) constructor(
 
     companion object {
         @Throws(Asn1Exception::class)
+        fun X509Certificate.findSubjectAltNames() = tbsCertificate.findSubjectAltNames()
+        @Throws(Asn1Exception::class)
+        fun TbsCertificate.findSubjectAltNames() = extensions?.findSubjectAltNames()
+
+        @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findSubjectAltNames() =
             runWrappingAs(a=::Asn1Exception) {
                 find(ObjectIdentifier("2.5.29.17"))?.let { GeneralNames(it) }
             }
+
+        @Throws(Asn1Exception::class)
+        fun X509Certificate.findIssuerAltNames() = tbsCertificate.findIssuerAltNames()
+        @Throws(Asn1Exception::class)
+        fun TbsCertificate.findIssuerAltNames() = extensions?.findIssuerAltNames()
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findIssuerAltNames() =
