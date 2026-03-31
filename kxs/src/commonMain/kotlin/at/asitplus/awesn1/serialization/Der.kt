@@ -41,7 +41,7 @@ class Der internal constructor(
     override fun <T> decodeFromByteArray(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
-    ): T = catchingUnwrapped {
+    ): T = runWrappingAs(a=::SerializationException) {
         val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
         val decoder = DerDecoder(
             if (bytes.isEmpty()) emptyList() else Asn1Element.parseAll(bytes),
@@ -50,7 +50,7 @@ class Der internal constructor(
             layoutPlan = layoutPlan,
         )
         return decoder.decodeSerializableValue(deserializer)
-    }.wrapAs { SerializationException(it) }.getOrThrow()
+    }
 
     /**
      * Encodes [value] with the given [serializer] into a single ASN.1 TLV element.
@@ -82,7 +82,7 @@ class Der internal constructor(
         @ExperimentalSerializationApi
         @Throws(SerializationException::class, ImplementationError::class)
         fun <T> encodeToTlv(der: Der, serializer: SerializationStrategy<T>, value: T): Asn1Element? =
-            catchingUnwrapped {
+            runWrappingAs(a=::SerializationException) {
                 val layoutPlan = DerLayoutPlanContext(der.configuration).also { it.prime(serializer.descriptor) }
                 val encoder = DerEncoder(
                     serializersModule = der.configuration.serializersModule,
@@ -93,7 +93,7 @@ class Der internal constructor(
                 return encoder.encodeToTLV()
                     .also { if (it.size > 1) throw ImplementationError("DER serializer multiple elements") }
                     .firstOrNull()
-            }.wrapAs { SerializationException(it) }.getOrThrow()
+            }
 
     }
 
@@ -104,16 +104,17 @@ class Der internal constructor(
      */
     @ExperimentalSerializationApi
     @Throws(SerializationException::class, ImplementationError::class)
-    fun <T> decodeFromTlv(deserializer: DeserializationStrategy<T>, source: Asn1Element): T = catchingUnwrapped {
-        val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
-        val decoder = DerDecoder(
-            listOf(source),
-            serializersModule = configuration.serializersModule,
-            der = this,
-            layoutPlan = layoutPlan,
-        )
-        return decoder.decodeSerializableValue(deserializer)
-    }.wrapAs { SerializationException(it) }.getOrThrow()
+    fun <T> decodeFromTlv(deserializer: DeserializationStrategy<T>, source: Asn1Element): T =
+        runWrappingAs(a=::SerializationException) {
+            val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
+            val decoder = DerDecoder(
+                listOf(source),
+                serializersModule = configuration.serializersModule,
+                der = this,
+                layoutPlan = layoutPlan,
+            )
+            return decoder.decodeSerializableValue(deserializer)
+        }
 }
 
 

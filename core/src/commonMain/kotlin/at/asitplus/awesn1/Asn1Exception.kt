@@ -25,7 +25,7 @@ class Asn1OidException(message: String, val oid: ObjectIdentifier) : Asn1Excepti
 @PublishedApi
 @Throws(Asn1Exception::class)
 internal inline fun <R> runRethrowing(block: () -> R) =
-    runWrappingAs(::Asn1Exception, block)
+    runWrappingAs(a=::Asn1Exception, block)
 
 /**
  * Decodes this ASN.1 structure using the provided [decoder] lambda, rethrowing any caught exception

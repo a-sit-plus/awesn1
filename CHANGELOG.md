@@ -12,6 +12,7 @@
   * `T.encodeAllToPem` and `T.Companion.decodeAllFromPem` for `String` <-> `Iterable<T>`
   * `T` can be `PemBlock`, or any other `PemEncodable` (whose companion is `PemDecodable`)
 * move a bunch of internals to an internal-utils module to avoid polluting the global namespace
+* Normalize `GeneralNameImplicitTags` capitalization
 
 ## 0.1
 

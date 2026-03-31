@@ -84,9 +84,9 @@ interface Asn1PemEncodable<out A : Asn1Element> : PemEncodable, Asn1Encodable<A>
 
     @Throws(IllegalArgumentException::class)
     override fun encodeToPemBlock(): PemBlock =
-        catchingUnwrapped {
+        runWrappingAs(a=::IllegalArgumentException) {
             PemBlock(pemLabel, buildPemHeaders(), encodeToDer())
-        }.wrapAs(::IllegalArgumentException).getOrThrow()
+        }
 }
 
 /**
