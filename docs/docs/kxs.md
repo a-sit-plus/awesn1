@@ -31,12 +31,23 @@ Typical reasons to add contributors are domain-specific open polymorphism and ra
 Functionally, the registry is just a pre-initialization list of `SerializersModule`s that are merged into the
 default `DER` instance during its lazy initialization.
 
-One realistic example is CMS or PKI open types that dispatch by OID. If your application introduces a custom
+One realistic example is CMS or PKI open types that are dispatched by OID. If your application introduces a custom
 CMS-style attribute value family and wants raw-backed models to decode those values through the default `DER`
-instance, register that serializers module up front:
+instance, register that serializers module up front.
 
+Type definition (a single type implementing the base interface for compactness):
 ```kotlin
---8<-- "at/asitplus/awesn1/docs/DefaultDerRegistryDocumentationTest.kt:kxs-default-der-registry-definitions"
+--8<-- "at/asitplus/awesn1/serialization/docs/DefaultDerRegistryDocumentationTest.kt:kxs-default-der-registry-definitions"
+```
+
+Registration:
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/ModuleTestSession.kt:kxs-default-der-registry-setup"
+```
+
+The default DER instance then knows the custom type hierarchy:
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/docs/DefaultDerRegistryDocumentationTest.kt:kxs-default-der-registry-usage"
 ```
 
 The important part is that the registration happens before the first access to `DER`.
