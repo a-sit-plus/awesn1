@@ -13,7 +13,7 @@ awesn1Conventions {
 }
 
 kotlin {
-    indispensableTargets()
+    awesn1Targets()
 
     sourceSets {
         commonMain {

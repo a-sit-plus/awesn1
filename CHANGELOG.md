@@ -4,6 +4,15 @@
 * Rework Signatures to a single class encoding from/to BIT STRING
 * Make cert and CSR actually use the new signature class 
 * DER registry was thinned out and now only lives in `kxs` module. It is now called `DefaultDer`
+* make `PemBlock` also `PemEncodable`
+* validate PEM labels when decoding ASN.1 PEM blocks
+* disallow PEM headers by default when decoding ASN.1 PEM blocks; implementing classes can override this
+* normalize function naming surrounding PEM:
+  * `T.encodeToPem` and `T.Companion.decodeFromPem` for `String` <-> `T`
+  * `T.encodeAllToPem` and `T.Companion.decodeAllFromPem` for `String` <-> `Iterable<T>`
+  * `T` can be `PemBlock`, or any other `PemEncodable` (whose companion is `PemDecodable`)
+* move a bunch of internals to an internal-utils module to avoid polluting the global namespace
+* Normalize `GeneralNameImplicitTags` capitalization
 
 ## 0.1
 

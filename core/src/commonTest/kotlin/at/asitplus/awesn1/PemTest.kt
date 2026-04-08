@@ -59,7 +59,9 @@ val PemTest by testSuite {
         }
 
         val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
-            Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {}
+            Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
+                override val pemLabel: String = "ASN1 INTEGER"
+            }
 
         decoder.decodeFromPem(source.encodeToPem()) shouldBe Asn1Integer(7)
     }

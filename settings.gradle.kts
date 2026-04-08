@@ -28,6 +28,7 @@ develocity {
 // Include the local build logic as a composite build
 includeBuild("build-logic")
 
+include(":internal-utils")
 include(":core")
 include(":crypto")
 include(":kxs")

@@ -17,7 +17,6 @@ import at.asitplus.awesn1.Asn1Set
 import at.asitplus.awesn1.Asn1StructuralException
 import at.asitplus.awesn1.InternalAwesn1Api
 import at.asitplus.awesn1.catchingUnwrapped
-import at.asitplus.awesn1.encoding.decodeAsn1VarULong
 import at.asitplus.awesn1.runRethrowing
 import kotlin.experimental.and
 import kotlin.jvm.JvmName
