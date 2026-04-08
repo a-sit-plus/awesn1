@@ -28,6 +28,12 @@ import kotlin.time.Instant
 private const val SAMPLE_COUNT = 5
 
 val CryptoDerRoundTripTest by testSuite {
+    withData(*sampleValues(::randomRawBitStringSignatureValue).toTypedArray()) {value ->
+       roundTrip(value)
+    }
+    withData(*sampleValues(::randomBitStringSignatureValue).toTypedArray()) {value ->
+       roundTrip(value)
+    }
     withData(*sampleValues(::randomBitStringSignatureValue).toTypedArray()) {value ->
        roundTrip(value)
     }
@@ -118,11 +124,14 @@ private fun randomAlgorithmIdentifier(random: Random) = Asn1.Sequence {
     if (random.nextBoolean()) +Asn1.Null() else +randomRawElement(random)
 }
 
+private fun randomRawBitStringSignatureValue(random: Random) =
+    SignatureValue(Asn1BitString(randomBytes(random)))
+
 private fun randomBitStringSignatureValue(random: Random) =
-    BitStringSignatureValue(Asn1BitString(randomBytes(random)))
+    SignatureValue(randomBytes(random))
 
 private fun randomEcdsaSignatureValue(random: Random) =
-    EcdsaSignatureValue(positiveAsn1Integer(random), positiveAsn1Integer(random))
+    SignatureValue.fromRS(positiveAsn1Integer(random), positiveAsn1Integer(random))
 
 private fun randomEcPrivateKey(random: Random) = EcPrivateKeyInfo(
     version = 1,
@@ -222,7 +231,7 @@ private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10Certifi
 private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10CertificationRequest(
     certificationRequestInfo = randomPkcs10CertificationRequestInfo(random),
     signatureAlgorithm = randomSignatureAlgorithmIdentifier(random),
-    signatureValue = Asn1BitString(randomBytes(random, 32)),
+    signatureValue = SignatureValue(randomBytes(random, 32)),
 )
 
 private fun randomTbsCertificate(random: Random): TbsCertificate {

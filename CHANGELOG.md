@@ -1,6 +1,9 @@
 # Changelog
 
 ## NEXT
+* Rework Signatures to a single class encoding from/to BIT STRING
+* Make cert and CSR actually use the new signature class 
+* DER registry was thinned out and now only lives in `kxs` module. It is now called `DefaultDer`
 
 ## 0.1
 
