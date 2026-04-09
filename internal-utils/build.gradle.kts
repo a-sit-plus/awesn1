@@ -14,6 +14,10 @@ awesn1Conventions {
 
 kotlin {
     awesn1Targets()
+    // we cannot currently test this, so it is only enabled for publishing
+    project.gradle.startParameter.taskNames.firstOrNull { it.contains("publish") }?.let {
+        watchosDeviceArm64()
+    }
     sourceSets {
         val commonMain by getting
         create("nonJvmMain") {
