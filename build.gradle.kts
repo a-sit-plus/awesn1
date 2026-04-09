@@ -30,6 +30,8 @@ nexusPublishing {
     connectTimeout.set(Duration.ofMinutes(15))
     clientTimeout.set(Duration.ofMinutes(40))
 }
+
+
 //end work around nexus publish bug
 
 
