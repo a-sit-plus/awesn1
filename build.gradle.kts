@@ -75,8 +75,7 @@ spotless {
     }
 }
 
-tasks.named("check") {
-    dependsOn("spotlessCheck")
+tasks.named("spotlessCheck") {
     dependsOn(subprojects.map { "${it.path}:cyclonedxPublishedBom" })
 }
 
