@@ -94,6 +94,8 @@ val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
     val sbomRendererFile = rootProject.layout.projectDirectory.file("docs/tools/render_sbom_pages.py")
     val sortedProjects = subprojects.sortedBy { it.name }
 
+    dependsOn(sortedProjects.map { "${it.path}:cyclonedxPublishedBom" })
+
     if (signLocalRepoArtefacts) {
         dependsOn(sortedProjects.map { project ->
             project.tasks.withType(Sign::class.java)
