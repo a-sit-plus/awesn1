@@ -45,6 +45,7 @@ class Awesn1ConventionsPlugin : Plugin<Project> {
         if (target.hasAndroidSdk()) pluginManager.apply("com.android.kotlin.multiplatform.library")
         pluginManager.apply("signing")
         pluginManager.apply("at.asitplus.gradle.conventions")
+        pluginManager.apply("at.asitplus.gradle.sbombastic")
         pluginManager.apply("de.infix.testBalloon")
     }
 }
@@ -239,29 +240,6 @@ private fun Project.silence() {
         tasks.withType<Jar>().configureEach {
             if (name.endsWith("SourcesJar")) filesMatching("**/SafeThrow.nonJvm.kt") {
                 duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-            }
-        }
-        val signSbom by tasks.registering {
-            dependsOn(tasks.named("cyclonedxPublishedBom"))
-
-            doLast {
-                val sbomFiles = layout.buildDirectory
-                    .dir("reports/cyclonedx-publications")
-                    .get()
-                    .asFileTree
-                    .matching {
-                        include("**/bom.xml", "**/bom.json")
-                    }
-                    .files
-                    .toTypedArray()
-
-                if (sbomFiles.isEmpty()) {
-                    throw StopExecutionException("No SBOM files found under build/reports/cyclonedx-publications")
-                }
-
-                project.extensions
-                    .getByType(SigningExtension::class.java)
-                    .sign(*sbomFiles)
             }
         }
 

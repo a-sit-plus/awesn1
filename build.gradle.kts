@@ -8,6 +8,7 @@ plugins {
     val testballoonVer = System.getenv("TESTBALLOON_VERSION_OVERRIDE")?.ifBlank { null } ?: libs.versions.testballoon.get()
 
     alias(libs.plugins.asp)
+    alias(libs.plugins.sbombastic)
     alias(libs.plugins.spotless)
     kotlin("multiplatform") version kotlinVer apply false
     kotlin("plugin.serialization") version kotlinVer apply false
@@ -80,6 +81,10 @@ tasks.named("check") {
 }
 
 val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
+
+    val signLocalRepoArtefacts = System.getenv("SIGN_LOCAL_REPO_ARTEFACTS")?.ifBlank { "false" } == "true"
+
+
     group = "documentation"
     description = "Exports CycloneDX SBOMs for all published Maven publications into the docs tree."
 
@@ -89,7 +94,13 @@ val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
     val sbomRendererFile = rootProject.layout.projectDirectory.file("docs/tools/render_sbom_pages.py")
     val sortedProjects = subprojects.sortedBy { it.name }
 
-    dependsOn(sortedProjects.map { "${it.path}:signSbom" })
+    dependsOn(sortedProjects.map { "${it.path}:cyclonedxPublishedBom" })
+
+    if (signLocalRepoArtefacts) {
+        dependsOn(sortedProjects.map { project ->
+            project.tasks.withType(Sign::class.java)
+        })
+    }
     inputs.file(sbomTemplateFile)
     inputs.file(sbomRendererFile)
 

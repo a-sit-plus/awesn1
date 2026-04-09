@@ -4,8 +4,9 @@ serialization = "1.9.0"
 agp = "8.12.3"
 kotlinxIoCore = "0.8.0"
 kotlinpoet = "2.2.0"
-asp = "20260312"
-bouncycastle= "1.83"
+asp = "20260314"
+sbombastic = "0.0.3"
+bouncycastle = "1.83"
 testballoon = "0.8.3-K2.3.0"
 testballoonAddons = "0.7.1"
 spotless = "8.2.1"
@@ -13,11 +14,12 @@ spotless = "8.2.1"
 [libraries]
 kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
 kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinxIoCore" }
-asp = { module = "at.asitplus.gradle:k2", version.ref = "asp" }
-
 #for build logic conventions plugin, as it needs the artefact, not the plugin ID
+asp = { module = "at.asitplus.gradle:k2", version.ref = "asp" }
 agp = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+sbombastic = { module = "at.asitplus.gradle.sbombastic:at.asitplus.gradle.sbombastic.gradle.plugin", version.ref = "sbombastic" }
 
 [plugins]
 asp = { id = "at.asitplus.gradle.conventions", version.ref = "asp" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+sbombastic = { id = "at.asitplus.gradle.sbombastic", version.ref = "sbombastic" }
