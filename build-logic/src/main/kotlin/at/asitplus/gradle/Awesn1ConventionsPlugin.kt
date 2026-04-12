@@ -283,19 +283,14 @@ fun KotlinMultiplatformExtension.awesn1Targets() {
 
     if (!project.disableAppleTargets) {
         macosArm64()
-        macosX64()
         tvosArm64()
-        tvosX64()
         tvosSimulatorArm64()
-        iosX64()
         iosArm64()
         iosSimulatorArm64()
         watchosSimulatorArm64()
-        watchosX64()
         watchosArm32()
         watchosArm64()
         tvosSimulatorArm64()
-        tvosX64()
         tvosArm64()
     }
 
