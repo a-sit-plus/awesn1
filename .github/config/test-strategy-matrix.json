@@ -39,7 +39,7 @@
     {
       "os": "macos-latest",
       "name": "macRunner",
-      "testCommand": "./gradlew allTests -x iosX64Test -x iosSimulatorArm64Test -x jvmTest -x jsTest --scan"
+      "testCommand": "./gradlew allTests -x iosSimulatorArm64Test -x jvmTest -x jsTest --scan"
     }
   ]
 }
