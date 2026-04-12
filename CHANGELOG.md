@@ -1,8 +1,9 @@
 # Changelog
 
+## NEXT
+
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever so publishing 0.2.0 went south.
-
 
 ## 0.2.0
 * Rework Signatures to a single class encoding from/to BIT STRING
