@@ -237,6 +237,8 @@ Real-world references include [PKCS #10 (RFC 2986)](https://www.rfc-editor.org/r
 
 1. {{ asn1js_iframe('kxs-open-poly-oid') -}}
    Explore on <a href="{{ asn1js_url('kxs-open-poly-oid') }}" target="_blank" rel="noopener">asn1js.eu</a>
+2. {{ asn1js_iframe('kxs-open-poly-oid-catchall') -}}
+   Explore on <a href="{{ asn1js_url('kxs-open-poly-oid-catchall') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
 ## Collections: `Map` and `Set`
 

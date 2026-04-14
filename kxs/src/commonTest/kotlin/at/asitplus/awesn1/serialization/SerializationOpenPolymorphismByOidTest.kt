@@ -8,6 +8,7 @@ import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfigur
 import de.infix.testBalloon.framework.core.invocation
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.Serializable
@@ -58,6 +59,34 @@ val SerializationTestOpenPolymorphismByOid by testSuite(
             der.decodeFromByteArray<OpenByOid>(encodedNoOid)
         }.message.shouldContain("Could not extract discriminator OID")
     }
+
+    "Unknown OID decodes to catchAll and preserves the OID" {
+        val der = derWithOpenByOid(includeBool = false, includeCatchAll = true)
+        val raw: OpenByOid = OpenByOidRaw(
+            oid = ObjectIdentifier("1.2.840.113549.1.9.7"),
+            value = "challenge",
+        )
+
+        val decoded = der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(raw))
+        decoded.shouldBeInstanceOf<OpenByOidRaw>() shouldBe raw
+    }
+
+    "Known OID still resolves to specialized subtype when catchAll is present" {
+        val der = derWithOpenByOid(includeBool = false, includeCatchAll = true)
+        val value: OpenByOid = OpenByOidInt(value = 7)
+
+        der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(value)) shouldBe value
+    }
+
+    "catchAll instance encodes and round-trips with its own OID" {
+        val der = derWithOpenByOid(includeBool = false, includeCatchAll = true)
+        val value: OpenByOid = OpenByOidRaw(
+            oid = ObjectIdentifier("2.16.840.1.101.3.4.2.1"),
+            value = "digest",
+        )
+
+        der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(value)) shouldBe value
+    }
 }
 
 interface OpenByOid : Identifiable
@@ -94,6 +123,12 @@ data class OpenByOidBool(
 }
 
 @Serializable
+data class OpenByOidRaw(
+    override val oid: ObjectIdentifier,
+    val value: String,
+) : OpenByOid
+
+@Serializable
 data class NoOidEnvelope(
     val value: Int,
 )
@@ -117,13 +152,16 @@ data class OpenByNestedOidB(
     val payload: String,
 ) : OpenByNestedOid
 
-private fun derWithOpenByOid(includeBool: Boolean) = DER {
+private fun derWithOpenByOid(includeBool: Boolean, includeCatchAll: Boolean = false) = DER {
     serializersModule = SerializersModule {
         polymorphicByOid(OpenByOid::class, serialName = "OpenByOid") {
             subtype<OpenByOidInt>(OpenByOidInt)
             subtype<OpenByOidString>(OpenByOidString)
             if (includeBool) {
                 subtype<OpenByOidBool>(OpenByOidBool)
+            }
+            if (includeCatchAll) {
+                catchAll<OpenByOidRaw>()
             }
         }
     }

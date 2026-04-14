@@ -90,6 +90,35 @@ val SerializationTestCoverageGaps by testSuite(
         }
     }
 
+    "Open polymorphism by OID rejects duplicate catchAll mappings" {
+        shouldThrow<IllegalArgumentException> {
+            DER {
+                serializersModule = SerializersModule {
+                    polymorphicByOid(DuplicateOidBase::class, serialName = "DuplicateOidBase") {
+                        subtype<DuplicateOidA>(DuplicateOidA)
+                        catchAll<DuplicateOidCatchAll>()
+                        catchAll<DuplicateOidCatchAllOther>()
+                    }
+                }
+            }
+        }
+    }
+
+    "Open polymorphism by OID catchAll does not shadow exact subtype matches" {
+        val der = DER {
+            serializersModule = SerializersModule {
+                polymorphicByOid(DuplicateOidBase::class, serialName = "DuplicateOidBase") {
+                    subtype<DuplicateOidA>(DuplicateOidA)
+                    catchAll<DuplicateOidCatchAll>(matches = { true })
+                }
+            }
+        }
+
+        der.decodeFromByteArray<DuplicateOidBase>(
+            der.encodeToByteArray<DuplicateOidBase>(DuplicateOidA(1))
+        ) shouldBe DuplicateOidA(1)
+    }
+
     "Open polymorphism by OID supports custom OID selector wiring" {
         val selectorDer = DER {
             serializersModule = SerializersModule {
@@ -199,6 +228,18 @@ private data class DuplicateOidB(val value: String) : DuplicateOidBase, Identifi
         override val oid: ObjectIdentifier = ObjectIdentifier("1.2.3.4.5")
     }
 }
+
+@Serializable
+private data class DuplicateOidCatchAll(
+    override val oid: ObjectIdentifier,
+    val value: String,
+) : DuplicateOidBase
+
+@Serializable
+private data class DuplicateOidCatchAllOther(
+    override val oid: ObjectIdentifier,
+    val value: Int,
+) : DuplicateOidBase
 
 private interface CustomSelectorBase : Identifiable
 

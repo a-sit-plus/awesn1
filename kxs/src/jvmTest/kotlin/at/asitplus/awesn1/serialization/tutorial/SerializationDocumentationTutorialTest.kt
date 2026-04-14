@@ -459,19 +459,31 @@ private data class TutorialDocOpenByOidInt(
         override val oid: ObjectIdentifier = ObjectIdentifier(Uuid.parse("4932c522-dfce-453a-8c92-d792c0e50147"))
     }
 }
+
+@Serializable
+private data class TutorialDocOpenByOidOther(
+    override val oid: ObjectIdentifier,
+    val value: String,
+) : TutorialDocOpenByOid
 // --8<-- [end:kxs-open-poly-oid-definitions]
 
 private fun openPolyByOidRoundTrip(value: TutorialDocOpenByOid): Pair<ByteArray, TutorialDocOpenByOid> {
     // --8<-- [start:kxs-open-poly-oid-roundtrip]
     val codec = DER {
         serializersModule = SerializersModule {
-            polymorphicByOid(TutorialDocOpenByOid::class, serialName = "TutorialDocOpenByOid") {
+                polymorphicByOid(TutorialDocOpenByOid::class, serialName = "TutorialDocOpenByOid") {
                 subtype<TutorialDocOpenByOidInt>(TutorialDocOpenByOidInt)
+                catchAll<TutorialDocOpenByOidOther>()
             }
         }
     }
     val der = codec.encodeToByteArray(value)
-    check(der.toHexString() == /* (1)! */"30190614698192b2e2c8dbfcf294f58cc9b5f2ac87948247020109")
+    when (value) {
+        is TutorialDocOpenByOidInt ->
+            check(der.toHexString() == /* (1)! */"30190614698192b2e2c8dbfcf294f58cc9b5f2ac87948247020109")
+        is TutorialDocOpenByOidOther ->
+            check(der.toHexString() == /* (2)! */"302206082a0304050607080906082a030405060708090c0c756e72656769737465726564")
+    }
     // --8<-- [end:kxs-open-poly-oid-roundtrip]
     return der to codec.decodeFromByteArray(der)
 }
@@ -713,9 +725,21 @@ val SerializationDocumentationTutorialTest by testSuite(
     }
 
     "Open polymorphism by OID" {
-        val (der, decoded) = openPolyByOidRoundTrip(TutorialDocOpenByOidInt(9))
-        decoded shouldBe TutorialDocOpenByOidInt(9)
-        emitAsn1JsSample("kxs-open-poly-oid", der)
+        val (knownDer, knownDecoded) = openPolyByOidRoundTrip(TutorialDocOpenByOidInt(9))
+        knownDecoded shouldBe TutorialDocOpenByOidInt(9)
+        emitAsn1JsSample("kxs-open-poly-oid", knownDer)
+
+        val (unknownDer, unknownDecoded) = openPolyByOidRoundTrip(
+            TutorialDocOpenByOidOther(
+                oid = ObjectIdentifier("1.2.3.4.5.6.7.8.9"),
+                value = "unregistered",
+            )
+        )
+        unknownDecoded shouldBe TutorialDocOpenByOidOther(
+            oid = ObjectIdentifier("1.2.3.4.5.6.7.8.9"),
+            value = "unregistered",
+        )
+        emitAsn1JsSample("kxs-open-poly-oid-catchall", unknownDer)
     }
 
     "Map and Set" {
