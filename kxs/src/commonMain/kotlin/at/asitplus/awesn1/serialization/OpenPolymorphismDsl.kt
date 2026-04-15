@@ -113,10 +113,10 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
      */
     @Throws(IllegalArgumentException::class)
     fun <S : T> subtype(
+        runtimeClass: KClass<S>,
         serializer: KSerializer<S>,
         provider: OidProvider<S>,
         leadingTags: Set<Asn1Element.Tag>,
-        matches: (T) -> Boolean,
     ) {
         val resolvedLeadingTags = leadingTags.ifEmpty {
             inferOpenPolymorphicSubtypeLeadingTagsOrNull(serializer.descriptor)
@@ -126,9 +126,9 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
         }
         registrations += Asn1OidDiscriminatedSubtypeRegistration.Exact(
             serializer = serializer,
+            runtimeClass = runtimeClass,
             oid = provider.oid,
             leadingTags = resolvedLeadingTags,
-            matches = matches,
             debugName = serializer.descriptor.serialName,
         )
     }
@@ -142,9 +142,9 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
      */
     @Throws(IllegalArgumentException::class)
     fun <S : T> catchAll(
+        runtimeClass: KClass<S>,
         serializer: KSerializer<S>,
         leadingTags: Set<Asn1Element.Tag>,
-        matches: (T) -> Boolean,
     ) {
         require(catchAllRegistration == null) {
             "At most one catchAll registration is allowed"
@@ -157,8 +157,8 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
         }
         catchAllRegistration = Asn1OidDiscriminatedSubtypeRegistration.CatchAll(
             serializer = serializer,
+            runtimeClass = runtimeClass,
             leadingTags = resolvedLeadingTags,
-            matches = matches,
             debugName = serializer.descriptor.serialName,
         )
     }
@@ -167,25 +167,23 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
     inline fun <reified S : T> subtype(
         provider: OidProvider<S>,
         vararg leadingTags: Asn1Element.Tag,
-        noinline matches: (T) -> Boolean = { it is S },
     ) {
         subtype(
+            runtimeClass = S::class,
             serializer = serializer<S>(),
             provider = provider,
             leadingTags = leadingTags.toSet(),
-            matches = matches,
         )
     }
 
     @OptIn(ExperimentalSerializationApi::class)
     inline fun <reified S : T> catchAll(
         vararg leadingTags: Asn1Element.Tag,
-        noinline matches: (T) -> Boolean = { it::class == S::class },
     ) {
         catchAll(
+            runtimeClass = S::class,
             serializer = serializer<S>(),
             leadingTags = leadingTags.toSet(),
-            matches = matches,
         )
     }
 

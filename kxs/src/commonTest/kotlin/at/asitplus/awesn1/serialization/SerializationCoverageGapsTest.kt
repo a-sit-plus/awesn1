@@ -109,7 +109,7 @@ val SerializationTestCoverageGaps by testSuite(
             serializersModule = SerializersModule {
                 polymorphicByOid(DuplicateOidBase::class, serialName = "DuplicateOidBase") {
                     subtype<DuplicateOidA>(DuplicateOidA)
-                    catchAll<DuplicateOidCatchAll>(matches = { true })
+                    catchAll<DuplicateOidCatchAll>()
                 }
             }
         }

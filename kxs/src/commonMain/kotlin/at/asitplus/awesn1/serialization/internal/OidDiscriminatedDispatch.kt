@@ -4,27 +4,29 @@
 package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
+import kotlin.reflect.KClass
 
-internal sealed interface Asn1OidDiscriminatedSubtypeRegistration<T : Any> {
+internal sealed interface Asn1OidDiscriminatedSubtypeRegistration<T : Identifiable> {
     val serializer: KSerializer<out T>
+    val runtimeClass: KClass<out T>
     val leadingTags: Set<Asn1Element.Tag>
-    val matches: (T) -> Boolean
     val debugName: String
-    data class Exact<T : Any>(
+    data class Exact<T : Identifiable>(
         override val serializer: KSerializer<out T>,
+        override val runtimeClass: KClass<out T>,
         val oid: ObjectIdentifier,
         override val leadingTags: Set<Asn1Element.Tag>,
-        override val matches: (T) -> Boolean,
         override val debugName: String,
     ) : Asn1OidDiscriminatedSubtypeRegistration<T>
 
-    data class CatchAll<T : Any>(
+    data class CatchAll<T : Identifiable>(
         override val serializer: KSerializer<out T>,
+        override val runtimeClass: KClass<out T>,
         override val leadingTags: Set<Asn1Element.Tag>,
-        override val matches: (T) -> Boolean,
         override val debugName: String,
     ) : Asn1OidDiscriminatedSubtypeRegistration<T>
 }
@@ -33,10 +35,10 @@ internal sealed interface Asn1OidDiscriminatedSubtypeRegistration<T : Any> {
  * Shared strict dispatch table for OID-discriminated ASN.1 open polymorphism.
  *
  * - decode dispatches by exact ObjectIdentifier
- * - encode dispatches by exactly one runtime [matches] predicate
+ * - encode dispatches by runtime OID plus exact runtime type for catch-all
  * - duplicate OID registrations are rejected
  */
-internal class Asn1OidDiscriminatedDispatch<T : Any>(
+internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
     private val serialName: String,
     subtypes: List<Asn1OidDiscriminatedSubtypeRegistration.Exact<T>>,
     private val catchAllRegistration: Asn1OidDiscriminatedSubtypeRegistration.CatchAll<T>? = null,
@@ -90,33 +92,29 @@ internal class Asn1OidDiscriminatedDispatch<T : Any>(
     /**
      * Resolves encode registration for runtime [value].
      *
-     * @throws SerializationException if zero or multiple subtype matchers match [value]
+     * @throws SerializationException if no registered subtype is compatible with [value]
      */
     @Throws(SerializationException::class)
     fun registrationForEncode(value: T): Asn1OidDiscriminatedSubtypeRegistration<T> {
-        val exactMatches = serializersByOid.values.filter { it.matches(value) }
-        if (exactMatches.isNotEmpty()) {
-            return selectSingleEncodeMatch(exactMatches, value)
+        serializersByOid[value.oid]?.let { exactRegistration ->
+            if (exactRegistration.runtimeClass.isInstance(value)) {
+                return exactRegistration
+            }
+            throw SerializationException(
+                "Registered open-polymorphic subtype for OID ${value.oid} in $serialName expects " +
+                        "${exactRegistration.debugName}, but runtime value is ${value::class}"
+            )
         }
 
-        val catchAllMatches = listOfNotNull(catchAllRegistration).filter { it.matches(value) }
-        return selectSingleEncodeMatch(catchAllMatches, value)
+        catchAllRegistration?.let { catchAll ->
+            if (catchAll.runtimeClass.isInstance(value)) {
+                return catchAll
+            }
+        }
+
+        throw SerializationException(
+            "No registered open-polymorphic subtype matches runtime value ${value::class} for $serialName"
+        )
     }
-
-    @Throws(SerializationException::class)
-    private fun selectSingleEncodeMatch(
-        matches: List<Asn1OidDiscriminatedSubtypeRegistration<T>>,
-        value: T,
-    ): Asn1OidDiscriminatedSubtypeRegistration<T> =
-        when (matches.size) {
-            1 -> matches.single()
-            0 -> throw SerializationException(
-                "No registered open-polymorphic subtype matches runtime value ${value::class} for $serialName"
-            )
-            else -> throw SerializationException(
-                "Multiple registered open-polymorphic subtypes match runtime value ${value::class} " +
-                        "for $serialName: ${matches.joinToString { it.debugName }}"
-            )
-        }
 
 }
