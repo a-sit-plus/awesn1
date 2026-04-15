@@ -33,12 +33,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
 
     override fun serializerForEncode(encoder: DerEncoder, value: T): KSerializer<out T> =
         dispatch.registrationForEncode(value).also {
-            encoder.prependOidToNextStructure(
-                when (it) {
-                    is Asn1OidDiscriminatedSubtypeRegistration.Exact -> it.oid
-                    is Asn1OidDiscriminatedSubtypeRegistration.CatchAll -> value.oid
-                }
-            )
+            encoder.prependOidToNextStructure(value.oid)
         }.serializer
 
     /**
@@ -71,12 +66,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
             ?: throw SerializationException("Expected DerEncoder while encoding ${descriptor.serialName}")
 
         val reg = dispatch.registrationForEncode(value)
-        derEncoder.prependOidToNextStructure(
-            when (reg) {
-                is Asn1OidDiscriminatedSubtypeRegistration.Exact -> value.oid
-                is Asn1OidDiscriminatedSubtypeRegistration.CatchAll -> value.oid
-            }
-        )
+        derEncoder.prependOidToNextStructure(value.oid)
 
         @Suppress("UNCHECKED_CAST")
         val ser = reg.serializer as KSerializer<T>
