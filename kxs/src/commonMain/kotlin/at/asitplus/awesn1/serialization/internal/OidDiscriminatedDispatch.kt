@@ -44,11 +44,10 @@ internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
     private val catchAllRegistration: Asn1OidDiscriminatedSubtypeRegistration.CatchAll<T>? = null,
 ) {
     private val serializersByOid = linkedMapOf<ObjectIdentifier, Asn1OidDiscriminatedSubtypeRegistration.Exact<T>>()
-    private val tagsByOid = linkedMapOf<ObjectIdentifier, Set<Asn1Element.Tag>>()
 
     val leadingTags: Set<Asn1Element.Tag>
         get() = buildSet {
-            addAll(tagsByOid.values.flatten())
+            addAll(serializersByOid.values.flatMap { it.leadingTags })
             catchAllRegistration?.leadingTags?.let(::addAll)
         }
 
@@ -69,7 +68,6 @@ internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
             }
 
             serializersByOid[oid] = registration
-            tagsByOid[oid] = registration.leadingTags
         }
 
         catchAllRegistration?.let { registration ->
@@ -79,15 +77,12 @@ internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
         }
     }
 
-    fun registrationForDecodeOrNull(oid: ObjectIdentifier): Asn1OidDiscriminatedSubtypeRegistration<T>? =
-        serializersByOid[oid] ?: catchAllRegistration
-
     @Throws(SerializationException::class)
     fun registrationForDecode(oid: ObjectIdentifier): Asn1OidDiscriminatedSubtypeRegistration<T> =
-        registrationForDecodeOrNull(oid)
-            ?: throw SerializationException(
-                "No registered open-polymorphic subtype in $serialName for OID $oid"
-            )
+        serializersByOid[oid] ?: catchAllRegistration
+        ?: throw SerializationException(
+            "No registered open-polymorphic subtype in $serialName for OID $oid"
+        )
 
     /**
      * Resolves encode registration for runtime [value].

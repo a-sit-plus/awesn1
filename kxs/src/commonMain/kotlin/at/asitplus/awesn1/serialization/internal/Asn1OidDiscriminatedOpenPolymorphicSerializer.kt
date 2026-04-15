@@ -73,7 +73,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
         val reg = dispatch.registrationForEncode(value)
         derEncoder.prependOidToNextStructure(
             when (reg) {
-                is Asn1OidDiscriminatedSubtypeRegistration.Exact -> reg.oid
+                is Asn1OidDiscriminatedSubtypeRegistration.Exact -> value.oid
                 is Asn1OidDiscriminatedSubtypeRegistration.CatchAll -> value.oid
             }
         )
