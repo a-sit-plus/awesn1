@@ -4,96 +4,112 @@
 package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
+import kotlin.reflect.KClass
 
-internal data class Asn1OidDiscriminatedSubtypeRegistration<T : Any>(
-    val serializer: KSerializer<out T>,
-    val oid: ObjectIdentifier,
-    val leadingTags: Set<Asn1Element.Tag>,
-    val matches: (T) -> Boolean,
-    val debugName: String,
-)
+internal sealed interface Asn1OidDiscriminatedSubtypeRegistration<T : Identifiable> {
+    val serializer: KSerializer<out T>
+    val runtimeClass: KClass<out T>
+    val leadingTags: Set<Asn1Element.Tag>
+    val debugName: String
+    data class Exact<T : Identifiable>(
+        override val serializer: KSerializer<out T>,
+        override val runtimeClass: KClass<out T>,
+        val oid: ObjectIdentifier,
+        override val leadingTags: Set<Asn1Element.Tag>,
+        override val debugName: String,
+    ) : Asn1OidDiscriminatedSubtypeRegistration<T>
+
+    data class CatchAll<T : Identifiable>(
+        override val serializer: KSerializer<out T>,
+        override val runtimeClass: KClass<out T>,
+        override val leadingTags: Set<Asn1Element.Tag>,
+        override val debugName: String,
+    ) : Asn1OidDiscriminatedSubtypeRegistration<T>
+}
 
 /**
  * Shared strict dispatch table for OID-discriminated ASN.1 open polymorphism.
  *
  * - decode dispatches by exact ObjectIdentifier
- * - encode dispatches by exactly one runtime [matches] predicate
+ * - encode dispatches by runtime OID plus exact runtime type for catch-all
  * - duplicate OID registrations are rejected
  */
-internal class Asn1OidDiscriminatedDispatch<T : Any>(
+internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
     private val serialName: String,
-    subtypes: List<Asn1OidDiscriminatedSubtypeRegistration<T>>,
+    subtypes: List<Asn1OidDiscriminatedSubtypeRegistration.Exact<T>>,
+    private val catchAllRegistration: Asn1OidDiscriminatedSubtypeRegistration.CatchAll<T>? = null,
 ) {
-    private val serializersByOid = linkedMapOf<ObjectIdentifier, Asn1OidDiscriminatedSubtypeRegistration<T>>()
-    private val tagsByOid = linkedMapOf<ObjectIdentifier, Set<Asn1Element.Tag>>()
+    private val serializersByOid = linkedMapOf<ObjectIdentifier, Asn1OidDiscriminatedSubtypeRegistration.Exact<T>>()
 
     val leadingTags: Set<Asn1Element.Tag>
-        get() = tagsByOid.values.flatten().toSet()
+        get() = buildSet {
+            addAll(serializersByOid.values.flatMap { it.leadingTags })
+            catchAllRegistration?.leadingTags?.let(::addAll)
+        }
 
     init {
         require(subtypes.isNotEmpty()) { "At least one subtype registration is required" }
-        subtypes.forEach(::registerSubtype)
-    }
+        subtypes.forEach { registration ->
+            require(registration.leadingTags.isNotEmpty()) {
+                "Subtype '${registration.debugName}' must declare at least one leading ASN.1 tag"
+            }
 
-    /**
-     * Registers one subtype in the OID dispatch table.
-     *
-     * @throws IllegalArgumentException if no leading tag is declared or if OID is already mapped
-     */
-    @Throws(IllegalArgumentException::class)
-    fun registerSubtype(registration: Asn1OidDiscriminatedSubtypeRegistration<T>) {
-        require(registration.leadingTags.isNotEmpty()) {
-            "Subtype '${registration.debugName}' must declare at least one leading ASN.1 tag"
+            val oid = registration.oid
+            val existing = serializersByOid[oid]
+            if (existing != null) {
+                throw IllegalArgumentException(
+                    "Duplicate OID mapping for $oid in $serialName: " +
+                            "${existing.serializer.descriptor.serialName} and ${registration.serializer.descriptor.serialName}"
+                )
+            }
+
+            serializersByOid[oid] = registration
         }
 
-        val existing = serializersByOid[registration.oid]
-        if (existing != null) {
-            throw IllegalArgumentException(
-                "Duplicate OID mapping for ${registration.oid} in $serialName: " +
-                        "${existing.serializer.descriptor.serialName} and ${registration.serializer.descriptor.serialName}"
-            )
+        catchAllRegistration?.let { registration ->
+            require(registration.leadingTags.isNotEmpty()) {
+                "Subtype '${registration.debugName}' must declare at least one leading ASN.1 tag"
+            }
         }
-
-        serializersByOid[registration.oid] = registration
-        tagsByOid[registration.oid] = registration.leadingTags
     }
 
-    fun serializerForDecodeOrNull(oid: ObjectIdentifier): KSerializer<out T>? =
-        serializersByOid[oid]?.serializer
-
-    /**
-     * Resolves decode serializer for [oid].
-     *
-     * @throws SerializationException if no subtype is registered for [oid]
-     */
     @Throws(SerializationException::class)
-    fun serializerForDecode(oid: ObjectIdentifier): KSerializer<out T> =
-        serializerForDecodeOrNull(oid)
-            ?: throw SerializationException(
-                "No registered open-polymorphic subtype in $serialName for OID $oid"
-            )
+    fun registrationForDecode(oid: ObjectIdentifier): Asn1OidDiscriminatedSubtypeRegistration<T> =
+        serializersByOid[oid] ?: catchAllRegistration
+        ?: throw SerializationException(
+            "No registered open-polymorphic subtype in $serialName for OID $oid"
+        )
 
     /**
      * Resolves encode registration for runtime [value].
      *
-     * @throws SerializationException if zero or multiple subtype matchers match [value]
+     * @throws SerializationException if no registered subtype is compatible with [value]
      */
     @Throws(SerializationException::class)
     fun registrationForEncode(value: T): Asn1OidDiscriminatedSubtypeRegistration<T> {
-        val matches = serializersByOid.values.filter { it.matches(value) }
-        return when (matches.size) {
-            1 -> matches.single()
-            0 -> throw SerializationException(
-                "No registered open-polymorphic subtype matches runtime value ${value::class} for $serialName"
-            )
-            else -> throw SerializationException(
-                "Multiple registered open-polymorphic subtypes match runtime value ${value::class} " +
-                        "for $serialName: ${matches.joinToString { it.debugName }}"
+        serializersByOid[value.oid]?.let { exactRegistration ->
+            if (exactRegistration.runtimeClass.isInstance(value)) {
+                return exactRegistration
+            }
+            throw SerializationException(
+                "Registered open-polymorphic subtype for OID ${value.oid} in $serialName expects " +
+                        "${exactRegistration.debugName}, but runtime value is ${value::class}"
             )
         }
+
+        catchAllRegistration?.let { catchAll ->
+            if (catchAll.runtimeClass.isInstance(value)) {
+                return catchAll
+            }
+        }
+
+        throw SerializationException(
+            "No registered open-polymorphic subtype matches runtime value ${value::class} for $serialName"
+        )
     }
 
 }

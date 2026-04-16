@@ -102,7 +102,8 @@ class Asn1OpenPolymorphismByTagBuilder<T : Any> internal constructor() {
  */
 @Asn1OpenPolymorphismDsl
 class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() {
-    private val registrations = mutableListOf<Asn1OidDiscriminatedSubtypeRegistration<T>>()
+    private val registrations = mutableListOf<Asn1OidDiscriminatedSubtypeRegistration.Exact<T>>()
+    private var catchAllRegistration: Asn1OidDiscriminatedSubtypeRegistration.CatchAll<T>? = null
 
 
     /**
@@ -112,10 +113,10 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
      */
     @Throws(IllegalArgumentException::class)
     fun <S : T> subtype(
+        runtimeClass: KClass<S>,
         serializer: KSerializer<S>,
         provider: OidProvider<S>,
         leadingTags: Set<Asn1Element.Tag>,
-        matches: (T) -> Boolean,
     ) {
         val resolvedLeadingTags = leadingTags.ifEmpty {
             inferOpenPolymorphicSubtypeLeadingTagsOrNull(serializer.descriptor)
@@ -123,11 +124,41 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
                     cannotInferOpenPolymorphicSubtypeLeadingTagsMessage(serializer.descriptor.serialName)
                 )
         }
-        registrations += Asn1OidDiscriminatedSubtypeRegistration(
+        registrations += Asn1OidDiscriminatedSubtypeRegistration.Exact(
             serializer = serializer,
+            runtimeClass = runtimeClass,
             oid = provider.oid,
             leadingTags = resolvedLeadingTags,
-            matches = matches,
+            debugName = serializer.descriptor.serialName,
+        )
+    }
+
+    /**
+     * Registers one catch-all subtype for OID-discriminated open polymorphism.
+     *
+     * This subtype is used when the discriminator OID is present but no exact OID mapping exists.
+     *
+     * @throws IllegalArgumentException if leading tags cannot be inferred for empty [leadingTags]
+     */
+    @Throws(IllegalArgumentException::class)
+    fun <S : T> catchAll(
+        runtimeClass: KClass<S>,
+        serializer: KSerializer<S>,
+        leadingTags: Set<Asn1Element.Tag>,
+    ) {
+        require(catchAllRegistration == null) {
+            "At most one catchAll registration is allowed"
+        }
+        val resolvedLeadingTags = leadingTags.ifEmpty {
+            inferOpenPolymorphicSubtypeLeadingTagsOrNull(serializer.descriptor)
+                ?: throw IllegalArgumentException(
+                    cannotInferOpenPolymorphicSubtypeLeadingTagsMessage(serializer.descriptor.serialName)
+                )
+        }
+        catchAllRegistration = Asn1OidDiscriminatedSubtypeRegistration.CatchAll(
+            serializer = serializer,
+            runtimeClass = runtimeClass,
+            leadingTags = resolvedLeadingTags,
             debugName = serializer.descriptor.serialName,
         )
     }
@@ -136,13 +167,23 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
     inline fun <reified S : T> subtype(
         provider: OidProvider<S>,
         vararg leadingTags: Asn1Element.Tag,
-        noinline matches: (T) -> Boolean = { it is S },
     ) {
         subtype(
+            runtimeClass = S::class,
             serializer = serializer<S>(),
             provider = provider,
             leadingTags = leadingTags.toSet(),
-            matches = matches,
+        )
+    }
+
+    @OptIn(ExperimentalSerializationApi::class)
+    inline fun <reified S : T> catchAll(
+        vararg leadingTags: Asn1Element.Tag,
+    ) {
+        catchAll(
+            runtimeClass = S::class,
+            serializer = serializer<S>(),
+            leadingTags = leadingTags.toSet(),
         )
     }
 
@@ -162,6 +203,7 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
         return Asn1OidDiscriminatedOpenPolymorphicSerializer(
             serialName = serialName,
             subtypes = registrations.toList(),
+            catchAll = catchAllRegistration,
             oidSelector = oidSelector,
         )
     }

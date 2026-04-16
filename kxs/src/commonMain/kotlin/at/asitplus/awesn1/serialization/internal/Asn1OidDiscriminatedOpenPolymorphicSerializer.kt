@@ -6,6 +6,7 @@ package at.asitplus.awesn1.serialization.internal
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1Structure
+import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.readOid
 import kotlinx.serialization.DeserializationStrategy
@@ -14,33 +15,25 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Encoder
 
-internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Any>(
+internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
     serialName: String,
-    subtypes: List<Asn1OidDiscriminatedSubtypeRegistration<T>>,
+    subtypes: List<Asn1OidDiscriminatedSubtypeRegistration.Exact<T>>,
+    catchAll: Asn1OidDiscriminatedSubtypeRegistration.CatchAll<T>? = null,
     private val oidSelector: (Asn1Element) -> ObjectIdentifier? = ::oidFrom,
 ) : Asn1DiscriminatedOpenPolymorphicSerializer<T>(serialName) {
 
     private val dispatch = Asn1OidDiscriminatedDispatch(
         serialName = serialName,
         subtypes = subtypes,
+        catchAllRegistration = catchAll,
     )
 
     override val leadingTags: Set<Asn1Element.Tag>
         get() = dispatch.leadingTags
 
-    /**
-     * Adds one subtype registration at runtime.
-     *
-     * @throws IllegalArgumentException on duplicate/invalid OID mapping
-     */
-    @Throws(IllegalArgumentException::class)
-    fun registerSubtype(registration: Asn1OidDiscriminatedSubtypeRegistration<T>) {
-        dispatch.registerSubtype(registration)
-    }
-
     override fun serializerForEncode(encoder: DerEncoder, value: T): KSerializer<out T> =
         dispatch.registrationForEncode(value).also {
-            encoder.prependOidToNextStructure(it.oid)
+            encoder.prependOidToNextStructure(value.oid)
         }.serializer
 
     /**
@@ -56,7 +49,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Any>(
             ?: throw SerializationException(
                 "Could not extract discriminator OID from current ASN.1 element while decoding ${descriptor.serialName}"
             )
-        val selected = dispatch.serializerForDecode(oid)
+        val selected = dispatch.registrationForDecode(oid).serializer
         decoder.dropOidFromNextStructure()
         @Suppress("UNCHECKED_CAST")
         return selected as DeserializationStrategy<T>
@@ -73,7 +66,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Any>(
             ?: throw SerializationException("Expected DerEncoder while encoding ${descriptor.serialName}")
 
         val reg = dispatch.registrationForEncode(value)
-        derEncoder.prependOidToNextStructure(reg.oid)
+        derEncoder.prependOidToNextStructure(value.oid)
 
         @Suppress("UNCHECKED_CAST")
         val ser = reg.serializer as KSerializer<T>

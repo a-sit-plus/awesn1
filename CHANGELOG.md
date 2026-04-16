@@ -2,6 +2,10 @@
 
 ## NEXT
 * Drop deprecated Apple X64 targets
+* Add catch-all fallback to OID-based open-polymorphism
+    * Allow defining a fallback-catchall class that has an oid property that is used to when no exact match for an OID is present
+    * Example: OID-based extensions modelled as an open base class and some concrete subclasses with fixed OIDs:
+        * If a matching subclass OID is encountered, deserialise to that subtype, of not: fallback to open base class and assigne encountered OID to the oid property of tha base class
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever so publishing 0.2.0 went south.
