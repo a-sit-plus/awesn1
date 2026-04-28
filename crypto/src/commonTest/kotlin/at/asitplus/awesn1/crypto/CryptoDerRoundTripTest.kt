@@ -88,7 +88,8 @@ val CryptoDerRoundTripTest by testSuite {
 }
 
 private inline fun <reified T> roundTrip(value: T) {
-    DER.decodeFromByteArray<T>(DER.encodeToByteArray(value)) shouldBe value
+    val encoded = DER.encodeToByteArray(value)
+    DER.decodeFromByteArray<T>(encoded) shouldBe value
 }
 
 private fun <T> sampleValues(generator: (Random) -> T): List<T> =
@@ -194,11 +195,11 @@ private fun randomX509CertificateExtension(random: Random): X509CertificateExten
 private fun randomAttributeTypeAndValue(random: Random): AttributeTypeAndValue {
     val stringValue = Asn1String.UTF8(randomAscii(random))
     return when (random.nextInt(5)) {
-        0 -> AttributeTypeAndValue.CommonName(stringValue)
-        1 -> AttributeTypeAndValue.Country(Asn1String.Printable("AT"))
-        2 -> AttributeTypeAndValue.Organization(stringValue)
-        3 -> AttributeTypeAndValue.OrganizationalUnit(stringValue)
-        else -> AttributeTypeAndValue.Other(randomOid(random), stringValue)
+        0 -> AttributeTypeAndValue.commonName(stringValue)
+        1 -> AttributeTypeAndValue.country(Asn1String.Printable("AT"))
+        2 -> AttributeTypeAndValue.organization(stringValue)
+        3 -> AttributeTypeAndValue.organizationalUnit(stringValue)
+        else -> AttributeTypeAndValue(randomOid(random), stringValue)
     }
 }
 

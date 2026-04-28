@@ -3,8 +3,7 @@ package at.asitplus.awesn1.crypto
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.crypto.pki.X509Certificate
-import at.asitplus.awesn1.encoding.decodeFromDer
-import at.asitplus.awesn1.encoding.encodeToDer
+import at.asitplus.awesn1.serialization.DER
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.testSuite
@@ -27,13 +26,19 @@ val X509CertificateFixtureRoundTripTest by testSuite {
         when (path.extension) {
             "der" -> {
                 val encoded = path.readBytes()
-                X509Certificate.decodeFromDer(encoded).encodeToDer() shouldBe encoded
+                DER.encodeToByteArray(
+                    X509Certificate.serializer(),
+                    DER.decodeFromByteArray(X509Certificate.serializer(), encoded),
+                ) shouldBe encoded
             }
 
             "pem" -> {
                 val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.label == "CERTIFICATE" }
                 blocks.shouldNotBeEmpty().forEach { block ->
-                    X509Certificate.decodeFromDer(block.payload).encodeToDer() shouldBe block.payload
+                    DER.encodeToByteArray(
+                        X509Certificate.serializer(),
+                        DER.decodeFromByteArray(X509Certificate.serializer(), block.payload),
+                    ) shouldBe block.payload
                 }
             }
         }

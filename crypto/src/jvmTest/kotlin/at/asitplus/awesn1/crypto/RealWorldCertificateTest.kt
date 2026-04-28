@@ -1,8 +1,10 @@
 package at.asitplus.awesn1.crypto
 
+import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.crypto.pki.GeneralNames.Companion.findSubjectAltNames
 import at.asitplus.awesn1.crypto.pki.X509Certificate
-import at.asitplus.awesn1.decodeFromPem
+import at.asitplus.awesn1.decodeAllFromPem
+import at.asitplus.awesn1.serialization.DER
 import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.collections.shouldContain
@@ -27,7 +29,10 @@ val RealWorldCertificateTest by testSuite {
     { file ->
         val certPEM = file.readText()
         val tld = file.nameWithoutExtension
-        val cert = X509Certificate.decodeFromPem(certPEM)
+        val cert = PemBlock.decodeAllFromPem(certPEM)
+            .first { it.label == X509Certificate.PEM_LABEL }
+            .payload
+            .let { DER.decodeFromByteArray(X509Certificate.serializer(), it) }
         cert.findSubjectAltNames()!!.dnsNames shouldContainAll listOf(tld, "*.$tld")
     }
 }

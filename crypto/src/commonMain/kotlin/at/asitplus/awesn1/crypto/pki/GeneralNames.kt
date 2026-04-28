@@ -4,7 +4,6 @@
 package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1EncapsulatingOctetString
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1Sequence
@@ -12,7 +11,9 @@ import at.asitplus.awesn1.Asn1StructuralException
 import at.asitplus.awesn1.KnownOIDs
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.runWrappingAs
+import at.asitplus.awesn1.serialization.DER
 import kotlin.jvm.JvmInline
 
 @JvmInline
@@ -34,7 +35,11 @@ value class GeneralNames @Throws(Throwable::class) constructor(
 
     val directoryNames: List<List<RelativeDistinguishedName>> get() =
         entries.filter { it.tag == GeneralNameImplicitTags.directoryName }
-            .map { e -> e.asSequence().children.map { RelativeDistinguishedName.decodeFromTlv(it.asSet()) } }
+            .map { e ->
+                e.asSequence().children.map {
+                    DER.decodeFromTlv(RelativeDistinguishedName.serializer(), it)
+                }
+            }
 
     val otherNames: List<Asn1Sequence> get() =
         entries.filter { it.tag == GeneralNameImplicitTags.otherName }.map { e ->
@@ -49,7 +54,7 @@ value class GeneralNames @Throws(Throwable::class) constructor(
         @Throws(Asn1Exception::class)
         fun X509Certificate.findSubjectAltNames() = tbsCertificate.findSubjectAltNames()
         @Throws(Asn1Exception::class)
-        fun TbsCertificate.findSubjectAltNames() = extensions?.findSubjectAltNames()
+        fun TbsCertificate.findSubjectAltNames() = extensions?.value?.findSubjectAltNames()
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findSubjectAltNames() =
@@ -60,7 +65,7 @@ value class GeneralNames @Throws(Throwable::class) constructor(
         @Throws(Asn1Exception::class)
         fun X509Certificate.findIssuerAltNames() = tbsCertificate.findIssuerAltNames()
         @Throws(Asn1Exception::class)
-        fun TbsCertificate.findIssuerAltNames() = extensions?.findIssuerAltNames()
+        fun TbsCertificate.findIssuerAltNames() = extensions?.value?.findIssuerAltNames()
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findIssuerAltNames() =
@@ -72,7 +77,7 @@ value class GeneralNames @Throws(Throwable::class) constructor(
             val matches = filter { it.oid == oid }
             if (matches.size > 1) throw Asn1StructuralException("More than one extension with oid $oid found")
             return if (matches.isEmpty()) null
-            else ((matches.first().value as Asn1EncapsulatingOctetString).children.firstOrNull() as Asn1Sequence?)?.children
+            else Asn1Element.parse(matches.first().value).asSequence().children
         }
     }
 }
