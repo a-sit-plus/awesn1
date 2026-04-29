@@ -24,8 +24,8 @@ val SerializationTutorial02TagOverride by testSuite(
 private data class TutorialTaggedInt(
     @Asn1Tag(
         tagNumber = 0u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-        constructed = Asn1ConstructedBit.PRIMITIVE,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+        constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
     )
     val value: Int,
 )

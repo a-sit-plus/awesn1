@@ -56,7 +56,7 @@ value class RelativeDistinguishedName(val attrsAndValues: Set<AttributeTypeAndVa
  */
 @ConsistentCopyVisibility
 @Serializable
-data class AttributeTypeAndValue private constructor(
+data class AttributeTypeAndValue(
     override val oid: ObjectIdentifier,
     val value: Asn1Element,
 ) : Identifiable {

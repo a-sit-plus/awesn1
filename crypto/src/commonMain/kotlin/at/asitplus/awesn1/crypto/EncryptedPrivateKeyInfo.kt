@@ -3,8 +3,7 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1PrimitiveOctetString
+import at.asitplus.awesn1.Asn1OctetString
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,14 +21,10 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class EncryptedPrivateKeyInfo(
-    val encryptionAlgorithm: Asn1Element,
-    val encryptedData: Asn1Element,
+    val encryptionAlgorithm: AlgorithmIdentifier,
+    @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
+    val encryptedData: Asn1OctetString,
 ) {
-    constructor(
-        encryptionAlgorithm: Asn1Element,
-        encryptedData: Asn1PrimitiveOctetString,
-    ) : this(encryptionAlgorithm, encryptedData as Asn1Element)
-
     companion object {
         const val PEM_LABEL = "ENCRYPTED PRIVATE KEY"
     }

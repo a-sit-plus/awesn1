@@ -4,7 +4,7 @@
 package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
-import at.asitplus.awesn1.serialization.Asn1ConstructedBit
+import at.asitplus.awesn1.serialization.Asn1Tag.ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
 import kotlinx.serialization.Serializable
 
@@ -25,6 +25,6 @@ data class Pkcs10CertificationRequestInfo(
     val version: Int = 0,
     val subjectName: List<RelativeDistinguishedName>,
     val publicKey: SubjectPublicKeyInfo,
-    @Asn1Tag(tagNumber = 0u, constructed = Asn1ConstructedBit.CONSTRUCTED)
+    @Asn1Tag(tagNumber = 0u)
     val attributes: List<Attribute> = emptyList(),
 )

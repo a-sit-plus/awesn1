@@ -30,15 +30,15 @@ data class SubjectPublicKeyInfo(
     val subjectPublicKey: Asn1BitString,
 ) {
     val algorithmOid: ObjectIdentifier get() = algorithmIdentifier.oid
-    val algorithmParameters: List<Asn1Element> get() = algorithmIdentifier.parameters
+    val algorithmParameters: Asn1Element? get() = algorithmIdentifier.parameters
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPublicKey(): RsaPublicKeyInfo {
         if (algorithmOid != RSA_ENCRYPTION_OID) {
             throw Asn1Exception("SubjectPublicKeyInfo is not an RSA public key")
         }
-        require(algorithmParameters.size == 1) { "RSA SubjectPublicKeyInfo must contain NULL params" }
-        algorithmParameters.single().asPrimitive().readNull()
+        requireNotNull(algorithmParameters) { "RSA SubjectPublicKeyInfo must contain NULL params" }
+        algorithmParameters!!.asPrimitive().readNull()
         return DER.decodeFromTlv(RsaPublicKeyInfo.serializer(), Asn1Element.parse(subjectPublicKey.rawBytes))
     }
 

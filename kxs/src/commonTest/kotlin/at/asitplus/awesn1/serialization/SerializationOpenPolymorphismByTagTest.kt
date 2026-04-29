@@ -57,12 +57,12 @@ interface OpenByTag
 value class OpenByTagInt(val value: Int) : OpenByTag
 
 @Serializable
-@Asn1Tag(tagNumber = 1u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC, constructed = Asn1ConstructedBit.PRIMITIVE)
+@Asn1Tag(tagNumber = 1u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
 @JvmInline
 value class OpenByTagString(val value: String) : OpenByTag
 
 @Serializable
-@Asn1Tag(tagNumber = 2u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC, constructed = Asn1ConstructedBit.PRIMITIVE)
+@Asn1Tag(tagNumber = 2u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
 @JvmInline
 value class OpenByTagBool(val value: Boolean) : OpenByTag
 

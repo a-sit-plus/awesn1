@@ -77,7 +77,7 @@ object NullAsAsn1Null
 data class TaggedNullableInt(
     @Asn1Tag(
         tagNumber = 90u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
     )
     val value: Int?
 )
@@ -86,7 +86,7 @@ data class TaggedNullableInt(
 data class TaggedNullableIntOmit(
     @Asn1Tag(
         tagNumber = 90u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
     )
     val value: Int?
 )

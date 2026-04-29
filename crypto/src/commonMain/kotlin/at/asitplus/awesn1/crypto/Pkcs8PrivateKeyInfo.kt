@@ -8,7 +8,7 @@ import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.decodeRethrowing
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.serialization.Asn1ConstructedBit
+import at.asitplus.awesn1.serialization.Asn1Tag.ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
 import kotlinx.serialization.Serializable
@@ -34,11 +34,11 @@ data class Pkcs8PrivateKeyInfo(
     val version: Int,
     val privateKeyAlgorithm: AlgorithmIdentifier,
     val privateKey: Asn1Element,
-    @Asn1Tag(tagNumber = 0u, constructed = Asn1ConstructedBit.CONSTRUCTED)
+    @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
 ) {
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
-    val algorithmParameters: List<Asn1Element> get() = privateKeyAlgorithm.parameters
+    val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPrivateKey(): RsaPrivateKeyInfo =

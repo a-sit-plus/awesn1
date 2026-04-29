@@ -8,7 +8,7 @@ import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.crypto.AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
-import at.asitplus.awesn1.serialization.Asn1ConstructedBit
+import at.asitplus.awesn1.serialization.Asn1Tag.ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import kotlinx.serialization.Serializable

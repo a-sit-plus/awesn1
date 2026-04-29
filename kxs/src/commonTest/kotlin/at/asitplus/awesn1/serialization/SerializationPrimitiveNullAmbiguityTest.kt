@@ -265,8 +265,8 @@ data class PrimitiveNoImplicitDoubleSafe(
 data class PrimitiveImplicitThenExplicitStringSafe(
     @Asn1Tag(
         tagNumber = 31u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-        constructed = Asn1ConstructedBit.CONSTRUCTED,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+        constructed = Asn1Tag.ConstructedBit.CONSTRUCTED,
     ) val value: ExplicitlyTagged<PrimitiveInnerImplicitNullableString>
 )
 
@@ -274,7 +274,7 @@ data class PrimitiveImplicitThenExplicitStringSafe(
 data class PrimitiveInnerImplicitNullableString(
     @Asn1Tag(
         tagNumber = 30u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
     ) val value: String?
 )
 
@@ -302,7 +302,7 @@ data class PrimitiveOctetThenImplicitStringAmbiguous(
 data class PrimitiveInnerImplicitNullableString41(
     @Asn1Tag(
         tagNumber = 41u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
     ) val value: String?
 )
 
@@ -310,6 +310,6 @@ data class PrimitiveInnerImplicitNullableString41(
 data class PrimitiveImplicitBitStringSafe(
     @Asn1BitString @Asn1Tag(
         tagNumber = 50u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
     ) val value: ByteArray?
 )

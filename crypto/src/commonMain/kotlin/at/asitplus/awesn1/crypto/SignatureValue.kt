@@ -18,11 +18,7 @@ import kotlin.jvm.JvmInline
  *
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
  * ```
- * Certificate ::= SEQUENCE {
- *   tbsCertificate       TBSCertificate,
- *   signatureAlgorithm   AlgorithmIdentifier,
- *   signatureValue       BIT STRING
- * }
+ * signatureValue       BIT STRING
  * ```
  *
  * This type models `signatureValue`, represented as raw `BIT STRING` bytes.

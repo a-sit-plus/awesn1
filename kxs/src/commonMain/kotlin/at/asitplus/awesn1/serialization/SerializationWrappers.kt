@@ -27,8 +27,8 @@ data class ExplicitlyTagged<T>(
 @Serializable
 @Asn1Tag(
     tagNumber = 4u,
-    tagClass = Asn1TagClass.UNIVERSAL,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.UNIVERSAL,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 data class OctetStringEncapsulated<T>(
     val value: T,

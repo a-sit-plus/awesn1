@@ -7,6 +7,8 @@ import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.encodeToTlv
 import kotlinx.serialization.Serializable
 
 /**
@@ -29,19 +31,12 @@ data class Attribute(
     companion object {
         private val EXTENSION_REQUEST_OID = ObjectIdentifier("1.2.840.113549.1.9.14")
 
-        fun extensionRequest(extensions: List<X509CertificateExtension>): Attribute {
+        @Suppress("FunctionName")
+        fun CertificateExtension(extensions: List<X509CertificateExtension>): Attribute {
             require(extensions.isNotEmpty()) { "At least one extension is required" }
             return Attribute(
                 EXTENSION_REQUEST_OID,
-                Asn1.Sequence {
-                    extensions.forEach { ext ->
-                        +Asn1.Sequence {
-                            +ext.oid
-                            ext.critical?.let { +Asn1.Bool(it) }
-                            +Asn1.OctetString(ext.value)
-                        }
-                    }
-                },
+                Asn1.Sequence { extensions.forEach { +DER.encodeToTlv(it) } },
             )
         }
     }

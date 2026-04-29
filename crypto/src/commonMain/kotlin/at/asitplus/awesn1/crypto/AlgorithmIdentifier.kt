@@ -21,13 +21,21 @@ import kotlin.jvm.JvmInline
 @JvmInline
 @Serializable
 @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-value class AlgorithmIdentifier private constructor(val element: Asn1Sequence) : Identifiable {
+value class AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
     constructor(
         oid: ObjectIdentifier,
         parameters: Asn1Element? = null
     ) : this(Asn1.Sequence {
         +oid
         parameters?.let { +it }
+    })
+
+    constructor(
+        oid: ObjectIdentifier,
+        parameters: List<Asn1Element>
+    ) : this(Asn1.Sequence {
+        +oid
+        parameters.forEach { +it }
     })
 
     init {

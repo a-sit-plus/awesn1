@@ -5,7 +5,7 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.serialization.Asn1ConstructedBit
+import at.asitplus.awesn1.serialization.Asn1Tag.ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import kotlinx.serialization.Serializable

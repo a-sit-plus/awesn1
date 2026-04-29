@@ -88,14 +88,16 @@ private fun randomEcdsaSignatureValue(random: Random) =
     SignatureValue.fromRS(positiveAsn1Integer(random), positiveAsn1Integer(random))
 
 private fun randomEcPrivateKey(random: Random) = EcPrivateKeyInfo(
-    version = 1,
     privateKey = randomBytes(random, 32),
     parameters = randomOid(random).takeIf { random.nextBoolean() },
     publicKey = Asn1BitString(randomBytes(random, 33)).takeIf { random.nextBoolean() },
 )
 
 private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyInfo(
-    encryptionAlgorithm = randomAlgorithmIdentifier(random),
+    encryptionAlgorithm = AlgorithmIdentifier(
+        oid = randomOid(random),
+        parameters = randomRawElement(random).takeIf { random.nextBoolean() },
+    ),
     encryptedData = Asn1PrimitiveOctetString(randomBytes(random, 32)),
 )
 

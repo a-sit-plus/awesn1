@@ -53,8 +53,8 @@ private fun baselineRoundTrip(): Pair<ByteArray, TutorialDocPerson> {
 private data class TutorialDocTaggedInt(
     @Asn1Tag(
         tagNumber = 0u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-        constructed = Asn1ConstructedBit.PRIMITIVE,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+        constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
     )
     val value: Int,
 )
@@ -150,8 +150,8 @@ private fun inlineValueClassOuterTagRoundTrip(): Pair<ByteArray, TutorialDocTagg
 private data class TutorialDocExplicitCarrier(
     @Asn1Tag(
         tagNumber = 0u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-        constructed = Asn1ConstructedBit.CONSTRUCTED,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+        constructed = Asn1Tag.ConstructedBit.CONSTRUCTED,
     )
     val wrapped: ExplicitlyTagged<Int>,
 )
@@ -208,8 +208,8 @@ private value class TutorialDocPrimitiveChoiceInt(
 @JvmInline
 @Asn1Tag(
     tagNumber = 0u,
-    tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 private value class TutorialDocPrimitiveChoiceBool(
     val value: Boolean,
@@ -317,11 +317,11 @@ private fun nullableNamesWithOmittedNullsAreRejected() {
 // --8<-- [start:kxs-leading-tags-implicit-tagging-definitions]
 @Serializable
 private data class TutorialDocTaggedNullableNames(
-    @Asn1Tag(0u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC, constructed = Asn1ConstructedBit.PRIMITIVE)
+    @Asn1Tag(0u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
     val first: String?,
-    @Asn1Tag(1u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC, constructed = Asn1ConstructedBit.PRIMITIVE)
+    @Asn1Tag(1u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
     val middle: String?,
-    @Asn1Tag(2u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC, constructed = Asn1ConstructedBit.PRIMITIVE)
+    @Asn1Tag(2u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
     val last: String?,
 )
 // --8<-- [end:kxs-leading-tags-implicit-tagging-definitions]
@@ -447,8 +447,8 @@ private interface TutorialDocGeneralNameByTag
 @Serializable
 @Asn1Tag(
     tagNumber = 2u,
-    tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 @JvmInline
 private value class TutorialDocGeneralNameDns(
@@ -458,8 +458,8 @@ private value class TutorialDocGeneralNameDns(
 @Serializable
 @Asn1Tag(
     tagNumber = 6u,
-    tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 @JvmInline
 private value class TutorialDocGeneralNameUri(

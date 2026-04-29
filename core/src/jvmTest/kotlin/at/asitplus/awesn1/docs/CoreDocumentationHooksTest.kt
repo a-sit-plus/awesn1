@@ -43,8 +43,8 @@ private sealed interface Rfc5280GeneralName
 @JvmInline
 @Asn1Tag(
     tagNumber = 2u,
-    tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 private value class Rfc5280DnsName(
     val value: String,
@@ -54,8 +54,8 @@ private value class Rfc5280DnsName(
 @JvmInline
 @Asn1Tag(
     tagNumber = 6u,
-    tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 private value class Rfc5280UriName(
     val value: String,

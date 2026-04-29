@@ -27,6 +27,7 @@ import at.asitplus.awesn1.crypto.pki.RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.TbsCertificate
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
+import at.asitplus.awesn1.serialization.ExplicitlyTagged
 
 internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     val element = Asn1Element.parse(encoded)
@@ -59,13 +60,13 @@ private fun LegacyEcPrivateKeyInfo.toCurrent() =
     EcPrivateKeyInfo(
         version = version,
         privateKey = privateKey,
-        parameters = parameters,
-        publicKey = publicKey,
+        parameters = parameters?.let(::ExplicitlyTagged),
+        publicKey = publicKey?.let(::ExplicitlyTagged),
     )
 
 private fun LegacyEncryptedPrivateKeyInfo.toCurrent() =
     EncryptedPrivateKeyInfo(
-        encryptionAlgorithm = encryptionAlgorithm,
+        encryptionAlgorithm = AlgorithmIdentifier(encryptionAlgorithm),
         encryptedData = encryptedData,
     )
 
