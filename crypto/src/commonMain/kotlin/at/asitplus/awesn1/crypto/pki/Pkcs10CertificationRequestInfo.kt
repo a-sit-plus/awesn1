@@ -8,6 +8,18 @@ import at.asitplus.awesn1.serialization.Asn1ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
 import kotlinx.serialization.Serializable
 
+/**
+ *
+ * As per [RFC2986](https://www.rfc-editor.org/rfc/rfc2986.html#section-4):
+ * ```
+ * CertificationRequestInfo ::= SEQUENCE {
+ *   version       INTEGER { v1(0) } (v1,...),
+ *   subject       Name,
+ *   subjectPKInfo SubjectPublicKeyInfo{{ PKInfoAlgorithms }},
+ *   attributes    [0] Attributes{{ CRIAttributes }}
+ * }
+ * ```
+ */
 @Serializable
 data class Pkcs10CertificationRequestInfo(
     val version: Int = 0,

@@ -13,6 +13,22 @@ import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
 import kotlinx.serialization.Serializable
 
+/**
+ *
+ * As per [RFC5208](https://www.rfc-editor.org/rfc/rfc5208.html#section-5):
+ * ```
+ * PrivateKeyInfo ::= SEQUENCE {
+ *   version                   Version,
+ *   privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
+ *   privateKey                PrivateKey,
+ *   attributes           [0]  IMPLICIT Attributes OPTIONAL }
+ *
+ * Version ::= INTEGER
+ * PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
+ * PrivateKey ::= OCTET STRING
+ * Attributes ::= SET OF Attribute
+ * ```
+ */
 @Serializable
 data class Pkcs8PrivateKeyInfo(
     val version: Int,

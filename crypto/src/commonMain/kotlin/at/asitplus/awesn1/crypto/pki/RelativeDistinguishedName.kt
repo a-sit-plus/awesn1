@@ -48,9 +48,11 @@ value class RelativeDistinguishedName(val attrsAndValues: Set<AttributeTypeAndVa
  *  ```
  *
  *  The Name describes a hierarchical name composed of attributes, such
- *    as country name, and corresponding values, such as US.  The type of
- *    the component `AttributeValue` is determined by the `AttributeType`; in
- *    general it will be a `DirectoryString`.
+ *  as country name, and corresponding values, such as US.  The type of
+ *  the component `AttributeValue` is determined by the `AttributeType`; in
+ *  general it will be a `DirectoryString`.
+ *
+ *  This class does not perform semantic validations.
  */
 @ConsistentCopyVisibility
 @Serializable

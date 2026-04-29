@@ -7,6 +7,17 @@ import at.asitplus.awesn1.crypto.AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SignatureValue
 import kotlinx.serialization.Serializable
 
+/**
+ *
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
+ * ```
+ * Certificate ::= SEQUENCE {
+ *   tbsCertificate       TBSCertificate,
+ *   signatureAlgorithm   AlgorithmIdentifier,
+ *   signatureValue       BIT STRING
+ * }
+ * ```
+ */
 @Serializable
 data class X509Certificate(
     val tbsCertificate: TbsCertificate,

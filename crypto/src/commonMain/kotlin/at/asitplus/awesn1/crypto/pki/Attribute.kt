@@ -9,6 +9,16 @@ import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
 import kotlinx.serialization.Serializable
 
+/**
+ *
+ * As per [RFC2986](https://www.rfc-editor.org/rfc/rfc2986.html#section-4.1):
+ * ```
+ * Attribute { ATTRIBUTE:IOSet } ::= SEQUENCE {
+ *   type   ATTRIBUTE.&id({IOSet}),
+ *   values SET SIZE(1..MAX) OF ATTRIBUTE.&Type({IOSet}{@type})
+ * }
+ * ```
+ */
 @Serializable
 data class Attribute(
     override val oid: ObjectIdentifier,

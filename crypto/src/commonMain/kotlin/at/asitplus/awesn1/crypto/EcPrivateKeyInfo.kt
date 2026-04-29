@@ -10,22 +10,35 @@ import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import kotlinx.serialization.Serializable
 
+/**
+ *
+ * As per [RFC5915](https://www.rfc-editor.org/rfc/rfc5915.html#section-3):
+ * ```
+ * ECPrivateKey ::= SEQUENCE {
+ *   version        INTEGER { ecPrivkeyVer1(1) } (ecPrivkeyVer1),
+ *   privateKey     OCTET STRING,
+ *   parameters [0] ECParameters OPTIONAL,
+ *   publicKey  [1] BIT STRING OPTIONAL
+ * }
+ * ```
+ *
+ * (See also [errata](https://www.rfc-editor.org/errata/rfc5915)
+ */
 @Serializable
 data class EcPrivateKeyInfo(
     val version: Int,
     val privateKey: ByteArray,
-    @Asn1Tag(tagNumber = 0u, constructed = Asn1ConstructedBit.CONSTRUCTED)
+    @Asn1Tag(tagNumber = 0u)
     val parameters: ExplicitlyTagged<ObjectIdentifier>? = null,
-    @Asn1Tag(tagNumber = 1u, constructed = Asn1ConstructedBit.CONSTRUCTED)
+    @Asn1Tag(tagNumber = 1u)
     val publicKey: ExplicitlyTagged<Asn1BitString>? = null,
 ) {
     constructor(
-        version: Int,
         privateKey: ByteArray,
         parameters: ObjectIdentifier?,
         publicKey: Asn1BitString?,
     ) : this(
-        version = version,
+        version = 1,
         privateKey = privateKey,
         parameters = parameters?.let(::ExplicitlyTagged),
         publicKey = publicKey?.let(::ExplicitlyTagged),

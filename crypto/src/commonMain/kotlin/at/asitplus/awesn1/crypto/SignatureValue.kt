@@ -14,6 +14,27 @@ import at.asitplus.awesn1.encoding.parse
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
+/**
+ *
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
+ * ```
+ * Certificate ::= SEQUENCE {
+ *   tbsCertificate       TBSCertificate,
+ *   signatureAlgorithm   AlgorithmIdentifier,
+ *   signatureValue       BIT STRING
+ * }
+ * ```
+ *
+ * This type models `signatureValue`, represented as raw `BIT STRING` bytes.
+ * Helper methods `decodeRS` / `fromRS` use ASN.1 `ECDSA-Sig-Value` from
+ * [RFC5759](https://www.rfc-editor.org/rfc/rfc5759.html#section-4.2):
+ * ```
+ * ECDSA-Sig-Value ::= SEQUENCE {
+ *   r  INTEGER,
+ *   s  INTEGER
+ * }
+ * ```
+ */
 @JvmInline
 @Serializable
 value class SignatureValue(val rawBitString: Asn1BitString) {

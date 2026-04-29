@@ -16,6 +16,27 @@ import at.asitplus.awesn1.runWrappingAs
 import at.asitplus.awesn1.serialization.DER
 import kotlin.jvm.JvmInline
 
+/**
+ *
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.2.1.6):
+ * ```
+ * SubjectAltName ::= GeneralNames
+ *
+ * GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
+ *
+ * GeneralName ::= CHOICE {
+ *   otherName                       [0]     OtherName,
+ *   rfc822Name                      [1]     IA5String,
+ *   dNSName                         [2]     IA5String,
+ *   x400Address                     [3]     ORAddress,
+ *   directoryName                   [4]     Name,
+ *   ediPartyName                    [5]     EDIPartyName,
+ *   uniformResourceIdentifier       [6]     IA5String,
+ *   iPAddress                       [7]     OCTET STRING,
+ *   registeredID                    [8]     OBJECT IDENTIFIER
+ * }
+ * ```
+ */
 @JvmInline
 value class GeneralNames @Throws(Throwable::class) constructor(
     val entries: List<Asn1Element>
@@ -82,6 +103,11 @@ value class GeneralNames @Throws(Throwable::class) constructor(
     }
 }
 
+/**
+ *
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.2.1.6), these are
+ * implicit tag numbers for `GeneralName` alternatives.
+ */
 object GeneralNameImplicitTags {
     val otherName = Asn1.ImplicitTag(0uL)
     val rfc822Name = Asn1.ImplicitTag(1uL)

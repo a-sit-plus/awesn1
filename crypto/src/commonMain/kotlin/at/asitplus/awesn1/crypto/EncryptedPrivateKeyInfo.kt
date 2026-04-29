@@ -7,6 +7,19 @@ import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1PrimitiveOctetString
 import kotlinx.serialization.Serializable
 
+/**
+ *
+ * As per [RFC5208](https://www.rfc-editor.org/rfc/rfc5208.html#section-6):
+ * ```
+ * EncryptedPrivateKeyInfo ::= SEQUENCE {
+ *   encryptionAlgorithm  EncryptionAlgorithmIdentifier,
+ *   encryptedData        EncryptedData
+ * }
+ *
+ * EncryptionAlgorithmIdentifier ::= AlgorithmIdentifier
+ * EncryptedData ::= OCTET STRING
+ * ```
+ */
 @Serializable
 data class EncryptedPrivateKeyInfo(
     val encryptionAlgorithm: Asn1Element,

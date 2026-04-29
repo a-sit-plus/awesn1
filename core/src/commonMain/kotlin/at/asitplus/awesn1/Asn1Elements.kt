@@ -741,6 +741,8 @@ internal constructor(tag: ULong, children: List<Asn1Element>) :
  * ASN.1 SEQUENCE 0x30 ([BERTags.SEQUENCE] OR [BERTags.CONSTRUCTED])
  * @param children the elements to put into this sequence
  */
+@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
+@Serializable(with = Asn1ElementStringSerializer::class)
 class Asn1Sequence internal constructor(children: List<Asn1Element>) :
     Asn1Structure(Tag.SEQUENCE, children, sortChildren = false, shouldBeSorted = false) {
 

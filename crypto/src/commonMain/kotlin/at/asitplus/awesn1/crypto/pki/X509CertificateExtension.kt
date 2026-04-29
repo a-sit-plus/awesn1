@@ -9,13 +9,26 @@ import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import kotlinx.serialization.Serializable
 
+/**
+ *
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
+ * ```
+ * Extension  ::=  SEQUENCE  {
+ *   extnID      OBJECT IDENTIFIER,
+ *   critical    BOOLEAN DEFAULT FALSE,
+ *   extnValue   OCTET STRING
+ *               -- contains the DER encoding of an ASN.1 value
+ *               -- corresponding to the extension type identified
+ *               -- by extnID
+ * }
+ * ```
+ */
 @Serializable
 data class X509CertificateExtension(
     override val oid: ObjectIdentifier,
     val critical: Boolean? = null,
     val value: ByteArray,
 ) : Identifiable {
-    val isCritical: Boolean get() = critical ?: false
 
     constructor(
         oid: ObjectIdentifier,
