@@ -9,6 +9,11 @@ The `crypto` module provides ASN.1-backed cryptographic and PKI model types buil
 If you are looking for certificates, public keys, private keys, PKCS#10 requests, or common algorithm identifiers,
 this is the module you want.
 
+!!! info "`kxs`-powered starting with 0.3.0"
+    The `crypto` module depends on both `core` and `kxs`.
+    DER handling in `crypto` now goes through awesn1's `kotlinx.serialization` integration from `kxs`,
+    rather than manual DER encode/decode implementations inside `crypto`.
+
 ## Why This Is Not in `core`
 
 `core` is intentionally limited to generic ASN.1 infrastructure:
@@ -29,9 +34,6 @@ Keeping them in a separate module keeps `core` small, generic, and reusable.
 ```kotlin
 implementation("at.asitplus.awesn1:crypto:$version")
 ```
-
-`crypto` depends on `core`.
-For `kotlinx.serialization` DER usage in your own code, add the `kxs` module.
 
 ## Scope
 
@@ -89,8 +91,8 @@ The `crypto` already handles the most common cryptographic data structures out o
 
 ## Relationship to Serialization
 
-The crypto model classes are ASN.1-serializable, so they can be used directly with awesn1's DER
-`kotlinx.serialization` format from the `kxs` module.
+The crypto model classes are ASN.1-serializable and their DER handling is implemented through awesn1's
+`kotlinx.serialization`-based `DER` format from the `kxs` module.
 
 That means you can use them either:
 

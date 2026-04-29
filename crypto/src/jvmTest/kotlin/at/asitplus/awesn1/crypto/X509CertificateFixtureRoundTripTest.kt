@@ -22,7 +22,7 @@ private const val FIXTURE_ROOT = "certificate-fixtures"
 val X509CertificateFixtureRoundTripTest by testSuite {
     val fixtures = certificateFixtures()
 
-    withData(nameFn = { it.invariantSeparatorsPathString }, data = fixtures) { path ->
+    withData(nameFn = { it.name }, data = fixtures) { path ->
         when (path.extension) {
             "der" -> {
                 val encoded = path.readBytes()
