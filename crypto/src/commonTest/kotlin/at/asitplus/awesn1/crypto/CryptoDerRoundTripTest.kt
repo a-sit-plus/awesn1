@@ -1,102 +1,57 @@
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1EncapsulatingOctetString
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.Asn1PrimitiveOctetString
-import at.asitplus.awesn1.Asn1String
-import at.asitplus.awesn1.Asn1Time
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.crypto.pki.Attribute
-import at.asitplus.awesn1.crypto.pki.AttributeTypeAndValue
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
-import at.asitplus.awesn1.crypto.pki.RelativeDistinguishedName
-import at.asitplus.awesn1.crypto.pki.TbsCertificate
-import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
+import at.asitplus.awesn1.*
+import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.withData
+import at.asitplus.testballoon.checkAll
+import at.asitplus.testballoon.minus
+import de.infix.testBalloon.framework.core.TestSuiteScope
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.arbitrary
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlin.random.Random
 import kotlin.time.Instant
 
-private const val SAMPLE_COUNT = 5
+private const val PROPERTY_ITERATIONS = 100
 
 val CryptoDerRoundTripTest by testSuite {
-    withData(*sampleValues(::randomRawBitStringSignatureValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomBitStringSignatureValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomBitStringSignatureValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomEcdsaSignatureValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomEcPrivateKey).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomEncryptedPrivateKeyInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomRsaOtherPrimeInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomRsaPrivateKey).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomRsaPublicKey).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomSignatureAlgorithmIdentifier).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomSubjectPublicKeyInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomX509CertificateExtension).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomAttributeTypeAndValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomRelativeDistinguishedName).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomAttribute).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomPrivateKeyInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomPkcs10CertificationRequestInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomPkcs10CertificationRequest).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomTbsCertificate).toTypedArray()) {value ->
-       roundTrip(value)
+    "Property checks" - {
+        //@formatter:off
+        "SignatureValue from raw bit string"    - { checkRoundTrip(arbitrary { randomRawBitStringSignatureValue(it.random)     }) }
+        "SignatureValue from raw bytes"         - { checkRoundTrip(arbitrary { randomBitStringSignatureValue(it.random)        }) }
+        "SignatureValue from ECDSA components"  - { checkRoundTrip(arbitrary { randomEcdsaSignatureValue(it.random)            }) }
+        "EcPrivateKeyInfo"                      - { checkRoundTrip(arbitrary { randomEcPrivateKey(it.random)                   }) }
+        "EncryptedPrivateKeyInfo"               - { checkRoundTrip(arbitrary { randomEncryptedPrivateKeyInfo(it.random)        }) }
+        "RsaOtherPrimeInfo"                     - { checkRoundTrip(arbitrary { randomRsaOtherPrimeInfo(it.random)              }) }
+        "RsaPrivateKeyInfo"                     - { checkRoundTrip(arbitrary { randomRsaPrivateKey(it.random)                  }) }
+        "RsaPublicKeyInfo"                      - { checkRoundTrip(arbitrary { randomRsaPublicKey(it.random)                   }) }
+        "SignatureAlgorithmIdentifier"          - { checkRoundTrip(arbitrary { randomSignatureAlgorithmIdentifier(it.random)   }) }
+        "SubjectPublicKeyInfo"                  - { checkRoundTrip(arbitrary { randomSubjectPublicKeyInfo(it.random)           }) }
+        "X509CertificateExtension"              - { checkRoundTrip(arbitrary { randomX509CertificateExtension(it.random)       }) }
+        "AttributeTypeAndValue"                 - { checkRoundTrip(arbitrary { randomAttributeTypeAndValue(it.random)          }) }
+        "RelativeDistinguishedName"             - { checkRoundTrip(arbitrary { randomRelativeDistinguishedName(it.random)      }) }
+        "Attribute"                             - { checkRoundTrip(arbitrary { randomAttribute(it.random)                      }) }
+        "Pkcs8PrivateKeyInfo"                   - { checkRoundTrip(arbitrary { randomPrivateKeyInfo(it.random)                 }) }
+        "Pkcs10CertificationRequestInfo"        - { checkRoundTrip(arbitrary { randomPkcs10CertificationRequestInfo(it.random) }) }
+        "Pkcs10CertificationRequest"            - { checkRoundTrip(arbitrary { randomPkcs10CertificationRequest(it.random)     }) }
+        "TbsCertificate"                        - { checkRoundTrip(arbitrary { randomTbsCertificate(it.random)                 }) }
+        //@formatter:on
     }
 }
 
-private inline fun <reified T> roundTrip(value: T) {
-    val encoded = DER.encodeToByteArray(value)
-    DER.decodeFromByteArray<T>(encoded) shouldBe value
-    if (value != null) {
-        decodeLegacyAsCurrent(value as Any, encoded) shouldBe value
+private inline fun <reified T> TestSuiteScope.checkRoundTrip(arb: Arb<T>) {
+    checkAll(iterations = PROPERTY_ITERATIONS, compact = false, genA = arb) { value ->
+        val encoded = DER.encodeToByteArray<T>(value)
+        DER.decodeFromByteArray<T>(encoded) shouldBe value
+        if (value != null) {
+            decodeLegacyAsCurrent(value as Any, encoded) shouldBe value
+        }
     }
 }
-
-private fun <T> sampleValues(generator: (Random) -> T): List<T> =
-    List(SAMPLE_COUNT) { index -> generator(Random(0xA51u.toInt() + index)) }
 
 private fun randomAscii(random: Random, length: Int = random.nextInt(3, 16)): String =
     buildString(length) {
@@ -255,3 +210,4 @@ private fun randomTbsCertificate(random: Random): TbsCertificate {
         extensions = List(random.nextInt(0, 3)) { randomX509CertificateExtension(random) }.ifEmpty { null },
     )
 }
+
