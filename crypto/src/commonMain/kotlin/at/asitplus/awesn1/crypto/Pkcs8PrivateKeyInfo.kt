@@ -16,7 +16,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Pkcs8PrivateKeyInfo(
     val version: Int,
-    val privateKeyAlgorithm: SignatureAlgorithmIdentifier,
+    val privateKeyAlgorithm: AlgorithmIdentifier,
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u, constructed = Asn1ConstructedBit.CONSTRUCTED)
     val attributes: Set<Asn1Element>? = null,
@@ -45,7 +45,7 @@ data class Pkcs8PrivateKeyInfo(
         fun rsa(privateKey: RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
             Pkcs8PrivateKeyInfo(
                 version = 0,
-                privateKeyAlgorithm = SignatureAlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
+                privateKeyAlgorithm = AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
                 privateKey = Asn1.OctetStringEncapsulating {
                     +DER.encodeToTlv(RsaPrivateKeyInfo.serializer(), privateKey)
                 },
@@ -58,7 +58,7 @@ data class Pkcs8PrivateKeyInfo(
             attributes: Set<Asn1Element>? = null,
         ): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
             version = 0,
-            privateKeyAlgorithm = SignatureAlgorithmIdentifier(
+            privateKeyAlgorithm = AlgorithmIdentifier(
                 EC_PUBLIC_KEY_OID,
                 curveOid?.let { listOf(it.encodeToTlv()) }.orEmpty(),
             ),

@@ -6,7 +6,7 @@ package at.asitplus.awesn1.crypto.pki
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
-import at.asitplus.awesn1.crypto.SignatureAlgorithmIdentifier
+import at.asitplus.awesn1.crypto.AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
 import at.asitplus.awesn1.serialization.Asn1ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
@@ -18,7 +18,7 @@ data class TbsCertificate(
     @Asn1Tag(tagNumber = 0u, constructed = Asn1ConstructedBit.CONSTRUCTED)
     val version: ExplicitlyTagged<Int>? = null,
     val serialNumber: Asn1Integer,
-    val signatureAlgorithm: SignatureAlgorithmIdentifier,
+    val signatureAlgorithm: AlgorithmIdentifier,
     val issuerName: List<RelativeDistinguishedName>,
     val validity: Validity,
     val subjectName: List<RelativeDistinguishedName>,
@@ -33,7 +33,7 @@ data class TbsCertificate(
     constructor(
         version: Int? = 2,
         serialNumber: ByteArray,
-        signatureAlgorithm: SignatureAlgorithmIdentifier,
+        signatureAlgorithm: AlgorithmIdentifier,
         issuerName: List<RelativeDistinguishedName>,
         validFrom: Asn1Time,
         validUntil: Asn1Time,

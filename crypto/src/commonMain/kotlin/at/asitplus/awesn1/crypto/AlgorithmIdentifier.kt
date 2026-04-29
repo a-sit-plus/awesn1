@@ -15,7 +15,7 @@ import kotlin.jvm.JvmInline
 
 @JvmInline
 @Serializable
-value class SignatureAlgorithmIdentifier(val element: Asn1Element) : Identifiable {
+value class AlgorithmIdentifier(val element: Asn1Element) : Identifiable {
     constructor(
         oid: ObjectIdentifier,
         parameters: List<Asn1Element> = emptyList(),

@@ -37,7 +37,7 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
         is RsaOtherPrimeInfo -> LegacyRsaOtherPrimeInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is RsaPrivateKeyInfo -> LegacyRsaPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is RsaPublicKeyInfo -> LegacyRsaPublicKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
-        is SignatureAlgorithmIdentifier -> LegacySignatureAlgorithmIdentifier.decodeFromTlv(element.asSequence()).toCurrent()
+        is AlgorithmIdentifier -> LegacySignatureAlgorithmIdentifier.decodeFromTlv(element.asSequence()).toCurrent()
         is SignatureValue -> LegacySignatureValue.decodeFromTlv(element.asPrimitive()).toCurrent()
         is SubjectPublicKeyInfo -> LegacySubjectPublicKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is Attribute -> LegacyAttribute.decodeFromTlv(element.asSequence()).toCurrent()
@@ -72,7 +72,7 @@ private fun LegacyEncryptedPrivateKeyInfo.toCurrent() =
 private fun LegacyPkcs8PrivateKeyInfo.toCurrent() =
     Pkcs8PrivateKeyInfo(
         version = version,
-        privateKeyAlgorithm = SignatureAlgorithmIdentifier(algorithmOid, algorithmParameters),
+        privateKeyAlgorithm = AlgorithmIdentifier(algorithmOid, algorithmParameters),
         privateKey = privateKey,
         attributes = attributes?.toSet(),
     )
@@ -105,7 +105,7 @@ private fun LegacyRsaPublicKeyInfo.toCurrent() =
     )
 
 private fun LegacySignatureAlgorithmIdentifier.toCurrent() =
-    SignatureAlgorithmIdentifier(
+    AlgorithmIdentifier(
         oid = oid,
         parameters = parameters,
     )
@@ -114,7 +114,7 @@ private fun LegacySignatureValue.toCurrent() = SignatureValue(rawBitString)
 
 private fun LegacySubjectPublicKeyInfo.toCurrent() =
     SubjectPublicKeyInfo(
-        algorithmIdentifier = SignatureAlgorithmIdentifier(algorithmOid, algorithmParameters),
+        algorithmIdentifier = AlgorithmIdentifier(algorithmOid, algorithmParameters),
         subjectPublicKey = subjectPublicKey,
     )
 

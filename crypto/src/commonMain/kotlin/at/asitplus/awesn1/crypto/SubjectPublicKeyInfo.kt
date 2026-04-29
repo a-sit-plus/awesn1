@@ -14,9 +14,22 @@ import at.asitplus.awesn1.encoding.readNull
 import at.asitplus.awesn1.serialization.DER
 import kotlinx.serialization.Serializable
 
+/**
+ * ```
+ * SubjectPublicKeyInfo ::= SEQUENCE {
+ *   algorithm         AlgorithmIdentifier,
+ *   subjectPublicKey  BIT STRING
+ * }
+ *
+ * AlgorithmIdentifier ::= SEQUENCE {
+ *   algorithm   OBJECT IDENTIFIER,
+ *   parameters  ANY DEFINED BY algorithm OPTIONAL
+ * }
+ * ```
+ */
 @Serializable
 data class SubjectPublicKeyInfo(
-    val algorithmIdentifier: SignatureAlgorithmIdentifier,
+    val algorithmIdentifier: AlgorithmIdentifier,
     val subjectPublicKey: Asn1BitString,
 ) {
     val algorithmOid: ObjectIdentifier get() = algorithmIdentifier.oid
@@ -37,7 +50,7 @@ data class SubjectPublicKeyInfo(
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
         fun rsa(publicKey: RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
-            algorithmIdentifier = SignatureAlgorithmIdentifier(
+            algorithmIdentifier = AlgorithmIdentifier(
                 RSA_ENCRYPTION_OID,
                 listOf(Asn1.Null())
             ),
@@ -48,7 +61,7 @@ data class SubjectPublicKeyInfo(
             rsa(RsaPublicKeyInfo(modulus, exponent))
 
         fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
-            algorithmIdentifier = SignatureAlgorithmIdentifier(EC_PUBLIC_KEY_OID, listOf(curveOid.encodeToTlv())),
+            algorithmIdentifier = AlgorithmIdentifier(EC_PUBLIC_KEY_OID, listOf(curveOid.encodeToTlv())),
             subjectPublicKey = Asn1BitString(ansiX963Key)
         )
     }

@@ -3,14 +3,14 @@
 
 package at.asitplus.awesn1.crypto.pki
 
-import at.asitplus.awesn1.crypto.SignatureAlgorithmIdentifier
+import at.asitplus.awesn1.crypto.AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SignatureValue
 import kotlinx.serialization.Serializable
 
 @Serializable
 data class X509Certificate(
     val tbsCertificate: TbsCertificate,
-    val signatureAlgorithm: SignatureAlgorithmIdentifier,
+    val signatureAlgorithm: AlgorithmIdentifier,
     val signatureValue: SignatureValue,
 ) {
     companion object {

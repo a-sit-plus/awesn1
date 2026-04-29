@@ -123,7 +123,7 @@ private fun randomRsaPublicKey(random: Random) = RsaPublicKeyInfo(
     publicExponent = positiveAsn1Integer(random),
 )
 
-private fun randomSignatureAlgorithmIdentifier(random: Random) = SignatureAlgorithmIdentifier(
+private fun randomSignatureAlgorithmIdentifier(random: Random) = AlgorithmIdentifier(
     oid = randomOid(random),
     parameters = List(random.nextInt(0, 3)) { randomRawElement(random) },
 )
