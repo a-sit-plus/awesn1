@@ -13,9 +13,67 @@ import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import kotlinx.serialization.Serializable
 
+/**
+ *
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
+ *
+ * ```
+ * TBSCertificate  ::=  SEQUENCE  {
+ *         version         [0]  EXPLICIT Version DEFAULT v1,
+ *         serialNumber         CertificateSerialNumber,
+ *         signature            AlgorithmIdentifier,
+ *         issuer               Name,
+ *         validity             Validity,
+ *         subject              Name,
+ *         subjectPublicKeyInfo SubjectPublicKeyInfo,
+ *         issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
+ *                              -- If present, version MUST be v2 or v3
+ *
+ *         subjectUniqueID [2]  IMPLICIT UniqueIdentifier OPTIONAL,
+ *                              -- If present, version MUST be v2 or v3
+ *         extensions      [3]  EXPLICIT Extensions OPTIONAL
+ *                              -- If present, version MUST be v3
+ *         }
+ *
+ *    Version  ::=  INTEGER  {  v1(0), v2(1), v3(2)  }
+ *
+ *    CertificateSerialNumber  ::=  INTEGER
+ *
+ *    Name ::= CHOICE { -- only one possibility for now --
+ *       rdnSequence  RDNSequence }
+ *
+ *   RDNSequence ::= SEQUENCE OF RelativeDistinguishedName
+ *
+ *    Validity ::= SEQUENCE {
+ *         notBefore      Time,
+ *         notAfter       Time }
+ *
+ *    Time ::= CHOICE {
+ *         utcTime        UTCTime,
+ *         generalTime    GeneralizedTime }
+ *
+ *    UniqueIdentifier  ::=  BIT STRING
+ *
+ *    SubjectPublicKeyInfo  ::=  SEQUENCE  {
+ *         algorithm            AlgorithmIdentifier,
+ *         subjectPublicKey     BIT STRING  }
+ *
+ *    Extensions  ::=  SEQUENCE SIZE (1..MAX) OF Extension
+ *
+ *    Extension  ::=  SEQUENCE  {
+ *         extnID      OBJECT IDENTIFIER,
+ *         critical    BOOLEAN DEFAULT FALSE,
+ *         extnValue   OCTET STRING
+ *                     -- contains the DER encoding of an ASN.1 value
+ *                     -- corresponding to the extension type identified
+ *                     -- by extnID
+ *         }
+ * ```
+ *
+ */
 @Serializable
 data class TbsCertificate(
-    @Asn1Tag(tagNumber = 0u, constructed = Asn1ConstructedBit.CONSTRUCTED)
+    @Asn1Tag(tagNumber = 0u)
     val version: ExplicitlyTagged<Int>? = null,
     val serialNumber: Asn1Integer,
     val signatureAlgorithm: AlgorithmIdentifier,
@@ -23,11 +81,11 @@ data class TbsCertificate(
     val validity: Validity,
     val subjectName: List<RelativeDistinguishedName>,
     val subjectPublicKeyInfo: SubjectPublicKeyInfo,
-    @Asn1Tag(tagNumber = 1u, constructed = Asn1ConstructedBit.PRIMITIVE)
+    @Asn1Tag(tagNumber = 1u)
     val issuerUniqueID: Asn1BitString? = null,
-    @Asn1Tag(tagNumber = 2u, constructed = Asn1ConstructedBit.PRIMITIVE)
+    @Asn1Tag(tagNumber = 2u)
     val subjectUniqueID: Asn1BitString? = null,
-    @Asn1Tag(tagNumber = 3u, constructed = Asn1ConstructedBit.CONSTRUCTED)
+    @Asn1Tag(tagNumber = 3u)
     val extensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
 ) {
     constructor(
@@ -56,6 +114,21 @@ data class TbsCertificate(
     )
 }
 
+
+/**
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
+ *
+ * ```
+ *    Validity ::= SEQUENCE {
+ *         notBefore      Time,
+ *         notAfter       Time }
+ *
+ *    Time ::= CHOICE {
+ *         utcTime        UTCTime,
+ *         generalTime    GeneralizedTime }
+ *  ```
+ *
+ */
 @Serializable
 data class Validity(
     val validFrom: Asn1Time,

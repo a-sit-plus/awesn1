@@ -15,15 +15,12 @@ import at.asitplus.awesn1.serialization.DER
 import kotlinx.serialization.Serializable
 
 /**
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
+ *
  * ```
  * SubjectPublicKeyInfo ::= SEQUENCE {
  *   algorithm         AlgorithmIdentifier,
  *   subjectPublicKey  BIT STRING
- * }
- *
- * AlgorithmIdentifier ::= SEQUENCE {
- *   algorithm   OBJECT IDENTIFIER,
- *   parameters  ANY DEFINED BY algorithm OPTIONAL
  * }
  * ```
  */

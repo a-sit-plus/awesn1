@@ -13,6 +13,16 @@ import at.asitplus.awesn1.readOid
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
+/**
+ * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1.1.2):
+ *
+ * ```
+ * AlgorithmIdentifier ::= SEQUENCE {
+ *   algorithm   OBJECT IDENTIFIER,
+ *   parameters  ANY DEFINED BY algorithm OPTIONAL
+ * }
+ * ```
+ */
 @JvmInline
 @Serializable
 value class AlgorithmIdentifier(val element: Asn1Element) : Identifiable {
@@ -31,5 +41,12 @@ value class AlgorithmIdentifier(val element: Asn1Element) : Identifiable {
     val parameters: List<Asn1Element>
         get() = element.asSequence().children.drop(1)
 
-    override fun toString(): String = "SignatureAlgorithmIdentifier($oid)"
+    override fun toString(): String {
+        return "AlgorithmIdentifier("+
+                "oid=$oid, " +
+                "parameters=$parameters, " +
+                "(raw: $element)" +
+                ")"
+    }
+
 }
