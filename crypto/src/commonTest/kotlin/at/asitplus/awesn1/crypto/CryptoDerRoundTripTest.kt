@@ -9,50 +9,43 @@ import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.TestSuiteScope
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
-import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlin.random.Random
 import kotlin.time.Instant
 
-private const val PROPERTY_ITERATIONS = 100
-
 val CryptoDerRoundTripTest by testSuite {
     "Property checks" - {
-        "SignatureValue from raw bit string" - { checkRoundTrip(arbitrary(::randomRawBitStringSignatureValue)) }
-        "SignatureValue from raw bytes" - { checkRoundTrip(arbitrary(::randomBitStringSignatureValue)) }
-        "SignatureValue from ECDSA components" - { checkRoundTrip(arbitrary(::randomEcdsaSignatureValue)) }
-        "EcPrivateKeyInfo" - { checkRoundTrip(arbitrary(::randomEcPrivateKey)) }
-        "EncryptedPrivateKeyInfo" - { checkRoundTrip(arbitrary(::randomEncryptedPrivateKeyInfo)) }
-        "RsaOtherPrimeInfo" - { checkRoundTrip(arbitrary(::randomRsaOtherPrimeInfo)) }
-        "RsaPrivateKeyInfo" - { checkRoundTrip(arbitrary(::randomRsaPrivateKey)) }
-        "RsaPublicKeyInfo" - { checkRoundTrip(arbitrary(::randomRsaPublicKey)) }
-        "SignatureAlgorithmIdentifier" - { checkRoundTrip(arbitrary(::randomSignatureAlgorithmIdentifier)) }
-        "SubjectPublicKeyInfo" - { checkRoundTrip(arbitrary(::randomSubjectPublicKeyInfo)) }
-        "X509CertificateExtension" - { checkRoundTrip(arbitrary(::randomX509CertificateExtension)) }
-        "AttributeTypeAndValue" - { checkRoundTrip(arbitrary(::randomAttributeTypeAndValue)) }
-        "RelativeDistinguishedName" - { checkRoundTrip(arbitrary(::randomRelativeDistinguishedName)) }
-        "Attribute" - { checkRoundTrip(arbitrary(::randomAttribute)) }
-        "Pkcs8PrivateKeyInfo" - { checkRoundTrip(arbitrary(::randomPrivateKeyInfo)) }
-        "Pkcs10CertificationRequestInfo" - { checkRoundTrip(arbitrary(::randomPkcs10CertificationRequestInfo)) }
-        "Pkcs10CertificationRequest" - { checkRoundTrip(arbitrary(::randomPkcs10CertificationRequest)) }
-        "TbsCertificate" - { checkRoundTrip(arbitrary(::randomTbsCertificate)) }
+        "SignatureValue from raw bit string" - { checkRoundTrip(::randomRawBitStringSignatureValue) }
+        "SignatureValue from raw bytes" - { checkRoundTrip(::randomBitStringSignatureValue) }
+        "SignatureValue from ECDSA components" - { checkRoundTrip(::randomEcdsaSignatureValue) }
+        "EcPrivateKeyInfo" - { checkRoundTrip(::randomEcPrivateKey) }
+        "EncryptedPrivateKeyInfo" - { checkRoundTrip(::randomEncryptedPrivateKeyInfo) }
+        "RsaOtherPrimeInfo" - { checkRoundTrip(::randomRsaOtherPrimeInfo) }
+        "RsaPrivateKeyInfo" - { checkRoundTrip(::randomRsaPrivateKey) }
+        "RsaPublicKeyInfo" - { checkRoundTrip(::randomRsaPublicKey) }
+        "SignatureAlgorithmIdentifier" - { checkRoundTrip(::randomSignatureAlgorithmIdentifier) }
+        "SubjectPublicKeyInfo" - { checkRoundTrip(::randomSubjectPublicKeyInfo) }
+        "X509CertificateExtension" - { checkRoundTrip(::randomX509CertificateExtension) }
+        "AttributeTypeAndValue" - { checkRoundTrip(::randomAttributeTypeAndValue) }
+        "RelativeDistinguishedName" - { checkRoundTrip(::randomRelativeDistinguishedName) }
+        "Attribute" - { checkRoundTrip(::randomAttribute) }
+        "Pkcs8PrivateKeyInfo" - { checkRoundTrip(::randomPrivateKeyInfo) }
+        "Pkcs10CertificationRequestInfo" - { checkRoundTrip(::randomPkcs10CertificationRequestInfo) }
+        "Pkcs10CertificationRequest" - { checkRoundTrip(::randomPkcs10CertificationRequest) }
+        "TbsCertificate" - { checkRoundTrip(::randomTbsCertificate) }
     }
 }
 
-private inline fun <reified T> TestSuiteScope.checkRoundTrip(arb: Arb<T>) {
-    checkAll(iterations = PROPERTY_ITERATIONS, compact = false, genA = arb) { value ->
+private inline fun <reified T> TestSuiteScope.checkRoundTrip(noinline generator: (Random) -> T) {
+    checkAll(compact = false, genA = kotestArbitrary { rs -> generator(rs.random) }) { value ->
         val encoded = DER.encodeToByteArray<T>(value)
         DER.decodeFromByteArray<T>(encoded) shouldBe value
         if (value != null) {
             decodeLegacyAsCurrent(value as Any, encoded) shouldBe value
         }
     }
-}
-
-private fun <T> arbitrary(generator: (Random) -> T): Arb<T> = kotestArbitrary { rs ->
-    generator(rs.random)
 }
 
 private fun randomAscii(random: Random, length: Int = random.nextInt(3, 16)): String =
