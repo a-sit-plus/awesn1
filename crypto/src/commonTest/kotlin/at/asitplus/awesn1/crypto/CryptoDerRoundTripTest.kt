@@ -90,6 +90,9 @@ val CryptoDerRoundTripTest by testSuite {
 private inline fun <reified T> roundTrip(value: T) {
     val encoded = DER.encodeToByteArray(value)
     DER.decodeFromByteArray<T>(encoded) shouldBe value
+    if (value != null) {
+        decodeLegacyAsCurrent(value as Any, encoded) shouldBe value
+    }
 }
 
 private fun <T> sampleValues(generator: (Random) -> T): List<T> =

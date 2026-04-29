@@ -26,19 +26,17 @@ val X509CertificateFixtureRoundTripTest by testSuite {
         when (path.extension) {
             "der" -> {
                 val encoded = path.readBytes()
-                DER.encodeToByteArray(
-                    X509Certificate.serializer(),
-                    DER.decodeFromByteArray(X509Certificate.serializer(), encoded),
-                ) shouldBe encoded
+                val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), encoded)
+                DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe encoded
+                decodeLegacyCertificateAsCurrent(encoded) shouldBe decoded
             }
 
             "pem" -> {
                 val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.label == "CERTIFICATE" }
                 blocks.shouldNotBeEmpty().forEach { block ->
-                    DER.encodeToByteArray(
-                        X509Certificate.serializer(),
-                        DER.decodeFromByteArray(X509Certificate.serializer(), block.payload),
-                    ) shouldBe block.payload
+                    val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), block.payload)
+                    DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe block.payload
+                    decodeLegacyCertificateAsCurrent(block.payload) shouldBe decoded
                 }
             }
         }

@@ -19,8 +19,9 @@ import kotlin.io.encoding.ExperimentalEncodingApi
 /**
  * ASN.1 BIT STRING
  */
+@ConsistentCopyVisibility
 @Serializable(with = Asn1BitString.Companion::class)
-class Asn1BitString private constructor(
+data class Asn1BitString private constructor(
     /**
      * Number of bits needed to pad the bit string to a byte boundary
      */
@@ -136,6 +137,13 @@ class Asn1BitString private constructor(
         var result = numPaddingBits.toInt()
         result = 31 * result + rawBytes.contentHashCode()
         return result
+    }
+
+    override fun toString(): String {
+        return "Asn1BitString(" +
+                "numPaddingBits=$numPaddingBits, " +
+                "rawBytes=${rawBytes.contentToString()}" +
+                ")"
     }
 }
 
