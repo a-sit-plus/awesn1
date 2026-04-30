@@ -158,7 +158,7 @@ private fun LegacyX509CertificateExtension.toCurrent() =
 
 private fun LegacyTbsCertificate.toCurrent() =
     TbsCertificate(
-        version = version,
+        version = version?.let { it+1 },
         serialNumber = serialNumber,
         signatureAlgorithm = signatureAlgorithm.toCurrent(),
         issuerName = issuerName.map { it.toCurrent() },

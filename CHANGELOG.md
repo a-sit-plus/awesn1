@@ -9,7 +9,8 @@
 * Fix value/inline class handling
 * **Massively refactor `crypto` classes**:
     * Everything's now based on kotlinx.serialization (`kxs` module)
-    * tighter alignment with X.509, PKCS#10 and co:
+    * TbsCertificate now has `rawVersion` and (semantic) version as per X.509
+    * Tighter alignment with X.509, PKCS#10 and co:
         * production crypto/PKI types are now regular `@Serializable` data/value classes instead of companion-driven manual `Asn1Serializable` / `Asn1Encodable` model implementations
         * `AlgorithmIdentifier` is now a dedicated public type and is used consistently across certificate / CSR / key-container models instead of raw ASN.1 sequence stand-ins
         * several fields were tightened to more spec-shaped public types, e.g. EC optional fields now use explicit-tag wrappers and encrypted private-key algorithm/data fields now use `AlgorithmIdentifier` / ASN.1 octet-string types instead of generic `Asn1Element`

@@ -8,7 +8,6 @@ import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.crypto.AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
-import at.asitplus.awesn1.serialization.Asn1Tag.ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import kotlinx.serialization.Serializable
@@ -74,7 +73,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class TbsCertificate(
     @Asn1Tag(tagNumber = 0u)
-    val version: ExplicitlyTagged<Int>? = null,
+    val rawVersion: ExplicitlyTagged<Int>? = null,
     val serialNumber: Asn1Integer,
     val signatureAlgorithm: AlgorithmIdentifier,
     val issuerName: List<RelativeDistinguishedName>,
@@ -89,7 +88,7 @@ data class TbsCertificate(
     val extensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
 ) {
     constructor(
-        version: Int? = 2,
+        version: Int? = null,
         serialNumber: ByteArray,
         signatureAlgorithm: AlgorithmIdentifier,
         issuerName: List<RelativeDistinguishedName>,
@@ -101,7 +100,7 @@ data class TbsCertificate(
         subjectUniqueID: Asn1BitString? = null,
         extensions: List<X509CertificateExtension>? = null,
     ) : this(
-        version = version?.let(::ExplicitlyTagged),
+        rawVersion = version?.let { ExplicitlyTagged(it - 1) },
         serialNumber = Asn1Integer.fromTwosComplement(serialNumber),
         signatureAlgorithm = signatureAlgorithm,
         issuerName = issuerName,
@@ -112,6 +111,24 @@ data class TbsCertificate(
         subjectUniqueID = subjectUniqueID,
         extensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
     )
+
+    /**
+     *
+     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
+     * version commonly referred to as the version of a certificate
+     *
+     * | RAW Version | (Semantic) Version |
+     * |:-----------:|:----------------:|
+     * | 0           | 1                |
+     * | 1           | 2                |
+     * | 2           | 3                |
+     */
+    val version: Int? by lazy { rawVersion?.let { it.value + 1 }?:1 }
+
+    /**
+     * @see version
+     */
+    val semanticVersion: Int? get() = version
 }
 
 

@@ -25,6 +25,7 @@ kotlin {
 
         commonTest {
             dependencies {
+                implementation(serialization("json"))
             }
         }
     }
