@@ -134,7 +134,7 @@ class DerDecoder internal constructor(
         if (!::propertyDescriptor.isInitialized) {
             initializeStandalonePropertyState(descriptor)
         }
-        inlineHintState.recordFrom(descriptor)
+        inlineHintState.captureInlineHintsFrom(descriptor)
         return this
     }
 

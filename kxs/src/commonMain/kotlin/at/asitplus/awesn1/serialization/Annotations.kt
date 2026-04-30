@@ -15,6 +15,11 @@ import kotlinx.serialization.descriptors.SerialDescriptor
  * This annotation only controls tag override behavior.
  * Use [Asn1BitString] for additional ASN.1 semantics.
  *
+ * On regular serializable classes, apply it either to a class or to a property.
+ * On Kotlin inline/value classes, apply it to the inline/value class declaration itself.
+ * Applying `@Asn1Tag` to the single backing property of an inline/value class is rejected,
+ * because that property has no distinct ASN.1 field boundary after inline unwrapping.
+ *
  * @param tagNumber implicit ASN.1 tag number override
  * @param tagClass implicit ASN.1 tag-class override; defaults to [Asn1TagClass.CONTEXT_SPECIFIC]
  * while [Asn1TagClass.INFER] keeps underlying class

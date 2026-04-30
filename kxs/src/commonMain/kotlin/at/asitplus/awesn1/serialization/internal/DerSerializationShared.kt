@@ -60,9 +60,10 @@ internal class DerInlineHintState {
     /**
      * Captures inline ASN.1 hints from [descriptor] for later consumption.
      */
-    fun recordFrom(descriptor: SerialDescriptor) {
-        descriptor.annotations.asn1Tag?.let { inlineAsn1Tag = it }
-        if (descriptor.isAsn1BitString) inlineAsBitString = true
+    fun captureInlineHintsFrom(descriptor: SerialDescriptor) {
+        descriptor.requireNoAsn1TagOnInlineBackingProperty()
+        inlineAsn1Tag = inlineAsn1Tag ?: descriptor.annotations.asn1Tag
+        inlineAsBitString = inlineAsBitString || descriptor.isAsn1BitString
     }
 
     /**
@@ -126,6 +127,15 @@ internal fun SerialDescriptor.isByteArrayLikeDescriptor(): Boolean {
 
 internal tailrec fun SerialDescriptor.unwrapInlineDescriptorForAsn1(): SerialDescriptor =
     if (isInline && elementsCount == 1) getElementDescriptor(0).unwrapInlineDescriptorForAsn1() else this
+
+internal fun SerialDescriptor.requireNoAsn1TagOnInlineBackingProperty() {
+    if (isInline && elementsCount == 1 && asn1Tag(0) != null) {
+        throw SerializationException(
+            "@Asn1Tag on inline/value class backing property is not supported for $serialName. " +
+                    "Annotate the inline/value class itself instead."
+        )
+    }
+}
 
 @OptIn(InternalSerializationApi::class)
 internal fun <T> resolveOpenPolymorphicAsn1SerializerOrNull(

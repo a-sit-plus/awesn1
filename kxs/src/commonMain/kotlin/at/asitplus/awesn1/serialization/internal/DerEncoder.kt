@@ -61,7 +61,7 @@ class DerEncoder internal constructor(
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun encodeInline(descriptor: SerialDescriptor): Encoder {
-        inlineHintState.recordFrom(descriptor)
+        inlineHintState.captureInlineHintsFrom(descriptor)
         return this
     }
 

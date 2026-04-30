@@ -8,10 +8,12 @@ import de.infix.testBalloon.framework.core.invocation
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldEndWith
+import io.kotest.matchers.string.shouldStartWith
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.encodeToByteArray
 import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -87,6 +89,41 @@ val SerializationTestImplicitTagging by testSuite(
                     ImplicitNestedInline(InlineLayer3(InlineLayer2(InlineLayer1(0x23))))
         }
 
+        "Implicitly tagged inline class overrides implicitly tagged wrapped class" {
+            val value = InlineTaggedOuterClassTaggedInner(ClassTaggedInner(0x23))
+            val encoded = DER.encodeToByteArray(value)
+
+            encoded.toHexString() shouldBe "f203020123"
+            DER.decodeFromByteArray<InlineTaggedOuterClassTaggedInner>(encoded) shouldBe value
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<InlineTaggedOuterClassTaggedInner>("f303020123".hexToByteArray())
+            }
+        }
+
+        "Outermost inline class tag wins across multiple tagged inline layers" {
+            val value = TaggedInlineLayer6(
+                TaggedInlineLayer5(
+                    TaggedInlineLayer4(
+                        TaggedInlineLayer3(
+                            TaggedInlineLayer2(
+                                TaggedInlineLayer1(0x23)
+                            )
+                        )
+                    )
+                )
+            )
+            val encoded = DER.encodeToByteArray(value)
+
+            encoded.toHexString() shouldBe "d20123"
+            DER.decodeFromByteArray<TaggedInlineLayer6>(encoded) shouldBe value
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<TaggedInlineLayer6>("d30123".hexToByteArray())
+            }
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<TaggedInlineLayer6>("d70123".hexToByteArray())
+            }
+        }
+
         "Inline value class with six nested inline layers preserves class tag" {
             val value = ImplicitSixLayerInline(
                 InlineLayer6(InlineLayer5(InlineLayer4(InlineLayer3(InlineLayer2(InlineLayer1(0x23))))))
@@ -102,7 +139,11 @@ val SerializationTestImplicitTagging by testSuite(
                 InlineUByteLayer6(
                     InlineUByteLayer5(
                         InlineUByteLayer4(
-                            InlineUByteLayer3(InlineUByteLayer2(InlineUByteLayer1(0x23u)))
+                            InlineUByteLayer3(
+                                InlineUByteLayer2(
+                                    InlineUByteLayer1(0x23u)
+                                )
+                            )
                         )
                     )
                 )
@@ -111,6 +152,62 @@ val SerializationTestImplicitTagging by testSuite(
 
             encoded.toHexString() shouldBe "d20123"
             DER.decodeFromByteArray<ImplicitSixLayerUByteInline>(encoded) shouldBe value
+        }
+
+        "Value class Byte backing property tag is rejected" {
+            val classTagged = ValueClassByteClassTagged(0x23)
+            val propertyTagged = ValueClassBytePropertyTagged(0x23)
+            val classAndPropertyTagged = ValueClassByteClassAndPropertyTagged(0x23)
+
+            DER.encodeToByteArray(classTagged).toHexString() shouldBe "d20123"
+            DER.decodeFromByteArray<ValueClassByteClassTagged>("d20123".hexToByteArray()) shouldBe classTagged
+
+
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(propertyTagged)
+            }.message.let {
+                it shouldStartWith "@Asn1Tag on inline/value class backing property is not supported"
+                it shouldEndWith "Annotate the inline/value class itself instead."
+            }
+
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(classAndPropertyTagged)
+            }.message.let {
+                it shouldStartWith "@Asn1Tag on inline/value class backing property is not supported"
+                it shouldEndWith "Annotate the inline/value class itself instead."
+            }
+
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<ValueClassByteClassTagged>("020123".hexToByteArray())
+            }.message shouldBe "at.asitplus.awesn1.Asn1TagMismatchException: Expected tag PRIVATE 18 (=D2), is: 2 (=02) (INTEGER)"
+
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<ValueClassBytePropertyTagged>("020123".hexToByteArray())
+            }.message.let {
+                it shouldStartWith "@Asn1Tag on inline/value class backing property is not supported"
+                it shouldEndWith "Annotate the inline/value class itself instead."
+            }
+
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<ValueClassBytePropertyTagged>("d30123".hexToByteArray())
+            }.message.let {
+                it shouldStartWith "@Asn1Tag on inline/value class backing property is not supported"
+                it shouldEndWith "Annotate the inline/value class itself instead."
+            }
+
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<ValueClassByteClassAndPropertyTagged>("d20123".hexToByteArray())
+            }.message.let {
+                it shouldStartWith "@Asn1Tag on inline/value class backing property is not supported"
+                it shouldEndWith "Annotate the inline/value class itself instead."
+            }
+
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<ValueClassByteClassAndPropertyTagged>("d30123".hexToByteArray())
+            }.message.let {
+                it shouldStartWith "@Asn1Tag on inline/value class backing property is not supported"
+                it shouldEndWith "Annotate the inline/value class itself instead."
+            }
         }
 
         "Nested" {
@@ -305,6 +402,36 @@ value class ImplicitSixLayerInline(val value: InlineLayer6)
 @Serializable
 value class ImplicitSixLayerUByteInline(val value: InlineUByteLayer6)
 
+@Asn1Tag(19u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class TaggedInlineLayer1(val value: Byte)
+
+@Asn1Tag(20u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class TaggedInlineLayer2(val value: TaggedInlineLayer1)
+
+@Asn1Tag(21u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class TaggedInlineLayer3(val value: TaggedInlineLayer2)
+
+@Asn1Tag(22u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class TaggedInlineLayer4(val value: TaggedInlineLayer3)
+
+@Asn1Tag(23u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class TaggedInlineLayer5(val value: TaggedInlineLayer4)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class TaggedInlineLayer6(val value: TaggedInlineLayer5)
+
 @JvmInline
 @Serializable
 value class InlineLayer1(val value: Byte)
@@ -352,6 +479,29 @@ value class InlineUByteLayer5(val value: InlineUByteLayer4)
 @JvmInline
 @Serializable
 value class InlineUByteLayer6(val value: InlineUByteLayer5)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ValueClassByteClassTagged(val value: Byte)
+
+@JvmInline
+@Serializable
+value class ValueClassBytePropertyTagged(@Asn1Tag(19u, Asn1TagClass.PRIVATE) val value: Byte)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ValueClassByteClassAndPropertyTagged(@Asn1Tag(19u, Asn1TagClass.PRIVATE) val value: Byte)
+
+@Asn1Tag(19u, Asn1TagClass.PRIVATE)
+@Serializable
+data class ClassTaggedInner(val value: Byte)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class InlineTaggedOuterClassTaggedInner(val value: ClassTaggedInner)
 
 @Serializable
 data class NothingOnClassNested(val a: NothingOnClass)

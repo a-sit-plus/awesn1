@@ -100,6 +100,14 @@ This is common in profiles that refine generic ASN.1 structures into tightly spe
 You will see this pattern throughout [X.509 (RFC 5280)](https://www.rfc-editor.org/rfc/rfc5280), especially in
 extension and name-related structures.
 
+!!! warning "Tagging Inline Classes"
+   For regular serializable classes, put `@Asn1Tag` on the class or on the property whose ASN.1 field needs the override.
+   For Kotlin inline/value classes, put `@Asn1Tag` on the inline/value class declaration itself. Do not put it on the
+   single backing property: inline/value class unwrapping removes that property boundary, so awesn1 rejects such models
+   with `SerializationException` instead of silently choosing an ambiguous tag.  
+   **Hence, regardless of how many layers of custom tags are in place, whenever a property of a tagged type is used
+   in an inline/value class, any implicit tag on the outermost inline/value class will take precedence.**
+
 ```kotlin
 --8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-tag-override-definitions"
 ```
@@ -110,6 +118,39 @@ extension and name-related structures.
 
 1. {{ asn1js_iframe('kxs-tag-override') -}}
    Explore on <a href="{{ asn1js_url('kxs-tag-override') }}" target="_blank" rel="noopener">asn1js.eu</a>
+
+The same rule applies to scalar wrappers modeled as Kotlin value classes:
+
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-inline-valueclass-tag-definitions"
+```
+
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-inline-valueclass-tag-roundtrip"
+```
+
+1. `TutorialDocTaggedByte` is encoded as private tag 18 (`d2`) over the integer payload.
+2. `TutorialDocInvalidBackingTaggedByte` is rejected because the tag is attached to the inline backing property.
+
+{{ asn1js_iframe('kxs-inline-valueclass-tag') -}}
+Explore on <a href="{{ asn1js_url('kxs-inline-valueclass-tag') }}" target="_blank" rel="noopener">asn1js.eu</a>
+
+When an inline/value class wraps a type that already has an implicit class tag, the inline/value class tag is the
+outer schema contract and takes precedence:
+
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-inline-valueclass-outer-tag-definitions"
+```
+
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-inline-valueclass-outer-tag-roundtrip"
+```
+
+1. `TutorialDocTaggedOuter` is encoded with private tag 18 (`f2`); the wrapped class' private tag 19 (`f3`) is not used.
+2. Decoding the inner class tag at this position fails, because the inline/value class tag is expected.
+
+{{ asn1js_iframe('kxs-inline-valueclass-outer-tag') -}}
+Explore on <a href="{{ asn1js_url('kxs-inline-valueclass-outer-tag') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
 ## Modelling EXPLICIT Wrappers
 
@@ -155,6 +196,7 @@ A common real-world example is `GeneralName` in [X.509 (RFC 5280)](https://www.r
 
 When the CHOICE alternatives are just primitive wrappers, sealed inline value classes work as well. This keeps the
 Kotlin model compact while still allowing per-arm ASN.1 annotations where needed.
+For inline/value-class alternatives, place those annotations on the value class declaration, not on the backing property.
 
 ```kotlin
 --8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-choice-primitive-definitions"
@@ -203,6 +245,7 @@ Value classes are still useful when a variant is intentionally a very thin wrapp
 most compact model in Kotlin source.
 Both approaches use the exact same polymorphic-by-tag dispatch mechanism in awesn1; the difference is mostly about
 modeling style and maintainability constraints in your domain code.
+When the variant is a value class, its implicit tag belongs on the value class declaration.
 
 Second, the same mechanism with value classes:
 
