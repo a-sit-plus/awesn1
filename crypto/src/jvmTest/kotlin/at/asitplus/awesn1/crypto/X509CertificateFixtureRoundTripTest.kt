@@ -9,6 +9,9 @@ import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.serialization.SerializationException
+import org.opentest4j.AssertionFailedError
 import java.io.ByteArrayInputStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -21,34 +24,49 @@ import kotlin.time.toJavaInstant
 private const val FIXTURE_ROOT = "certificate-fixtures"
 
 val X509CertificateFixtureRoundTripTest by testSuite {
-    val fixtures = certificateFixtures()
 
-    withData(nameFn = { it.name }, data = fixtures) { path ->
-        when (path.extension) {
-            "der" -> {
-                val encoded = path.readBytes()
-                val jvmCert =
-                    catchingUnwrapped { certificateFactory.generateCertificate(ByteArrayInputStream(encoded)) }.getOrNull()
-                val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), encoded)
-                jvmCert?.let { assertEquals(decoded, it as java.security.cert.X509Certificate) }
-                DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe encoded
+    withData(nameFn = { if (it) "OK only" else "Faulty only" }, true, false) - { ok ->
+        val fixtures = certificateFixtures(ok)
+        withData(nameFn = { it.name }, data = fixtures) { path ->
 
-                decodeLegacyCertificateAsCurrent(encoded) shouldBe decoded
-            }
+            fun parseAndAssert() {
+                when (path.extension) {
+                    "der" -> {
+                        val encoded = path.readBytes()
+                        val jvmCert =
+                            catchingUnwrapped { certificateFactory.generateCertificate(ByteArrayInputStream(encoded)) }.getOrNull()
+                        val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), encoded)
+                        jvmCert?.let { assertEquals(decoded, it as java.security.cert.X509Certificate) }
+                        DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe encoded
 
-            "pem" -> {
-                val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.label == "CERTIFICATE" }
-                blocks.shouldNotBeEmpty().forEach { block ->
-                    val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), block.payload)
-                    DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe block.payload
-                    decodeLegacyCertificateAsCurrent(block.payload) shouldBe decoded
+                        decodeLegacyCertificateAsCurrent(encoded) shouldBe decoded
+                    }
+
+                    "pem" -> {
+                        val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.label == "CERTIFICATE" }
+                        blocks.shouldNotBeEmpty().forEach { block ->
+                            val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), block.payload)
+                            DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe block.payload
+                            decodeLegacyCertificateAsCurrent(block.payload) shouldBe decoded
+                        }
+                    }
                 }
             }
+
+            if (!ok) catchingUnwrapped {
+                //we're more lenient than we should be, intentionally so
+                parseAndAssert()
+            }.onFailure {
+                //here we re-encode s.t. it differs
+                if (path.name.contains("nonminimal")) it.shouldBeInstanceOf<AssertionFailedError>()
+                //here we can't parse
+                else it.shouldBeInstanceOf<SerializationException>()
+            } else parseAndAssert()
         }
     }
 }
 
-private fun certificateFixtures(): List<Path> {
+private fun certificateFixtures(ok: Boolean): List<Path> {
     val root = object {}.javaClass.classLoader.getResource(FIXTURE_ROOT)
         ?.toURI()
         ?.let(Path::of)
@@ -57,7 +75,7 @@ private fun certificateFixtures(): List<Path> {
     return Files.walk(root).use { paths ->
         paths
             .filter(Files::isRegularFile)
-            .filter { path -> path.name.startsWith("ok-") }
+            .filter { path -> path.name.startsWith("ok-") == ok }
             .filter { path -> path.extension == "der" || path.extension == "pem" }
             .sorted()
             .toList()
