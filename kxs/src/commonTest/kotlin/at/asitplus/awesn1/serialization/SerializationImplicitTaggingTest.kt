@@ -12,6 +12,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.decodeFromByteArray
+import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestImplicitTagging by testSuite(
@@ -49,6 +50,68 @@ val SerializationTestImplicitTagging by testSuite(
         shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBothWrong>(imlBoth) }
         shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBothWrongClass>(imlBoth) }
         shouldThrow<SerializationException> { DER.decodeFromByteArray<ImplicitOnBothWrongProperty>(imlBoth) }
+
+        "Inline value class with UByte backing preserves class tag" {
+            val uByteBacked = DER.encodeToByteArray(ImplicitValueClassUByte(0x23u))
+            val byteBacked = DER.encodeToByteArray(ImplicitValueClassByte(0x23))
+
+            uByteBacked.toHexString() shouldBe "d20123"
+            byteBacked.toHexString() shouldBe "d20123"
+
+            DER.decodeFromByteArray<ImplicitValueClassUByte>(uByteBacked) shouldBe ImplicitValueClassUByte(0x23u)
+            DER.decodeFromByteArray<ImplicitValueClassByte>(byteBacked) shouldBe ImplicitValueClassByte(0x23)
+        }
+
+        "Inline value classes with unsigned primitive backing preserve class tag" {
+            DER.encodeToByteArray(ImplicitValueClassUByte(0x23u)).toHexString() shouldBe "d20123"
+            DER.encodeToByteArray(ImplicitValueClassUShort(0x0123u)).toHexString() shouldBe "d2020123"
+            DER.encodeToByteArray(ImplicitValueClassUInt(0x01234567u)).toHexString() shouldBe "d20401234567"
+            DER.encodeToByteArray(ImplicitValueClassULong(0x0123456789abcdefu)).toHexString() shouldBe
+                    "d2080123456789abcdef"
+
+            DER.decodeFromByteArray<ImplicitValueClassUByte>("d20123".hexToByteArray()) shouldBe
+                    ImplicitValueClassUByte(0x23u)
+            DER.decodeFromByteArray<ImplicitValueClassUShort>("d2020123".hexToByteArray()) shouldBe
+                    ImplicitValueClassUShort(0x0123u)
+            DER.decodeFromByteArray<ImplicitValueClassUInt>("d20401234567".hexToByteArray()) shouldBe
+                    ImplicitValueClassUInt(0x01234567u)
+            DER.decodeFromByteArray<ImplicitValueClassULong>("d2080123456789abcdef".hexToByteArray()) shouldBe
+                    ImplicitValueClassULong(0x0123456789abcdefu)
+        }
+
+        "Inline value class with custom nested inline backing preserves class tag" {
+            val encoded = DER.encodeToByteArray(ImplicitNestedInline(InlineLayer3(InlineLayer2(InlineLayer1(0x23)))))
+
+            encoded.toHexString() shouldBe "d20123"
+            DER.decodeFromByteArray<ImplicitNestedInline>(encoded) shouldBe
+                    ImplicitNestedInline(InlineLayer3(InlineLayer2(InlineLayer1(0x23))))
+        }
+
+        "Inline value class with six nested inline layers preserves class tag" {
+            val value = ImplicitSixLayerInline(
+                InlineLayer6(InlineLayer5(InlineLayer4(InlineLayer3(InlineLayer2(InlineLayer1(0x23))))))
+            )
+            val encoded = DER.encodeToByteArray(value)
+
+            encoded.toHexString() shouldBe "d20123"
+            DER.decodeFromByteArray<ImplicitSixLayerInline>(encoded) shouldBe value
+        }
+
+        "Inline value class with six nested inline layers and UByte core preserves class tag" {
+            val value = ImplicitSixLayerUByteInline(
+                InlineUByteLayer6(
+                    InlineUByteLayer5(
+                        InlineUByteLayer4(
+                            InlineUByteLayer3(InlineUByteLayer2(InlineUByteLayer1(0x23u)))
+                        )
+                    )
+                )
+            )
+            val encoded = DER.encodeToByteArray(value)
+
+            encoded.toHexString() shouldBe "d20123"
+            DER.decodeFromByteArray<ImplicitSixLayerUByteInline>(encoded) shouldBe value
+        }
 
         "Nested" {
             val nothingOnClassNested = DER.encodeToByteArray(
@@ -201,6 +264,94 @@ data class ImplicitOnBothWrongProperty(
         tagClass = Asn1TagClass.CONTEXT_SPECIFIC
     ) val a: String
 )
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ImplicitValueClassUByte(val byte: UByte)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ImplicitValueClassUShort(val value: UShort)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ImplicitValueClassUInt(val value: UInt)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ImplicitValueClassULong(val value: ULong)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ImplicitValueClassByte(val byte: Byte)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ImplicitNestedInline(val value: InlineLayer3)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ImplicitSixLayerInline(val value: InlineLayer6)
+
+@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@JvmInline
+@Serializable
+value class ImplicitSixLayerUByteInline(val value: InlineUByteLayer6)
+
+@JvmInline
+@Serializable
+value class InlineLayer1(val value: Byte)
+
+@JvmInline
+@Serializable
+value class InlineLayer2(val value: InlineLayer1)
+
+@JvmInline
+@Serializable
+value class InlineLayer3(val value: InlineLayer2)
+
+@JvmInline
+@Serializable
+value class InlineLayer4(val value: InlineLayer3)
+
+@JvmInline
+@Serializable
+value class InlineLayer5(val value: InlineLayer4)
+
+@JvmInline
+@Serializable
+value class InlineLayer6(val value: InlineLayer5)
+
+@JvmInline
+@Serializable
+value class InlineUByteLayer1(val value: UByte)
+
+@JvmInline
+@Serializable
+value class InlineUByteLayer2(val value: InlineUByteLayer1)
+
+@JvmInline
+@Serializable
+value class InlineUByteLayer3(val value: InlineUByteLayer2)
+
+@JvmInline
+@Serializable
+value class InlineUByteLayer4(val value: InlineUByteLayer3)
+
+@JvmInline
+@Serializable
+value class InlineUByteLayer5(val value: InlineUByteLayer4)
+
+@JvmInline
+@Serializable
+value class InlineUByteLayer6(val value: InlineUByteLayer5)
 
 @Serializable
 data class NothingOnClassNested(val a: NothingOnClass)

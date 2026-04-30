@@ -61,8 +61,8 @@ internal class DerInlineHintState {
      * Captures inline ASN.1 hints from [descriptor] for later consumption.
      */
     fun recordFrom(descriptor: SerialDescriptor) {
-        inlineAsn1Tag = descriptor.annotations.asn1Tag
-        inlineAsBitString = descriptor.isAsn1BitString
+        descriptor.annotations.asn1Tag?.let { inlineAsn1Tag = it }
+        if (descriptor.isAsn1BitString) inlineAsBitString = true
     }
 
     /**
@@ -124,7 +124,7 @@ internal fun SerialDescriptor.isByteArrayLikeDescriptor(): Boolean {
                     descriptor.getElementDescriptor(0).kind == PrimitiveKind.BYTE)
 }
 
-private tailrec fun SerialDescriptor.unwrapInlineDescriptorForAsn1(): SerialDescriptor =
+internal tailrec fun SerialDescriptor.unwrapInlineDescriptorForAsn1(): SerialDescriptor =
     if (isInline && elementsCount == 1) getElementDescriptor(0).unwrapInlineDescriptorForAsn1() else this
 
 @OptIn(InternalSerializationApi::class)

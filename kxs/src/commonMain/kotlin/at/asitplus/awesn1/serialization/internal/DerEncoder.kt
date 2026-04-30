@@ -227,6 +227,10 @@ class DerEncoder internal constructor(
      */
     @Throws(SerializationException::class)
     override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
+        if (value != null && serializer.descriptor.isInline) {
+            super<AbstractEncoder>.encodeSerializableValue(serializer, value)
+            return
+        }
 
         val inlineHints = inlineHintState.consume()
         val propertyContext = descriptorAndIndex?.toDerPropertyContext()
