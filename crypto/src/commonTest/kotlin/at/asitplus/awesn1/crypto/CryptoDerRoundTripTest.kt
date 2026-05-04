@@ -178,7 +178,7 @@ private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
     }
 
 private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10CertificationRequestInfo(
-    version = 0,
+    rawVersion = 0,
     subjectName = List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) },
     publicKey = randomSubjectPublicKeyInfo(random),
     attributes = List(random.nextInt(0, 3)) { randomAttribute(random) },

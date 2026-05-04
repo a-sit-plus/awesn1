@@ -3,9 +3,10 @@
 
 package at.asitplus.awesn1.crypto.pki
 
+import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
-import at.asitplus.awesn1.serialization.Asn1Tag.ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
+import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,9 +23,35 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs10CertificationRequestInfo(
-    val version: Int = 0,
+    val rawVersion: Asn1Integer = Asn1Integer(0),
     val subjectName: List<RelativeDistinguishedName>,
     val publicKey: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 0u)
     val attributes: List<Attribute> = emptyList(),
-)
+) {
+    constructor(
+        version: Int = 1,
+        subjectName: List<RelativeDistinguishedName>,
+        publicKey: SubjectPublicKeyInfo,
+        attributes: List<Attribute> = emptyList(),
+    ) : this(Asn1Integer(version - 1), subjectName, publicKey, attributes) {
+    }
+
+    /**
+     *
+     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
+     * version commonly referred to as the version of a CSR
+     *
+     * | RAW Version | (Semantic) Version |
+     * |:-----------:|:----------------:|
+     * | 0           | 1                |
+     * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     */
+    @get:Throws(NumberFormatException::class)
+    val version: Int? by lazy { rawVersion.toInt() + 1 }
+
+    /**
+     * @see version
+     */
+    val semanticVersion: Int? get() = version
+}

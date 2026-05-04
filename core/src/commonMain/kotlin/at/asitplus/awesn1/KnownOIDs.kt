@@ -30,8 +30,6 @@ object KnownOIDs : MutableMap<ObjectIdentifier,String>{
 
     /**
      * Returns a human-readable description of [key] (if known and loaded).
-     * If the `oids` module is part of your classpath, call `KnownOIDs.describeAll()` to add descriptions for all
-     * known OID constants shipped with the module.
      */
     override fun get(key: ObjectIdentifier) = oidDescriptions[key]
     

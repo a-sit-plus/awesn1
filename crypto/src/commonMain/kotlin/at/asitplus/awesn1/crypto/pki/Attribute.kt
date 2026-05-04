@@ -29,7 +29,7 @@ data class Attribute(
     constructor(id: ObjectIdentifier, value: Asn1Element) : this(id, setOf(value))
 
     companion object {
-        private val EXTENSION_REQUEST_OID = ObjectIdentifier("1.2.840.113549.1.9.14")
+        val EXTENSION_REQUEST_OID = ObjectIdentifier("1.2.840.113549.1.9.14")
 
         @Suppress("FunctionName")
         fun CertificateExtension(extensions: List<X509CertificateExtension>): Attribute {

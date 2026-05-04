@@ -10,6 +10,7 @@ import at.asitplus.awesn1.crypto.AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
 /**
@@ -73,7 +74,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class TbsCertificate(
     @Asn1Tag(tagNumber = 0u)
-    val rawVersion: ExplicitlyTagged<Int>? = null,
+    val rawVersion: ExplicitlyTagged<Asn1Integer>? = null,
     val serialNumber: Asn1Integer,
     val signatureAlgorithm: AlgorithmIdentifier,
     val issuerName: List<RelativeDistinguishedName>,
@@ -100,7 +101,7 @@ data class TbsCertificate(
         subjectUniqueID: Asn1BitString? = null,
         extensions: List<X509CertificateExtension>? = null,
     ) : this(
-        rawVersion = version?.let { ExplicitlyTagged(it - 1) },
+        rawVersion = version?.let { ExplicitlyTagged(Asn1Integer(it - 1)) },
         serialNumber = Asn1Integer.fromTwosComplement(serialNumber),
         signatureAlgorithm = signatureAlgorithm,
         issuerName = issuerName,
@@ -122,8 +123,11 @@ data class TbsCertificate(
      * | 0           | 1                |
      * | 1           | 2                |
      * | 2           | 3                |
+     *
+     * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
      */
-    val version: Int? by lazy { rawVersion?.let { it.value + 1 }?:1 }
+    @get:Throws(NumberFormatException::class)
+    val version: Int? by lazy { rawVersion?.value?.toInt()?.let { it + 1 } ?: 1 }
 
     /**
      * @see version

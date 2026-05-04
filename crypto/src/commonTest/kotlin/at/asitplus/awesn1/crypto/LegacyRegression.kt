@@ -136,7 +136,7 @@ private fun LegacyRelativeDistinguishedName.toCurrent() =
 
 private fun LegacyPkcs10CertificationRequestInfo.toCurrent() =
     Pkcs10CertificationRequestInfo(
-        version = version,
+        rawVersion = version,
         subjectName = subjectName.map { it.toCurrent() },
         publicKey = publicKey.toCurrent(),
         attributes = attributes.map { it.toCurrent() },

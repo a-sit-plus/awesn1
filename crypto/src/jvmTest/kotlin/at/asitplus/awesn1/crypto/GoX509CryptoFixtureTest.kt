@@ -79,7 +79,7 @@ val GoX509CryptoFixtureTest by testSuite {
             Pkcs10CertificationRequest.serializer(),
         )
 
-        decoded.certificationRequestInfo.version shouldBe 0
+        decoded.certificationRequestInfo.rawVersion shouldBe 0
     }
 }
 
