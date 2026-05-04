@@ -147,14 +147,14 @@ private fun randomX509CertificateExtension(random: Random): X509CertificateExten
     }
 }
 
-private fun randomAttributeTypeAndValue(random: Random): AttributeTypeAndValue {
+private fun randomAttributeTypeAndValue(random: Random): X500AttributeTypeAndValue {
     val stringValue = Asn1String.UTF8(randomAscii(random))
     return when (random.nextInt(5)) {
-        0 -> AttributeTypeAndValue.CommonName(stringValue)
-        1 -> AttributeTypeAndValue.Country(Asn1String.Printable("AT"))
-        2 -> AttributeTypeAndValue.Organization(stringValue)
-        3 -> AttributeTypeAndValue.OrganizationalUnit(stringValue)
-        else -> AttributeTypeAndValue(randomOid(random), stringValue)
+        0 -> X500AttributeTypeAndValue.CommonName(stringValue)
+        1 -> X500AttributeTypeAndValue.Country(Asn1String.Printable("AT"))
+        2 -> X500AttributeTypeAndValue.Organization(stringValue)
+        3 -> X500AttributeTypeAndValue.OrganizationalUnit(stringValue)
+        else -> X500AttributeTypeAndValue(randomOid(random), stringValue)
     }
 }
 

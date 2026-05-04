@@ -22,8 +22,8 @@ typealias  RelativeDistinguishedName = X500RelativeDistinguishedName
 
 @Serializable
 @JvmInline
-value class X500RelativeDistinguishedName(val attrsAndValues: Set<AttributeTypeAndValue>) {
-    constructor(singleItem: AttributeTypeAndValue) : this(setOf(singleItem))
+value class X500RelativeDistinguishedName(val attrsAndValues: Set<X500AttributeTypeAndValue>) {
+    constructor(singleItem: X500AttributeTypeAndValue) : this(setOf(singleItem))
 }
 
 /**
@@ -55,7 +55,7 @@ value class X500RelativeDistinguishedName(val attrsAndValues: Set<AttributeTypeA
  */
 @ConsistentCopyVisibility
 @Serializable
-data class AttributeTypeAndValue(
+data class X500AttributeTypeAndValue(
     override val oid: ObjectIdentifier,
     val value: Asn1Element,
 ) : Identifiable {
@@ -74,9 +74,9 @@ data class AttributeTypeAndValue(
         val ORGANIZATION_OID = ObjectIdentifier("2.5.4.10")
         val ORGANIZATIONAL_UNIT_OID = ObjectIdentifier("2.5.4.11")
 
-        fun CommonName(value: Asn1String) = AttributeTypeAndValue(COMMON_NAME_OID, value)
-        fun Country(value: Asn1String) = AttributeTypeAndValue(COUNTRY_OID, value)
-        fun Organization(value: Asn1String) = AttributeTypeAndValue(ORGANIZATION_OID, value)
-        fun OrganizationalUnit(value: Asn1String) = AttributeTypeAndValue(ORGANIZATIONAL_UNIT_OID, value)
+        fun CommonName(value: Asn1String) = X500AttributeTypeAndValue(COMMON_NAME_OID, value)
+        fun Country(value: Asn1String) = X500AttributeTypeAndValue(COUNTRY_OID, value)
+        fun Organization(value: Asn1String) = X500AttributeTypeAndValue(ORGANIZATION_OID, value)
+        fun OrganizationalUnit(value: Asn1String) = X500AttributeTypeAndValue(ORGANIZATIONAL_UNIT_OID, value)
     }
 }
