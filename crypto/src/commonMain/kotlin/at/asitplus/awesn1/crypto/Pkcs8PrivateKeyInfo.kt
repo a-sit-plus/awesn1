@@ -5,11 +5,13 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.decodeRethrowing
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
 /**
@@ -30,7 +32,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs8PrivateKeyInfo(
-    val version: Int,
+    val rawVersion: Asn1Integer= Asn1Integer.ZERO,
     val privateKeyAlgorithm: X509AlgorithmIdentifier,
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u)
@@ -38,6 +40,18 @@ data class Pkcs8PrivateKeyInfo(
 ) {
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
+    /**
+     *
+     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
+     * version commonly referred to as the version of a private key
+     *
+     * | RAW Version | (Semantic) Version |
+     * |:-----------:|:----------------:|
+     * | 0           | 1                |
+     * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     */
+    @get:Throws(NumberFormatException::class)
+    val version: Int? by lazy { rawVersion.toInt() + 1 }
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPrivateKey(): Pkcs1RsaPrivateKeyInfo =
@@ -59,7 +73,7 @@ data class Pkcs8PrivateKeyInfo(
 
         fun rsa(privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
             Pkcs8PrivateKeyInfo(
-                version = 0,
+                rawVersion = Asn1Integer.ZERO,
                 privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
                 privateKey = Asn1.OctetStringEncapsulating {
                     +DER.encodeToTlv(Pkcs1RsaPrivateKeyInfo.serializer(), privateKey)
@@ -72,7 +86,7 @@ data class Pkcs8PrivateKeyInfo(
             curveOid: ObjectIdentifier?,
             attributes: Set<Asn1Element>? = null,
         ): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
-            version = 0,
+            rawVersion = Asn1Integer.ZERO,
             privateKeyAlgorithm = X509AlgorithmIdentifier(
                 EC_PUBLIC_KEY_OID,
                 curveOid?.let { listOf(it.encodeToTlv()) }.orEmpty(),

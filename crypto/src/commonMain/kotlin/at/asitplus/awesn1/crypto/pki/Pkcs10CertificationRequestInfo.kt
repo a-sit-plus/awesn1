@@ -23,7 +23,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs10CertificationRequestInfo(
-    val rawVersion: Asn1Integer = Asn1Integer(0),
+    val rawVersion: Asn1Integer = Asn1Integer.ZERO,
     val subjectName: List<X500RelativeDistinguishedName>,
     val publicKey: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 0u)
@@ -48,7 +48,7 @@ data class Pkcs10CertificationRequestInfo(
      * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
      */
     @get:Throws(NumberFormatException::class)
-    val version: Int? by lazy { rawVersion.toInt() + 1 }
+    val version: Int by lazy { rawVersion.toInt() + 1 }
 
     /**
      * @see version

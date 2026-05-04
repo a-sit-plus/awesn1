@@ -27,13 +27,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Pkcs1RsaPrivateKeyInfo(
     val version: Int,
-    val modulus: Asn1Integer,
-    val publicExponent: Asn1Integer,
-    val privateExponent: Asn1Integer,
-    val prime1: Asn1Integer,
-    val prime2: Asn1Integer,
-    val exponent1: Asn1Integer,
-    val exponent2: Asn1Integer,
-    val coefficient: Asn1Integer,
+    val modulus: Asn1Integer.Positive,
+    val publicExponent: Asn1Integer.Positive,
+    val privateExponent: Asn1Integer.Positive,
+    val prime1: Asn1Integer.Positive,
+    val prime2: Asn1Integer.Positive,
+    val exponent1: Asn1Integer.Positive,
+    val exponent2: Asn1Integer.Positive,
+    val coefficient: Asn1Integer.Positive,
     val otherPrimeInfos: List<Pkcs1RsaOtherPrimeInfo>? = null,
 )
