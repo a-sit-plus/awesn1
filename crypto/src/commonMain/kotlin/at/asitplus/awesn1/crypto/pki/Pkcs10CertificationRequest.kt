@@ -25,6 +25,7 @@ data class Pkcs10CertificationRequest(
     val signatureValue: SignatureValue,
 ) {
     companion object {
+        //NOT PEM DECODCABLE/ENCODABLE to avoid infinite recursion.
         const val PEM_LABEL = "CERTIFICATE REQUEST"
     }
 }

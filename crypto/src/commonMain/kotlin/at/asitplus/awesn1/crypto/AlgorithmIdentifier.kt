@@ -42,13 +42,14 @@ value class AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
         //would be nice to assert exactly 1 or 2 children, but reality is a b****.
     }
 
+    @get:Throws(Asn1Exception::class)
     override val oid: ObjectIdentifier
-        //cannot annotate with throws due to Kotlin bug
         get() = (element.asSequence().children.firstOrNull() as? Asn1Primitive)?.readOid()
             ?: throw Asn1Exception("AlgorithmIdentifier is empty")
 
+
+    @get:Throws(Asn1Exception::class)
     val parameters: Asn1Element?
-        //cannot annotate with throws due to Kotlin bug
         get() = when (element.children.size) {
             1 -> null
             2 -> element.children[1]
