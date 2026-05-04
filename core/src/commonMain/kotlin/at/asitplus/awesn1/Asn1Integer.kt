@@ -21,6 +21,7 @@ import at.asitplus.awesn1.encoding.internal.writeUByte
 import at.asitplus.awesn1.serialization.Asn1Serializer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -83,6 +84,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign): Asn1Encoda
     /** The minimum-size unsigned bytearray encoding of this number's absolute value. Non-empty. */
     val magnitude by lazy { uint.bytes.asByteArray() }
 
+    @Serializable(with = Asn1IntegerPositiveSerializer::class)
     class Positive internal constructor(uint: VarUInt) : Asn1Integer(uint, Sign.POSITIVE) {
         override fun twosComplement(): ByteArray = uint.bytes.let {
             if (it.first().countLeadingZeroBits() == 0) listOf(0.toUByte()) + it else it
@@ -93,6 +95,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign): Asn1Encoda
 
     }
 
+    @Serializable(with = Asn1IntegerNegativeSerializer::class)
     class Negative internal constructor(uint: VarUInt) : Asn1Integer(uint, Sign.NEGATIVE) {
         init {
             check(!uint.isZero()) // there is no negative zero
@@ -477,4 +480,32 @@ object Asn1IntegerStringSerializer : KSerializer<Asn1Integer> {
         encoder.encodeString(value.toString())
     }
 
+}
+
+object Asn1IntegerPositiveSerializer : KSerializer<Asn1Integer.Positive> {
+    override val descriptor: SerialDescriptor = Asn1Integer.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): Asn1Integer.Positive =
+        decoder.decodeSerializableValue(Asn1Integer.serializer()).let {
+            it as? Asn1Integer.Positive
+                ?: throw SerializationException("Expected non-negative ASN.1 INTEGER, got $it")
+        }
+
+    override fun serialize(encoder: Encoder, value: Asn1Integer.Positive) {
+        encoder.encodeSerializableValue(Asn1Integer.serializer(), value)
+    }
+}
+
+object Asn1IntegerNegativeSerializer : KSerializer<Asn1Integer.Negative> {
+    override val descriptor: SerialDescriptor = Asn1Integer.serializer().descriptor
+
+    override fun deserialize(decoder: Decoder): Asn1Integer.Negative =
+        decoder.decodeSerializableValue(Asn1Integer.serializer()).let {
+            it as? Asn1Integer.Negative
+                ?: throw SerializationException("Expected negative ASN.1 INTEGER, got $it")
+        }
+
+    override fun serialize(encoder: Encoder, value: Asn1Integer.Negative) {
+        encoder.encodeSerializableValue(Asn1Integer.serializer(), value)
+    }
 }

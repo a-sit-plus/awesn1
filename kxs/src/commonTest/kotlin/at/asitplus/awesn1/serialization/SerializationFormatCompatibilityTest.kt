@@ -45,4 +45,50 @@ val SerializationTestFormatCompatibility by testSuite(
         ) shouldBe oid
     }
 
+    "Asn1Integer subtype serializers delegate to the integer serializer and validate sign" {
+        val positive = Asn1Integer(42) as Asn1Integer.Positive
+        val negative = Asn1Integer(-42) as Asn1Integer.Negative
+
+        Json.encodeToString(Asn1Integer.Positive.serializer(), positive) shouldBe "\"42\""
+        Json.decodeFromString(
+            Asn1Integer.Positive.serializer(),
+            Json.encodeToString(Asn1Integer.serializer(), positive)
+        ) shouldBe positive
+
+        Json.encodeToString(Asn1Integer.Negative.serializer(), negative) shouldBe "\"-42\""
+        Json.decodeFromString(
+            Asn1Integer.Negative.serializer(),
+            Json.encodeToString(Asn1Integer.serializer(), negative)
+        ) shouldBe negative
+
+        shouldThrow<SerializationException> {
+            Json.decodeFromString(Asn1Integer.Positive.serializer(), "\"-42\"")
+        }
+        shouldThrow<SerializationException> {
+            Json.decodeFromString(Asn1Integer.Negative.serializer(), "\"42\"")
+        }
+
+        DER.decodeFromByteArray(
+            Asn1Integer.Positive.serializer(),
+            DER.encodeToByteArray(Asn1Integer.serializer(), positive)
+        ) shouldBe positive
+        DER.decodeFromByteArray(
+            Asn1Integer.Negative.serializer(),
+            DER.encodeToByteArray(Asn1Integer.serializer(), negative)
+        ) shouldBe negative
+
+        shouldThrow<SerializationException> {
+            DER.decodeFromByteArray(
+                Asn1Integer.Positive.serializer(),
+                DER.encodeToByteArray(Asn1Integer.serializer(), negative)
+            )
+        }
+        shouldThrow<SerializationException> {
+            DER.decodeFromByteArray(
+                Asn1Integer.Negative.serializer(),
+                DER.encodeToByteArray(Asn1Integer.serializer(), positive)
+            )
+        }
+    }
+
 }
