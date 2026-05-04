@@ -26,7 +26,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class SubjectPublicKeyInfo(
-    val algorithmIdentifier: AlgorithmIdentifier,
+    val algorithmIdentifier: X509AlgorithmIdentifier,
     val subjectPublicKey: Asn1BitString,
 ) {
     val algorithmOid: ObjectIdentifier get() = algorithmIdentifier.oid
@@ -47,7 +47,7 @@ data class SubjectPublicKeyInfo(
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
         fun rsa(publicKey: RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
-            algorithmIdentifier = AlgorithmIdentifier(
+            algorithmIdentifier = X509AlgorithmIdentifier(
                 RSA_ENCRYPTION_OID,
                 listOf(Asn1.Null())
             ),
@@ -58,7 +58,7 @@ data class SubjectPublicKeyInfo(
             rsa(RsaPublicKeyInfo(modulus, exponent))
 
         fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
-            algorithmIdentifier = AlgorithmIdentifier(EC_PUBLIC_KEY_OID, listOf(curveOid.encodeToTlv())),
+            algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, listOf(curveOid.encodeToTlv())),
             subjectPublicKey = Asn1BitString(ansiX963Key)
         )
     }

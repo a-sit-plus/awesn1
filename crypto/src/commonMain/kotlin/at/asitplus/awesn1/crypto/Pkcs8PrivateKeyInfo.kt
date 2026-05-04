@@ -8,7 +8,6 @@ import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.decodeRethrowing
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.serialization.Asn1Tag.ConstructedBit
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
 import kotlinx.serialization.Serializable
@@ -32,7 +31,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Pkcs8PrivateKeyInfo(
     val version: Int,
-    val privateKeyAlgorithm: AlgorithmIdentifier,
+    val privateKeyAlgorithm: X509AlgorithmIdentifier,
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
@@ -61,7 +60,7 @@ data class Pkcs8PrivateKeyInfo(
         fun rsa(privateKey: RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
             Pkcs8PrivateKeyInfo(
                 version = 0,
-                privateKeyAlgorithm = AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
+                privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
                 privateKey = Asn1.OctetStringEncapsulating {
                     +DER.encodeToTlv(RsaPrivateKeyInfo.serializer(), privateKey)
                 },
@@ -74,7 +73,7 @@ data class Pkcs8PrivateKeyInfo(
             attributes: Set<Asn1Element>? = null,
         ): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
             version = 0,
-            privateKeyAlgorithm = AlgorithmIdentifier(
+            privateKeyAlgorithm = X509AlgorithmIdentifier(
                 EC_PUBLIC_KEY_OID,
                 curveOid?.let { listOf(it.encodeToTlv()) }.orEmpty(),
             ),

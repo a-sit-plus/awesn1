@@ -24,7 +24,7 @@ import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
 import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
-import at.asitplus.awesn1.crypto.pki.TbsCertificate
+import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
@@ -38,7 +38,7 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
         is RsaOtherPrimeInfo -> LegacyRsaOtherPrimeInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is RsaPrivateKeyInfo -> LegacyRsaPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is RsaPublicKeyInfo -> LegacyRsaPublicKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
-        is AlgorithmIdentifier -> LegacySignatureAlgorithmIdentifier.decodeFromTlv(element.asSequence()).toCurrent()
+        is X509AlgorithmIdentifier -> LegacySignatureAlgorithmIdentifier.decodeFromTlv(element.asSequence()).toCurrent()
         is SignatureValue -> LegacySignatureValue.decodeFromTlv(element.asPrimitive()).toCurrent()
         is SubjectPublicKeyInfo -> LegacySubjectPublicKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is Attribute -> LegacyAttribute.decodeFromTlv(element.asSequence()).toCurrent()
@@ -46,7 +46,7 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
         is Pkcs10CertificationRequest -> LegacyPkcs10CertificationRequest.decodeFromTlv(element.asSequence()).toCurrent()
         is Pkcs10CertificationRequestInfo -> LegacyPkcs10CertificationRequestInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is X500RelativeDistinguishedName -> LegacyRelativeDistinguishedName.decodeFromTlv(element.asSet()).toCurrent()
-        is TbsCertificate -> LegacyTbsCertificate.decodeFromTlv(element.asSequence()).toCurrent()
+        is X509TbsCertificate -> LegacyTbsCertificate.decodeFromTlv(element.asSequence()).toCurrent()
         is X509Certificate -> LegacyX509Certificate.decodeFromTlv(element.asSequence()).toCurrent()
         is X509CertificateExtension -> LegacyX509CertificateExtension.decodeFromTlv(element.asSequence()).toCurrent()
         else -> error("No legacy regression decoder registered for ${value::class.simpleName}")
@@ -66,14 +66,14 @@ private fun LegacyEcPrivateKeyInfo.toCurrent() =
 
 private fun LegacyEncryptedPrivateKeyInfo.toCurrent() =
     EncryptedPrivateKeyInfo(
-        encryptionAlgorithm = AlgorithmIdentifier(encryptionAlgorithm),
+        encryptionAlgorithm = X509AlgorithmIdentifier(encryptionAlgorithm),
         encryptedData = encryptedData,
     )
 
 private fun LegacyPkcs8PrivateKeyInfo.toCurrent() =
     Pkcs8PrivateKeyInfo(
         version = version,
-        privateKeyAlgorithm = AlgorithmIdentifier(algorithmOid, algorithmParameters),
+        privateKeyAlgorithm = X509AlgorithmIdentifier(algorithmOid, algorithmParameters),
         privateKey = privateKey,
         attributes = attributes?.toSet(),
     )
@@ -106,7 +106,7 @@ private fun LegacyRsaPublicKeyInfo.toCurrent() =
     )
 
 private fun LegacySignatureAlgorithmIdentifier.toCurrent() =
-    AlgorithmIdentifier(
+    X509AlgorithmIdentifier(
         oid = oid,
         parameters = parameters,
     )
@@ -115,7 +115,7 @@ private fun LegacySignatureValue.toCurrent() = SignatureValue(rawBitString)
 
 private fun LegacySubjectPublicKeyInfo.toCurrent() =
     SubjectPublicKeyInfo(
-        algorithmIdentifier = AlgorithmIdentifier(algorithmOid, algorithmParameters),
+        algorithmIdentifier = X509AlgorithmIdentifier(algorithmOid, algorithmParameters),
         subjectPublicKey = subjectPublicKey,
     )
 
@@ -157,7 +157,7 @@ private fun LegacyX509CertificateExtension.toCurrent() =
     )
 
 private fun LegacyTbsCertificate.toCurrent() =
-    TbsCertificate(
+    X509TbsCertificate(
         version = version?.let { it+1 },
         serialNumber = serialNumber,
         signatureAlgorithm = signatureAlgorithm.toCurrent(),

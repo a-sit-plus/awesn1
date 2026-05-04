@@ -21,7 +21,7 @@ import kotlin.jvm.JvmInline
 @JvmInline
 @Serializable
 @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-value class AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
+value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
     constructor(
         oid: ObjectIdentifier,
         parameters: Asn1Element? = null

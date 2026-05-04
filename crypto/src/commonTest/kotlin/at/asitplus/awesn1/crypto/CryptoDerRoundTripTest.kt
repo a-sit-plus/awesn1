@@ -94,7 +94,7 @@ private fun randomEcPrivateKey(random: Random) = EcPrivateKeyInfo(
 )
 
 private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyInfo(
-    encryptionAlgorithm = AlgorithmIdentifier(
+    encryptionAlgorithm = X509AlgorithmIdentifier(
         oid = randomOid(random),
         parameters = randomRawElement(random).takeIf { random.nextBoolean() },
     ),
@@ -125,7 +125,7 @@ private fun randomRsaPublicKey(random: Random) = RsaPublicKeyInfo(
     publicExponent = positiveAsn1Integer(random),
 )
 
-private fun randomSignatureAlgorithmIdentifier(random: Random) = AlgorithmIdentifier(
+private fun randomSignatureAlgorithmIdentifier(random: Random) = X509AlgorithmIdentifier(
     oid = randomOid(random),
     parameters = List(random.nextInt(0, 3)) { randomRawElement(random) },
 )
@@ -190,10 +190,10 @@ private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10Certificati
     signatureValue = SignatureValue(randomBytes(random, 32)),
 )
 
-private fun randomTbsCertificate(random: Random): TbsCertificate {
+private fun randomTbsCertificate(random: Random): X509TbsCertificate {
     val validFrom = randomInstant(random)
     val validUntil = Instant.fromEpochSeconds(validFrom.epochSeconds + random.nextLong(1L, 86_400L * 90))
-    return TbsCertificate(
+    return X509TbsCertificate(
         version = 2,
         serialNumber = randomBytes(random, 12),
         signatureAlgorithm = randomSignatureAlgorithmIdentifier(random),

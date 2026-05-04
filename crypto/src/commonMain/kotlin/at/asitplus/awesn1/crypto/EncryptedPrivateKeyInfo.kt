@@ -21,7 +21,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class EncryptedPrivateKeyInfo(
-    val encryptionAlgorithm: AlgorithmIdentifier,
+    val encryptionAlgorithm: X509AlgorithmIdentifier,
     @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
     val encryptedData: Asn1OctetString,
 ) {

@@ -6,7 +6,7 @@ package at.asitplus.awesn1.crypto.pki
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
-import at.asitplus.awesn1.crypto.AlgorithmIdentifier
+import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
@@ -72,11 +72,11 @@ import kotlinx.serialization.Serializable
  *
  */
 @Serializable
-data class TbsCertificate(
+data class X509TbsCertificate(
     @Asn1Tag(tagNumber = 0u)
     val rawVersion: ExplicitlyTagged<Asn1Integer>? = null,
     val serialNumber: Asn1Integer,
-    val signatureAlgorithm: AlgorithmIdentifier,
+    val signatureAlgorithm: X509AlgorithmIdentifier,
     val issuerName: List<X500RelativeDistinguishedName>,
     val validity: Validity,
     val subjectName: List<X500RelativeDistinguishedName>,
@@ -90,8 +90,8 @@ data class TbsCertificate(
 ) {
     constructor(
         version: Int? = null,
-        serialNumber: ByteArray,
-        signatureAlgorithm: AlgorithmIdentifier,
+        serialNumber: Asn1Integer,
+        signatureAlgorithm: X509AlgorithmIdentifier,
         issuerName: List<X500RelativeDistinguishedName>,
         validFrom: Asn1Time,
         validUntil: Asn1Time,
@@ -102,7 +102,7 @@ data class TbsCertificate(
         extensions: List<X509CertificateExtension>? = null,
     ) : this(
         rawVersion = version?.let { ExplicitlyTagged(Asn1Integer(it - 1)) },
-        serialNumber = Asn1Integer.fromTwosComplement(serialNumber),
+        serialNumber = serialNumber,
         signatureAlgorithm = signatureAlgorithm,
         issuerName = issuerName,
         validity = Validity(validFrom, validUntil),
