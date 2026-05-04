@@ -4,14 +4,13 @@
 package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1String
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
-
+typealias  RelativeDistinguishedName = X500RelativeDistinguishedName
 /**
  *
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1.2.4):
@@ -23,7 +22,7 @@ import kotlin.jvm.JvmInline
 
 @Serializable
 @JvmInline
-value class RelativeDistinguishedName(val attrsAndValues: Set<AttributeTypeAndValue>) {
+value class X500RelativeDistinguishedName(val attrsAndValues: Set<AttributeTypeAndValue>) {
     constructor(singleItem: AttributeTypeAndValue) : this(setOf(singleItem))
 }
 

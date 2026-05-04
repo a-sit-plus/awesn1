@@ -24,14 +24,14 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Pkcs10CertificationRequestInfo(
     val rawVersion: Asn1Integer = Asn1Integer(0),
-    val subjectName: List<RelativeDistinguishedName>,
+    val subjectName: List<X500RelativeDistinguishedName>,
     val publicKey: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 0u)
     val attributes: List<Attribute> = emptyList(),
 ) {
     constructor(
         version: Int = 1,
-        subjectName: List<RelativeDistinguishedName>,
+        subjectName: List<X500RelativeDistinguishedName>,
         publicKey: SubjectPublicKeyInfo,
         attributes: List<Attribute> = emptyList(),
     ) : this(Asn1Integer(version - 1), subjectName, publicKey, attributes) {

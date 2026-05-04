@@ -23,7 +23,7 @@ import at.asitplus.awesn1.crypto.pki.Attribute
 import at.asitplus.awesn1.crypto.pki.AttributeTypeAndValue
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
-import at.asitplus.awesn1.crypto.pki.RelativeDistinguishedName
+import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.TbsCertificate
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
@@ -45,7 +45,7 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
         is AttributeTypeAndValue -> LegacyAttributeTypeAndValue.decodeFromTlv(element.asSequence()).toCurrent()
         is Pkcs10CertificationRequest -> LegacyPkcs10CertificationRequest.decodeFromTlv(element.asSequence()).toCurrent()
         is Pkcs10CertificationRequestInfo -> LegacyPkcs10CertificationRequestInfo.decodeFromTlv(element.asSequence()).toCurrent()
-        is RelativeDistinguishedName -> LegacyRelativeDistinguishedName.decodeFromTlv(element.asSet()).toCurrent()
+        is X500RelativeDistinguishedName -> LegacyRelativeDistinguishedName.decodeFromTlv(element.asSet()).toCurrent()
         is TbsCertificate -> LegacyTbsCertificate.decodeFromTlv(element.asSequence()).toCurrent()
         is X509Certificate -> LegacyX509Certificate.decodeFromTlv(element.asSequence()).toCurrent()
         is X509CertificateExtension -> LegacyX509CertificateExtension.decodeFromTlv(element.asSequence()).toCurrent()
@@ -132,7 +132,7 @@ private fun LegacyAttributeTypeAndValue.toCurrent() =
     )
 
 private fun LegacyRelativeDistinguishedName.toCurrent() =
-    RelativeDistinguishedName(attrsAndValues.map { it.toCurrent() }.toSet())
+    X500RelativeDistinguishedName(attrsAndValues.map { it.toCurrent() }.toSet())
 
 private fun LegacyPkcs10CertificationRequestInfo.toCurrent() =
     Pkcs10CertificationRequestInfo(

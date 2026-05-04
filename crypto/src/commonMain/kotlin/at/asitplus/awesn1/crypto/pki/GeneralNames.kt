@@ -5,10 +5,8 @@ package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.Asn1StructuralException
-import at.asitplus.awesn1.KnownOIDs
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
@@ -54,11 +52,11 @@ value class GeneralNames @Throws(Throwable::class) constructor(
                 if (c.size != 4 && c.size != 16) throw Asn1StructuralException("Invalid ipAddress Alternative Name found: ${c.toHexString()}")
             }}
 
-    val directoryNames: List<List<RelativeDistinguishedName>> get() =
+    val directoryNames: List<List<X500RelativeDistinguishedName>> get() =
         entries.filter { it.tag == GeneralNameImplicitTags.directoryName }
             .map { e ->
                 e.asSequence().children.map {
-                    DER.decodeFromTlv(RelativeDistinguishedName.serializer(), it)
+                    DER.decodeFromTlv(X500RelativeDistinguishedName.serializer(), it)
                 }
             }
 

@@ -159,7 +159,7 @@ private fun randomAttributeTypeAndValue(random: Random): AttributeTypeAndValue {
 }
 
 private fun randomRelativeDistinguishedName(random: Random) =
-    RelativeDistinguishedName(randomAttributeTypeAndValue(random))
+    X500RelativeDistinguishedName(randomAttributeTypeAndValue(random))
 
 private fun randomAttribute(random: Random) = Attribute(randomOid(random), randomRawElement(random))
 
