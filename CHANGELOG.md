@@ -17,11 +17,13 @@
         * production crypto/PKI types are now regular `@Serializable` data/value classes instead of companion-driven manual `Asn1Serializable` / `Asn1Encodable` model implementations
         * `AlgorithmIdentifier` is now a dedicated public type and is used consistently across certificate / CSR / key-container models instead of raw ASN.1 sequence stand-ins
         * several fields were tightened to more spec-shaped public types, e.g. EC optional fields now use explicit-tag wrappers and encrypted private-key algorithm/data fields now use `AlgorithmIdentifier` / ASN.1 octet-string types instead of generic `Asn1Element`
+    * X509TbsCertificate now only accepts integer serial numbers
     * Rename `RelativeDistinguishedName` -> `X500RelativeDistinguishedName`
     * Rename `AttributeTypeAndValue` -> `X500AttributeTypeAndValue`
     * Rename `AlgorithmIdentifier` -> `X509AlgorithmIdentifier`
     * Rename `TbsCertificate` -> `X509TbsCertificate`
-    * X509TbsCertificate now only accepts integer serial numbers
+    * Rename `RsaPrivateKeyInfo` -> `Pkcs1RsaPrivateKeyInfo`
+    * Rename `RsaOtherPrimeInfo` -> `Pkcs1RsaOtherPrimeInfo`
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever so publishing 0.2.0 went south.

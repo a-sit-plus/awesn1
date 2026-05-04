@@ -25,7 +25,7 @@ import kotlinx.serialization.Serializable
  * ```
  */
 @Serializable
-data class RsaPrivateKeyInfo(
+data class Pkcs1RsaPrivateKeyInfo(
     val version: Int,
     val modulus: Asn1Integer,
     val publicExponent: Asn1Integer,
@@ -35,5 +35,5 @@ data class RsaPrivateKeyInfo(
     val exponent1: Asn1Integer,
     val exponent2: Asn1Integer,
     val coefficient: Asn1Integer,
-    val otherPrimeInfos: List<RsaOtherPrimeInfo>? = null,
+    val otherPrimeInfos: List<Pkcs1RsaOtherPrimeInfo>? = null,
 )

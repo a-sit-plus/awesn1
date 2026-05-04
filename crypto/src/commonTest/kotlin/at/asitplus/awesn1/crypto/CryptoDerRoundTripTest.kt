@@ -101,13 +101,13 @@ private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyI
     encryptedData = Asn1PrimitiveOctetString(randomBytes(random, 32)),
 )
 
-private fun randomRsaOtherPrimeInfo(random: Random) = RsaOtherPrimeInfo(
+private fun randomRsaOtherPrimeInfo(random: Random) = Pkcs1RsaOtherPrimeInfo(
     prime = positiveAsn1Integer(random),
     exponent = positiveAsn1Integer(random),
     coefficient = positiveAsn1Integer(random),
 )
 
-private fun randomRsaPrivateKey(random: Random) = RsaPrivateKeyInfo(
+private fun randomRsaPrivateKey(random: Random) = Pkcs1RsaPrivateKeyInfo(
     version = if (random.nextBoolean()) 0 else 1,
     modulus = positiveAsn1Integer(random),
     publicExponent = positiveAsn1Integer(random),

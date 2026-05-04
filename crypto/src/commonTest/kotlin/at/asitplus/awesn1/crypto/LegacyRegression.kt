@@ -35,8 +35,8 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
         is EcPrivateKeyInfo -> LegacyEcPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is EncryptedPrivateKeyInfo -> LegacyEncryptedPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is Pkcs8PrivateKeyInfo -> LegacyPkcs8PrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
-        is RsaOtherPrimeInfo -> LegacyRsaOtherPrimeInfo.decodeFromTlv(element.asSequence()).toCurrent()
-        is RsaPrivateKeyInfo -> LegacyRsaPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
+        is Pkcs1RsaOtherPrimeInfo -> LegacyRsaOtherPrimeInfo.decodeFromTlv(element.asSequence()).toCurrent()
+        is Pkcs1RsaPrivateKeyInfo -> LegacyRsaPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is RsaPublicKeyInfo -> LegacyRsaPublicKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is X509AlgorithmIdentifier -> LegacySignatureAlgorithmIdentifier.decodeFromTlv(element.asSequence()).toCurrent()
         is SignatureValue -> LegacySignatureValue.decodeFromTlv(element.asPrimitive()).toCurrent()
@@ -79,14 +79,14 @@ private fun LegacyPkcs8PrivateKeyInfo.toCurrent() =
     )
 
 private fun LegacyRsaOtherPrimeInfo.toCurrent() =
-    RsaOtherPrimeInfo(
+    Pkcs1RsaOtherPrimeInfo(
         prime = prime,
         exponent = exponent,
         coefficient = coefficient,
     )
 
 private fun LegacyRsaPrivateKeyInfo.toCurrent() =
-    RsaPrivateKeyInfo(
+    Pkcs1RsaPrivateKeyInfo(
         version = version,
         modulus = modulus,
         publicExponent = publicExponent,

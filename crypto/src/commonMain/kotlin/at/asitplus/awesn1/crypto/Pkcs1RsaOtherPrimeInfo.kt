@@ -18,8 +18,8 @@ import kotlinx.serialization.Serializable
  * ```
  */
 @Serializable
-data class RsaOtherPrimeInfo(
-    val prime: Asn1Integer,
-    val exponent: Asn1Integer,
-    val coefficient: Asn1Integer,
+data class Pkcs1RsaOtherPrimeInfo(
+    val prime: Asn1Integer.Positive,
+    val exponent: Asn1Integer.Positive,
+    val coefficient: Asn1Integer.Positive,
 )

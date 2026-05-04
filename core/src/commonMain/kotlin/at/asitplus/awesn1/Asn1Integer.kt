@@ -90,6 +90,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign): Asn1Encoda
 
         /** The number of bits required to represent this value */
         fun bitLength() = uint.bitLength().toUInt()
+
     }
 
     class Negative internal constructor(uint: VarUInt) : Asn1Integer(uint, Sign.NEGATIVE) {

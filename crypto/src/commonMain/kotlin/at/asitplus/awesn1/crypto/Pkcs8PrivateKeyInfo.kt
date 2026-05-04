@@ -40,9 +40,9 @@ data class Pkcs8PrivateKeyInfo(
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
 
     @Throws(Asn1Exception::class)
-    fun decodeRsaPrivateKey(): RsaPrivateKeyInfo =
+    fun decodeRsaPrivateKey(): Pkcs1RsaPrivateKeyInfo =
         DER.decodeFromTlv(
-            RsaPrivateKeyInfo.serializer(),
+            Pkcs1RsaPrivateKeyInfo.serializer(),
             privateKey.asEncapsulatingOctetString().decodeRethrowing { next() }
         )
 
@@ -57,12 +57,12 @@ data class Pkcs8PrivateKeyInfo(
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
-        fun rsa(privateKey: RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
+        fun rsa(privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
             Pkcs8PrivateKeyInfo(
                 version = 0,
                 privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
                 privateKey = Asn1.OctetStringEncapsulating {
-                    +DER.encodeToTlv(RsaPrivateKeyInfo.serializer(), privateKey)
+                    +DER.encodeToTlv(Pkcs1RsaPrivateKeyInfo.serializer(), privateKey)
                 },
                 attributes = attributes,
             )

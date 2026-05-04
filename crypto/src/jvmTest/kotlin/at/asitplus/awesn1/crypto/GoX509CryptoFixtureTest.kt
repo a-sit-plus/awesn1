@@ -17,7 +17,7 @@ private const val GO_X509_FIXTURE_ROOT = "crypto-fixtures/go-x509"
 val GoX509CryptoFixtureTest by testSuite {
     "PKCS#1 RSA private key" {
         val encoded = pemPayload("pkcs1-rsa-private-key.pem")
-        val decoded = checkRoundTrip(encoded, RsaPrivateKeyInfo.serializer())
+        val decoded = checkRoundTrip(encoded, Pkcs1RsaPrivateKeyInfo.serializer())
 
         decoded.version shouldBe 0
         decoded.publicExponent.toString().toLong() shouldBe 65537L
