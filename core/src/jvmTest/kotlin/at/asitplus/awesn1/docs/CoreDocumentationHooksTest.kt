@@ -244,13 +244,13 @@ private fun coreHookPemGeneric() {
 private fun coreHookPemAsn1() {
 // --8<-- [start:core-hook-pem-asn1]
     val source = object : Asn1PemEncodable<Asn1Primitive> {
-        override val pemLabel: String = "ASN1 INTEGER"
+        override val label: String = "ASN1 INTEGER"
         override fun encodeToTlv(): Asn1Primitive = Asn1Integer(42).encodeToTlv()
     }
 
     val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
         Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
-            override val pemLabel: String = "ASN1 INTEGER"
+            override val canonicalPemLabel: String = "ASN1 INTEGER"
         }
 
     val pem = source.encodeToPem()

@@ -3,9 +3,7 @@
 
 package at.asitplus.awesn1
 
-import at.asitplus.awesn1.encoding.decodeFromDer
 import at.asitplus.awesn1.encoding.encodeToDer
-import at.asitplus.awesn1.encoding.internal.parse
 import at.asitplus.awesn1.encoding.parse
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -18,7 +16,7 @@ private const val FENCE_SUFFIX = "-----"
 data class PemHeader(val name: String, val value: String)
 
 data class PemBlock(
-    val label: String,
+    override val label: String,
     val headers: Iterable<PemHeader> = emptyList(),
     val payload: ByteArray
 ) : PemEncodable {
@@ -49,6 +47,11 @@ data class PemBlock(
 
     companion object : PemDecodable<PemBlock> {
         override fun decodeFromPemBlock(src: PemBlock): PemBlock = src
+
+        //generic PEM blocks don't validate
+        override val validPemLabels: Set<String>? get() = null
+
+        override val canonicalPemLabel: String? get() = null
     }
 }
 
@@ -62,6 +65,8 @@ data class PemBlock(
 interface PemEncodable {
     @Throws(IllegalArgumentException::class)
     fun encodeToPemBlock(): PemBlock
+
+    val label: String
 }
 
 /**
@@ -74,18 +79,35 @@ interface PemEncodable {
 interface PemDecodable<out T> {
     @Throws(IllegalArgumentException::class)
     fun decodeFromPemBlock(src: PemBlock): T
+
+
+    /**
+     * A canonical PEM label that represents a standard or commonly agreed-upon identifier
+     * for the data type this instance is associated with. This label is typically used when
+     * converting PEM data to provide a consistent and recognizable format.
+     *
+     * May be `null` if no canonical label is defined or required.
+     */
+    val canonicalPemLabel: String?
+
+    /**
+     * Used to define valid PEM labels for this PEM encodable.
+     *
+     * If you don't want/need it, set it to `null` to skip matching
+     */
+    val validPemLabels: Set<String>? get() = canonicalPemLabel?.let { setOf(it) }
+
 }
 
 /** Helper interface for encoding to simple PEM structures, where the payload should just be the DER bytes */
 interface Asn1PemEncodable<out A : Asn1Element> : PemEncodable, Asn1Encodable<A> {
 
-    val pemLabel: String
-    fun buildPemHeaders() : Iterable<PemHeader> = emptyList()
+    fun buildPemHeaders(): Iterable<PemHeader> = emptyList()
 
     @Throws(IllegalArgumentException::class)
     override fun encodeToPemBlock(): PemBlock =
-        runWrappingAs(a=::IllegalArgumentException) {
-            PemBlock(pemLabel, buildPemHeaders(), encodeToDer())
+        runWrappingAs(a = ::IllegalArgumentException) {
+            PemBlock(label, buildPemHeaders(), encodeToDer())
         }
 }
 
@@ -95,19 +117,16 @@ interface Asn1PemEncodable<out A : Asn1Element> : PemEncodable, Asn1Encodable<A>
  * Override [decodeFromTlvWithPemHeaders] to customize this.
  */
 interface Asn1PemDecodable<A : Asn1Element, out T : Asn1Encodable<A>>
-    : PemDecodable<T>, Asn1Decodable<A, T>
-{
-    val pemLabel: String
+    : PemDecodable<T>, Asn1Decodable<A, T> {
 
     fun decodeFromTlvWithPemHeaders(pemHeaders: Iterable<PemHeader>, tlv: A): T {
-        if (pemHeaders.any())
-            throw IllegalArgumentException("Unexpected PEM headers are present in the data")
+        if (pemHeaders.any()) throw IllegalArgumentException("Unexpected PEM headers are present in the data")
         return decodeFromTlv(tlv)
     }
 
     @Throws(IllegalArgumentException::class)
-    override fun decodeFromPemBlock(src: PemBlock): T = runRethrowing {
-        require(src.label == pemLabel) { "PEM label is ${src.label}, expected $pemLabel" }
+    override fun decodeFromPemBlock(src: PemBlock): T = runWrappingAs(a = ::IllegalArgumentException) {
+        validPemLabels?.let { require(src.label in it) { "PEM label is ${src.label}, expected one of ${it.joinToString { it }}" } }
         decodeFromDerWithPemHeaders(src.headers, src.payload)
     }
 }

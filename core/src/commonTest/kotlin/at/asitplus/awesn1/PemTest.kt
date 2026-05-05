@@ -54,13 +54,13 @@ val PemTest by testSuite {
 
     "asn1 bridge works with opaque pem parser" {
         val source = object : Asn1PemEncodable<Asn1Primitive> {
-            override val pemLabel: String = "ASN1 INTEGER"
+            override val label: String = "ASN1 INTEGER"
             override fun encodeToTlv(): Asn1Primitive = Asn1Integer(7).encodeToTlv()
         }
 
         val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
             Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
-                override val pemLabel: String = "ASN1 INTEGER"
+                override val canonicalPemLabel: String = "ASN1 INTEGER"
             }
 
         decoder.decodeFromPem(source.encodeToPem()) shouldBe Asn1Integer(7)
