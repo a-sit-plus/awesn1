@@ -15,6 +15,14 @@ private const val FENCE_SUFFIX = "-----"
 
 data class PemHeader(val name: String, val value: String)
 
+interface WithPemLabel {
+    val label: String
+}
+
+interface WithValidPemLabels<T : WithPemLabel> {
+    val validPemLabels: Set<String>
+}
+
 data class PemBlock(
     override val label: String,
     val headers: Iterable<PemHeader> = emptyList(),
@@ -46,7 +54,7 @@ data class PemBlock(
     override fun encodeToPemBlock() = this
 
     companion object : PemDecodable<PemBlock> {
-        override fun decodeFromPemBlock(src: PemBlock): PemBlock = src
+        override fun doDecodeFromPemBlock(src: PemBlock): PemBlock = src
 
         //generic PEM blocks don't validate
         override val validPemLabels: Set<String>? get() = null
@@ -62,11 +70,11 @@ data class PemBlock(
  *
  * @see Asn1PemEncodable
  */
-interface PemEncodable {
+interface PemEncodable : WithPemLabel {
     @Throws(IllegalArgumentException::class)
     fun encodeToPemBlock(): PemBlock
 
-    val label: String
+    override val label: String
 }
 
 /**
@@ -76,9 +84,9 @@ interface PemEncodable {
  *
  * @see Asn1PemDecodable
  */
-interface PemDecodable<out T> {
+interface PemDecodable<out T : PemEncodable> {
     @Throws(IllegalArgumentException::class)
-    fun decodeFromPemBlock(src: PemBlock): T
+    fun doDecodeFromPemBlock(src: PemBlock): T
 
 
     /**
@@ -116,7 +124,7 @@ interface Asn1PemEncodable<out A : Asn1Element> : PemEncodable, Asn1Encodable<A>
  * By default, does not allow PEM headers, matching the RFC 7468 structures.
  * Override [decodeFromTlvWithPemHeaders] to customize this.
  */
-interface Asn1PemDecodable<A : Asn1Element, out T : Asn1Encodable<A>>
+interface Asn1PemDecodable<A : Asn1Element, out T : Asn1PemEncodable<A>>
     : PemDecodable<T>, Asn1Decodable<A, T> {
 
     fun decodeFromTlvWithPemHeaders(pemHeaders: Iterable<PemHeader>, tlv: A): T {
@@ -125,13 +133,25 @@ interface Asn1PemDecodable<A : Asn1Element, out T : Asn1Encodable<A>>
     }
 
     @Throws(IllegalArgumentException::class)
-    override fun decodeFromPemBlock(src: PemBlock): T = runWrappingAs(a = ::IllegalArgumentException) {
-        validPemLabels?.let { require(src.label in it) { "PEM label is ${src.label}, expected one of ${it.joinToString { it }}" } }
+    override fun doDecodeFromPemBlock(src: PemBlock): T = runWrappingAs(a = ::IllegalArgumentException) {
         decodeFromDerWithPemHeaders(src.headers, src.payload)
     }
 }
 
-fun <A: Asn1Element, T: Asn1Encodable<A>> Asn1PemDecodable<A,T>.decodeFromDerWithPemHeaders(pemHeaders: Iterable<PemHeader>, der: ByteArray) =
+fun <T : WithPemLabel> WithValidPemLabels<T>.validate(src: WithPemLabel) {
+    validPemLabels.let { require(src.label in it) { "PEM label is ${src.label}, expected one of ${it.joinToString { it }}" } }
+}
+
+fun <T : PemEncodable> PemDecodable<T>.decodeFromPemBlock(src: PemBlock): T =
+    runWrappingAs(a = ::IllegalArgumentException) {
+        if (this is WithValidPemLabels<*>) validate(src)
+        doDecodeFromPemBlock(src)
+    }
+
+fun <A : Asn1Element, T : Asn1PemEncodable<A>> Asn1PemDecodable<A, T>.decodeFromDerWithPemHeaders(
+    pemHeaders: Iterable<PemHeader>,
+    der: ByteArray
+) =
     @Suppress("UNCHECKED_CAST")
     decodeFromTlvWithPemHeaders(pemHeaders, Asn1Element.parse(der) as A)
 
@@ -175,12 +195,12 @@ fun PemBlock.encodeToPem(): String {
 }
 
 @Throws(IllegalArgumentException::class)
-fun <T> PemDecodable<T>.decodeFromPem(src: String): T =
-    src.parseAsPemBlock().let(this::decodeFromPemBlock)
+fun <T : PemEncodable> PemDecodable<T>.decodeFromPem(src: String): T =
+    src.parseAsPemBlock().let(this::doDecodeFromPemBlock)
 
 @Throws(IllegalArgumentException::class)
-fun <T> PemDecodable<T>.decodeAllFromPem(src: String): List<T> =
-    src.parseAsPemBlocks().map(this::decodeFromPemBlock)
+fun <T : PemEncodable> PemDecodable<T>.decodeAllFromPem(src: String): List<T> =
+    src.parseAsPemBlocks().map(this::doDecodeFromPemBlock)
 
 @Throws(IllegalArgumentException::class)
 private fun String.parseAsPemBlock(): PemBlock = parseAsPemBlocks().singleOrNull()
@@ -243,12 +263,14 @@ private fun String.parseAsPemBlocks(): List<PemBlock> = buildList {
 private fun findBeginFence(line: String) = when {
     line.startsWith(FENCE_PREFIX_BEGIN) && line.endsWith(FENCE_SUFFIX) ->
         line.substring(FENCE_PREFIX_BEGIN.length, line.length - FENCE_SUFFIX.length)
+
     else -> null
 }
 
 private fun findEndFence(line: String) = when {
     line.startsWith(FENCE_PREFIX_END) && line.endsWith(FENCE_SUFFIX) ->
         line.substring(FENCE_PREFIX_END.length, line.length - FENCE_SUFFIX.length)
+
     else -> null
 }
 

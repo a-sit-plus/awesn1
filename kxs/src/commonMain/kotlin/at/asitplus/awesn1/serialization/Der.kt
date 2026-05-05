@@ -184,6 +184,24 @@ inline fun <reified T> Der.decodeFromTlv(source: Asn1Element): T =
 inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
     decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source) as T
 
+
+/**
+ * Decodes [source] from PEM-encoded DER bytes using the deserializer for [T].
+ */
+@ExperimentalSerializationApi
+fun <T: WithPemLabel, D: WithValidPemLabels<T>> Der.decodeFromPem(serializer: KSerializer<T>, pemDecodable: D,source: PemBlock): T {
+    pemDecodable.validate(source)
+    return decodeFromByteArray(serializer, source.payload)
+}
+/**
+ * Decodes [source] from PEM-encoded DER bytes using the inferred deserializer for [T].
+ */
+context(pemDecodable: WithValidPemLabels<T>)
+@ExperimentalSerializationApi
+inline fun <reified T: WithPemLabel> Der.decodeFromPem(source: PemBlock): T {
+    pemDecodable.validate(source)
+    return decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source.payload) as T
+}
 interface DerEncoder : Encoder, Asn1DerEncoder {
     val der: Der
 }
