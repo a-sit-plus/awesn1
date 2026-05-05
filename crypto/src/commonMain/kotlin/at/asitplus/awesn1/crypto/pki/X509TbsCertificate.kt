@@ -6,9 +6,9 @@ package at.asitplus.awesn1.crypto.pki
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
-import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
 import at.asitplus.awesn1.crypto.Versioned
+import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.toInt
@@ -88,7 +88,7 @@ data class X509TbsCertificate(
     val subjectUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 3u)
     val extensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
-): Versioned {
+) : Versioned {
     constructor(
         version: Int? = null,
         serialNumber: Asn1Integer,
@@ -115,6 +115,7 @@ data class X509TbsCertificate(
     )
 
     override val rawVersion: Asn1Integer? get() = taggedVersion?.value
+
     /**
      *
      * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
@@ -127,14 +128,11 @@ data class X509TbsCertificate(
      * | 2           | 3                |
      *
      * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     *
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
-    @get:Throws(NumberFormatException::class)
     override val version: Int? by lazy { rawVersion?.toInt()?.let { it + 1 } ?: 1 }
 
-    /**
-     * @see version
-     */
-    val semanticVersion: Int? get() = version
 }
 
 

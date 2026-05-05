@@ -44,13 +44,16 @@ value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
         //would be nice to assert exactly 1 or 2 children, but reality is a b****.
     }
 
-    @get:Throws(Asn1Exception::class)
+    /**
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     */
     override val oid: ObjectIdentifier
         get() = (element.asSequence().children.firstOrNull() as? Asn1Primitive)?.readOid()
             ?: throw Asn1Exception("AlgorithmIdentifier is empty")
 
-
-    @get:Throws(Asn1Exception::class)
+    /**
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     */
     val parameters: Asn1Element?
         get() = when (element.children.size) {
             1 -> null
@@ -68,16 +71,18 @@ value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
      *
      * @throws Asn1Exception if this algorothm is RSA_SSA_PSS has no parameters, or the parameter element is
      * not a valid `RSASSA-PSS-params` SEQUENCE.
+     *
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
-    @get:Throws(Asn1Exception::class)
-    val rsaSsaPssParams: RsaSsaPssParams? get()= runWrappingAs(a = ::Asn1Exception) {
-        if (oid != RsaSsaPssParams.RSA_SSA_PSS_OID) {
-          return  null
+    val rsaSsaPssParams: RsaSsaPssParams?
+        get() = runWrappingAs(a = ::Asn1Exception) {
+            if (oid != RsaSsaPssParams.RSA_SSA_PSS_OID) {
+                return null
+            }
+            DER.decodeFromTlv<RsaSsaPssParams>(
+                parameters?.asSequence() ?: throw Asn1Exception("RSASSA-PSS AlgorithmIdentifier has no parameters")
+            )
         }
-        DER.decodeFromTlv<RsaSsaPssParams>(
-            parameters?.asSequence() ?: throw Asn1Exception("RSASSA-PSS AlgorithmIdentifier has no parameters")
-        )
-    }
 
     override fun toString(): String {
         return catchingUnwrapped {

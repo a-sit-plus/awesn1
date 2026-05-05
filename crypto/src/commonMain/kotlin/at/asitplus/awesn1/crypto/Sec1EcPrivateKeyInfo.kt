@@ -33,7 +33,7 @@ data class Sec1EcPrivateKeyInfo(
     val parameters: ExplicitlyTagged<ObjectIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
     val publicKey: ExplicitlyTagged<Asn1BitString>? = null,
-): Versioned {
+) : Versioned {
     constructor(
         version: Int = 1,
         privateKey: ByteArray,
@@ -49,8 +49,9 @@ data class Sec1EcPrivateKeyInfo(
     /**
      *
      * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     *
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
-    @get:Throws(NumberFormatException::class)
     override val version: Int? by lazy { rawVersion.toInt() }
 
     override fun equals(other: Any?): Boolean =

@@ -13,6 +13,8 @@ import at.asitplus.awesn1.Asn1Integer
 interface Versioned {
     val rawVersion: Asn1Integer?
 
-    @get:Throws(NumberFormatException::class)
+    /**
+    * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+    */
     val version: Int?
 }

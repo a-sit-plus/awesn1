@@ -45,13 +45,15 @@ data class RsaSsaPssParams(
     val effectiveMaskGenAlgorithm: X509AlgorithmIdentifier
         get() = maskGenAlgorithm?.value ?: MGF1_SHA1_IDENTIFIER
 
-    @get:Throws(NumberFormatException::class)
-    val effectiveSaltLength: Int
-        get() = saltLength?.value?.toInt() ?: DEFAULT_SALT_LENGTH
+    /**
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     */
+    val effectiveSaltLength: Int by lazy { saltLength?.value?.toInt() ?: DEFAULT_SALT_LENGTH }
 
-    @get:Throws(NumberFormatException::class)
-    val effectiveTrailerField: Int
-        get() = trailerField?.value?.toInt() ?: DEFAULT_TRAILER_FIELD
+    /**
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     */
+    val effectiveTrailerField: Int by lazy { trailerField?.value?.toInt() ?: DEFAULT_TRAILER_FIELD }
 
     companion object {
         val RSA_SSA_PSS_OID = ObjectIdentifier("1.2.840.113549.1.1.10")
