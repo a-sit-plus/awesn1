@@ -4,9 +4,11 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1BitString
+import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
 /**
@@ -25,7 +27,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Sec1EcPrivateKeyInfo(
-    val version: Int,
+    val rawVersion: Asn1Integer,
     val privateKey: ByteArray,
     @Asn1Tag(tagNumber = 0u)
     val parameters: ExplicitlyTagged<ObjectIdentifier>? = null,
@@ -33,25 +35,39 @@ data class Sec1EcPrivateKeyInfo(
     val publicKey: ExplicitlyTagged<Asn1BitString>? = null,
 ) {
     constructor(
+        version: Int=1,
         privateKey: ByteArray,
         parameters: ObjectIdentifier?,
         publicKey: Asn1BitString?,
     ) : this(
-        version = 1,
+        rawVersion = Asn1Integer(version-1),
         privateKey = privateKey,
         parameters = parameters?.let(::ExplicitlyTagged),
         publicKey = publicKey?.let(::ExplicitlyTagged),
     )
 
+    /**
+     *
+     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
+     * version commonly referred to as the version of a private key
+     *
+     * | RAW Version | (Semantic) Version |
+     * |:-----------:|:----------------:|
+     * | 0           | 1                |
+     * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     */
+    @get:Throws(NumberFormatException::class)
+    val version: Int? by lazy { rawVersion.toInt() + 1 }
+
     override fun equals(other: Any?): Boolean =
         other is Sec1EcPrivateKeyInfo &&
-            version == other.version &&
+            rawVersion == other.rawVersion &&
             privateKey.contentEquals(other.privateKey) &&
             parameters == other.parameters &&
             publicKey == other.publicKey
 
     override fun hashCode(): Int {
-        var result = version
+        var result = rawVersion.hashCode()
         result = 31 * result + privateKey.contentHashCode()
         result = 31 * result + (parameters?.hashCode() ?: 0)
         result = 31 * result + (publicKey?.hashCode() ?: 0)
