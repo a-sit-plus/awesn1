@@ -179,7 +179,7 @@ val SerializationTestImplicitTagging by testSuite(
 
             shouldThrow<SerializationException> {
                 DER.decodeFromByteArray<ValueClassByteClassTagged>("020123".hexToByteArray())
-            }.message shouldBe "at.asitplus.awesn1.Asn1TagMismatchException: Expected tag PRIVATE 18 (=D2), is: 2 (=02) (INTEGER)"
+            }.message shouldEndWith "Asn1TagMismatchException: Expected tag PRIVATE 18 (=D2), is: 2 (=02) (INTEGER)"
 
             shouldThrow<SerializationException> {
                 DER.decodeFromByteArray<ValueClassBytePropertyTagged>("020123".hexToByteArray())
