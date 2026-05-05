@@ -19,6 +19,7 @@
         * `AlgorithmIdentifier` is now a dedicated public type and is used consistently across certificate / CSR / key-container models instead of raw ASN.1 sequence stand-ins
         * several fields were tightened to more spec-shaped public types, e.g. EC optional fields now use explicit-tag wrappers and encrypted private-key algorithm/data fields now use `AlgorithmIdentifier` / ASN.1 octet-string types instead of generic `Asn1Element`
     * X509TbsCertificate now only accepts integer serial numbers
+    * Add `Versioned` interface
     * Rename `RelativeDistinguishedName` -> `X500RelativeDistinguishedName`
     * Rename `AttributeTypeAndValue` -> `X500AttributeTypeAndValue`
     * Rename `AlgorithmIdentifier` -> `X509AlgorithmIdentifier`
