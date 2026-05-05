@@ -8,6 +8,7 @@ import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
+import at.asitplus.awesn1.crypto.Versioned
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.toInt
@@ -74,7 +75,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class X509TbsCertificate(
     @Asn1Tag(tagNumber = 0u)
-    val rawVersion: ExplicitlyTagged<Asn1Integer>? = null,
+    val taggedVersion: ExplicitlyTagged<Asn1Integer>? = null,
     val serialNumber: Asn1Integer,
     val signatureAlgorithm: X509AlgorithmIdentifier,
     val issuerName: List<X500RelativeDistinguishedName>,
@@ -87,7 +88,7 @@ data class X509TbsCertificate(
     val subjectUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 3u)
     val extensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
-) {
+): Versioned {
     constructor(
         version: Int? = null,
         serialNumber: Asn1Integer,
@@ -101,7 +102,7 @@ data class X509TbsCertificate(
         subjectUniqueID: Asn1BitString? = null,
         extensions: List<X509CertificateExtension>? = null,
     ) : this(
-        rawVersion = version?.let { ExplicitlyTagged(Asn1Integer(it - 1)) },
+        taggedVersion = version?.let { ExplicitlyTagged(Asn1Integer(it - 1)) },
         serialNumber = serialNumber,
         signatureAlgorithm = signatureAlgorithm,
         issuerName = issuerName,
@@ -113,6 +114,7 @@ data class X509TbsCertificate(
         extensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
     )
 
+    override val rawVersion: Asn1Integer? get() = taggedVersion?.value
     /**
      *
      * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
@@ -127,7 +129,7 @@ data class X509TbsCertificate(
      * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
      */
     @get:Throws(NumberFormatException::class)
-    val version: Int? by lazy { rawVersion?.value?.toInt()?.let { it + 1 } ?: 1 }
+    override val version: Int? by lazy { rawVersion?.toInt()?.let { it + 1 } ?: 1 }
 
     /**
      * @see version

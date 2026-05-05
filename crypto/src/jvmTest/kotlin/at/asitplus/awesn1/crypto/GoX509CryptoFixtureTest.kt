@@ -1,5 +1,6 @@
 package at.asitplus.awesn1.crypto
 
+import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
 import at.asitplus.awesn1.decodeFromPem
@@ -79,7 +80,7 @@ val GoX509CryptoFixtureTest by testSuite {
             Pkcs10CertificationRequest.serializer(),
         )
 
-        decoded.certificationRequestInfo.rawVersion shouldBe 0
+        decoded.certificationRequestInfo.rawVersion shouldBe Asn1Integer.ZERO
     }
 }
 

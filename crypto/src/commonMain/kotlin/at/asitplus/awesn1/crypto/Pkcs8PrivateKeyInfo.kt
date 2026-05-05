@@ -32,12 +32,12 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs8PrivateKeyInfo(
-    val rawVersion: Asn1Integer,
+    override val rawVersion: Asn1Integer,
     val privateKeyAlgorithm: X509AlgorithmIdentifier,
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
-) {
+): Versioned {
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
     /**
@@ -51,7 +51,7 @@ data class Pkcs8PrivateKeyInfo(
      * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
      */
     @get:Throws(NumberFormatException::class)
-    val version: Int? by lazy { rawVersion.toInt() + 1 }
+    override val version: Int? by lazy { rawVersion.toInt() + 1 }
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPrivateKey(): Pkcs1RsaPrivateKeyInfo =

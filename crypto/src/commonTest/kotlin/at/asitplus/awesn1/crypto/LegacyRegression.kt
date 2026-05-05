@@ -1,6 +1,8 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.Asn1Integer.Sign
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.crypto.legacy.EcPrivateKeyInfo as LegacyEcPrivateKeyInfo
 import at.asitplus.awesn1.crypto.legacy.EncryptedPrivateKeyInfo as LegacyEncryptedPrivateKeyInfo
@@ -58,7 +60,7 @@ internal fun decodeLegacyCertificateAsCurrent(encoded: ByteArray): X509Certifica
 
 private fun LegacyEcPrivateKeyInfo.toCurrent() =
     Sec1EcPrivateKeyInfo(
-        version = version,
+        rawVersion = Asn1Integer(version),
         privateKey = privateKey,
         parameters = parameters?.let(::ExplicitlyTagged),
         publicKey = publicKey?.let(::ExplicitlyTagged),
@@ -72,7 +74,7 @@ private fun LegacyEncryptedPrivateKeyInfo.toCurrent() =
 
 private fun LegacyPkcs8PrivateKeyInfo.toCurrent() =
     Pkcs8PrivateKeyInfo(
-        rawVersion = version,
+        rawVersion = Asn1Integer(version),
         privateKeyAlgorithm = X509AlgorithmIdentifier(algorithmOid, algorithmParameters),
         privateKey = privateKey,
         attributes = attributes?.toSet(),
@@ -80,22 +82,22 @@ private fun LegacyPkcs8PrivateKeyInfo.toCurrent() =
 
 private fun LegacyRsaOtherPrimeInfo.toCurrent() =
     Pkcs1RsaOtherPrimeInfo(
-        prime = prime,
-        exponent = exponent,
-        coefficient = coefficient,
+        prime = prime as Asn1Integer.Positive,
+        exponent = exponent as Asn1Integer.Positive,
+        coefficient = coefficient as Asn1Integer.Positive,
     )
 
 private fun LegacyRsaPrivateKeyInfo.toCurrent() =
     Pkcs1RsaPrivateKeyInfo(
-        version = version,
-        modulus = modulus,
-        publicExponent = publicExponent,
-        privateExponent = privateExponent,
-        prime1 = prime1,
-        prime2 = prime2,
-        exponent1 = exponent1,
-        exponent2 = exponent2,
-        coefficient = coefficient,
+        rawVersion = Asn1Integer(version),
+        modulus = modulus as Asn1Integer.Positive,
+        publicExponent = publicExponent as Asn1Integer.Positive,
+        privateExponent = privateExponent as Asn1Integer.Positive,
+        prime1 = prime1 as Asn1Integer.Positive,
+        prime2 = prime2 as Asn1Integer.Positive,
+        exponent1 = exponent1 as Asn1Integer.Positive,
+        exponent2 = exponent2 as Asn1Integer.Positive,
+        coefficient = coefficient as Asn1Integer.Positive,
         otherPrimeInfos = otherPrimeInfos?.map { it.toCurrent() },
     )
 
@@ -136,7 +138,7 @@ private fun LegacyRelativeDistinguishedName.toCurrent() =
 
 private fun LegacyPkcs10CertificationRequestInfo.toCurrent() =
     Pkcs10CertificationRequestInfo(
-        rawVersion = version,
+         rawVersion = Asn1Integer(version),
         subjectName = subjectName.map { it.toCurrent() },
         publicKey = publicKey.toCurrent(),
         attributes = attributes.map { it.toCurrent() },
@@ -159,7 +161,7 @@ private fun LegacyX509CertificateExtension.toCurrent() =
 private fun LegacyTbsCertificate.toCurrent() =
     X509TbsCertificate(
         version = version?.let { it+1 },
-        serialNumber = serialNumber,
+        serialNumber = Asn1Integer.fromByteArray(serialNumber, Sign.POSITIVE),
         signatureAlgorithm = signatureAlgorithm.toCurrent(),
         issuerName = issuerName.map { it.toCurrent() },
         validFrom = validFrom,

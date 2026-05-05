@@ -5,6 +5,7 @@ package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
+import at.asitplus.awesn1.crypto.Versioned
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
@@ -23,19 +24,18 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs10CertificationRequestInfo(
-    val rawVersion: Asn1Integer = Asn1Integer.ZERO,
+    override val rawVersion: Asn1Integer = Asn1Integer.ZERO,
     val subjectName: List<X500RelativeDistinguishedName>,
     val publicKey: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 0u)
     val attributes: List<Attribute> = emptyList(),
-) {
+) : Versioned {
     constructor(
         version: Int = 1,
         subjectName: List<X500RelativeDistinguishedName>,
         publicKey: SubjectPublicKeyInfo,
         attributes: List<Attribute> = emptyList(),
-    ) : this(Asn1Integer(version - 1), subjectName, publicKey, attributes) {
-    }
+    ) : this(Asn1Integer(version - 1), subjectName, publicKey, attributes)
 
     /**
      *
@@ -48,7 +48,7 @@ data class Pkcs10CertificationRequestInfo(
      * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
      */
     @get:Throws(NumberFormatException::class)
-    val version: Int by lazy { rawVersion.toInt() + 1 }
+    override val version: Int by lazy { rawVersion.toInt() + 1 }
 
     /**
      * @see version

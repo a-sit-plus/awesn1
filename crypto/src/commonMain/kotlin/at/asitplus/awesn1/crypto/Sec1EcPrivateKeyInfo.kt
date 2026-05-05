@@ -27,13 +27,13 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Sec1EcPrivateKeyInfo(
-    val rawVersion: Asn1Integer,
+    override val rawVersion: Asn1Integer,
     val privateKey: ByteArray,
     @Asn1Tag(tagNumber = 0u)
     val parameters: ExplicitlyTagged<ObjectIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
     val publicKey: ExplicitlyTagged<Asn1BitString>? = null,
-) {
+): Versioned {
     constructor(
         version: Int = 1,
         privateKey: ByteArray,
@@ -51,7 +51,7 @@ data class Sec1EcPrivateKeyInfo(
      * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
      */
     @get:Throws(NumberFormatException::class)
-    val version: Int? by lazy { rawVersion.toInt() }
+    override val version: Int? by lazy { rawVersion.toInt() }
 
     override fun equals(other: Any?): Boolean =
         other is Sec1EcPrivateKeyInfo &&

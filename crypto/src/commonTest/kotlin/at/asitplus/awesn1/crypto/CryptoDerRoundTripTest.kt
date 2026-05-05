@@ -108,7 +108,7 @@ private fun randomRsaOtherPrimeInfo(random: Random) = Pkcs1RsaOtherPrimeInfo(
 )
 
 private fun randomRsaPrivateKey(random: Random) = Pkcs1RsaPrivateKeyInfo(
-    version = if (random.nextBoolean()) 0 else 1,
+    rawVersion = Asn1Integer(if (random.nextBoolean()) 0 else 1),
     modulus = positiveAsn1Integer(random),
     publicExponent = positiveAsn1Integer(random),
     privateExponent = positiveAsn1Integer(random),
@@ -178,7 +178,7 @@ private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
     }
 
 private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10CertificationRequestInfo(
-    rawVersion = 0,
+    rawVersion = Asn1Integer.ZERO,
     subjectName = List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) },
     publicKey = randomSubjectPublicKeyInfo(random),
     attributes = List(random.nextInt(0, 3)) { randomAttribute(random) },
@@ -195,7 +195,7 @@ private fun randomTbsCertificate(random: Random): X509TbsCertificate {
     val validUntil = Instant.fromEpochSeconds(validFrom.epochSeconds + random.nextLong(1L, 86_400L * 90))
     return X509TbsCertificate(
         version = 2,
-        serialNumber = randomBytes(random, 12),
+        serialNumber = Asn1Integer.fromByteArray(randomBytes(random, 12), Asn1Integer.Sign.POSITIVE),
         signatureAlgorithm = randomSignatureAlgorithmIdentifier(random),
         issuerName = List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) },
         validFrom = Asn1Time(validFrom),

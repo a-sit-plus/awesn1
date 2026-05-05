@@ -4,6 +4,7 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
 /**
@@ -26,7 +27,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs1RsaPrivateKeyInfo(
-    val version: Int,
+    val rawVersion: Asn1Integer,
     val modulus: Asn1Integer.Positive,
     val publicExponent: Asn1Integer.Positive,
     val privateExponent: Asn1Integer.Positive,
@@ -36,4 +37,13 @@ data class Pkcs1RsaPrivateKeyInfo(
     val exponent2: Asn1Integer.Positive,
     val coefficient: Asn1Integer.Positive,
     val otherPrimeInfos: List<Pkcs1RsaOtherPrimeInfo>? = null,
-)
+){
+    /**
+     *
+     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
+     * version commonly referred to as the version of a private key
+     * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     */
+    @get:Throws(NumberFormatException::class)
+    val version: Int? by lazy { rawVersion.toInt() }
+}

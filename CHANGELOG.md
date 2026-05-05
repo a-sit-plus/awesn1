@@ -10,6 +10,7 @@
 * Asn1Integer now has `toInt()` and `toIntOrNull()`
 * **Massively refactor `crypto` classes**:
     * Everything's now based on kotlinx.serialization (`kxs` module)
+    * Add RSA PSS Param class and helper parsing functions
     * TbsCertificate and Pkcs10CertificationRequestInfo now have `rawVersion` and (semantic) version as per X.509/PCSK10:
         * raw version is an ASN.1 Integer and corresponds to the encoded value
         * (semantic) version is a Kotlin `Int` and is raw version plus 1
@@ -25,7 +26,6 @@
     * Rename `RsaPrivateKeyInfo` -> `Pkcs1RsaPrivateKeyInfo`
     * Rename `RsaOtherPrimeInfo` -> `Pkcs1RsaOtherPrimeInfo`
     * Rename `EcPrivateKeyInfo` -> `Sec1EcPrivateKeyInfo`
-    * Add RSA PSS Param class and helper parsing funcgions
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever so publishing 0.2.0 went south.
