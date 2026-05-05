@@ -11,18 +11,18 @@
 * **Massively refactor `crypto` classes**:
     * Everything's now based on kotlinx.serialization (`kxs` module)
     * Add RSA PSS Param class and helper parsing functions
-    * TbsCertificate and Pkcs10CertificationRequestInfo now have `rawVersion` and (semantic) version as per X.509/PCSK10:
+    * TbsCertificate and Pkcs10CertificationRequestInfo now have `rawVersion` and (semantic) version as per X.509/PKCS#10:
         * raw version is an ASN.1 Integer and corresponds to the encoded value
         * (semantic) version is a Kotlin `Int` and is raw version plus 1
     * Tighter alignment with X.509, PKCS#10 and co:
         * production crypto/PKI types are now regular `@Serializable` data/value classes instead of companion-driven manual `Asn1Serializable` / `Asn1Encodable` model implementations
-        * `AlgorithmIdentifier` is now a dedicated public type and is used consistently across certificate / CSR / key-container models instead of raw ASN.1 sequence stand-ins
-        * several fields were tightened to more spec-shaped public types, e.g. EC optional fields now use explicit-tag wrappers and encrypted private-key algorithm/data fields now use `AlgorithmIdentifier` / ASN.1 octet-string types instead of generic `Asn1Element`
+        * `X509AlgorithmIdentifier` is now a dedicated public type and is used consistently across certificate / CSR / key-container models instead of raw ASN.1 sequence stand-ins
+        * several fields were tightened to more spec-shaped public types, e.g. EC optional fields now use explicit-tag wrappers and encrypted private-key algorithm/data fields now use `X509AlgorithmIdentifier` / ASN.1 octet-string types instead of generic `Asn1Element`
     * X509TbsCertificate now only accepts integer serial numbers
     * Add `Versioned` interface
     * Rename `RelativeDistinguishedName` -> `X500RelativeDistinguishedName`
     * Rename `AttributeTypeAndValue` -> `X500AttributeTypeAndValue`
-    * Rename `AlgorithmIdentifier` -> `X509AlgorithmIdentifier`
+    * Rename `SignatureAlgorithmIdentifier` -> `X509AlgorithmIdentifier`
     * Rename `TbsCertificate` -> `X509TbsCertificate`
     * Rename `RsaPrivateKeyInfo` -> `Pkcs1RsaPrivateKeyInfo`
     * Rename `RsaOtherPrimeInfo` -> `Pkcs1RsaOtherPrimeInfo`

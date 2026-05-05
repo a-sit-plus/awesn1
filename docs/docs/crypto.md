@@ -45,19 +45,21 @@ policy enforcement, or cryptographic operations.
 The module currently includes models such as:
 
 - `SubjectPublicKeyInfo`
-- `PrivateKeyInfo`
+- `Pkcs8PrivateKeyInfo`
 - `EncryptedPrivateKeyInfo`
-- `RsaPublicKey`
-- `RsaPrivateKey`
-- `EcPrivateKey`
-- `EcdsaSignatureValue`
-- `SignatureAlgorithmIdentifier`
+- `RsaPublicKeyInfo`
+- `Pkcs1RsaPrivateKeyInfo`
+- `Pkcs1RsaOtherPrimeInfo`
+- `Sec1EcPrivateKeyInfo`
+- `SignatureValue`
+- `X509AlgorithmIdentifier`
+- `RsaSsaPssParams`
 - `X509Certificate`
-- `TbsCertificate`
+- `X509TbsCertificate`
 - `X509CertificateExtension`
 - `Pkcs10CertificationRequest`
 - `Pkcs10CertificationRequestInfo`
-- DN-related helper models such as `RelativeDistinguishedName`, `AttributeTypeAndValue`, and `Attribute`
+- DN-related helper models such as `X500RelativeDistinguishedName`, `X500AttributeTypeAndValue`, and `Attribute`
 
 These are structural models.
 They parse and encode ASN.1 DER correctly, but they do not aim to be a full certificate validation stack,

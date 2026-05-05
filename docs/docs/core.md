@@ -45,7 +45,7 @@ implementation("at.asitplus.awesn1:core:$version")
 Those are intentionally not part of `core`.
 
 `core` contains generic ASN.1 infrastructure and rich built-in ASN.1 data types.
-Cryptographic structures such as X.509 certificates, `SubjectPublicKeyInfo`, `PrivateKeyInfo`, PKCS#10 requests,
+Cryptographic structures such as X.509 certificates, `SubjectPublicKeyInfo`, `Pkcs8PrivateKeyInfo`, PKCS#10 requests,
 and related PKI data classes live in the dedicated [crypto](crypto.md) module instead.
 
 That split keeps `core` small and broadly reusable, while `crypto` builds on top of it with
