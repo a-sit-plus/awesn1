@@ -61,9 +61,9 @@ data class Pkcs8PrivateKeyInfo(
         )
 
     @Throws(Asn1Exception::class)
-    fun decodeEcPrivateKey(): EcPrivateKeyInfo =
+    fun decodeEcPrivateKey(): Sec1EcPrivateKeyInfo =
         DER.decodeFromTlv(
-            EcPrivateKeyInfo.serializer(),
+            Sec1EcPrivateKeyInfo.serializer(),
             privateKey.asEncapsulatingOctetString().decodeRethrowing { next() }
         )
 
@@ -82,7 +82,7 @@ data class Pkcs8PrivateKeyInfo(
             )
 
         fun ec(
-            sec1Key: EcPrivateKeyInfo,
+            sec1Key: Sec1EcPrivateKeyInfo,
             curveOid: ObjectIdentifier?,
             attributes: Set<Asn1Element>? = null,
         ): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
@@ -92,7 +92,7 @@ data class Pkcs8PrivateKeyInfo(
                 curveOid?.let { listOf(it.encodeToTlv()) }.orEmpty(),
             ),
             privateKey = Asn1.OctetStringEncapsulating {
-                +DER.encodeToTlv(EcPrivateKeyInfo.serializer(), sec1Key)
+                +DER.encodeToTlv(Sec1EcPrivateKeyInfo.serializer(), sec1Key)
             },
             attributes = attributes,
         )

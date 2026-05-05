@@ -32,7 +32,7 @@ import at.asitplus.awesn1.serialization.ExplicitlyTagged
 internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     val element = Asn1Element.parse(encoded)
     return when (value) {
-        is EcPrivateKeyInfo -> LegacyEcPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
+        is Sec1EcPrivateKeyInfo -> LegacyEcPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is EncryptedPrivateKeyInfo -> LegacyEncryptedPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is Pkcs8PrivateKeyInfo -> LegacyPkcs8PrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is Pkcs1RsaOtherPrimeInfo -> LegacyRsaOtherPrimeInfo.decodeFromTlv(element.asSequence()).toCurrent()
@@ -57,7 +57,7 @@ internal fun decodeLegacyCertificateAsCurrent(encoded: ByteArray): X509Certifica
     LegacyX509Certificate.decodeFromTlv(Asn1Element.parse(encoded).asSequence()).toCurrent()
 
 private fun LegacyEcPrivateKeyInfo.toCurrent() =
-    EcPrivateKeyInfo(
+    Sec1EcPrivateKeyInfo(
         version = version,
         privateKey = privateKey,
         parameters = parameters?.let(::ExplicitlyTagged),

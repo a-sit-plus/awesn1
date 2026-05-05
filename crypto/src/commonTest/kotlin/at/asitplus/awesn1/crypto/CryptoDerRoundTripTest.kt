@@ -87,7 +87,7 @@ private fun randomBitStringSignatureValue(random: Random) =
 private fun randomEcdsaSignatureValue(random: Random) =
     SignatureValue.fromRS(positiveAsn1Integer(random), positiveAsn1Integer(random))
 
-private fun randomEcPrivateKey(random: Random) = EcPrivateKeyInfo(
+private fun randomEcPrivateKey(random: Random) = Sec1EcPrivateKeyInfo(
     privateKey = randomBytes(random, 32),
     parameters = randomOid(random).takeIf { random.nextBoolean() },
     publicKey = Asn1BitString(randomBytes(random, 33)).takeIf { random.nextBoolean() },
