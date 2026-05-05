@@ -3,9 +3,7 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
@@ -34,7 +32,7 @@ data class Sec1EcPrivateKeyInfo(
     private val taggedParameters: ExplicitlyTagged<ObjectIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
     private val taggedPublicKey: ExplicitlyTagged<Asn1BitString>? = null,
-) : Versioned {
+) : Versioned, WithPemLabel {
     constructor(
         version: Int = 1,
         privateKey: ByteArray,
@@ -46,6 +44,8 @@ data class Sec1EcPrivateKeyInfo(
         taggedParameters = parameters?.let(::ExplicitlyTagged),
         taggedPublicKey = publicKey?.let(::ExplicitlyTagged),
     )
+
+    override val pemLabel: String get() = canonicalPemLabel
 
     /**
      * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
@@ -83,5 +83,9 @@ data class Sec1EcPrivateKeyInfo(
                 "parameters=$parameters, " +
                 "publicKey=$publicKey" +
                 ")"
+    }
+    companion object : WithValidPemLabels<Sec1EcPrivateKeyInfo> {
+        override val canonicalPemLabel: String get() = "EC PRIVATE KEY"
+
     }
 }

@@ -225,10 +225,10 @@ private fun coreHookPemGeneric() {
     """.trimIndent()
 
     val blocks: List<PemBlock> = PemBlock.decodeAllFromPem(source)
-    blocks.map { it.label } shouldBe listOf("CERTIFICATE", "PUBLIC KEY")
+    blocks.map { it.pemLabel } shouldBe listOf("CERTIFICATE", "PUBLIC KEY")
 
     val encryptedLegacy = PemBlock(
-        label = "RSA PRIVATE KEY",
+        pemLabel = "RSA PRIVATE KEY",
         headers = listOf(
             PemHeader("Proc-Type", "4,ENCRYPTED"),
             PemHeader("DEK-Info", "AES-256-CBC,00112233445566778899AABBCCDDEEFF")
@@ -244,7 +244,7 @@ private fun coreHookPemGeneric() {
 private fun coreHookPemAsn1() {
 // --8<-- [start:core-hook-pem-asn1]
     val source = object : Asn1PemEncodable<Asn1Primitive> {
-        override val label: String = "ASN1 INTEGER"
+        override val pemLabel: String = "ASN1 INTEGER"
         override fun encodeToTlv(): Asn1Primitive = Asn1Integer(42).encodeToTlv()
     }
 

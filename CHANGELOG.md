@@ -37,6 +37,8 @@
     * Rename `RsaOtherPrimeInfo` -> `Pkcs1RsaOtherPrimeInfo`
     * Rename `EcPrivateKeyInfo` -> `Sec1EcPrivateKeyInfo`
     * Rename `Attribute` -> `Pkcs10CsrAttribute`
+    * Rename `Attribute` -> `Pkcs10CsrAttribute`
+    * Rename `RsaPublicKeyInfo` -> `Pkcs1RsaPublicKeyInfo`
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever, so publishing 0.2.0 went south.

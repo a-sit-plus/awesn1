@@ -120,7 +120,7 @@ private fun randomRsaPrivateKey(random: Random) = Pkcs1RsaPrivateKeyInfo(
     otherPrimeInfos = List(random.nextInt(0, 3)) { randomRsaOtherPrimeInfo(random) }.ifEmpty { null },
 )
 
-private fun randomRsaPublicKey(random: Random) = RsaPublicKeyInfo(
+private fun randomRsaPublicKey(random: Random) = Pkcs1RsaPublicKeyInfo(
     modulus = positiveAsn1Integer(random),
     publicExponent = positiveAsn1Integer(random),
 )

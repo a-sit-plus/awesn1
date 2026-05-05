@@ -41,7 +41,7 @@ class Der internal constructor(
     override fun <T> decodeFromByteArray(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
-    ): T = runWrappingAs(a=::SerializationException) {
+    ): T = runWrappingAs(a = ::SerializationException) {
         val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
         val decoder = DerDecoder(
             if (bytes.isEmpty()) emptyList() else Asn1Element.parseAll(bytes),
@@ -82,7 +82,7 @@ class Der internal constructor(
         @ExperimentalSerializationApi
         @Throws(SerializationException::class, ImplementationError::class)
         fun <T> encodeToTlv(der: Der, serializer: SerializationStrategy<T>, value: T): Asn1Element? =
-            runWrappingAs(a=::SerializationException) {
+            runWrappingAs(a = ::SerializationException) {
                 val layoutPlan = DerLayoutPlanContext(der.configuration).also { it.prime(serializer.descriptor) }
                 val encoder = DerEncoder(
                     serializersModule = der.configuration.serializersModule,
@@ -105,7 +105,7 @@ class Der internal constructor(
     @ExperimentalSerializationApi
     @Throws(SerializationException::class, ImplementationError::class)
     fun <T> decodeFromTlv(deserializer: DeserializationStrategy<T>, source: Asn1Element): T =
-        runWrappingAs(a=::SerializationException) {
+        runWrappingAs(a = ::SerializationException) {
             val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
             val decoder = DerDecoder(
                 listOf(source),
@@ -189,19 +189,27 @@ inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
  * Decodes [source] from PEM-encoded DER bytes using the deserializer for [T].
  */
 @ExperimentalSerializationApi
-fun <T: WithPemLabel, D: WithValidPemLabels<T>> Der.decodeFromPem(serializer: KSerializer<T>, pemDecodable: D,source: PemBlock): T {
+fun <T : WithPemLabel, D : WithValidPemLabels<T>> Der.decodeFromPem(
+    serializer: KSerializer<T>,
+    pemDecodable: D,
+    source: PemBlock
+): T {
     pemDecodable.validate(source)
     return decodeFromByteArray(serializer, source.payload)
 }
+
 /**
  * Decodes [source] from PEM-encoded DER bytes using the inferred deserializer for [T].
  */
-context(pemDecodable: WithValidPemLabels<T>)
 @ExperimentalSerializationApi
-inline fun <reified T: WithPemLabel> Der.decodeFromPem(source: PemBlock): T {
+inline fun <reified T : WithPemLabel, D : WithValidPemLabels<T>> Der.decodeFromPem(
+    pemDecodable: D,
+    source: PemBlock
+): T {
     pemDecodable.validate(source)
     return decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source.payload) as T
 }
+
 interface DerEncoder : Encoder, Asn1DerEncoder {
     val der: Der
 }

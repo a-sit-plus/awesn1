@@ -20,7 +20,7 @@ open class EncryptedPrivateKeyInfo(
     val encryptedData: Asn1PrimitiveOctetString,
 ) : Asn1PemEncodable<Asn1Sequence> {
 
-    override val label get() = canonicalPemLabel
+    override val pemLabel get() = canonicalPemLabel
 
     override fun encodeToTlv() = Asn1.Sequence {
         +encryptionAlgorithm

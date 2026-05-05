@@ -33,29 +33,29 @@ data class SubjectPublicKeyInfo(
     val algorithmParameters: Asn1Element? get() = algorithmIdentifier.parameters
 
     @Throws(Asn1Exception::class)
-    fun decodeRsaPublicKey(): RsaPublicKeyInfo {
+    fun decodeRsaPublicKey(): Pkcs1RsaPublicKeyInfo {
         if (algorithmOid != RSA_ENCRYPTION_OID) {
             throw Asn1Exception("SubjectPublicKeyInfo is not an RSA public key")
         }
         requireNotNull(algorithmParameters) { "RSA SubjectPublicKeyInfo must contain NULL params" }
         algorithmParameters!!.asPrimitive().readNull()
-        return DER.decodeFromTlv(RsaPublicKeyInfo.serializer(), Asn1Element.parse(subjectPublicKey.rawBytes))
+        return DER.decodeFromTlv(Pkcs1RsaPublicKeyInfo.serializer(), Asn1Element.parse(subjectPublicKey.rawBytes))
     }
 
     companion object {
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
-        fun rsa(publicKey: RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
+        fun rsa(publicKey: Pkcs1RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
             algorithmIdentifier = X509AlgorithmIdentifier(
                 RSA_ENCRYPTION_OID,
                 listOf(Asn1.Null())
             ),
-            subjectPublicKey = Asn1BitString(DER.encodeToTlv(RsaPublicKeyInfo.serializer(), publicKey).derEncoded)
+            subjectPublicKey = Asn1BitString(DER.encodeToTlv(Pkcs1RsaPublicKeyInfo.serializer(), publicKey).derEncoded)
         )
 
         fun rsa(modulus: Asn1Integer, exponent: Asn1Integer): SubjectPublicKeyInfo =
-            rsa(RsaPublicKeyInfo(modulus, exponent))
+            rsa(Pkcs1RsaPublicKeyInfo(modulus, exponent))
 
         fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
             algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, listOf(curveOid.encodeToTlv())),

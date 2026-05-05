@@ -31,13 +31,13 @@ val RealWorldCertificateTest by testSuite {
         val certPEM = file.readText()
         val tld = file.nameWithoutExtension
         val cert = PemBlock.decodeAllFromPem(certPEM)
-            .first { it.label == X509Certificate.PEM_LABEL }
+            .first { it.pemLabel == X509Certificate.PEM_LABEL }
             .payload
             .let { DER.decodeFromByteArray(X509Certificate.serializer(), it) }
         val jvmCert = certificateFactory.generateCertificate(
             ByteArrayInputStream(
             PemBlock.decodeAllFromPem(certPEM)
-            .first { it.label == X509Certificate.PEM_LABEL }
+            .first { it.pemLabel == X509Certificate.PEM_LABEL }
             .payload))
         assertEquals(cert, jvmCert as java.security.cert.X509Certificate)
         cert.findSubjectAltNames()!!.dnsNames shouldContainAll listOf(tld, "*.$tld")

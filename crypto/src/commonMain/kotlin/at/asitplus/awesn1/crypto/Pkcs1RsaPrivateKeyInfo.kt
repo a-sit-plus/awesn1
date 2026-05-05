@@ -4,6 +4,8 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.WithPemLabel
+import at.asitplus.awesn1.WithValidPemLabels
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
@@ -28,7 +30,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Pkcs1RsaPrivateKeyInfo(
     /**
-     * corresponds verbatim to [RFC8017](https://www.rfc-editor.org/rfc/rfc8017.html#appendix-A.1.2):
+     * Corresponds verbatim to [RFC8017](https://www.rfc-editor.org/rfc/rfc8017.html#appendix-A.1.2):
      *  version is the version number, for compatibility with future
      *       revisions of this document.  It SHALL be 0 for this version of the
      *       document, unless multi-prime is used; in which case, it SHALL be
@@ -48,7 +50,9 @@ data class Pkcs1RsaPrivateKeyInfo(
     val exponent2: Asn1Integer.Positive,
     val coefficient: Asn1Integer.Positive,
     val otherPrimeInfos: List<Pkcs1RsaOtherPrimeInfo>? = null,
-) : Versioned {
+) : Versioned, WithPemLabel {
+    override val pemLabel: String get() = canonicalPemLabel
+
     /**
      *
      * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
@@ -58,4 +62,8 @@ data class Pkcs1RsaPrivateKeyInfo(
      * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
     override val version: Int by lazy { rawVersion.toInt() }
+
+    companion object : WithValidPemLabels<Pkcs1RsaPrivateKeyInfo> {
+        override val canonicalPemLabel: String get() = "RSA PRIVATE KEY"
+    }
 }

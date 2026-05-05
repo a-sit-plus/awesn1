@@ -3,15 +3,10 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.decodeRethrowing
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
 /**
@@ -37,9 +32,12 @@ data class Pkcs8PrivateKeyInfo(
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
-): Versioned {
+) : Versioned, WithPemLabel {
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
+
+    override val pemLabel: String get() = canonicalPemLabel
+
     /**
      *
      * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
@@ -69,9 +67,11 @@ data class Pkcs8PrivateKeyInfo(
             privateKey.asEncapsulatingOctetString().decodeRethrowing { next() }
         )
 
-    companion object {
+    companion object : WithValidPemLabels<Pkcs8PrivateKeyInfo> {
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
+
+        override val canonicalPemLabel: String = "PRIVATE KEY"
 
         fun rsa(privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
             Pkcs8PrivateKeyInfo(

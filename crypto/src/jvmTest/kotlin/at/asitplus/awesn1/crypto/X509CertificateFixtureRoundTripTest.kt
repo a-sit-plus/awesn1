@@ -43,7 +43,7 @@ val X509CertificateFixtureRoundTripTest by testSuite {
                     }
 
                     "pem" -> {
-                        val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.label == "CERTIFICATE" }
+                        val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.pemLabel == "CERTIFICATE" }
                         blocks.shouldNotBeEmpty().forEach { block ->
                             val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), block.payload)
                             DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe block.payload
