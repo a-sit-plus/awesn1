@@ -192,6 +192,17 @@ For examples of explicit tagging in broadly deployed PKI syntax, see
 1. {{ asn1js_iframe('kxs-explicit-wrapper') -}}
    Explore on <a href="{{ asn1js_url('kxs-explicit-wrapper') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
+`ExplicitlyTagged<T>` can also be used as a property delegate when reading model objects.
+The delegated property unwraps the contained value while preserving Kotlin's inferred type; nullable wrappers unwrap
+to nullable values.
+
+```kotlin
+@Asn1Tag(tagNumber = 0u)
+val taggedVersion: ExplicitlyTagged<Asn1Integer>? = null
+
+val actualTaggedVersion by taggedVersion // Asn1Integer?
+```
+
 ## Modelling CHOICE with Sealed Types
 
 Sealed polymorphism maps naturally to ASN.1 `CHOICE`, where one wire value can represent one of several

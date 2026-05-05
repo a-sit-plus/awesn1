@@ -8,6 +8,7 @@
         * If a matching subclass OID is encountered, deserialise to that subtype, of not: fallback to open base class and assigne encountered OID to the oid property of tha base class
 * Fix value/inline class handling
 * Asn1Integer now has `toInt()` and `toIntOrNull()`
+* `ExplicitlyTagged<T>` can now be used as a property delegate
 * Core renames:
     * `Asn1TagClass` -> `Asn1Tag.Class`
     * `Asn1TagConstructedBit` -> `Asn1Tag.ConstructedBit`

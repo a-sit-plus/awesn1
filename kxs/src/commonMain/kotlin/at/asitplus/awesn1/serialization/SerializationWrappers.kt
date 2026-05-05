@@ -16,7 +16,11 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 @Serializable
 data class ExplicitlyTagged<T>(
     val value: T,
-)
+) {
+    operator fun getValue(thisRef: Any?, property: Any?): T = value
+}
+
+operator fun <T> ExplicitlyTagged<T>?.getValue(thisRef: Any?, property: Any?): T? = this?.value
 
 /**
  * OCTET STRING encapsulation wrapper.

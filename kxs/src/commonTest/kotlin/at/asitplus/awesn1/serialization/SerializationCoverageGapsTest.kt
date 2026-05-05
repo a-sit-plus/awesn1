@@ -57,6 +57,25 @@ val SerializationTestCoverageGaps by testSuite(
         }
     }
 
+    "ExplicitlyTagged delegate exposes typed value" {
+        val wrapped = ExplicitlyTagged(5)
+        val value by wrapped
+
+        value shouldBe 5
+    }
+
+    "Nullable ExplicitlyTagged delegate exposes nullable typed value" {
+        val wrapped: ExplicitlyTagged<Asn1Integer>? = ExplicitlyTagged(Asn1Integer(5u))
+        val value by wrapped
+
+        value shouldBe Asn1Integer(5u)
+
+        val missing: ExplicitlyTagged<Asn1Integer>? = null
+        val nullValue by missing
+
+        nullValue shouldBe null
+    }
+
     "Asn1BitString on non-ByteArray targets is currently ignored (no shape change)" {
         val value = InvalidBitStringTarget(1)
         val encoded = DER.encodeToByteArray(value)
