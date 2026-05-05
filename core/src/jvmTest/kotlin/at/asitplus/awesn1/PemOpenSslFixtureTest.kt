@@ -13,7 +13,7 @@ val PemOpenSslFixtureTest by testSuite {
     fun assertPemBlocksEqual(expected: List<PemBlock>, actual: List<PemBlock>, context: String) {
         actual.size shouldBe expected.size
         expected.zip(actual).forEachIndexed { i, (left, right) ->
-            right.label shouldBe left.label
+            right.pemLabel shouldBe left.pemLabel
             right.headers shouldBe left.headers
             (right.payload contentEquals left.payload) shouldBe true
         }
@@ -31,7 +31,7 @@ val PemOpenSslFixtureTest by testSuite {
             val src = resourceText("fixtures/openssl/${fixture.file}")
             val decoded = PemBlock.decodeAllFromPem(src)
 
-            decoded.map { it.label } shouldBe fixture.expectedLabels
+            decoded.map { it.pemLabel } shouldBe fixture.expectedLabels
             decoded.map { block -> block.headers.map { it.name } } shouldBe fixture.expectedHeaderNamesByBlock
 
             val roundTrippedAll = PemBlock.decodeAllFromPem(decoded.encodeAllToPem())
@@ -54,7 +54,7 @@ val PemOpenSslFixtureTest by testSuite {
             }
 
             val decoded = PemBlock.decodeAllFromPem(src)
-            decoded.map { it.label } shouldBe fixture.expectedLabels
+            decoded.map { it.pemLabel } shouldBe fixture.expectedLabels
 
             if (fixture.expectedHeaderNamesByBlock.isNotEmpty()) {
                 decoded.map { block -> block.headers.map { it.name } } shouldBe fixture.expectedHeaderNamesByBlock

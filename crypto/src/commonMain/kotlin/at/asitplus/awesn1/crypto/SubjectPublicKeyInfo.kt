@@ -3,11 +3,7 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.encoding.readNull
@@ -30,12 +26,14 @@ import kotlinx.serialization.Serializable
 data class SubjectPublicKeyInfo(
     val algorithmIdentifier: X509AlgorithmIdentifier,
     val subjectPublicKey: Asn1BitString,
-) {
+) : WithPemLabel {
     val algorithmOid: ObjectIdentifier get() = algorithmIdentifier.oid
     val algorithmParameters: Asn1Element? get() = algorithmIdentifier.parameters
 
+    override val pemLabel: String get() = canonicalPemLabel
+
     @Throws(Asn1Exception::class)
-    fun decodeRsaPublicKey(): RsaPublicKeyInfo {
+    fun decodeRsaPublicKey(): Pkcs1RsaPublicKeyInfo {
         if (algorithmOid != RSA_ENCRYPTION_OID) {
             throw Asn1Exception("SubjectPublicKeyInfo is not an RSA public key")
         }
@@ -44,11 +42,18 @@ data class SubjectPublicKeyInfo(
         return DER.decodeFromTlv( Asn1Element.parse(subjectPublicKey.rawBytes))
     }
 
-    companion object {
+    companion object : PemLabelSpec<SubjectPublicKeyInfo> {
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
-        fun rsa(publicKey: RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
+        const val PEM_LABEL_PUBLIC_KEY = "PUBLIC KEY"
+        const val PEM_LABEL_RSA_PUBLIC_KEY = "RSA PUBLIC KEY"
+
+        override val canonicalPemLabel: String get() = PEM_LABEL_PUBLIC_KEY
+        override val validPemLabels: Set<String> = setOf(canonicalPemLabel, PEM_LABEL_RSA_PUBLIC_KEY)
+
+
+        fun rsa(publicKey: Pkcs1RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
             algorithmIdentifier = X509AlgorithmIdentifier(
                 RSA_ENCRYPTION_OID,
                 listOf(Asn1.Null())
@@ -57,7 +62,7 @@ data class SubjectPublicKeyInfo(
         )
 
         fun rsa(modulus: Asn1Integer, exponent: Asn1Integer): SubjectPublicKeyInfo =
-            rsa(RsaPublicKeyInfo(modulus, exponent))
+            rsa(Pkcs1RsaPublicKeyInfo(modulus, exponent))
 
         fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
             algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, listOf(curveOid.encodeToTlv())),

@@ -5,6 +5,9 @@ import at.asitplus.awesn1.catchingUnwrapped
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.decodeFromPem
+import at.asitplus.awesn1.serialization.encodeToPem
+import at.asitplus.awesn1.serialization.encodeToPemBlock
 import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -43,9 +46,13 @@ val X509CertificateFixtureRoundTripTest by testSuite {
                     }
 
                     "pem" -> {
-                        val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.label == "CERTIFICATE" }
+                        val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.pemLabel == "CERTIFICATE" }
                         blocks.shouldNotBeEmpty().forEach { block ->
                             val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), block.payload)
+                            val pemDecoded: X509Certificate = X509Certificate.decodeFromPem(block)
+                            pemDecoded shouldBe decoded
+                            pemDecoded.encodeToPemBlock() shouldBe block
+                            pemDecoded.encodeToPem() shouldBe block.encodeToPem()
                             DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe block.payload
                             decodeLegacyCertificateAsCurrent(block.payload) shouldBe decoded
                         }

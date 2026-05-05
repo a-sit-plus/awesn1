@@ -4,6 +4,8 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1OctetString
+import at.asitplus.awesn1.WithPemLabel
+import at.asitplus.awesn1.PemLabelSpec
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,8 +26,10 @@ data class EncryptedPrivateKeyInfo(
     val encryptionAlgorithm: X509AlgorithmIdentifier,
     @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
     val encryptedData: Asn1OctetString,
-) {
-    companion object {
-        const val PEM_LABEL = "ENCRYPTED PRIVATE KEY"
+) : WithPemLabel {
+    override val pemLabel: String get() = canonicalPemLabel
+
+    companion object : PemLabelSpec<EncryptedPrivateKeyInfo> {
+        override val canonicalPemLabel: String get() = "ENCRYPTED PRIVATE KEY"
     }
 }
