@@ -74,8 +74,8 @@ private fun tagOverrideRoundTrip(): Pair<ByteArray, TutorialDocTaggedInt> {
 @JvmInline
 @Asn1Tag(
     tagNumber = 18u,
-    tagClass = Asn1TagClass.PRIVATE,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.PRIVATE,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 private value class TutorialDocTaggedByte(
     val value: Byte,
@@ -88,8 +88,8 @@ private value class TutorialDocTaggedByte(
 private value class TutorialDocInvalidBackingTaggedByte(
     @Asn1Tag(
         tagNumber = 19u,
-        tagClass = Asn1TagClass.PRIVATE,
-        constructed = Asn1ConstructedBit.PRIMITIVE,
+        tagClass = Asn1Tag.Class.PRIVATE,
+        constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
     )
     val value: Byte,
 )
@@ -115,7 +115,7 @@ private fun inlineValueClassTagRoundTrip(): Pair<ByteArray, TutorialDocTaggedByt
 @JvmInline
 @Asn1Tag(
     tagNumber = 18u,
-    tagClass = Asn1TagClass.PRIVATE,
+    tagClass = Asn1Tag.Class.PRIVATE,
 )
 private value class TutorialDocTaggedOuter(
     val value: TutorialDocTaggedInner,
@@ -124,7 +124,7 @@ private value class TutorialDocTaggedOuter(
 @Serializable
 @Asn1Tag(
     tagNumber = 19u,
-    tagClass = Asn1TagClass.PRIVATE,
+    tagClass = Asn1Tag.Class.PRIVATE,
 )
 private data class TutorialDocTaggedInner(
     val value: Byte,

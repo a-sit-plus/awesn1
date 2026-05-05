@@ -8,6 +8,9 @@
         * If a matching subclass OID is encountered, deserialise to that subtype, of not: fallback to open base class and assigne encountered OID to the oid property of tha base class
 * Fix value/inline class handling
 * Asn1Integer now has `toInt()` and `toIntOrNull()`
+* Core renames:
+    * `Asn1TagClass` -> `Asn1Tag.Class`
+    * `Asn1TagConstructedBit` -> `Asn1Tag.ConstructedBit`
 * **Massively refactor `crypto` classes**:
     * Everything's now based on kotlinx.serialization (`kxs` module)
     * Add RSA PSS Param class and helper parsing functions
