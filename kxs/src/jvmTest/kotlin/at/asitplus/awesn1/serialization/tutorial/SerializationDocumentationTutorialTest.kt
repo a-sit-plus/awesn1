@@ -80,7 +80,9 @@ private fun tagOverrideRoundTrip(): Pair<ByteArray, TutorialDocTaggedInt> {
 private value class TutorialDocTaggedByte(
     val value: Byte,
 )
+// --8<-- [end:kxs-inline-valueclass-tag-definitions]
 
+// --8<-- [start:kxs-inline-valueclass-tag-definitions-rej]
 @Serializable
 @JvmInline
 private value class TutorialDocInvalidBackingTaggedByte(
@@ -91,18 +93,20 @@ private value class TutorialDocInvalidBackingTaggedByte(
     )
     val value: Byte,
 )
-// --8<-- [end:kxs-inline-valueclass-tag-definitions]
+// --8<-- [end:kxs-inline-valueclass-tag-definitions-rej]
 
 private fun inlineValueClassTagRoundTrip(): Pair<ByteArray, TutorialDocTaggedByte> {
     // --8<-- [start:kxs-inline-valueclass-tag-roundtrip]
     val value = TutorialDocTaggedByte(value = 0x23)
     val der = DER.encodeToByteArray(value)
     check(der.toHexString() == "d20123") /* (1)! */
+    // --8<-- [end:kxs-inline-valueclass-tag-roundtrip]
 
+    // --8<-- [start:kxs-inline-valueclass-tag-roundtrip-rej]
     shouldThrow<SerializationException> {
         DER.encodeToByteArray(TutorialDocInvalidBackingTaggedByte(value = 0x23))
-    } /* (2)! */
-    // --8<-- [end:kxs-inline-valueclass-tag-roundtrip]
+    } /* (1)! */
+    // --8<-- [end:kxs-inline-valueclass-tag-roundtrip-rej]
     return der to DER.decodeFromByteArray(der)
 }
 
