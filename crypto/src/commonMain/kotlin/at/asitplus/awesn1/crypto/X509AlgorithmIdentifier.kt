@@ -5,6 +5,8 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.decodeFromTlv
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
@@ -55,6 +57,27 @@ value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
             2 -> element.children[1]
             else -> throw Asn1Exception("AlgorithmIdentifier has ${element.children.size} children")
         }
+
+    /**
+     * Parses [parameters] as RSASSA-PSS parameters if this identifier uses the `id-RSASSA-PSS` OID.
+     *
+     * This helper models [RFC 4055, section 3.1](https://www.rfc-editor.org/rfc/rfc4055.html#section-3.1) without
+     * making [X509AlgorithmIdentifier] itself enforce algorithm-specific parameter schemas during generic DER parsing.
+     *
+     * @return `null` if this algorithm is nor RSA_SSA_PSS
+     *
+     * @throws Asn1Exception if this algorothm is RSA_SSA_PSS has no parameters, or the parameter element is
+     * not a valid `RSASSA-PSS-params` SEQUENCE.
+     */
+    @get:Throws(Asn1Exception::class)
+    val rsaSsaPssParams: RsaSsaPssParams? get()= runWrappingAs(a = ::Asn1Exception) {
+        if (oid != RsaSsaPssParams.RSA_SSA_PSS_OID) {
+          return  null
+        }
+        DER.decodeFromTlv<RsaSsaPssParams>(
+            parameters?.asSequence() ?: throw Asn1Exception("RSASSA-PSS AlgorithmIdentifier has no parameters")
+        )
+    }
 
     override fun toString(): String {
         return catchingUnwrapped {

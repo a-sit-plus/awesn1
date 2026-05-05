@@ -25,6 +25,7 @@
     * Rename `RsaPrivateKeyInfo` -> `Pkcs1RsaPrivateKeyInfo`
     * Rename `RsaOtherPrimeInfo` -> `Pkcs1RsaOtherPrimeInfo`
     * Rename `EcPrivateKeyInfo` -> `Sec1EcPrivateKeyInfo`
+    * Add RSA PSS Param class and helper parsing funcgions
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever so publishing 0.2.0 went south.
