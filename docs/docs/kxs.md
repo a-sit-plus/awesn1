@@ -167,11 +167,10 @@ outer schema contract and takes precedence:
 --8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-inline-valueclass-outer-tag-roundtrip"
 ```
 
-1. `TutorialDocTaggedOuter` is encoded with private tag 18 (`f2`); the wrapped class' private tag 19 (`f3`) is not used.
+1. {{ asn1js_iframe('kxs-inline-valueclass-outer-tag') -}}
+   Explore on <a href="{{ asn1js_url('kxs-inline-valueclass-outer-tag') }}" target="_blank" rel="noopener">asn1js.eu</a>
+   `TutorialDocTaggedOuter` is encoded with private tag 18 (`f2`); the wrapped class' private tag 19 (`f3`) is not used.
 2. Decoding the inner class tag at this position fails, because the inline/value class tag is expected.
-
-{{ asn1js_iframe('kxs-inline-valueclass-outer-tag') -}}
-Explore on <a href="{{ asn1js_url('kxs-inline-valueclass-outer-tag') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
 ## Modelling EXPLICIT Wrappers
 

@@ -112,15 +112,6 @@ private fun inlineValueClassTagRoundTrip(): Pair<ByteArray, TutorialDocTaggedByt
 
 // --8<-- [start:kxs-inline-valueclass-outer-tag-definitions]
 @Serializable
-@Asn1Tag(
-    tagNumber = 19u,
-    tagClass = Asn1TagClass.PRIVATE,
-)
-private data class TutorialDocTaggedInner(
-    val value: Byte,
-)
-
-@Serializable
 @JvmInline
 @Asn1Tag(
     tagNumber = 18u,
@@ -129,6 +120,16 @@ private data class TutorialDocTaggedInner(
 private value class TutorialDocTaggedOuter(
     val value: TutorialDocTaggedInner,
 )
+
+@Serializable
+@Asn1Tag(
+    tagNumber = 19u,
+    tagClass = Asn1TagClass.PRIVATE,
+)
+private data class TutorialDocTaggedInner(
+    val value: Byte,
+)
+
 // --8<-- [end:kxs-inline-valueclass-outer-tag-definitions]
 
 private fun inlineValueClassOuterTagRoundTrip(): Pair<ByteArray, TutorialDocTaggedOuter> {
