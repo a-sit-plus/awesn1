@@ -3,7 +3,6 @@
 
 package at.asitplus.awesn1
 
-import at.asitplus.awesn1.decodeFromDerWithPemHeaders
 import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.awesn1.encoding.parse
 import kotlin.io.encoding.Base64
@@ -70,6 +69,31 @@ data class PemBlock(
     }
 
     override fun encodeToPemBlock() = this
+
+    fun encodeToPem(): String {
+        val begin = "$FENCE_PREFIX_BEGIN$pemLabel$FENCE_SUFFIX"
+        val end = "$FENCE_PREFIX_END$pemLabel$FENCE_SUFFIX"
+        val payloadBase64 = payload.encodeBase64Canonical()
+
+        return buildString {
+            append(begin)
+            append('\n')
+            headers.forEach {
+                append(it.name)
+                append(':')
+                append(it.value)
+                append('\n')
+            }
+            if (headers.any()) {
+                append('\n')
+            }
+            payloadBase64.forEach {
+                append(it)
+                append('\n')
+            }
+            append(end)
+        }
+    }
 
     companion object : PemDecodable<PemBlock> {
         override fun doDecodeFromPemBlock(src: PemBlock): PemBlock = src
@@ -162,33 +186,6 @@ fun Iterable<PemEncodable>.encodeAllToPem(): String =
 @JvmName("encodeAllPemBlocksToPem")
 @Throws(IllegalArgumentException::class)
 fun Iterable<PemBlock>.encodeAllToPem(): String = joinToString("\n") { it.encodeToPem() }
-
-@JvmName("encodePemBlockToPem")
-@Throws(IllegalArgumentException::class)
-fun PemBlock.encodeToPem(): String {
-    val begin = "$FENCE_PREFIX_BEGIN$pemLabel$FENCE_SUFFIX"
-    val end = "$FENCE_PREFIX_END$pemLabel$FENCE_SUFFIX"
-    val payloadBase64 = payload.encodeBase64Canonical()
-
-    return buildString {
-        append(begin)
-        append('\n')
-        headers.forEach {
-            append(it.name)
-            append(':')
-            append(it.value)
-            append('\n')
-        }
-        if (headers.any()) {
-            append('\n')
-        }
-        payloadBase64.forEach {
-            append(it)
-            append('\n')
-        }
-        append(end)
-    }
-}
 
 @Throws(IllegalArgumentException::class)
 fun <T> PemDecodable<T>.decodeFromPem(src: String): T =

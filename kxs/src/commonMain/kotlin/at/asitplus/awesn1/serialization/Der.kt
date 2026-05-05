@@ -184,31 +184,22 @@ inline fun <reified T> Der.decodeFromTlv(source: Asn1Element): T =
 inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
     decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source) as T
 
-
-/**
- * Decodes [source] from PEM-encoded DER bytes using the deserializer for [T].
- */
 @ExperimentalSerializationApi
-fun <T : WithPemLabel, D : WithValidPemLabels<T>> Der.decodeFromPem(
-    serializer: KSerializer<T>,
-    pemDecodable: D,
-    source: PemBlock
+inline fun <reified T : WithPemLabel> WithValidPemLabels<T>.decodeFromPem(
+    source: PemBlock,
+    der: Der = DER
 ): T {
-    pemDecodable.validate(source)
-    return decodeFromByteArray(serializer, source.payload)
+    validate(source)
+    return der.decodeFromDer(source.payload)
 }
 
-/**
- * Decodes [source] from PEM-encoded DER bytes using the inferred deserializer for [T].
- */
+
 @ExperimentalSerializationApi
-inline fun <reified T : WithPemLabel, D : WithValidPemLabels<T>> Der.decodeFromPem(
-    pemDecodable: D,
-    source: PemBlock
-): T {
-    pemDecodable.validate(source)
-    return decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source.payload) as T
-}
+inline fun <reified T : WithPemLabel> T.encodeToPemBlock(der: Der = DER): PemBlock =
+    PemBlock(pemLabel, payload = der.encodeToByteArray(this))
+
+@ExperimentalSerializationApi
+inline fun <reified T : WithPemLabel> T.encodeToPem(der: Der = DER): String = encodeToPemBlock(der).encodeToPem()
 
 interface DerEncoder : Encoder, Asn1DerEncoder {
     val der: Der
