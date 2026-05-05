@@ -11,6 +11,7 @@
 * Core renames:
     * `Asn1TagClass` -> `Asn1Tag.Class`
     * `Asn1TagConstructedBit` -> `Asn1Tag.ConstructedBit`
+    * `Asn1ElementStringSerializer` -> `Asn1ElementFallbackBase64Serializer` (you should never have used this, aynways!)
 * **Massively refactor `crypto` classes**:
     * Everything's now based on kotlinx.serialization (`kxs` module)
     * Add RSA PSS Param class and helper parsing functions

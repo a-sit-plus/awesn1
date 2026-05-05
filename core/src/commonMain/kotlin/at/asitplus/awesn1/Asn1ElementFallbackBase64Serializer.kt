@@ -22,7 +22,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * encoding/decoding is used.
  */
 @OptIn(ExperimentalEncodingApi::class)
-object Asn1ElementStringSerializer : KSerializer<Asn1Element> {
+object Asn1ElementFallbackBase64Serializer : KSerializer<Asn1Element> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_ELEMENT_TREE, PrimitiveKind.STRING)
 
     override fun deserialize(decoder: Decoder): Asn1Element =
