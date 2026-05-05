@@ -32,7 +32,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs8PrivateKeyInfo(
-    val rawVersion: Asn1Integer= Asn1Integer.ZERO,
+    val rawVersion: Asn1Integer,
     val privateKeyAlgorithm: X509AlgorithmIdentifier,
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u)

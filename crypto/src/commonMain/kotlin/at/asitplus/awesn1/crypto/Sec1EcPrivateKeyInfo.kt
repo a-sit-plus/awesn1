@@ -35,12 +35,12 @@ data class Sec1EcPrivateKeyInfo(
     val publicKey: ExplicitlyTagged<Asn1BitString>? = null,
 ) {
     constructor(
-        version: Int=1,
+        version: Int = 1,
         privateKey: ByteArray,
         parameters: ObjectIdentifier?,
         publicKey: Asn1BitString?,
     ) : this(
-        rawVersion = Asn1Integer(version-1),
+        rawVersion = Asn1Integer(version),
         privateKey = privateKey,
         parameters = parameters?.let(::ExplicitlyTagged),
         publicKey = publicKey?.let(::ExplicitlyTagged),
@@ -48,23 +48,17 @@ data class Sec1EcPrivateKeyInfo(
 
     /**
      *
-     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
-     * version commonly referred to as the version of a private key
-     *
-     * | RAW Version | (Semantic) Version |
-     * |:-----------:|:----------------:|
-     * | 0           | 1                |
      * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
      */
     @get:Throws(NumberFormatException::class)
-    val version: Int? by lazy { rawVersion.toInt() + 1 }
+    val version: Int? by lazy { rawVersion.toInt() }
 
     override fun equals(other: Any?): Boolean =
         other is Sec1EcPrivateKeyInfo &&
-            rawVersion == other.rawVersion &&
-            privateKey.contentEquals(other.privateKey) &&
-            parameters == other.parameters &&
-            publicKey == other.publicKey
+                rawVersion == other.rawVersion &&
+                privateKey.contentEquals(other.privateKey) &&
+                parameters == other.parameters &&
+                publicKey == other.publicKey
 
     override fun hashCode(): Int {
         var result = rawVersion.hashCode()
