@@ -134,7 +134,7 @@ class DerDecoder internal constructor(
         if (!::propertyDescriptor.isInitialized) {
             initializeStandalonePropertyState(descriptor)
         }
-        inlineHintState.recordFrom(descriptor)
+        inlineHintState.captureInlineHintsFrom(descriptor)
         return this
     }
 
@@ -277,7 +277,7 @@ class DerDecoder internal constructor(
 
         val effectiveDescriptor =
             if (propertyDescriptor.isInline && propertyDescriptor.elementsCount == 1) {
-                propertyDescriptor.getElementDescriptor(0)
+                propertyDescriptor.unwrapInlineDescriptorForAsn1()
             } else {
                 propertyDescriptor
             }
@@ -409,6 +409,10 @@ class DerDecoder internal constructor(
     @Throws(SerializationException::class)
     override fun <T> decodeSerializableValue(deserializer: DeserializationStrategy<T>): T {
         if (elements.isEmpty() && deserializer.descriptor.isNullable) return nullDecoded()
+        if (deserializer.descriptor.isInline) {
+            // Let the framework do its inline-class magic **before consuming pending inline hints.**
+            return deserializer.deserialize(this)
+        }
         val currentAnnotatedElement = elements[elementIndex]
         val inlineHints = inlineHintState.consume()
         val effectiveTagTemplate = resolveAsn1TagTemplate(
@@ -499,11 +503,6 @@ class DerDecoder internal constructor(
             && deserializer is SealedClassSerializer<*>
         ) {
             return decodeChoiceSerializableValue(deserializer, currentAnnotatedElement, inlineHints.tag)
-        }
-
-        if (deserializer.descriptor.isInline) {
-            // Let the framework do its inline-class magic
-            return deserializer.deserialize(this)
         }
 
         val processedElement = currentAnnotatedElement
