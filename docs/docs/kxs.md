@@ -93,6 +93,11 @@ Any serializable class maps to ASN.1 `SEQUENCE` by default, as shown below.
 1. {{ asn1js_iframe('kxs-baseline') -}}
    Explore on <a href="{{ asn1js_url('kxs-baseline') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
+## Inline/Value Classes
+Inline/value classes are invisible to the format. Hence, wrapping anything in a value class has no effect on the resulting bytes.
+As such, creating a regular class with a single property wraps that property in an ASN.1 `SEQUENCE` with a single child, whilst wrapping
+anything in a value class results in the same ASN.1 representation as directly encoding it.
+
 ## Overriding Tags with `@Asn1Tag`
 
 Use `@Asn1Tag` for implicit tag overrides when your wire format requires a specific context-specific tag number.
@@ -101,12 +106,15 @@ You will see this pattern throughout [X.509 (RFC 5280)](https://www.rfc-editor.o
 extension and name-related structures.
 
 !!! warning "Tagging Inline Classes"
-   For regular serializable classes, put `@Asn1Tag` on the class or on the property whose ASN.1 field needs the override.
-   For Kotlin inline/value classes, put `@Asn1Tag` on the inline/value class declaration itself. Do not put it on the
-   single backing property: inline/value class unwrapping removes that property boundary, so awesn1 rejects such models
-   with `SerializationException` instead of silently choosing an ambiguous tag.  
-   **Hence, regardless of how many layers of custom tags are in place, whenever a property of a tagged type is used
-   in an inline/value class, any implicit tag on the outermost inline/value class will take precedence.**
+    For regular serializable classes, put `@Asn1Tag` on the class or on the property whose ASN.1 field needs the override.
+    For Kotlin inline/value classes, put `@Asn1Tag` on the inline/value class declaration itself. Do not put it on the
+    single backing property: inline/value class unwrapping removes that property boundary, so awesn1 rejects such models
+    with `SerializationException` instead of silently choosing an ambiguous tag.  
+    **In summary:**
+    
+    * Outermost tag wins for inline classes
+    * Tagging a property of an inline class is illegal and rejected
+    * Tags on the class (default or manually specified on class declaration) are respected, if no tag annotation is present on an inline class
 
 ```kotlin
 --8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-tag-override-definitions"
