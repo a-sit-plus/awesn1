@@ -66,6 +66,35 @@ val PemTest by testSuite {
         decoder.decodeFromPem(source.encodeToPem()) shouldBe Asn1Integer(7)
     }
 
+    "pem decodable string path validates labels" {
+        val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
+            Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
+                override val canonicalPemLabel: String = "ASN1 INTEGER"
+            }
+
+        val source = PemBlock("WRONG LABEL", payload = byteArrayOf()).encodeToPem()
+
+        shouldThrow<IllegalArgumentException> {
+            decoder.decodeFromPem(source)
+        }.message?.startsWith("PEM label is WRONG LABEL") shouldBe true
+    }
+
+    "pem label spec accepts aliases" {
+        val source = object : Asn1PemEncodable<Asn1Primitive> {
+            override val pemLabel: String = "ASN1 INTEGER"
+            override fun encodeToTlv(): Asn1Primitive = Asn1Integer(7).encodeToTlv()
+        }
+
+        val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
+            Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
+                override val canonicalPemLabel: String = "ASN1 INTEGER"
+                override val validPemLabels: Set<String> = setOf(canonicalPemLabel, "INTEGER ALIAS")
+            }
+
+        val aliasPem = source.encodeToPemBlock().copy(pemLabel = "INTEGER ALIAS").encodeToPem()
+        decoder.decodeFromPem(aliasPem) shouldBe Asn1Integer(7)
+    }
+
     "pem header uses value equality" {
         PemHeader("Proc-Type", "4,ENCRYPTED") shouldBe PemHeader("Proc-Type", "4,ENCRYPTED")
         PemHeader("Proc-Type", "4,ENCRYPTED") shouldNotBe PemHeader("DEK-Info", "AES-256-CBC,AA")

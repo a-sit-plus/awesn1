@@ -5,7 +5,7 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.WithPemLabel
-import at.asitplus.awesn1.WithValidPemLabels
+import at.asitplus.awesn1.PemLabelSpec
 import kotlinx.serialization.Serializable
 
 /**
@@ -29,7 +29,7 @@ data class EncryptedPrivateKeyInfo(
 ) : WithPemLabel {
     override val pemLabel: String get() = canonicalPemLabel
 
-    companion object : WithValidPemLabels<EncryptedPrivateKeyInfo> {
+    companion object : PemLabelSpec<EncryptedPrivateKeyInfo> {
         override val canonicalPemLabel: String get() = "ENCRYPTED PRIVATE KEY"
     }
 }

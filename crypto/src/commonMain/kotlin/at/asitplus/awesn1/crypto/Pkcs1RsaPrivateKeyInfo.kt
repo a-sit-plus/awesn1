@@ -5,7 +5,7 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.WithPemLabel
-import at.asitplus.awesn1.WithValidPemLabels
+import at.asitplus.awesn1.PemLabelSpec
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
@@ -63,7 +63,7 @@ data class Pkcs1RsaPrivateKeyInfo(
      */
     override val version: Int by lazy { rawVersion.toInt() }
 
-    companion object : WithValidPemLabels<Pkcs1RsaPrivateKeyInfo> {
+    companion object : PemLabelSpec<Pkcs1RsaPrivateKeyInfo> {
         override val canonicalPemLabel: String get() = "RSA PRIVATE KEY"
     }
 }

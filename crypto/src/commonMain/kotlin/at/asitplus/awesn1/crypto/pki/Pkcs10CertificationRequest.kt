@@ -4,7 +4,7 @@
 package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.WithPemLabel
-import at.asitplus.awesn1.WithValidPemLabels
+import at.asitplus.awesn1.PemLabelSpec
 import at.asitplus.awesn1.crypto.SignatureValue
 import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import kotlinx.serialization.Serializable
@@ -28,7 +28,7 @@ data class Pkcs10CertificationRequest(
 ) : WithPemLabel {
     override val pemLabel: String get() = canonicalPemLabel
 
-    companion object : WithValidPemLabels<Pkcs10CertificationRequest> {
+    companion object : PemLabelSpec<Pkcs10CertificationRequest> {
 
         override val canonicalPemLabel: String get() = "CERTIFICATE REQUEST"
 

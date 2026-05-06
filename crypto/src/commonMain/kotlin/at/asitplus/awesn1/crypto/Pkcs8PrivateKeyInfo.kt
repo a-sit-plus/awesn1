@@ -67,7 +67,7 @@ data class Pkcs8PrivateKeyInfo(
             privateKey.asEncapsulatingOctetString().decodeRethrowing { next() }
         )
 
-    companion object : WithValidPemLabels<Pkcs8PrivateKeyInfo> {
+    companion object : PemLabelSpec<Pkcs8PrivateKeyInfo> {
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 

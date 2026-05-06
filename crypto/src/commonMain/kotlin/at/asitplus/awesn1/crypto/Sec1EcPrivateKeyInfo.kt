@@ -33,6 +33,8 @@ data class Sec1EcPrivateKeyInfo(
     @Asn1Tag(tagNumber = 1u)
     private val taggedPublicKey: ExplicitlyTagged<Asn1BitString>? = null,
 ) : Versioned, WithPemLabel {
+
+
     constructor(
         version: Int = 1,
         privateKey: ByteArray,
@@ -84,7 +86,8 @@ data class Sec1EcPrivateKeyInfo(
                 "publicKey=$publicKey" +
                 ")"
     }
-    companion object : WithValidPemLabels<Sec1EcPrivateKeyInfo> {
+
+    companion object : PemLabelSpec<Sec1EcPrivateKeyInfo> {
         override val canonicalPemLabel: String get() = "EC PRIVATE KEY"
 
     }

@@ -19,25 +19,17 @@ interface WithPemLabel {
     val pemLabel: String
 }
 
-interface WithValidPemLabels<T> {
+interface PemLabelSpec<out T> {
 
     /**
-     * A canonical PEM label that represents a standard or commonly agreed-upon identifier
-     * for the data type this instance is associated with. This label is typically used when
-     * converting PEM data to provide a consistent and recognizable format.
-     *
-     * May be `null` if no canonical label is defined or required.
+     * The standard or commonly agreed-upon PEM label for this data type.
      */
     val canonicalPemLabel: String
 
     /**
-     * Used to define valid PEM labels for this PEM encodable.
-     *
-     * If you don't want/need it, set it to `null` to skip matching
+     * All accepted PEM labels for this data type.
      */
     val validPemLabels: Set<String> get() = canonicalPemLabel.let { setOf(it) }
-
-
 }
 
 data class PemBlock(
@@ -145,7 +137,7 @@ interface Asn1PemEncodable<out A : Asn1Element> : PemEncodable, Asn1Encodable<A>
  * Override [decodeFromTlvWithPemHeaders] to customize this.
  */
 interface Asn1PemDecodable<A : Asn1Element,  T : Asn1Encodable<A>>
-    : PemDecodable<T>, Asn1Decodable<A, T>, WithValidPemLabels<T> {
+    : PemDecodable<T>, Asn1Decodable<A, T>, PemLabelSpec<T> {
 
     fun decodeFromTlvWithPemHeaders(pemHeaders: Iterable<PemHeader>, tlv: A): T {
         if (pemHeaders.any()) throw IllegalArgumentException("Unexpected PEM headers are present in the data")
@@ -158,13 +150,13 @@ interface Asn1PemDecodable<A : Asn1Element,  T : Asn1Encodable<A>>
     }
 }
 
-fun <T> WithValidPemLabels<T>.validate(src: WithPemLabel) {
+fun PemLabelSpec<*>.validate(src: WithPemLabel) {
     validPemLabels.let { require(src.pemLabel in it) { "PEM label is ${src.pemLabel}, expected one of ${it.joinToString { it }}" } }
 }
 
 fun <T> PemDecodable<T>.decodeFromPemBlock(src: PemBlock): T =
     runWrappingAs(a = ::IllegalArgumentException) {
-        if (this is WithValidPemLabels<*>) validate(src)
+        if (this is PemLabelSpec<*>) validate(src)
         doDecodeFromPemBlock(src)
     }
 
@@ -189,11 +181,11 @@ fun Iterable<PemBlock>.encodeAllToPem(): String = joinToString("\n") { it.encode
 
 @Throws(IllegalArgumentException::class)
 fun <T> PemDecodable<T>.decodeFromPem(src: String): T =
-    src.parseAsPemBlock().let(this::doDecodeFromPemBlock)
+    decodeFromPemBlock(src.parseAsPemBlock())
 
 @Throws(IllegalArgumentException::class)
 fun <T : PemEncodable> PemDecodable<T>.decodeAllFromPem(src: String): List<T> =
-    src.parseAsPemBlocks().map(this::doDecodeFromPemBlock)
+    src.parseAsPemBlocks().map(this::decodeFromPemBlock)
 
 @Throws(IllegalArgumentException::class)
 private fun String.parseAsPemBlock(): PemBlock = parseAsPemBlocks().singleOrNull()

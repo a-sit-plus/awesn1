@@ -185,7 +185,7 @@ inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
     decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source) as T
 
 @ExperimentalSerializationApi
-inline fun <reified T : WithPemLabel> WithValidPemLabels<T>.decodeFromPem(
+inline fun <reified T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
     source: PemBlock,
     der: Der = DER
 ): T {
