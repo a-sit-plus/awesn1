@@ -73,7 +73,7 @@ value class GeneralNames @Throws(Throwable::class) constructor(
         @Throws(Asn1Exception::class)
         fun X509Certificate.findSubjectAltNames() = tbsCertificate.findSubjectAltNames()
         @Throws(Asn1Exception::class)
-        fun X509TbsCertificate.findSubjectAltNames() = extensions?.value?.findSubjectAltNames()
+        fun X509TbsCertificate.findSubjectAltNames() = extensions?.findSubjectAltNames()
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findSubjectAltNames() =
@@ -84,7 +84,7 @@ value class GeneralNames @Throws(Throwable::class) constructor(
         @Throws(Asn1Exception::class)
         fun X509Certificate.findIssuerAltNames() = tbsCertificate.findIssuerAltNames()
         @Throws(Asn1Exception::class)
-        fun X509TbsCertificate.findIssuerAltNames() = extensions?.value?.findIssuerAltNames()
+        fun X509TbsCertificate.findIssuerAltNames() = extensions?.findIssuerAltNames()
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findIssuerAltNames() =

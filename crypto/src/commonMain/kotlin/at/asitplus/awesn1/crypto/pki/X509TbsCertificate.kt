@@ -11,6 +11,7 @@ import at.asitplus.awesn1.crypto.Versioned
 import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.serialization.getValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
@@ -87,7 +88,7 @@ data class X509TbsCertificate(
     @Asn1Tag(tagNumber = 2u)
     val subjectUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 3u)
-    val extensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
+    val rawExtensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
 ) : Versioned {
     constructor(
         version: Int? = null,
@@ -111,10 +112,12 @@ data class X509TbsCertificate(
         subjectPublicKeyInfo = subjectPublicKeyInfo,
         issuerUniqueID = issuerUniqueID,
         subjectUniqueID = subjectUniqueID,
-        extensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
+        rawExtensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
     )
 
-    override val rawVersion: Asn1Integer? get() = taggedVersion?.value
+    val extensions: List<X509CertificateExtension>? by rawExtensions
+
+    override val rawVersion: Asn1Integer? by taggedVersion
 
     /**
      *

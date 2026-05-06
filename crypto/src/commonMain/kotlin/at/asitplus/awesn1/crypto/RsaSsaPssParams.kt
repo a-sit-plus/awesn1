@@ -8,6 +8,8 @@ import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.serialization.getValue
+import at.asitplus.awesn1.serialization.orValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
@@ -31,29 +33,36 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class RsaSsaPssParams(
     @Asn1Tag(tagNumber = 0u)
-    val hashAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
+    val rawHashAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
-    val maskGenAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
+    val rawMaskGenAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
     @Asn1Tag(tagNumber = 2u)
-    val saltLength: ExplicitlyTagged<Asn1Integer>? = null,
+    val rawSaltLength: ExplicitlyTagged<Asn1Integer>? = null,
     @Asn1Tag(tagNumber = 3u)
-    val trailerField: ExplicitlyTagged<Asn1Integer>? = null,
+    val rawTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
 ) {
-    val effectiveHashAlgorithm: X509AlgorithmIdentifier
-        get() = hashAlgorithm?.value ?: SHA1_IDENTIFIER
 
-    val effectiveMaskGenAlgorithm: X509AlgorithmIdentifier
-        get() = maskGenAlgorithm?.value ?: MGF1_SHA1_IDENTIFIER
+    val hashAlgorithm: X509AlgorithmIdentifier? by rawHashAlgorithm
+
+    val maskGenAlgorithm:X509AlgorithmIdentifier? by rawMaskGenAlgorithm
+
+    val saltLength: Asn1Integer? by rawSaltLength
+
+    val trailerField: Asn1Integer? by rawTrailerField
+
+    val effectiveHashAlgorithm: X509AlgorithmIdentifier get() = hashAlgorithm ?: SHA1_IDENTIFIER
+
+    val effectiveMaskGenAlgorithm: X509AlgorithmIdentifier get() = maskGenAlgorithm ?: MGF1_SHA1_IDENTIFIER
 
     /**
      * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
-    val effectiveSaltLength: Int by lazy { saltLength?.value?.toInt() ?: DEFAULT_SALT_LENGTH }
+    val effectiveSaltLength: Int by lazy { saltLength?.toInt() ?: DEFAULT_SALT_LENGTH }
 
     /**
      * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
-    val effectiveTrailerField: Int by lazy { trailerField?.value?.toInt() ?: DEFAULT_TRAILER_FIELD }
+    val effectiveTrailerField: Int by lazy { trailerField?.toInt() ?: DEFAULT_TRAILER_FIELD }
 
     companion object {
         val RSA_SSA_PSS_OID = ObjectIdentifier("1.2.840.113549.1.1.10")

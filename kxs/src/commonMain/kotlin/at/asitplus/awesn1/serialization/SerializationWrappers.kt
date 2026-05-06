@@ -22,6 +22,12 @@ data class ExplicitlyTagged<T>(
 
 operator fun <T> ExplicitlyTagged<T>?.getValue(thisRef: Any?, property: Any?): T? = this?.value
 
+
+/** Use like so: `val foo by explicitlyTaggedProperty.orValue("Some sane default that must not even align on nullability")`
+ */
+fun <T> ExplicitlyTagged<T>?.orValue(default: T): ExplicitlyTagged<T> =
+    ExplicitlyTagged(this?.value ?: default)
+
 /**
  * OCTET STRING encapsulation wrapper.
  *
