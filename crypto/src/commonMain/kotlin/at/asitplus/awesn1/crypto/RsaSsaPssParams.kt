@@ -9,7 +9,6 @@ import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
-import at.asitplus.awesn1.serialization.orValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
@@ -33,22 +32,22 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class RsaSsaPssParams(
     @Asn1Tag(tagNumber = 0u)
-    val rawHashAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
+    private val taggedHashAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
-    val rawMaskGenAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
+    private val taggedMaskGenAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
     @Asn1Tag(tagNumber = 2u)
-    val rawSaltLength: ExplicitlyTagged<Asn1Integer>? = null,
+    private val taggedSaltLength: ExplicitlyTagged<Asn1Integer>? = null,
     @Asn1Tag(tagNumber = 3u)
-    val rawTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
+    private val taggedTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
 ) {
 
-    val hashAlgorithm: X509AlgorithmIdentifier? by rawHashAlgorithm
+    val hashAlgorithm: X509AlgorithmIdentifier? by taggedHashAlgorithm
 
-    val maskGenAlgorithm:X509AlgorithmIdentifier? by rawMaskGenAlgorithm
+    val maskGenAlgorithm:X509AlgorithmIdentifier? by taggedMaskGenAlgorithm
 
-    val saltLength: Asn1Integer? by rawSaltLength
+    val saltLength: Asn1Integer? by taggedSaltLength
 
-    val trailerField: Asn1Integer? by rawTrailerField
+    val trailerField: Asn1Integer? by taggedTrailerField
 
     val effectiveHashAlgorithm: X509AlgorithmIdentifier get() = hashAlgorithm ?: SHA1_IDENTIFIER
 
@@ -74,5 +73,38 @@ data class RsaSsaPssParams(
 
         val SHA1_IDENTIFIER = X509AlgorithmIdentifier(SHA1_OID, Asn1.Null())
         val MGF1_SHA1_IDENTIFIER = X509AlgorithmIdentifier(MGF1_OID, SHA1_IDENTIFIER.element)
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RsaSsaPssParams) return false
+
+        if (taggedHashAlgorithm != other.taggedHashAlgorithm) return false
+        if (taggedMaskGenAlgorithm != other.taggedMaskGenAlgorithm) return false
+        if (taggedSaltLength != other.taggedSaltLength) return false
+        if (taggedTrailerField != other.taggedTrailerField) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = taggedHashAlgorithm?.hashCode() ?: 0
+        result = 31 * result + (taggedMaskGenAlgorithm?.hashCode() ?: 0)
+        result = 31 * result + (taggedSaltLength?.hashCode() ?: 0)
+        result = 31 * result + (taggedTrailerField?.hashCode() ?: 0)
+        return result
+    }
+
+    override fun toString(): String {
+        return "RsaSsaPssParams(" +
+                "effectiveHashAlgorithm=$effectiveHashAlgorithm, " +
+                "effectiveMaskGenAlgorithm=$effectiveMaskGenAlgorithm, " +
+                "effectiveSaltLength=$effectiveSaltLength, " +
+                "effectiveTrailerField=$effectiveTrailerField, " +
+                "hashAlgorithm=$hashAlgorithm, " +
+                "maskGenAlgorithm=$maskGenAlgorithm, " +
+                "saltLength=$saltLength, " +
+                "trailerField=$trailerField" +
+                ")"
     }
 }

@@ -62,8 +62,8 @@ private fun LegacyEcPrivateKeyInfo.toCurrent() =
     Sec1EcPrivateKeyInfo(
         rawVersion = Asn1Integer(version),
         privateKey = privateKey,
-        parameters = parameters?.let(::ExplicitlyTagged),
-        publicKey = publicKey?.let(::ExplicitlyTagged),
+        taggedParameters = parameters?.let(::ExplicitlyTagged),
+        taggedPublicKey = publicKey?.let(::ExplicitlyTagged),
     )
 
 private fun LegacyEncryptedPrivateKeyInfo.toCurrent() =

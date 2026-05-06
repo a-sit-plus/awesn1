@@ -8,6 +8,7 @@ import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.serialization.getValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
@@ -30,9 +31,9 @@ data class Sec1EcPrivateKeyInfo(
     override val rawVersion: Asn1Integer,
     val privateKey: ByteArray,
     @Asn1Tag(tagNumber = 0u)
-    val parameters: ExplicitlyTagged<ObjectIdentifier>? = null,
+    private val taggedParameters: ExplicitlyTagged<ObjectIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
-    val publicKey: ExplicitlyTagged<Asn1BitString>? = null,
+    private val taggedPublicKey: ExplicitlyTagged<Asn1BitString>? = null,
 ) : Versioned {
     constructor(
         version: Int = 1,
@@ -42,8 +43,8 @@ data class Sec1EcPrivateKeyInfo(
     ) : this(
         rawVersion = Asn1Integer(version),
         privateKey = privateKey,
-        parameters = parameters?.let(::ExplicitlyTagged),
-        publicKey = publicKey?.let(::ExplicitlyTagged),
+        taggedParameters = parameters?.let(::ExplicitlyTagged),
+        taggedPublicKey = publicKey?.let(::ExplicitlyTagged),
     )
 
     /**
@@ -54,18 +55,32 @@ data class Sec1EcPrivateKeyInfo(
      */
     override val version: Int? by lazy { rawVersion.toInt() }
 
+    val parameters: ObjectIdentifier? by taggedParameters
+
+    val publicKey: Asn1BitString? by taggedPublicKey
+
     override fun equals(other: Any?): Boolean =
         other is Sec1EcPrivateKeyInfo &&
                 rawVersion == other.rawVersion &&
                 privateKey.contentEquals(other.privateKey) &&
-                parameters == other.parameters &&
-                publicKey == other.publicKey
+                taggedParameters == other.taggedParameters &&
+                taggedPublicKey == other.taggedPublicKey
 
     override fun hashCode(): Int {
         var result = rawVersion.hashCode()
         result = 31 * result + privateKey.contentHashCode()
-        result = 31 * result + (parameters?.hashCode() ?: 0)
-        result = 31 * result + (publicKey?.hashCode() ?: 0)
+        result = 31 * result + (taggedParameters?.hashCode() ?: 0)
+        result = 31 * result + (taggedPublicKey?.hashCode() ?: 0)
         return result
+    }
+
+    override fun toString(): String {
+        return "Sec1EcPrivateKeyInfo(" +
+                "rawVersion=$rawVersion, " +
+                "privateKey=${privateKey.contentToString()}, " +
+                "version=$version, " +
+                "parameters=$parameters, " +
+                "publicKey=$publicKey" +
+                ")"
     }
 }

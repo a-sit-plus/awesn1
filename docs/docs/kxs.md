@@ -203,6 +203,12 @@ val taggedVersion: ExplicitlyTagged<Asn1Integer>? = null
 val actualTaggedVersion by taggedVersion // Asn1Integer?
 ```
 
+Use `orValue(default)` when an absent wrapper should read as a non-null default while keeping delegate syntax.
+
+```kotlin
+val effectiveHashAlgorithm by hashAlgorithm.orValue(SHA1_IDENTIFIER)
+```
+
 ## Modelling CHOICE with Sealed Types
 
 Sealed polymorphism maps naturally to ASN.1 `CHOICE`, where one wire value can represent one of several

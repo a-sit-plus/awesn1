@@ -25,6 +25,7 @@
         * several fields were tightened to more spec-shaped public types, e.g. EC optional fields now use explicit-tag wrappers and encrypted private-key algorithm/data fields now use `X509AlgorithmIdentifier` / ASN.1 octet-string types instead of generic `Asn1Element`
     * X509TbsCertificate now only accepts integer serial numbers
     * Add `Versioned` interface
+    * Refactor to use new explicit tag delegates, so crypto classes now expose unwrapped values
     * Rename `RelativeDistinguishedName` -> `X500RelativeDistinguishedName`
     * Rename `AttributeTypeAndValue` -> `X500AttributeTypeAndValue`
     * Rename `SignatureAlgorithmIdentifier` -> `X509AlgorithmIdentifier`

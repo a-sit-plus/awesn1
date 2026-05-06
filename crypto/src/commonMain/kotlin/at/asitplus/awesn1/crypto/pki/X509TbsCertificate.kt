@@ -76,7 +76,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class X509TbsCertificate(
     @Asn1Tag(tagNumber = 0u)
-    val taggedVersion: ExplicitlyTagged<Asn1Integer>? = null,
+    private val taggedVersion: ExplicitlyTagged<Asn1Integer>? = null,
     val serialNumber: Asn1Integer,
     val signatureAlgorithm: X509AlgorithmIdentifier,
     val issuerName: List<X500RelativeDistinguishedName>,
@@ -88,7 +88,7 @@ data class X509TbsCertificate(
     @Asn1Tag(tagNumber = 2u)
     val subjectUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 3u)
-    val rawExtensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
+    private val taggedExtensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
 ) : Versioned {
     constructor(
         version: Int? = null,
@@ -112,10 +112,10 @@ data class X509TbsCertificate(
         subjectPublicKeyInfo = subjectPublicKeyInfo,
         issuerUniqueID = issuerUniqueID,
         subjectUniqueID = subjectUniqueID,
-        rawExtensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
+        taggedExtensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
     )
 
-    val extensions: List<X509CertificateExtension>? by rawExtensions
+    val extensions: List<X509CertificateExtension>? by taggedExtensions
 
     override val rawVersion: Asn1Integer? by taggedVersion
 
@@ -135,6 +135,37 @@ data class X509TbsCertificate(
      * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
     override val version: Int? by lazy { rawVersion?.toInt()?.let { it + 1 } ?: 1 }
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is X509TbsCertificate) return false
+
+        if (taggedVersion != other.taggedVersion) return false
+        if (serialNumber != other.serialNumber) return false
+        if (signatureAlgorithm != other.signatureAlgorithm) return false
+        if (issuerName != other.issuerName) return false
+        if (validity != other.validity) return false
+        if (subjectName != other.subjectName) return false
+        if (subjectPublicKeyInfo != other.subjectPublicKeyInfo) return false
+        if (issuerUniqueID != other.issuerUniqueID) return false
+        if (subjectUniqueID != other.subjectUniqueID) return false
+        if (taggedExtensions != other.taggedExtensions) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = taggedVersion?.hashCode() ?: 0
+        result = 31 * result + serialNumber.hashCode()
+        result = 31 * result + signatureAlgorithm.hashCode()
+        result = 31 * result + issuerName.hashCode()
+        result = 31 * result + validity.hashCode()
+        result = 31 * result + subjectName.hashCode()
+        result = 31 * result + subjectPublicKeyInfo.hashCode()
+        result = 31 * result + (issuerUniqueID?.hashCode() ?: 0)
+        result = 31 * result + (subjectUniqueID?.hashCode() ?: 0)
+        result = 31 * result + (taggedExtensions?.hashCode() ?: 0)
+        return result
+    }
 
 }
 
