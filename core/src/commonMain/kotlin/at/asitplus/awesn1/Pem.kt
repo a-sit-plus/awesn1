@@ -116,7 +116,6 @@ interface PemEncodable : WithPemLabel {
 interface PemDecodable<out T> {
     @Throws(IllegalArgumentException::class)
     fun doDecodeFromPemBlock(src: PemBlock): T
-
 }
 
 /** Helper interface for encoding to simple PEM structures, where the payload should just be the DER bytes */
@@ -136,7 +135,7 @@ interface Asn1PemEncodable<out A : Asn1Element> : PemEncodable, Asn1Encodable<A>
  * By default, does not allow PEM headers, matching the RFC 7468 structures.
  * Override [decodeFromTlvWithPemHeaders] to customize this.
  */
-interface Asn1PemDecodable<A : Asn1Element,  T : Asn1Encodable<A>>
+interface Asn1PemDecodable<A : Asn1Element, T : Asn1Encodable<A>>
     : PemDecodable<T>, Asn1Decodable<A, T>, PemLabelSpec<T> {
 
     fun decodeFromTlvWithPemHeaders(pemHeaders: Iterable<PemHeader>, tlv: A): T {
@@ -160,7 +159,7 @@ fun <T> PemDecodable<T>.decodeFromPemBlock(src: PemBlock): T =
         doDecodeFromPemBlock(src)
     }
 
-fun <A : Asn1Element,  T : Asn1Encodable<A>> Asn1PemDecodable<A, T>.decodeFromDerWithPemHeaders(
+fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1PemDecodable<A, T>.decodeFromDerWithPemHeaders(
     pemHeaders: Iterable<PemHeader>,
     der: ByteArray
 ) =
@@ -189,13 +188,17 @@ fun <T : PemEncodable> PemDecodable<T>.decodeAllFromPem(src: String): List<T> =
 
 @Throws(IllegalArgumentException::class)
 private fun String.parseAsPemBlock(): PemBlock = parseAsPemBlocks().singleOrNull()
-    ?: throw IllegalArgumentException("Multiple PEM blocks found in string")
+    ?: throw IllegalArgumentException("Multiple or no PEM blocks found in string")
 
 @Throws(IllegalArgumentException::class)
 private fun String.parseAsPemBlocks(): List<PemBlock> = buildList {
-    val lines = lineSequence().iterator()
+    val lines = lineSequence()
+        .map(String::trim) //trim per line
+        .iterator()
+
     while (lines.hasNext()) {
-        val label = findBeginFence(lines.next()) ?: continue
+        //consume lines in helper until found
+        val label = findNextBeginFence(lines) ?: break
         require(label.isNotBlank()) { "Empty PEM boundary string" }
 
         val headers = mutableListOf<PemHeader>()
@@ -204,11 +207,13 @@ private fun String.parseAsPemBlocks(): List<PemBlock> = buildList {
         var terminated = false
 
         while (lines.hasNext()) {
-            val current = lines.next().trim()
+            val current = lines.next()
+
             findEndFence(current)?.let { endLabel ->
                 require(endLabel == label) { "Boundary string mismatch: $label vs $endLabel" }
                 @OptIn(ExperimentalEncodingApi::class)
-                val payload = Base64.Mime.decode(payloadBuilder.toString())
+                val payload = PemBase64.decode(payloadBuilder.toString())
+
                 add(PemBlock(pemLabel = label, headers = headers, payload = payload))
                 terminated = true
                 break
@@ -245,23 +250,31 @@ private fun String.parseAsPemBlocks(): List<PemBlock> = buildList {
     }
 }.ifEmpty { throw IllegalArgumentException("No PEM blocks found in string") }
 
-private fun findBeginFence(line: String) = when {
+private fun findNextBeginFence(lines: Iterator<String>): String? {
+    while (lines.hasNext()) {
+        findBeginFence(lines.next())?.let { return it }
+    }
+    return null
+}
+
+private fun findBeginFence(line: String): String? = when {
     line.startsWith(FENCE_PREFIX_BEGIN) && line.endsWith(FENCE_SUFFIX) ->
-        line.substring(FENCE_PREFIX_BEGIN.length, line.length - FENCE_SUFFIX.length)
+        line.substring(FENCE_PREFIX_BEGIN.length, line.length - FENCE_SUFFIX.length).trim()
 
     else -> null
 }
 
-private fun findEndFence(line: String) = when {
+private fun findEndFence(line: String): String? = when {
     line.startsWith(FENCE_PREFIX_END) && line.endsWith(FENCE_SUFFIX) ->
-        line.substring(FENCE_PREFIX_END.length, line.length - FENCE_SUFFIX.length)
+        line.substring(FENCE_PREFIX_END.length, line.length - FENCE_SUFFIX.length).trim()
 
     else -> null
 }
 
 @OptIn(ExperimentalEncodingApi::class)
+private val PemBase64: Base64 =
+    Base64.Mime.withPadding(Base64.PaddingOption.PRESENT_OPTIONAL)
+
+@OptIn(ExperimentalEncodingApi::class)
 private fun ByteArray.encodeBase64Canonical(): List<String> =
-    Base64.Mime.encode(this)
-        .lineSequence()
-        .joinToString("")
-        .chunked(64)
+    Base64.Default.encode(this).chunked(64)

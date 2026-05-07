@@ -22,7 +22,6 @@ sealed interface RsaParams
 /**
  * This is just NULL, but we need a common interface for RSA
  */
-@JvmInline
 @Serializable
 @Asn1Tag( tagNumber = 5uL, tagClass = Asn1Tag.Class.UNIVERSAL, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
 object RsaPkcs1PaddingParams : RsaParams
