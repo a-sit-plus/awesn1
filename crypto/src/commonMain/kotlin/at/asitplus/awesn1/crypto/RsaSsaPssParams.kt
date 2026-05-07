@@ -4,13 +4,28 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.Asn1Null
+import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
+import kotlin.jvm.JvmInline
+
+@Serializable
+sealed interface RsaParams
+
+/**
+ * This is just NULL, but we need a common interface for RSA
+ */
+@JvmInline
+@Serializable
+@Asn1Tag( tagNumber = 5uL, tagClass = Asn1Tag.Class.UNIVERSAL, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+object RsaPkcs1PaddingParams : RsaParams
 
 /**
  * RSASSA-PSS parameters as specified by
@@ -39,7 +54,7 @@ data class RsaSsaPssParams(
     private val taggedSaltLength: ExplicitlyTagged<Asn1Integer>? = null,
     @Asn1Tag(tagNumber = 3u)
     private val taggedTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
-) {
+): RsaParams {
 
     val hashAlgorithm: X509AlgorithmIdentifier? by taggedHashAlgorithm
 
