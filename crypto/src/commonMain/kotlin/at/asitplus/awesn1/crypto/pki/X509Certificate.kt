@@ -30,5 +30,7 @@ data class X509Certificate(
 
     companion object : PemLabelSpec<X509Certificate> {
         override val canonicalPemLabel: String get() = "CERTIFICATE"
+
+        override val validPemLabels: Set<String> =setOf(canonicalPemLabel,"TRUSTED CERTIFICATE")
     }
 }
