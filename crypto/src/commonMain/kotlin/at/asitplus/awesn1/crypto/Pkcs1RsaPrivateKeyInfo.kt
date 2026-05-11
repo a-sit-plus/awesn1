@@ -27,6 +27,17 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs1RsaPrivateKeyInfo(
+    /**
+     * corresponds verbatim to [RFC8017](https://www.rfc-editor.org/rfc/rfc8017.html#appendix-A.1.2):
+     *  version is the version number, for compatibility with future
+     *       revisions of this document.  It SHALL be 0 for this version of the
+     *       document, unless multi-prime is used; in which case, it SHALL be
+     *       1.
+     *
+     *             Version ::= INTEGER { two-prime(0), multi(1) }
+     *                (CONSTRAINED BY
+     *                {-- version must be multi if otherPrimeInfos present --})
+     */
     override val rawVersion: Asn1Integer,
     val modulus: Asn1Integer.Positive,
     val publicExponent: Asn1Integer.Positive,
@@ -37,14 +48,14 @@ data class Pkcs1RsaPrivateKeyInfo(
     val exponent2: Asn1Integer.Positive,
     val coefficient: Asn1Integer.Positive,
     val otherPrimeInfos: List<Pkcs1RsaOtherPrimeInfo>? = null,
-): Versioned{
+) : Versioned {
     /**
      *
-     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
+     * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
      * version commonly referred to as the version of a private key
-     * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     * The integer must fit the valid Int value range (within [Int.MIN_VALUE]..[Int.MAX_VALUE]), otherwise a [NumberFormatException] will be thrown.
      *
      * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
-    override val version: Int? by lazy { rawVersion.toInt() }
+    override val version: Int by lazy { rawVersion.toInt() }
 }

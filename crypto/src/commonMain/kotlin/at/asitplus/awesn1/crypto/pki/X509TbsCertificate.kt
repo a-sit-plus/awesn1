@@ -121,20 +121,21 @@ data class X509TbsCertificate(
 
     /**
      *
-     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
+     * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
      * version commonly referred to as the version of a certificate
      *
      * | RAW Version | (Semantic) Version |
      * |:-----------:|:----------------:|
+     * | (absent)    | 1                |
      * | 0           | 1                |
      * | 1           | 2                |
      * | 2           | 3                |
      *
-     * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     * The integer must fit the valid Int value range (within [Int.MIN_VALUE]..[Int.MAX_VALUE]), otherwise a [NumberFormatException] will be thrown.
      *
      * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
-    override val version: Int? by lazy { rawVersion?.toInt()?.let { it + 1 } ?: 1 }
+    override val version: Int by lazy { rawVersion?.toInt()?.let { it + 1 } ?: 1 }
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is X509TbsCertificate) return false

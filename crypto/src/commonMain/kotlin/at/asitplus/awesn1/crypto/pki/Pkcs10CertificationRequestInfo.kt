@@ -39,13 +39,13 @@ data class Pkcs10CertificationRequestInfo(
 
     /**
      *
-     * [rawVersion] reopresents the encoded integer, (semantic) version denotes the
+     * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
      * version commonly referred to as the version of a CSR
      *
      * | RAW Version | (Semantic) Version |
      * |:-----------:|:----------------:|
      * | 0           | 1                |
-     * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
+     * The integer must fit the valid Int value range (within [Int.MIN_VALUE]..[Int.MAX_VALUE]), otherwise a [NumberFormatException] will be thrown.
      *
      * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
      */
