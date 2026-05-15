@@ -12,6 +12,8 @@
 * Tighten raw ASN.1 BOOLEAN to strict `0x00` / `0xFF` and manually relax in compound usages
     * X509CertificateExtension now carries raw bytes to keep malformed inputs, but sanitizes eagerly 
 * Fix silent truncation of `Byte`/`UByte` and `Short`/`UShort` when deserializing, but throw instead
+* expose `runRethrowing`
+* add `asAsn1Element()` to octet string
 * Core renames:
     * `Asn1TagClass` -> `Asn1Tag.Class`
     * `Asn1TagConstructedBit` -> `Asn1Tag.ConstructedBit`
@@ -36,7 +38,6 @@
     * Rename `RsaPrivateKeyInfo` -> `Pkcs1RsaPrivateKeyInfo`
     * Rename `RsaOtherPrimeInfo` -> `Pkcs1RsaOtherPrimeInfo`
     * Rename `EcPrivateKeyInfo` -> `Sec1EcPrivateKeyInfo`
-    * Rename `Attribute` -> `Pkcs10CsrAttribute`
     * Rename `Attribute` -> `Pkcs10CsrAttribute`
     * Rename `RsaPublicKeyInfo` -> `Pkcs1RsaPublicKeyInfo`
 

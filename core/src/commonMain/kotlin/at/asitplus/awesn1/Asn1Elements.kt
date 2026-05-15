@@ -1040,6 +1040,14 @@ sealed interface Asn1OctetString {
         operator fun invoke(children: List<Asn1Element>) =
             Asn1EncapsulatingOctetString(children)
     }
+
+    /***
+     * returns this octet string as an [Asn1Element]
+     */
+    fun asElement(): Asn1Element = when(this) {
+        is Asn1EncapsulatingOctetString -> this
+        is Asn1PrimitiveOctetString -> this
+    }
 }
 
 

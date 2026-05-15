@@ -52,27 +52,21 @@ data class X509CertificateExtension private constructor(
     constructor(
         oid: ObjectIdentifier,
         critical: Boolean = false,
-        value: Asn1EncapsulatingOctetString,
-    ) : this(oid, critical, value.content)
-
-    constructor(
-        oid: ObjectIdentifier,
-        critical: Boolean = false,
-        value: Asn1PrimitiveOctetString,
+        value: Asn1OctetString,
     ) : this(oid, critical, value.content)
 
     /**
-     * Sensible interpretation of [rawCritical], keeping raw nullability, meaning this has three valid values:
-     * 1. `null` if absent, meaning non-critical. This is legal
-     * 2. `false` if `0x00` was encoded, meaning non-critical. This is illegal because the value should be absent but happens in practice, and we want to preserve it.
-     * 3. `true` if in `0x01`..`0xFF`. Anything but `0xff` is illegal but still happens in practice, and this transformation makes it easy to work with
+     * Sensible interpretation of [rawCritical]:
+     * 1. `false`, meaning non-critical, if:
+     *     * absent ([rawCritical] == `null`). Valid according to X.509.
+     *     * [rawCritical] == `0x00`. Illegal encoding because the value should be absent but happens in practice, and we need to tolareate it.
+     * 2. `true`, meaning critical, if in `0x01`..`0xFF`. Anything but `0xff` is illegal but still happens in practice,.
      */
 
-    val critical: Boolean? by lazy {
+    val critical: Boolean by lazy {
         rawCritical.let {
             when (it) {
-                null -> null
-                0x00.toByte() -> false
+                null, 0x00.toByte() -> false
                 else -> true
             }
         }
