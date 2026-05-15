@@ -9,6 +9,9 @@
 * Fix value/inline class handling
 * Asn1Integer now has `toInt()` and `toIntOrNull()`
 * `ExplicitlyTagged<T>` can now be used as a property delegate
+* Tighten raw ASN.1 BOOLEAN to strict `0x00` / `0xFF` and manually relax in compound usages
+    * X509CertificateExtension now carries raw bytes to keep malformed inputs, but sanitizes eagerly 
+* Fix silent truncation of `Byte`/`UByte` and `Short`/`UShort` when deserializing, but throw instead
 * Core renames:
     * `Asn1TagClass` -> `Asn1Tag.Class`
     * `Asn1TagConstructedBit` -> `Asn1Tag.ConstructedBit`
@@ -35,7 +38,7 @@
     * Rename `EcPrivateKeyInfo` -> `Sec1EcPrivateKeyInfo`
 
 ## 0.2.1
-Equivalent to 0.2.0 but maven central is more brittle than ever so publishing 0.2.0 went south.
+Equivalent to 0.2.0 but maven central is more brittle than ever, so publishing 0.2.0 went south.
 
 ## 0.2.0
 * Rework Signatures to a single class encoding from/to BIT STRING

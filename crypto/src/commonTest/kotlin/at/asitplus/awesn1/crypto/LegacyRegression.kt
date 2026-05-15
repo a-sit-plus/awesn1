@@ -154,7 +154,7 @@ private fun LegacyPkcs10CertificationRequest.toCurrent() =
 private fun LegacyX509CertificateExtension.toCurrent() =
     X509CertificateExtension(
         oid = oid,
-        critical = critical.takeIf { it },
+        critical = critical,
         value = value.asOctetString().content,
     )
 
