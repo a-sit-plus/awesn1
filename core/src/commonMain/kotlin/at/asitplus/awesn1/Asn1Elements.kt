@@ -40,11 +40,35 @@ sealed class Asn1Element(
         /**
          * Convenience method to directly parse a HEX-string representation of DER-encoded data.
          * Ignores and strips all whitespace.
+         *
+         * @param limit the maximum allowed total number of encoded DER bytes to consume.
+         * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+         * @throws [Throwable] all sorts of errors on invalid input
+         */
+        @Throws(Throwable::class)
+        private fun parsePreCleaned(derEncoded: String, limit: Long) =
+            Asn1Element.parse(derEncoded.hexToByteArray(HexFormat.UpperCase), limit)
+
+        /**
+         * Convenience method to directly parse a HEX-string representation of DER-encoded data.
+         * Ignores and strips all whitespace.
          * @throws [Throwable] all sorts of errors on invalid input
          */
         @Throws(Throwable::class)
         fun parseFromDerHexString(derEncoded: String) =
-            Asn1Element.parse(derEncoded.replace(Regex("\\s"), "").hexToByteArray(HexFormat.UpperCase))
+            derEncoded.stripGarbage().let {
+                parsePreCleaned(it, limit = (it.length / 2).toLong())
+            }
+
+        /**
+         * Convenience method to directly parse a HEX-string representation of DER-encoded data.
+         * Ignores and strips all whitespace.
+         * @throws [Throwable] all sorts of errors on invalid input
+         */
+        @Throws(Throwable::class)
+        fun parseFromDerHexString(derEncoded: String, limit: Long) = parsePreCleaned(derEncoded.stripGarbage(), limit)
+
+        private fun String.stripGarbage() = filterNot { it == ':' }.replace(Regex("\\s"), "").uppercase()
     }
 
     /**
@@ -251,6 +275,18 @@ sealed class Asn1Element(
             tagValue, encode(tagClass, constructed, tagValue)
         )
 
+        val tagClass: TagClass by lazy {
+            checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
+                "An Illegal Tag class has been found. This should be impossible!"
+            }
+        }
+
+        init {
+            if( tagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
+                throw Asn1Exception("Illegal DER tag: universal tag 0 (end-of-contents) is not allowed")
+            }
+        }
+
         companion object {
             private fun encode(tagClass: TagClass, constructed: Boolean, tagValue: ULong): ByteArray {
                 val derEncoded: ByteArray =
@@ -323,12 +359,6 @@ sealed class Asn1Element(
                 )
             }
 
-        }
-
-        val tagClass: TagClass by lazy {
-            checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
-                "An Illegal Tag class has been found. This should be impossible!"
-            }
         }
 
         val name

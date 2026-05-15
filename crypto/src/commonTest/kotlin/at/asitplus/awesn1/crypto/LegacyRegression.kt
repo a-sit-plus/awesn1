@@ -3,9 +3,7 @@ package at.asitplus.awesn1.crypto
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Integer.Sign
-import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.parse
-import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.crypto.legacy.EcPrivateKeyInfo as LegacyEcPrivateKeyInfo
 import at.asitplus.awesn1.crypto.legacy.EncryptedPrivateKeyInfo as LegacyEncryptedPrivateKeyInfo
 import at.asitplus.awesn1.crypto.legacy.Pkcs8PrivateKeyInfo as LegacyPkcs8PrivateKeyInfo
@@ -23,6 +21,17 @@ import at.asitplus.awesn1.crypto.legacy.pki.RelativeDistinguishedName as LegacyR
 import at.asitplus.awesn1.crypto.legacy.pki.TbsCertificate as LegacyTbsCertificate
 import at.asitplus.awesn1.crypto.legacy.pki.X509Certificate as LegacyX509Certificate
 import at.asitplus.awesn1.crypto.legacy.pki.X509CertificateExtension as LegacyX509CertificateExtension
+import at.asitplus.awesn1.crypto.pki.Pkcs10CsrAttribute
+import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
+import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
+import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
+import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
+import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
+import at.asitplus.awesn1.crypto.pki.X509Certificate
+import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
+import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.runWrappingAs
+import kotlinx.serialization.SerializationException
 
 internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     val element = Asn1Element.parse(encoded)
@@ -52,8 +61,9 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     }
 }
 
-internal fun decodeLegacyCertificateAsCurrent(encoded: ByteArray): X509Certificate =
+internal fun decodeLegacyCertificateAsCurrent(encoded: ByteArray): X509Certificate =  runWrappingAs(::SerializationException) {
     LegacyX509Certificate.decodeFromTlv(Asn1Element.parse(encoded).asSequence()).toCurrent()
+}
 
 private fun LegacyEcPrivateKeyInfo.toCurrent() =
     Sec1EcPrivateKeyInfo(

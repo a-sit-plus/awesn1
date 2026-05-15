@@ -8,17 +8,27 @@
             * If a matching subclass OID is encountered, deserialise to that subtype, if not: fallback to open base class and assign encountered OID to the oid property of the base class
     * Asn1Integer now has `toInt()` and `toIntOrNull()` 
     * `ExplicitlyTagged<T>` can now be used as a property delegate
+    * `BitSet` now comes with `copyOf()`
     * expose `runRethrowing`
     * add `asAsn1Element()` to octet string
 * **Fixes:**
     * Make encapsulating octet strings primitives:
-       * This prevents footguns like implementing `<Asn1Encodable<Asn1Primitive>` and then having decoding fail because the contents of an octet string happened to be a valid ASN.1 structure.
-* Fix value/inline class handling
-    * Fix raw Asn1Element deserialzation bug where tag overrides would causes errors instead of correct conversions
-    * Fix silent truncation of `Byte`/`UByte` and `Short`/`UShort` when deserializing, but throw instead
-* **Hardening:**
+        * This prevents footguns like implementing `<Asn1Encodable<Asn1Primitive>` and then having decoding fail because the contents of an octet string happened to be a valid ASN.1 structure.
+    * Fix value/inline class handling
+        * Fix raw Asn1Element deserialzation bug where tag overrides would causes errors instead of correct conversions
+        * Fix silent truncation of `Byte`/`UByte` and `Short`/`UShort` when deserializing, but throw instead
+* Hardening:
+    * Reject UNIVERSAL zero tagged asn.1 elements
+    * Fail hard for unterminated ASN.1 varints even below the maximum number of bytes to decode
+    * Enforce specifying a limit on the maximum number of bytes to be read from a `Source`
+    * Harden against malformed length encodings and children longer than the parent
+        * Virtually all of these are just short-circuits to fail fast, before other checks would have kicked in
+    * Enforce stricter padding validity checks for BIT STRING
+        * Padding bits must be zeroed out
+        * If padding is present, at least one byte of data must be present
+        * ByteArrays to be serialized as BIT STRING using `@Asn1BitString` annotation now enforce zero padding bits on deserialization
     * Tighten raw ASN.1 BOOLEAN to strict `0x00` / `0xFF` and manually relax in compound usages
-        * X509CertificateExtension now carries raw bytes to keep malformed inputs, but sanitizes eagerly
+        * X509CertificateExtension now carries raw bytes to keep malformed inputs, but sanitizes eagerly 
 * **Other Changes:**
     * Core renames:
         * `Asn1TagClass` -> `Asn1Tag.Class`

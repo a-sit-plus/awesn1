@@ -42,10 +42,12 @@ private sealed class Asn1ElementHolder {
 
 @ExperimentalSerializationApi
 class DerEncoder internal constructor(
-    override val serializersModule: SerializersModule = EmptySerializersModule(),
-    override val der: Der = Der(),
+    override val der: Der,
     private val layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
 ) : AbstractEncoder(), at.asitplus.awesn1.serialization.DerEncoder {
+
+    override val serializersModule: SerializersModule
+        get() = der.configuration.serializersModule
 
     private val buffer = mutableListOf<Asn1ElementHolder>()
     private var descriptorAndIndex: Pair<SerialDescriptor, Int>? = null
@@ -428,7 +430,6 @@ class DerEncoder internal constructor(
             )
 
         val childSerializer = DerEncoder(
-            serializersModule = serializersModule,
             der = der,
             layoutPlan = layoutPlan,
         )
@@ -472,7 +473,6 @@ class DerEncoder internal constructor(
         }
 
         val childSerializer = DerEncoder(
-            serializersModule = serializersModule,
             der = der,
             layoutPlan = layoutPlan,
         )

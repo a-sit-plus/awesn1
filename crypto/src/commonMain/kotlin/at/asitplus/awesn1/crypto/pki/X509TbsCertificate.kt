@@ -4,8 +4,10 @@
 package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.Asn1BitString
+import at.asitplus.awesn1.Asn1BitStringish
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
+import at.asitplus.awesn1.crypto.CursedBitString
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
 import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.serialization.Asn1Tag
@@ -87,9 +89,9 @@ data class X509TbsCertificate internal constructor(
     val subjectName: List<X500RelativeDistinguishedName>,
     val subjectPublicKeyInfo: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 1u)
-    val issuerUniqueID: Asn1BitString? = null,
+    val issuerUniqueID: CursedBitString? = null,
     @Asn1Tag(tagNumber = 2u)
-    val subjectUniqueID: Asn1BitString? = null,
+    val subjectUniqueID: CursedBitString? = null,
     @Asn1Tag(tagNumber = 3u)
     private val taggedExtensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
 ) {
@@ -113,8 +115,8 @@ data class X509TbsCertificate internal constructor(
         validity = Validity(validFrom, validUntil),
         subjectName = subjectName,
         subjectPublicKeyInfo = subjectPublicKeyInfo,
-        issuerUniqueID = issuerUniqueID,
-        subjectUniqueID = subjectUniqueID,
+        issuerUniqueID = issuerUniqueID?.let { CursedBitString(it) },
+        subjectUniqueID = subjectUniqueID?.let { CursedBitString(it) },
         taggedExtensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
     )
 

@@ -7,17 +7,8 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.Asn1Integer.Companion.fromTwosComplement
 import at.asitplus.awesn1.VarUInt.Companion.decimalPlus
-import at.asitplus.awesn1.encoding.internal.ByteArrayBuffer
-import at.asitplus.awesn1.encoding.internal.Sink
-import at.asitplus.awesn1.encoding.internal.Source
-import at.asitplus.awesn1.encoding.UVARINT_MASK_UBYTE
-import at.asitplus.awesn1.encoding.UVARINT_SINGLEBYTE_MAXVALUE
-import at.asitplus.awesn1.encoding.bitLength
-import at.asitplus.awesn1.encoding.decodeToAsn1Integer
-import at.asitplus.awesn1.encoding.toTwosComplementByteArray
-import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
-import at.asitplus.awesn1.encoding.internal.readUByte
-import at.asitplus.awesn1.encoding.internal.writeUByte
+import at.asitplus.awesn1.encoding.*
+import at.asitplus.awesn1.encoding.internal.*
 import at.asitplus.awesn1.serialization.Asn1Serializer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -37,6 +28,7 @@ fun Asn1Integer(number: Int) = Asn1Integer(number.toLong())
 fun Asn1Integer(number: Long) =
     if (number < 0) Asn1Integer.Negative(VarUInt((number * -1).toULong()))
     else Asn1Integer.Positive(VarUInt((number).toULong()))
+
 fun Asn1Integer(number: UInt) = Asn1Integer(number.toULong())
 fun Asn1Integer(number: ULong) =
     Asn1Integer.Positive(VarUInt(number))
@@ -48,7 +40,7 @@ fun Asn1Integer(number: ULong) =
  * Hence, it directly interoperates with [Kotlin MP BigNum](https://github.com/ionspin/kotlin-multiplatform-bignum) and the JVM BigInteger.
  */
 @Serializable(with = Asn1Integer.Companion::class)
-sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign): Asn1Encodable<Asn1Primitive> {
+sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encodable<Asn1Primitive> {
 
     override fun encodeToTlv(): Asn1Primitive = encodeToAsn1Primitive()
 
@@ -100,6 +92,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign): Asn1Encoda
         init {
             check(!uint.isZero()) // there is no negative zero
         }
+
         override fun twosComplement(): ByteArray {
             if (uint == VarUInt(1u)) return byteArrayOf(-1)
 
@@ -150,7 +143,10 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign): Asn1Encoda
         /** Constructs a non-negative [Asn1Integer] from its unsigned magnitude representation */
         fun fromUnsignedByteArray(magnitude: ByteArray) = Positive(VarUInt(magnitude))
 
-        /** Constructs an [Asn1Integer] from its twos-complement byte representation */
+        /** Constructs an [Asn1Integer] from its twos-complement byte representation
+         * Note that this does not enforce DER minimal-encoding constraints!
+         * **If you need strict DER parsing use [Asn1Integer.decodeFromTlv] or [Asn1Primitive.decodeToAsn1Integer]!**
+         */
         fun fromTwosComplement(input: ByteArray): Asn1Integer = when {
             input.isEmpty() -> Positive(VarUInt())
             (input.first() < 0) ->
@@ -186,8 +182,7 @@ private inline infix fun UByte.shl(bitCount: Int) =
 
 @Suppress("NOTHING_TO_INLINE")
 private inline fun combine(highByte: UByte, lowByte: UByte, highBits: Int) =
-    ((highByte.toUInt() shl (8-highBits)) or (lowByte.toUInt() shr highBits)).toUByte()
-
+    ((highByte.toUInt() shl (8 - highBits)) or (lowByte.toUInt() shr highBits)).toUByte()
 
 
 @JvmInline
@@ -241,16 +236,16 @@ internal value class VarUInt private constructor(val words: UByteArray) {
         require(offset >= 0) { "offset must be non-negative: $offset" }
         if ((offset == 0) || this.isZero()) return this
 
-        val highWordBits = 8-(offset % 8)
-        if (highWordBits == 8) return VarUInt(words.copyOf(words.size + (offset/8)))
+        val highWordBits = 8 - (offset % 8)
+        if (highWordBits == 8) return VarUInt(words.copyOf(words.size + (offset / 8)))
 
-        val newSize = words.size + (offset/8) + 1
+        val newSize = words.size + (offset / 8) + 1
 
         return constructFromUntrimmed(UByteArray(newSize) { i ->
             when {
                 i == 0 -> words[i] shr highWordBits
-                i < words.size -> combine(words[i-1], words[i], highWordBits)
-                i == words.size -> words[i-1] shl 8-highWordBits
+                i < words.size -> combine(words[i - 1], words[i], highWordBits)
+                i == words.size -> words[i - 1] shl 8 - highWordBits
                 else -> 0x00u
             }
         }, isOwned = true)
@@ -265,17 +260,19 @@ internal value class VarUInt private constructor(val words: UByteArray) {
 
         val highWordBits = offset % 8
         if (highWordBits == 0) return VarUInt(words.copyOfRange(0, newSize))
-        return constructFromUntrimmed(UByteArray(newSize) { i -> when {
-            i > 0 -> combine(words[i-1], words[i], highWordBits)
-            else -> words[i] shr highWordBits
-        }}, true)
+        return constructFromUntrimmed(UByteArray(newSize) { i ->
+            when {
+                i > 0 -> combine(words[i - 1], words[i], highWordBits)
+                else -> words[i] shr highWordBits
+            }
+        }, true)
     }
 
     fun toAsn1VarInt(): ByteArray = throughBuffer { it.writeAsn1VarInt(this) }
 
     fun isZero(): Boolean = (words.first() == 0.toUByte()) //always trimmed, so it is enough to inspect the first byte
 
-    fun bitLength(): Int = 8*(words.size-1) + words.first().bitLength
+    fun bitLength(): Int = 8 * (words.size - 1) + words.first().bitLength
 
     fun inv(): VarUInt = constructFromUntrimmed(UByteArray(words.size) { words[it].inv() }, true)
 
@@ -288,7 +285,7 @@ internal value class VarUInt private constructor(val words: UByteArray) {
      */
     @Throws(IllegalArgumentException::class)
     fun shortValue(): Int =
-        if(words.size>2) throw IllegalArgumentException("Number too large!")
+        if (words.size > 2) throw IllegalArgumentException("Number too large!")
         else if (words.size > 1) words.last().toInt() and (words[words.lastIndex - 1].toInt() shl 8)
         else words.last().toInt()
 
@@ -309,7 +306,9 @@ internal value class VarUInt private constructor(val words: UByteArray) {
         operator fun invoke(value: String) = constructFromUntrimmed(value.parseAsBase10().toUByteArray(), true)
         operator fun invoke(ubyteArray: UByteArray) = constructFromUntrimmed(ubyteArray, false)
         operator fun invoke(byteArray: ByteArray) = constructFromUntrimmed(byteArray.asUByteArray(), false)
-        operator fun invoke(uLong: ULong) = constructFromUntrimmed(uLong.toTwosComplementByteArray().asUByteArray(), true)
+        operator fun invoke(uLong: ULong) =
+            constructFromUntrimmed(uLong.toTwosComplementByteArray().asUByteArray(), true)
+
         operator fun invoke(uInt: UInt) = constructFromUntrimmed(uInt.toTwosComplementByteArray().asUByteArray(), true)
 
         internal fun constructUnsafe(ownedArray: UByteArray) = constructFromUntrimmed(ownedArray, true)
@@ -330,7 +329,7 @@ internal value class VarUInt private constructor(val words: UByteArray) {
             return numBytes
         }
 
-        private fun MutableList<Char>.divRem(d: Int) : Pair<MutableList<Char>, Int> {
+        private fun MutableList<Char>.divRem(d: Int): Pair<MutableList<Char>, Int> {
             val result = mutableListOf<Char>()
             var residue = 0
             // result * 256 + residue == (string[0..i])
@@ -354,7 +353,7 @@ internal value class VarUInt private constructor(val words: UByteArray) {
                     byteList.add(rem.toUByte())
                 }
             }
-            return UByteArray(byteList.size) { byteList[byteList.size-it-1] }
+            return UByteArray(byteList.size) { byteList[byteList.size - it - 1] }
         }
 
 

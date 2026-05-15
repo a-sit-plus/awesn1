@@ -136,16 +136,19 @@ private fun randomPrimitiveElement(random: Random): Asn1Element = when (random.n
     else -> Asn1Primitive(Asn1Element.Tag.BIT_STRING, randomByteArray(random, 0, 96))
 }
 
-private fun randomCustomPrimitiveTag(random: Random) = Asn1Element.Tag(
-    tagValue = random.nextInt(0, 256).toULong(),
-    constructed = false,
-    tagClass = when (random.nextInt(4)) {
-        0 -> TagClass.UNIVERSAL
-        1 -> TagClass.APPLICATION
-        2 -> TagClass.CONTEXT_SPECIFIC
-        else -> TagClass.PRIVATE
-    }
-)
+private fun randomCustomPrimitiveTag(random: Random): Asn1Element.Tag {
+    val tagValue = random.nextInt(0, 256).toULong()
+    return Asn1Element.Tag(
+        tagValue = tagValue,
+        constructed = false,
+        tagClass = when (random.nextInt(4)) {
+            0 -> if(tagValue>0uL) TagClass.UNIVERSAL else TagClass.PRIVATE
+            1 -> TagClass.APPLICATION
+            2 -> TagClass.CONTEXT_SPECIFIC
+            else -> TagClass.PRIVATE
+        }
+    )
+}
 
 private fun randomAsciiString(random: Random): String {
     val len = random.nextInt(0, 64)

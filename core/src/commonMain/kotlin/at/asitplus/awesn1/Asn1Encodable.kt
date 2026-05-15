@@ -48,6 +48,8 @@ interface Asn1Encodable<out A : Asn1Element> {
     fun prettyPrintAsn1(): String = encodeToTlv().prettyPrint()
 }
 
+fun Asn1Encodable<*>.toDerHexString(lineLen: Int? = null) = encodeToTlv().toDerHexString(lineLen)
+
 
 /**
  * Interface providing convenience methods to decode from ASN.1.
@@ -84,6 +86,21 @@ interface Asn1Decodable<A : Asn1Element, out T : Asn1Encodable<A>> {
     }
 }
 
+/**
+ * Convenience method to directly parse a HEX-string representation of DER-encoded data.
+ * Ignores and strips all whitespace.
+ * @throws [Throwable] all sorts of errors on invalid input
+ */
+fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1Decodable<A,T>.parseFromDerHexString(derEncoded: String) =
+    decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded) as A)
+
+/**
+ * Convenience method to directly parse a HEX-string representation of DER-encoded data.
+ * Ignores and strips all whitespace.
+ * @throws [Throwable] all sorts of errors on invalid input
+ */
+fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1Decodable<A,T>.parseFromDerHexString(derEncoded: String, limit: Long) =
+    decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded, limit) as A)
 /**
  * Exception-free version of [Asn1Decodable.decodeFromTlv]
  */

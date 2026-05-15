@@ -27,6 +27,12 @@ data class SubjectPublicKeyInfo(
     val algorithmIdentifier: X509AlgorithmIdentifier,
     val subjectPublicKey: Asn1BitString,
 ) : WithPemLabel {
+
+    init {
+        if (subjectPublicKey.numPaddingBits != 0.toByte()) {
+            throw Asn1Exception("Public key value must not have padding bits")
+        }
+    }
     val algorithmOid: ObjectIdentifier get() = algorithmIdentifier.oid
     val algorithmParameters: Asn1Element? get() = algorithmIdentifier.parameters
 

@@ -70,6 +70,8 @@ annotation class Asn1Tag(
 
 /**
  * Marks [ByteArray] properties to encode/decode as ASN.1 BIT STRING.
+ * The resulting bit string will have zero padding bytes, corresponding to byte-alignment.
+ * If deserialization encounters >0 padding bits, it will throw.
  */
 @SerialInfo
 @Target(AnnotationTarget.PROPERTY)
@@ -97,17 +99,17 @@ internal fun resolveAsn1TagTemplate(
     propertyAsn1Tag: Asn1Tag? = null,
     classAsn1Tag: Asn1Tag? = null,
 ): Asn1Element.Tag.Template? {
-    val selectedAsn1Tag = inlineAsn1Tag ?: propertyAsn1Tag ?: classAsn1Tag ?: return null
+    val selectedAsn1Tag = propertyAsn1Tag ?: inlineAsn1Tag ?: classAsn1Tag ?: return null
     val tagNumber = selectedAsn1Tag.tagNumber
 
     val tagClass =
-        inlineAsn1Tag?.tagClass?.toTagClassOrNull()
-            ?: propertyAsn1Tag?.tagClass?.toTagClassOrNull()
+        propertyAsn1Tag?.tagClass?.toTagClassOrNull()
+            ?: inlineAsn1Tag?.tagClass?.toTagClassOrNull()
             ?: classAsn1Tag?.tagClass?.toTagClassOrNull()
 
     val constructed =
-        inlineAsn1Tag?.constructed?.toBooleanOrNull()
-            ?: propertyAsn1Tag?.constructed?.toBooleanOrNull()
+        propertyAsn1Tag?.constructed?.toBooleanOrNull()
+            ?: inlineAsn1Tag?.constructed?.toBooleanOrNull()
             ?: classAsn1Tag?.constructed?.toBooleanOrNull()
 
     return Asn1Element.Tag.Template(tagNumber, tagClass, constructed)
