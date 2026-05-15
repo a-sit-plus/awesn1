@@ -23,6 +23,7 @@ import kotlinx.serialization.Transient
  * }
  * ```
  */
+@ConsistentCopyVisibility
 @Serializable
 data class X509CertificateExtension private constructor(
     override val oid: ObjectIdentifier,

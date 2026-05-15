@@ -22,7 +22,7 @@ import kotlinx.serialization.Serializable
  * ```
  */
 @Serializable
-data class Attribute(
+data class Pkcs10CsrAttribute(
     override val oid: ObjectIdentifier,
     val value: Set<Asn1Element>,
 ) : Identifiable {
@@ -32,9 +32,9 @@ data class Attribute(
         val EXTENSION_REQUEST_OID = ObjectIdentifier("1.2.840.113549.1.9.14")
 
         @Suppress("FunctionName")
-        fun CertificateExtension(extensions: List<X509CertificateExtension>): Attribute {
+        fun X509CertificateExtension(extensions: List<X509CertificateExtension>): Pkcs10CsrAttribute {
             require(extensions.isNotEmpty()) { "At least one extension is required" }
-            return Attribute(
+            return Pkcs10CsrAttribute(
                 EXTENSION_REQUEST_OID,
                 Asn1.Sequence { extensions.forEach { +DER.encodeToTlv(it) } },
             )

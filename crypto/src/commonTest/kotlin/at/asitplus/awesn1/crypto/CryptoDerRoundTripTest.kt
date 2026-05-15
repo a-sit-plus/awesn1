@@ -161,7 +161,7 @@ private fun randomAttributeTypeAndValue(random: Random): X500AttributeTypeAndVal
 private fun randomRelativeDistinguishedName(random: Random) =
     X500RelativeDistinguishedName(randomAttributeTypeAndValue(random))
 
-private fun randomAttribute(random: Random) = Attribute(randomOid(random), randomRawElement(random))
+private fun randomAttribute(random: Random) = Pkcs10CsrAttribute(randomOid(random), randomRawElement(random))
 
 private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
     if (random.nextBoolean()) {
