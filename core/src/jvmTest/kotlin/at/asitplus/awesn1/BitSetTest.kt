@@ -10,7 +10,7 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.booleanArray
 import io.kotest.property.arbitrary.int
-import at.asitplus.testballoon.checkAllSuites
+import at.asitplus.testballoon.checkAll
 import java.util.*
 import at.asitplus.awesn1.BitSet as KmpBitSet
 
@@ -126,13 +126,13 @@ val BitSetTest by testSuite {
             kmm.memDumpView() shouldBe ""
         }
 
-        checkAllSuites(
+        checkAll(
             iterations = 32,
             Arb.booleanArray(
                 Arb.int(1..128),
                 Arb.boolean()
             )
-        ) { input ->
+        ) - { input ->
             withData(
                 input.size,
                 input.size / 2,
@@ -204,13 +204,13 @@ val BitSetTest by testSuite {
         }
 
         "toString() Tests" - {
-            checkAllSuites(
+            checkAll(
                 iterations = 32,
                 Arb.booleanArray(
                     Arb.int(1..128),
                     Arb.boolean()
                 )
-            ) { input ->
+            ) - { input ->
                 withData(
                     input.size,
                     input.size / 2,
