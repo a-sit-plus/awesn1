@@ -24,33 +24,50 @@ import kotlin.enums.enumEntries
 import kotlin.time.Instant
 
 
-
 /**
  * Parses the provided [source] into a single [Asn1Element]. Consumes all bytes and throws if more than one ASN.1 structure was found or trailing bytes were detected.
+ *
+ * @param limit the maximum allowed total number of encoded DER bytes to consume.
+ * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
  * @return the parsed [Asn1Element]
  *
  * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [source]
  */
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parse(source: ByteArray): Asn1Element =
-    parse(source.wrapInUnsafeSource())
+fun Asn1Element.Companion.parse(source: ByteArray, limit: Long = source.size.toLong()): Asn1Element =
+    parse(
+        source.wrapInUnsafeSource(),
+        limit.also { require(it <= source.size.toLong()) { "Limit $it is larger than source size ${source.size}" } })
 
 /**
  * Convenience wrapper around [parseAll], taking a [ByteArray] as [source]
+ *
+ * @param limit the maximum allowed total number of encoded DER bytes to consume.
+ * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
  * @see parse
  */
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parseAll(source: ByteArray): List<Asn1Element> =
-    parseAll(source.wrapInUnsafeSource())
+fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long = source.size.toLong()): List<Asn1Element> =
+    parseAll(
+        source.wrapInUnsafeSource(),
+        limit.also { require(it <= source.size.toLong()) { "Limit $it is larger than source size ${source.size}" } })
 
 /**
  * Convenience wrapper around [parseFirst], taking a [ByteArray] as [source].
+ *
+ * @param limit the maximum allowed total number of encoded DER bytes to consume.
+ * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
  * @return a pair of the first parsed [Asn1Element] mapped to the remaining bytes
  * @see at.asitplus.awesn1.encoding.internal.readAsn1Element
  */
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parseFirst(source: ByteArray): Pair<Asn1Element, ByteArray> =
-    parseFirst(source.wrapInUnsafeSource())
+fun Asn1Element.Companion.parseFirst(
+    source: ByteArray,
+    limit: Long = source.size.toLong()
+): Pair<Asn1Element, ByteArray> =
+    parseFirst(
+        source.wrapInUnsafeSource(),
+        limit.also { require(it <= source.size.toLong()) { "Limit $it is larger than source size ${source.size}" } })
         .let { Pair(it.first, source.copyOfRange(it.second.toInt(), source.size)) }
 
 
@@ -172,7 +189,10 @@ inline fun Asn1Primitive.decodeToAsn1IntegerOrNull(assertTag: Asn1Element.Tag = 
  */
 @Throws(Asn1Exception::class)
 fun Asn1Integer.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray): Asn1Integer =
-    runRethrowing { fromTwosComplement(bytes) }
+    runRethrowing {
+        validateDerConstraints(bytes)
+        fromTwosComplement(bytes)
+    }
 
 /** Decode the [Asn1Primitive] as an [Asn1Real]
  * @throws [Asn1Exception] on invalid input*/
@@ -207,6 +227,22 @@ inline fun Asn1Primitive.decodeToFloat(assertTag: Asn1Element.Tag = Asn1Element.
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToFloatOrNull(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL) =
     catchingUnwrapped { decodeToFloat(assertTag) }.getOrNull()
+
+private fun Asn1Integer.Companion.validateDerConstraints(bytes: ByteArray) = runRethrowing{
+    require(bytes.isNotEmpty()) { "ASN.1 INTEGER content must not be empty" }
+
+    if (bytes.size > 1) {
+        val first = bytes[0].toInt() and 0xff
+        val second = bytes[1].toInt() and 0xff
+
+        require(!(first == 0x00 && (second and 0x80) == 0)) {
+            "ASN.1 INTEGER is not minimally encoded"
+        }
+        require(!(first == 0xff && (second and 0x80) == 0x80)) {
+            "ASN.1 INTEGER is not minimally encoded"
+        }
+    }
+}
 
 
 // If the implicit tag is used, the caller needs to call one of the methods for decoding to specific Asn1String type
@@ -373,7 +409,8 @@ fun Asn1Primitive.decodeToInstantOrNull() = catchingUnwrapped { decodeToInstant(
  * @throws Asn1Exception  on invalid input
  */
 @Throws(Asn1Exception::class)
-fun Asn1Primitive.asAsn1BitString(assertTag: Asn1Element.Tag =Asn1Element.Tag.BIT_STRING) = Asn1BitString.decodeFromTlv(this, assertTag)
+fun Asn1Primitive.asAsn1BitString(assertTag: Asn1Element.Tag = Asn1Element.Tag.BIT_STRING) =
+    Asn1BitString.decodeFromTlv(this, assertTag)
 
 /**
  * decodes this [Asn1Primitive] to null (i.e. verifies the tag to be [BERTags.ASN1_NULL] and the content to be empty
@@ -508,21 +545,39 @@ fun String.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray) = bytes.decode
 
 /**
  * Convenience method, directly DER-decoding a byte array to [T]
+ *
+ * @param limit the maximum allowed total number of encoded DER bytes to consume.
+ * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
  * @throws Asn1Exception if invalid data is provided
  */
 @Throws(Asn1Exception::class)
 @OptIn(InternalAwesn1Api::class)
 fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1Decodable<A, T>.decodeFromDer(
     src: ByteArray,
+    limit: Long = src.size.toLong(),
     assertTag: Asn1Element.Tag? = null
 ): T =
-    decodeFromDer(src.wrapInUnsafeSource(), assertTag)
+    decodeFromDer(
+        src.wrapInUnsafeSource(),
+        limit.also { require(it <= src.size.toLong()) { "Limit $it is larger than source size ${src.size}" } },
+        assertTag
+    )
 
 /**
  * Exception-free version of [decodeFromDer]
+ *
+ * @param limit the maximum allowed total number of encoded DER bytes to consume.
+ * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
  */
 fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1Decodable<A, T>.decodeFromDerOrNull(
     src: ByteArray,
+    limit: Long = src.size.toLong(),
     assertTag: Asn1Element.Tag? = null
 ) =
-    catchingUnwrapped { decodeFromDer(src, assertTag) }.getOrNull()
+    catchingUnwrapped {
+        decodeFromDer(
+            src,
+            limit.also { require(it <= src.size.toLong()) { "Limit $it is larger than source size ${src.size}" } },
+            assertTag
+        )
+    }.getOrNull()

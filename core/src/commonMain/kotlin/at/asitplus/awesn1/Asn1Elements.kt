@@ -7,9 +7,8 @@ package at.asitplus.awesn1
 
 
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
-import at.asitplus.awesn1.encoding.internal.Sink
 import at.asitplus.awesn1.encoding.*
-
+import at.asitplus.awesn1.encoding.internal.Sink
 import kotlinx.serialization.Serializable
 import kotlin.experimental.ExperimentalObjCName
 import kotlin.native.ObjCName
@@ -39,11 +38,35 @@ sealed class Asn1Element(
         /**
          * Convenience method to directly parse a HEX-string representation of DER-encoded data.
          * Ignores and strips all whitespace.
+         *
+         * @param limit the maximum allowed total number of encoded DER bytes to consume.
+         * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+         * @throws [Throwable] all sorts of errors on invalid input
+         */
+        @Throws(Throwable::class)
+        private fun parsePreCleaned(derEncoded: String, limit: Long) =
+            Asn1Element.parse(derEncoded.hexToByteArray(HexFormat.UpperCase), limit)
+
+        /**
+         * Convenience method to directly parse a HEX-string representation of DER-encoded data.
+         * Ignores and strips all whitespace.
          * @throws [Throwable] all sorts of errors on invalid input
          */
         @Throws(Throwable::class)
         fun parseFromDerHexString(derEncoded: String) =
-            Asn1Element.parse(derEncoded.replace(Regex("\\s"), "").hexToByteArray(HexFormat.UpperCase))
+            derEncoded.stripGarbage().let {
+                parsePreCleaned(it, limit = (it.length / 2).toLong())
+            }
+
+        /**
+         * Convenience method to directly parse a HEX-string representation of DER-encoded data.
+         * Ignores and strips all whitespace.
+         * @throws [Throwable] all sorts of errors on invalid input
+         */
+        @Throws(Throwable::class)
+        fun parseFromDerHexString(derEncoded: String, limit: Long) = parsePreCleaned(derEncoded.stripGarbage(), limit)
+
+        private fun String.stripGarbage() = filterNot { it == ':' }.replace(Regex("\\s"), "").uppercase()
     }
 
     /**
@@ -240,10 +263,6 @@ sealed class Asn1Element(
         val tagValue: ULong,
         val encodedTag: ByteArray
     ) : Comparable<Tag> {
-
-        //workaround because we cannot return two values or assign params in a destructured manner
-        private constructor(decoded: Pair<ULong, ByteArray>) : this(decoded.first, decoded.second)
-
         /**
          * The length (in bytes) of this tag when encoded according to DER
          */
@@ -257,6 +276,18 @@ sealed class Asn1Element(
         constructor(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL) : this(
             tagValue, encode(tagClass, constructed, tagValue)
         )
+
+        val tagClass: TagClass by lazy {
+            checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
+                "An Illegal Tag class has been found. This should be impossible!"
+            }
+        }
+
+        init {
+            if( tagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
+                throw Asn1Exception("Illegal DER tag: universal tag 0 (end-of-contents) is not allowed")
+            }
+        }
 
         companion object {
             private fun encode(tagClass: TagClass, constructed: Boolean, tagValue: ULong): ByteArray {
@@ -330,12 +361,6 @@ sealed class Asn1Element(
                 )
             }
 
-        }
-
-        val tagClass: TagClass by lazy {
-            checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
-                "An Illegal Tag class has been found. This should be impossible!"
-            }
         }
 
         val name
@@ -543,8 +568,6 @@ sealed class Asn1Structure(
             else -> compareUnsignedLexicographically(a.derEncoded, b.derEncoded)
         }
     }
-
-
 
 
     val children: List<Asn1Element> = if (!sortChildren) children else children.sortedWith(DerEncodedElementComparator)
@@ -1044,7 +1067,7 @@ sealed interface Asn1OctetString {
     /***
      * returns this octet string as an [Asn1Element]
      */
-    fun asElement(): Asn1Element = when(this) {
+    fun asElement(): Asn1Element = when (this) {
         is Asn1EncapsulatingOctetString -> this
         is Asn1PrimitiveOctetString -> this
     }

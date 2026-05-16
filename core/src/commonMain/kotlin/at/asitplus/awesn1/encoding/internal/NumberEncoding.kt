@@ -95,7 +95,8 @@ private fun Source<*>.decodeAsn1VarInt(bits: Int): Pair<ULong, ByteArray> {
     var offset = 0
     var result = 0uL
     val accumulator = ByteArrayBuffer()
-    while (!exhausted()) {
+    while (true) {
+        if (exhausted()) throw IllegalArgumentException("Unterminated ASN.1 unsigned varint")
         val current = readUByte()
         accumulator.writeUByte(current)
         if (current >= UVARINT_SINGLEBYTE_MAXVALUE_UBYTE) {

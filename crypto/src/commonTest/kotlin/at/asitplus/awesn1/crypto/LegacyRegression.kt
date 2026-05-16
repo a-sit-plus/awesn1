@@ -29,7 +29,9 @@ import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
+import at.asitplus.awesn1.runWrappingAs
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import kotlinx.serialization.SerializationException
 
 internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     val element = Asn1Element.parse(encoded)
@@ -55,8 +57,9 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     }
 }
 
-internal fun decodeLegacyCertificateAsCurrent(encoded: ByteArray): X509Certificate =
+internal fun decodeLegacyCertificateAsCurrent(encoded: ByteArray): X509Certificate =  runWrappingAs(::SerializationException) {
     LegacyX509Certificate.decodeFromTlv(Asn1Element.parse(encoded).asSequence()).toCurrent()
+}
 
 private fun LegacyEcPrivateKeyInfo.toCurrent() =
     Sec1EcPrivateKeyInfo(

@@ -5,6 +5,7 @@
 
 package at.asitplus.awesn1
 
+import at.asitplus.awesn1.Asn1BitString.Companion.fromBitSet
 import at.asitplus.awesn1.serialization.Asn1Serializer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -17,7 +18,36 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
- * ASN.1 BIT STRING
+ * Represents an abstraction for ASN.1 bit strings or structures that are conceptually similar.
+ * This interface provides access to the raw byte representation and padding information.
+ *
+ * This interface exists to model abstractions where a spec demands a BIT STRING, but reality may prove the assumption
+ * that specs are implemented as intended wrong. The `crypto` module comes with a `CursedBitString`
+ */
+interface Asn1BitStringish {
+    /**
+     * Number of bits needed to pad the bit string to a byte boundary
+     */
+    val numPaddingBits: Byte
+
+    /**
+     * The raw bytes containing the bit string. The bits contained in [rawBytes] are laid out, as printed when calling
+     * [BitSet.toBitStringView], right-padded with [numPaddingBits] many zero bits to the last byte boundary.
+     *
+     * The [overallContent] of this bit string is `byteArrayOf(numPaddingBits, *rawBytes)`
+     */
+    val rawBytes: ByteArray
+}
+
+val Asn1BitStringish.overallContentLength get() = rawBytes.size + 1
+
+val Asn1BitStringish.overallContent get() = byteArrayOf(numPaddingBits, *rawBytes)
+
+/**
+ * ASN.1 BIT STRING, enforcing strict DER rules:
+ * 1. The number of padding bits must be in range 0..7
+ * 2. The raw bytes must not be empty if padding bits are set
+ * 3. The padding bits must be zero
  */
 @ConsistentCopyVisibility
 @Serializable(with = Asn1BitString.Companion::class)
@@ -25,17 +55,17 @@ data class Asn1BitString private constructor(
     /**
      * Number of bits needed to pad the bit string to a byte boundary
      */
-    val numPaddingBits: Byte,
+    override val numPaddingBits: Byte,
 
     /**
      * The raw bytes containing the bit string. The bits contained in [rawBytes] are laid out, as printed when calling
      * [BitSet.toBitStringView], right-padded with [numPaddingBits] many zero bits to the last byte boundary.
      *
-     * The overall [Asn1Primitive.content] resulting from [encodeToTlv] is `byteArrayOf(numPaddingBits, *rawBytes)`
+     * The [overallContent] of this bit string is `byteArrayOf(numPaddingBits, *rawBytes)`
      */
-    val rawBytes: ByteArray,
+    override val rawBytes: ByteArray,
 
-    ) : Asn1Encodable<Asn1Primitive> {
+    ) : Asn1BitStringish, Asn1Encodable<Asn1Primitive> {
 
 
     /**
@@ -56,18 +86,33 @@ data class Asn1BitString private constructor(
      *  - flip the previously set bit back (this will be the lowest bit set in last byte of [rawBytes]).
      *
      * @param source the source [BitSet], which is discarded after [rawBytes] and [numPaddingBits] have been calculated
+     *
+     * @throws Asn1Exception if [source] does not fulfill the ASN.1 BIT STRING requirements
      */
     constructor(source: BitSet) : this(fromBitSet(source))
 
     /**
      * Constructs an ASN.1 BIT STRING with [source] used for [rawBytes] and zero padding bits
+     *
+     * @throws Asn1Exception if [source] does not fulfill the ASN.1 BIT STRING requirements
      */
     constructor(source: ByteArray) : this(Pair(0x00.toByte(), source))
+
+    init {
+        runRethrowing {
+            require(numPaddingBits in 0..7) { "Number of padding bits must be in range 0..7. Found: $numPaddingBits" }
+            if (numPaddingBits > 0.toByte()) require(rawBytes.isNotEmpty()) { "Raw bytes must not be empty if padding bits are set" }
+
+            repeat(numPaddingBits.toInt()) {
+                require((rawBytes.last().toInt() and (1.shl(it))) == 0) { "Last $numPaddingBits padding bits must be zeroed out. Last byte is: ${rawBytes.last().toUByte().toString(2).padStart(8, '0')}" }
+            }
+        }
+    }
 
     /**
      * Transforms [rawBytes] and wraps into a [BitSet]. The last [numPaddingBits] bits are ignored.
      * This is a deep copy and mirrors the bits in every byte to match
-     * the native bitset layout where bit any byte indices run in opposite direction.
+     * the native bitset layout where bit and byte indices run in opposite direction.
      * Hence, modifications to the resulting bitset do not affect [rawBytes]
      *
      * Note: Tailing zeroes never count towards the length of the bitset
@@ -95,7 +140,6 @@ data class Asn1BitString private constructor(
             @Throws(Asn1Exception::class)
             override fun doDecode(src: Asn1Primitive): Asn1BitString {
                 if (src.contentLength == 0) return Asn1BitString(0, byteArrayOf())
-                if (src.content.first() > 7) throw Asn1Exception("Number of padding bits < 7")
                 return Asn1BitString(src.content[0], src.content.sliceArray(1..<src.content.size))
             }
         },
@@ -115,7 +159,11 @@ data class Asn1BitString private constructor(
             return ((8 - (bitSet.length() % 8)) % 8).toByte() to rawBytes
         }
 
-        internal fun fromRawParts(numPaddingBits: Byte, rawBytes: ByteArray): Asn1BitString =
+        /**
+         * @throws Asn1Exception if the ASN.1 BIT STRING requirements are not fulfilled
+         * */
+        @InternalAwesn1Api
+        fun fromRawParts(numPaddingBits: Byte, rawBytes: ByteArray): Asn1BitString =
             Asn1BitString(numPaddingBits, rawBytes)
 
     }

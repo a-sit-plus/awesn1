@@ -47,6 +47,14 @@ data class Sec1EcPrivateKeyInfo(
         taggedPublicKey = publicKey?.let(::ExplicitlyTagged),
     )
 
+    init {
+        taggedPublicKey?.value?.let {
+            if (it.numPaddingBits != 0.toByte()) {
+                throw Asn1Exception("Public key value must not have padding bits")
+            }
+        }
+    }
+
     override val pemLabel: String get() = canonicalPemLabel
 
     /**

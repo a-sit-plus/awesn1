@@ -6,11 +6,15 @@ import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
 import de.infix.testBalloon.framework.core.testSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
+import kotlinx.serialization.decodeFromHexString
 import kotlinx.serialization.encodeToByteArray
 import kotlin.jvm.JvmInline
+import at.asitplus.awesn1.Asn1BitString as Asn1BitStringValue
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestBitsAndBytes by testSuite(
@@ -30,6 +34,14 @@ val SerializationTestBitsAndBytes by testSuite(
                 DER.encodeToByteArray(valueClass)
                     .also { it.toHexString() shouldBe "030400010203" }
             ).bytes shouldBe valueClass.bytes
+
+            shouldThrow<SerializationException> {
+                DER.decodeFromHexString<BitSetValue>("030401010202" )
+            }.message shouldBe "Byte Arrays deserialized from BIT STRING must not have padding bits. Found 1 padding bits. If you require padding, directly use Asn1BitString to represent the property."
+
+            shouldThrow<SerializationException> {
+                DER.decodeFromHexString<Asn1BitStringValue>("03020105")
+            }.message shouldBe "Last 1 padding bits must be zeroed out. Last byte is: 00000101"
 
             val tagged = BitSetValueTagged(byteArrayOf(0x01, 0x02))
             DER.decodeFromByteArray<BitSetValueTagged>(

@@ -3,7 +3,6 @@ package at.asitplus.awesn1
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.without
 import at.asitplus.awesn1.encoding.*
-import at.asitplus.awesn1.Int
 import at.asitplus.testballoon.checkAll
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.minus
@@ -11,6 +10,7 @@ import at.asitplus.testballoon.withData
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
 import de.infix.testBalloon.framework.core.testSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
@@ -20,7 +20,7 @@ import io.kotest.property.arbitrary.uLong
 val ImplicitTaggingTest by testSuite {
 
     "Plain" - {
-        checkAll(Arb.uLong()) - { tagNum ->
+        checkAll(Arb.uLong(min = 1uL/*universal zero is illegal*/)) - { tagNum ->
             val universalConstructed = Asn1Element.Tag(tagNum, constructed = true)
 
             "universalConstructed" {
@@ -61,7 +61,7 @@ val ImplicitTaggingTest by testSuite {
     }
 
     "Primitive" - {
-        checkAll(Arb.uLong()) - { tagNum ->
+        checkAll(Arb.uLong(1uL/*universal zero is illegal*/)) - { tagNum ->
             val primitive = Asn1Primitive(tagNum, byteArrayOf())
 
             "setup" {
@@ -90,26 +90,33 @@ val ImplicitTaggingTest by testSuite {
             withData(nameFn = { "$tagNum $it" }, data = TagClass.entries) { tagClass ->
 
                 val newTagValue = tagNum / 2uL;
-                val newTagObject = Asn1Element.Tag(newTagValue, constructed = true) //test CONSTRUCTED override
-                val taggedElement = primitive withImplicitTag (newTagValue withClass tagClass)
-                val taggedElementFromTag = primitive withImplicitTag (newTagObject withClass tagClass)
-                taggedElementFromTag shouldBe taggedElement
+                if (newTagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
+                    shouldThrow<Asn1Exception> {
+                        Asn1Element.Tag(newTagValue, constructed = true)
+                    }.message shouldBe "Illegal DER tag: universal tag 0 (end-of-contents) is not allowed"
+                } else {
 
-                val classyPrimitive = taggedElement.tag
-                classyPrimitive.tagClass shouldBe tagClass
-                classyPrimitive.tagValue shouldBe newTagValue
-                classyPrimitive.isConstructed.shouldBeFalse()
-                (primitive withImplicitTag (newTagValue withClass tagClass without CONSTRUCTED)).also {
-                    it.tag shouldBe classyPrimitive
+                    val newTagObject = Asn1Element.Tag(newTagValue, constructed = true, tagClass= TagClass.PRIVATE /*to construct tag value zero*/) //test CONSTRUCTED override
+                    val taggedElement = primitive withImplicitTag (newTagValue withClass tagClass)
+                    val taggedElementFromTag = primitive withImplicitTag (newTagObject withClass tagClass)
+                    taggedElementFromTag shouldBe taggedElement
+
+                    val classyPrimitive = taggedElement.tag
+                    classyPrimitive.tagClass shouldBe tagClass
+                    classyPrimitive.tagValue shouldBe newTagValue
+                    classyPrimitive.isConstructed.shouldBeFalse()
+                    (primitive withImplicitTag (newTagValue withClass tagClass without CONSTRUCTED)).also {
+                        it.tag shouldBe classyPrimitive
+                    }
+
+                    (primitive withImplicitTag (newTagObject withClass tagClass)).also {
+                        it.tag shouldBe classyPrimitive
+                        it.tag shouldBe (primitive withImplicitTag (newTagObject withClass tagClass without CONSTRUCTED)).tag
+                    }
+
+                    val encoded = taggedElement.derEncoded
+                    Asn1Element.parse(encoded).derEncoded shouldBe encoded
                 }
-
-                (primitive withImplicitTag (newTagObject withClass tagClass)).also {
-                    it.tag shouldBe classyPrimitive
-                    it.tag shouldBe (primitive withImplicitTag (newTagObject withClass tagClass without CONSTRUCTED)).tag
-                }
-
-                val encoded = taggedElement.derEncoded
-                Asn1Element.parse(encoded).derEncoded shouldBe encoded
             }
         }
     }
@@ -133,42 +140,52 @@ val ImplicitTaggingTest by testSuite {
             withData(nameFn = { "$tagNum $it" }, data = TagClass.entries) - { tagClass ->
                 val newTagValue = tagNum / 2uL
 
-                "setup" {
-                    val taggedElement = set withImplicitTag (newTagValue withClass tagClass)
-                    val classySet = taggedElement.tag
-                    classySet.tagClass shouldBe tagClass
-                    classySet.tagValue shouldBe newTagValue
-                    classySet.isConstructed.shouldBeTrue()
-                    (set withImplicitTag (newTagValue withClass tagClass without CONSTRUCTED)).also {
-                        it.tag.isConstructed.shouldBeFalse()
-                        it.tag.tagValue shouldBe newTagValue
-                        it.tag.tagClass shouldBe tagClass
+                if (newTagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
+                    shouldThrow<Asn1Exception> {
+                        set withImplicitTag (newTagValue withClass tagClass)
+                    }.message shouldBe "Illegal DER tag: universal tag 0 (end-of-contents) is not allowed"
+                } else {
+                    "setup" {
+                        val taggedElement = set withImplicitTag (newTagValue withClass tagClass)
+                        val classySet = taggedElement.tag
+                        classySet.tagClass shouldBe tagClass
+                        classySet.tagValue shouldBe newTagValue
+                        classySet.isConstructed.shouldBeTrue()
+                        (set withImplicitTag (newTagValue withClass tagClass without CONSTRUCTED)).also {
+                            it.tag.isConstructed.shouldBeFalse()
+                            it.tag.tagValue shouldBe newTagValue
+                            it.tag.tagClass shouldBe tagClass
+                        }
+
+                        val encoded = taggedElement.derEncoded
+                        Asn1Element.parse(encoded).derEncoded shouldBe encoded
+
+                        val primitive = set withImplicitTag (newTagValue without CONSTRUCTED)
+                        primitive.tag.tagClass shouldBe TagClass.CONTEXT_SPECIFIC
+                        primitive.tag.isConstructed.shouldBeFalse()
+                        primitive.tag.tagValue shouldBe newTagValue
                     }
 
-                    val encoded = taggedElement.derEncoded
-                    Asn1Element.parse(encoded).derEncoded shouldBe encoded
-
-                    val primitive = set withImplicitTag (newTagValue without CONSTRUCTED)
-                    primitive.tag.tagClass shouldBe TagClass.CONTEXT_SPECIFIC
-                    primitive.tag.isConstructed.shouldBeFalse()
-                    primitive.tag.tagValue shouldBe newTagValue
-                }
-
-                withData(true, false) { constructed ->
-                    val newTag = Asn1Element.Tag(newTagValue, constructed = constructed)
-                    val taggedElement = set withImplicitTag (newTag withClass tagClass)
-                    val classySet = taggedElement.tag
-                    classySet.tagClass shouldBe tagClass
-                    classySet.tagValue shouldBe newTagValue
-                    classySet.isConstructed shouldBe newTag.isConstructed
-                    (set withImplicitTag (newTag withClass tagClass without CONSTRUCTED)).also {
-                        it.tag.isConstructed.shouldBeFalse()
-                        it.tag.tagValue shouldBe newTagValue
-                        it.tag.tagClass shouldBe tagClass
+                    withData(true, false) { constructed ->
+                        if (newTagValue == 0uL) {
+                            shouldThrow<Asn1Exception> {
+                                Asn1Element.Tag(newTagValue, constructed = constructed)
+                            }.message shouldBe "Illegal DER tag: universal tag 0 (end-of-contents) is not allowed"
+                        } else {
+                            val newTag = Asn1Element.Tag(newTagValue, constructed = constructed)
+                            val taggedElement = set withImplicitTag (newTag withClass tagClass)
+                            val classySet = taggedElement.tag
+                            classySet.tagClass shouldBe tagClass
+                            classySet.tagValue shouldBe newTagValue
+                            classySet.isConstructed shouldBe newTag.isConstructed
+                            (set withImplicitTag (newTag withClass tagClass without CONSTRUCTED)).also {
+                                it.tag.isConstructed.shouldBeFalse()
+                                it.tag.tagValue shouldBe newTagValue
+                                it.tag.tagClass shouldBe tagClass
+                            }
+                        }
                     }
-
                 }
-
 
             }
         }

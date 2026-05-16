@@ -40,6 +40,17 @@
     * Rename `EcPrivateKeyInfo` -> `Sec1EcPrivateKeyInfo`
     * Rename `Attribute` -> `Pkcs10CsrAttribute`
     * Rename `RsaPublicKeyInfo` -> `Pkcs1RsaPublicKeyInfo`
+* Hardening:
+    * Reject UNIVERSAL zero tagged asn.1 elements 
+    * Fail hard for unterminated ASN.1 varints even below the maximum number of bytes to decode
+    * Enforce specifying a limit on the maximum number of bytes to be read from a `Source`
+    * Harden against malformed length encodings and children longer than the parent
+        * Virtually all of these are just short-circuits to fail fast, before other checks would have kicked in 
+    * Enforce stricter padding validity checks for BIT STRING
+        * Padding bits must be zeroed out
+        * If padding is present, at least one byte of data must be present
+        * ByteArrays to be serialized as BIT STRING using `@Asn1BitString` annotation now enforce zero padding bits on deserialization
+* `BitSet` now comes with `copyOf()`
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever, so publishing 0.2.0 went south.

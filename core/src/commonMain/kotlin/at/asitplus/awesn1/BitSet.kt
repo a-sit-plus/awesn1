@@ -50,6 +50,8 @@ private fun Byte.getBit(index: Int): Boolean =
 class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterable<Boolean> {
 
 
+    fun copyOf(): BitSet = BitSet(buffer.toMutableList())
+
     /**
      * List view on the bytes backing this bit set. Changes to the bytes directly affect this bitset.
      */

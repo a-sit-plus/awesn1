@@ -31,6 +31,7 @@ kotlin {
             }
         }
         commonTest {
+            kotlin.srcDir("src/sharedTest")
             dependencies {
                 implementation(project(":oids"))
                 implementation("at.asitplus.signum:indispensable:3.19.3")

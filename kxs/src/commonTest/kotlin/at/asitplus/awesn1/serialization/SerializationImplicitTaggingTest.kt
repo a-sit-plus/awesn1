@@ -89,6 +89,17 @@ val SerializationTestImplicitTagging by testSuite(
                     ImplicitNestedInline(InlineLayer3(InlineLayer2(InlineLayer1(0x23))))
         }
 
+        "Property tag overrides implicitly tagged inline value class" {
+            val value = PropertyTaggedInlineValue(ImplicitValueClassByte(0x23))
+            val encoded = DER.encodeToByteArray(value)
+
+            encoded.toHexString() shouldBe "3003d30123"
+            DER.decodeFromByteArray<PropertyTaggedInlineValue>(encoded) shouldBe value
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<PropertyTaggedInlineValue>("3003d20123".hexToByteArray())
+            }
+        }
+
         "Implicitly tagged inline class overrides implicitly tagged wrapped class" {
             val value = InlineTaggedOuterClassTaggedInner(ClassTaggedInner(0x23))
             val encoded = DER.encodeToByteArray(value)
@@ -386,6 +397,12 @@ value class ImplicitValueClassULong(val value: ULong)
 @JvmInline
 @Serializable
 value class ImplicitValueClassByte(val byte: Byte)
+
+@Serializable
+data class PropertyTaggedInlineValue(
+    @Asn1Tag(19u, Asn1Tag.Class.PRIVATE)
+    val value: ImplicitValueClassByte,
+)
 
 @Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
