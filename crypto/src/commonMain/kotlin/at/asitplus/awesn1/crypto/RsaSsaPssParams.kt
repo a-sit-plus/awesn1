@@ -30,7 +30,8 @@ import kotlinx.serialization.Serializable
  * [X509AlgorithmIdentifier].
  */
 @Serializable
-data class RsaSsaPssParams(
+//CTOR internal for testing
+data class RsaSsaPssParams internal constructor(
     @Asn1Tag(tagNumber = 0u)
     private val taggedHashAlgorithm: ExplicitlyTagged<X509AlgorithmIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
@@ -40,10 +41,21 @@ data class RsaSsaPssParams(
     @Asn1Tag(tagNumber = 3u)
     private val taggedTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
 ) {
+    constructor(
+        hashAlgorithm: X509AlgorithmIdentifier? = null,
+        maskGenAlgorithm: X509AlgorithmIdentifier? = null,
+        saltLength: Asn1Integer? = null,
+        trailerField: Asn1Integer? = null,
+    ) : this(
+        hashAlgorithm?.let(::ExplicitlyTagged),
+        maskGenAlgorithm?.let(::ExplicitlyTagged),
+        saltLength?.let(::ExplicitlyTagged),
+        trailerField?.let(::ExplicitlyTagged),
+    )
 
     val hashAlgorithm: X509AlgorithmIdentifier? by taggedHashAlgorithm
 
-    val maskGenAlgorithm:X509AlgorithmIdentifier? by taggedMaskGenAlgorithm
+    val maskGenAlgorithm: X509AlgorithmIdentifier? by taggedMaskGenAlgorithm
 
     val saltLength: Asn1Integer? by taggedSaltLength
 
