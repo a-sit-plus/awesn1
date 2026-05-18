@@ -11,7 +11,7 @@ import at.asitplus.awesn1.catchingUnwrapped
  * Versioned data classes, as commonly used in ASN.1 schemas.
  *
  * [rawVersion] represents the encoded integer, (semantic) [version] denotes the
- * version commonly referred to when talking about it (as in: a V3 X.509 certificare has semantic version 3 and a
+ * version commonly referred to when talking about it (as in: a V3 X.509 certificate has semantic version 3 and a
  * raw version of 2 and a v1 certificate may encode its raw version as absent, while other standards may have raw and semantic version align).
  * Hence, [version] is never null, because even an absent [rawVersion] will correspond to some semantic version.
  * The integer must fit the valid Int value range (within [Int.MIN_VALUE]..[Int.MAX_VALUE]), otherwise a [NumberFormatException] will be thrown.
