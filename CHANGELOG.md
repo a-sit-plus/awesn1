@@ -11,7 +11,9 @@
     * expose `runRethrowing`
     * add `asAsn1Element()` to octet string
 * **Fixes:**
-    * Fix value/inline class handling
+    * Make encapsulating octet strings primitives:
+       * This prevents footguns like implementing `<Asn1Encodable<Asn1Primitive>` and then havign decoding fail because the contents of an octet string happened to be a valid ASN.1 structure.
+* Fix value/inline class handling
     * Fix raw Asn1Element deserialzation bug where tag overrides would causes errors instead of correct conversions
     * Fix silent truncation of `Byte`/`UByte` and `Short`/`UShort` when deserializing, but throw instead
 * **Hardening:**

@@ -118,12 +118,7 @@ sealed class Asn1Element(
      * @throws Asn1StructuralException if this element is not a primitive
      */
     @Throws(Asn1StructuralException::class)
-    fun asPrimitive() = when (this) {
-        //this absolutely needs to be a primitive here and copying is typically OK,
-        //because this will be part of a parser pipeline that needs the raw bytes anyway
-        is Asn1EncapsulatingOctetString -> Asn1PrimitiveOctetString(this.content)
-        else -> thisAs<Asn1Primitive>()
-    }
+    fun asPrimitive() = thisAs<Asn1Primitive>()
 
     /**
      * Convenience function to cast this element to an [Asn1Structure]
@@ -238,9 +233,6 @@ sealed class Asn1Element(
         val tagValue: ULong,
         val encodedTag: ByteArray
     ) : Comparable<Tag> {
-
-        //workaround because we cannot return two values or assign params in a destructured manner
-        private constructor(decoded: Pair<ULong, ByteArray>) : this(decoded.first, decoded.second)
 
         /**
          * The length (in bytes) of this tag when encoded according to DER
@@ -542,8 +534,9 @@ sealed class Asn1Structure(
     }
 
 
-
-
+    /**
+     * This structure's child elements
+     */
     val children: List<Asn1Element> = if (!sortChildren) children else children.sortedWith(DerEncodedElementComparator)
 
     /**
@@ -843,13 +836,38 @@ class Asn1CustomStructure private constructor(
  * @param children the elements to put into this sequence
  */
 @Serializable(with = Asn1EncapsulatingOctetStringFallbackBase64Serializer::class)
-class Asn1EncapsulatingOctetString(children: List<Asn1Element>) :
-    Asn1Structure(Tag.OCTET_STRING, children, sortChildren = false, shouldBeSorted = false),
-    Asn1OctetString {
+class Asn1EncapsulatingOctetString(
+    /**
+     * This structure's child elements
+     */
+    val children: List<Asn1Element>
+) :
+    Asn1Primitive(Tag.OCTET_STRING),
+    Asn1OctetString, Iterable<Asn1Element> {
+
+    @PublishedApi
+    internal val _sequence = Asn1Sequence(children)
 
     override val content: ByteArray by lazy {
-        throughBuffer { sink -> children.forEach { it.encodeTo(sink) } }
+        throughBuffer { sink -> _sequence.children.forEach { it.encodeTo(sink) } }
     }
+
+    /**
+     * indicated whether the structure's children are actually sorted.
+     */
+    val isActuallySorted: Boolean get() = _sequence.isActuallySorted
+
+    /**
+     * Decodes the content of this ASN.1 structure using the provided [decoder] lambda.
+     * This function gives a convenient way to decode ASN.1 structures by exposing an
+     * iterator over the structure's children to the [decoder] lambda. Optionally, it enforces that
+     * all children must be consumed. Use [decodeRethrowing] to automatically and consistently wrap exceptions
+     * thrown during decoding in [Asn1Exception]s.
+     */
+    inline fun <T> decodeAs(requireFullConsumption: Boolean = true, decoder: Asn1Structure.Iterator.() -> T): T =
+        _sequence.decodeAs(requireFullConsumption, decoder)
+
+    override fun iterator(): Asn1Structure.Iterator = _sequence.iterator()
 
     override fun equals(other: Any?): Boolean {
         if (other is Asn1PrimitiveOctetString) return this.content contentEquals other.content
@@ -931,16 +949,24 @@ class Asn1SetOf @Throws(Asn1Exception::class) internal constructor(children: Lis
  * ASN.1 primitive. Holds no children, but [content] under [tag]
  */
 @Serializable(with = Asn1PrimitiveFallbackBase64Serializer::class)
-open class Asn1Primitive(
+open class Asn1Primitive internal constructor(
     tag: Tag,
-    /**
-     * Raw data contained in this ASN.1 primitive in its encoded form. Requires decoding to interpret it
-     */
-    val content: ByteArray
 ) : Asn1Element(tag) {
+
+    constructor(tag: Tag, content: ByteArray) : this(tag) {
+        rawContent = content
+    }
+
     init {
         if (tag.isConstructed) throw IllegalArgumentException("A primitive cannot have a CONSTRUCTED tag")
     }
+
+    /**
+     * Raw data contained in this ASN.1 primitive in its encoded form. Requires decoding to interpret it
+     */
+    internal lateinit var rawContent: ByteArray
+
+    open val content: ByteArray get() = rawContent
 
     override val contentLength: Int get() = content.size
     override fun doEncode(sink: Sink) {
@@ -1027,14 +1053,6 @@ sealed interface Asn1OctetString {
         /** Constructs a new ASN.1 OCTET STRING primitive encapsulating these children */
         operator fun invoke(children: List<Asn1Element>) =
             Asn1EncapsulatingOctetString(children)
-    }
-
-    /***
-     * returns this octet string as an [Asn1Element]
-     */
-    fun asElement(): Asn1Element = when(this) {
-        is Asn1EncapsulatingOctetString -> this
-        is Asn1PrimitiveOctetString -> this
     }
 }
 
