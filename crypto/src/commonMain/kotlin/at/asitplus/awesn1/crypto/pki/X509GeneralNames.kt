@@ -12,6 +12,7 @@ import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.runWrappingAs
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.decodeFromTlv
 import kotlin.jvm.JvmInline
 
 @Deprecated("Use X509GeneralNames instead", ReplaceWith("X509GeneralNames"))
@@ -58,9 +59,7 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
     val directoryNames: List<List<X500RelativeDistinguishedName>> get() =
         entries.filter { it.tag == GeneralNameImplicitTags.directoryName }
             .map { e ->
-                e.asSequence().children.map {
-                    DER.decodeFromTlv(X500RelativeDistinguishedName.serializer(), it)
-                }
+                e.asSequence().children.map { DER.decodeFromTlv<X500RelativeDistinguishedName>( it) }
             }
 
     val otherNames: List<Asn1Sequence> get() =
