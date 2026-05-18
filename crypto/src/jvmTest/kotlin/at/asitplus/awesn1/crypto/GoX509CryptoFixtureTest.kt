@@ -2,7 +2,10 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.PemBlock
+import at.asitplus.awesn1.crypto.legacy.RsaPrivateKeyInfo
+import at.asitplus.awesn1.crypto.legacy.pki.Pkcs10CertificationRequestInfo
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
+import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo.Version
 import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
 import at.asitplus.awesn1.decodeFromPem
 import at.asitplus.awesn1.serialization.DER
@@ -21,7 +24,7 @@ val GoX509CryptoFixtureTest by testSuite {
         val encoded = pemPayload("pkcs1-rsa-private-key.pem")
         val decoded = checkRoundTrip(encoded, Pkcs1RsaPrivateKeyInfo.serializer())
 
-        decoded.version shouldBe 0
+        decoded.version.ordinal shouldBe 0
         decoded.publicExponent.toString().toLong() shouldBe 65537L
     }
 
@@ -63,8 +66,8 @@ val GoX509CryptoFixtureTest by testSuite {
         )
 
         when (fixture.nested) {
-            NestedPrivateKey.RSA -> decoded.decodeRsaPrivateKey().version shouldBe 0
-            NestedPrivateKey.EC -> decoded.decodeEcPrivateKey().version shouldBe 1
+            NestedPrivateKey.RSA -> decoded.decodeRsaPrivateKey().version shouldBe Pkcs1RsaPrivateKeyInfo.Version.TWO_PRIME
+            NestedPrivateKey.EC -> decoded.decodeEcPrivateKey().version shouldBe Sec1EcPrivateKeyInfo.Version.V1
             NestedPrivateKey.NONE -> Unit
         }
     }
@@ -81,7 +84,7 @@ val GoX509CryptoFixtureTest by testSuite {
             Pkcs10CertificationRequest.serializer(),
         )
 
-        decoded.certificationRequestInfo.version shouldBe X509TbsCertificate.Version.V1
+        decoded.certificationRequestInfo.version shouldBe Version.V1
     }
 }
 

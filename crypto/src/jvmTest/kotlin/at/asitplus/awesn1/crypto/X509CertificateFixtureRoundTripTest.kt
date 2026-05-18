@@ -86,7 +86,7 @@ internal fun assertEquals(
     ownDecoded: X509Certificate,
     certificate: java.security.cert.X509Certificate
 ) {
-    ownDecoded.tbsCertificate.version shouldBe certificate.version
+    ownDecoded.tbsCertificate.version.ordinal+1 shouldBe certificate.version
     ownDecoded.signatureValue.rawBytes shouldBe certificate.signature
     ownDecoded.signatureAlgorithm.oid.toString() shouldBe certificate.sigAlgOID
     ownDecoded.tbsCertificate.serialNumber.toString() shouldBe certificate.serialNumber.toString()
