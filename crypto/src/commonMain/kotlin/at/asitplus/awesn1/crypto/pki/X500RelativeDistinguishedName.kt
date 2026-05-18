@@ -48,8 +48,8 @@ value class X500RelativeDistinguishedName(val attrsAndValues: Set<X500AttributeT
  *          bmpString               BMPString (SIZE (1..MAX)) }
  *  ```
  *
- *  The Name describes a hierarchical name composed of attributes, such
- *  as country name, and corresponding values, such as US.  The type of
+ *  The Name describes a hierarchical name composed of attribute types, such
+ *  as "country name", and corresponding values, such as "US".  The type of
  *  the component `AttributeValue` is determined by the `AttributeType`; in
  *  general it will be a `DirectoryString`.
  *
