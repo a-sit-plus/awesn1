@@ -10,6 +10,9 @@ import at.asitplus.awesn1.serialization.decodeFromTlv
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
+@Deprecated("Use X509AlgorithmIdentifier instead", ReplaceWith("X509AlgorithmIdentifier"))
+typealias SignatureAlgorithmIdentifier = X509AlgorithmIdentifier
+
 /**
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1.1.2):
  *

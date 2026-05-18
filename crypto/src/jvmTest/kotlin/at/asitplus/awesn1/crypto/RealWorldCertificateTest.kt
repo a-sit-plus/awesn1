@@ -1,7 +1,7 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.PemBlock
-import at.asitplus.awesn1.crypto.pki.GeneralNames.Companion.findSubjectAltNames
+import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findSubjectAltNames
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.serialization.DER

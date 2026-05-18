@@ -14,6 +14,9 @@ import at.asitplus.awesn1.encoding.parse
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
+@Deprecated("Use X509SignatureValue instead", ReplaceWith("X509SignatureValue"))
+typealias SignatureValue = X509SignatureValue
+
 /**
  *
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
@@ -33,7 +36,7 @@ import kotlin.jvm.JvmInline
  */
 @JvmInline
 @Serializable
-value class SignatureValue(val rawBitString: Asn1BitString) {
+value class X509SignatureValue(val rawBitString: Asn1BitString) {
     init {
         if (rawBitString.numPaddingBits != 0.toByte()) {
             throw Asn1Exception("The signature value must not have padding bits")
@@ -53,8 +56,8 @@ value class SignatureValue(val rawBitString: Asn1BitString) {
 
     companion object {
         fun fromRS(r: Asn1Integer.Positive, s: Asn1Integer.Positive) =
-            SignatureValue(Asn1.Sequence { +r; +s }.derEncoded)
+            X509SignatureValue(Asn1.Sequence { +r; +s }.derEncoded)
     }
 }
 
-fun SignatureValue.decodeRsOrNull() = catchingUnwrapped { decodeRS() }.getOrNull()
+fun X509SignatureValue.decodeRsOrNull() = catchingUnwrapped { decodeRS() }.getOrNull()

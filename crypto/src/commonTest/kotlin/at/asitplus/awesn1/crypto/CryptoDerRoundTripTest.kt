@@ -79,13 +79,13 @@ private fun randomAlgorithmIdentifier(random: Random) = Asn1.Sequence {
 }
 
 private fun randomRawBitStringSignatureValue(random: Random) =
-    SignatureValue(Asn1BitString(randomBytes(random)))
+    X509SignatureValue(Asn1BitString(randomBytes(random)))
 
 private fun randomBitStringSignatureValue(random: Random) =
-    SignatureValue(randomBytes(random))
+    X509SignatureValue(randomBytes(random))
 
 private fun randomEcdsaSignatureValue(random: Random) =
-    SignatureValue.fromRS(positiveAsn1Integer(random), positiveAsn1Integer(random))
+    X509SignatureValue.fromRS(positiveAsn1Integer(random), positiveAsn1Integer(random))
 
 private fun randomEcPrivateKey(random: Random) = Sec1EcPrivateKeyInfo(
     privateKey = randomBytes(random, 32),
@@ -187,7 +187,7 @@ private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10Certifi
 private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10CertificationRequest(
     certificationRequestInfo = randomPkcs10CertificationRequestInfo(random),
     signatureAlgorithm = randomSignatureAlgorithmIdentifier(random),
-    signatureValue = SignatureValue(randomBytes(random, 32)),
+    signatureValue = X509SignatureValue(randomBytes(random, 32)),
 )
 
 private fun randomTbsCertificate(random: Random): X509TbsCertificate {

@@ -15,6 +15,9 @@ import at.asitplus.awesn1.serialization.getValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
+@Deprecated("Use X509TbsCertificate instead", ReplaceWith("X509TbsCertificate"))
+typealias TbsCertificate = X509TbsCertificate
+
 /**
  *
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):

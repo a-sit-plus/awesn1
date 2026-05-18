@@ -14,6 +14,9 @@ import at.asitplus.awesn1.runWrappingAs
 import at.asitplus.awesn1.serialization.DER
 import kotlin.jvm.JvmInline
 
+@Deprecated("Use X509GeneralNames instead", ReplaceWith("X509GeneralNames"))
+typealias GeneralNames = X509GeneralNames
+
 /**
  *
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.2.1.6):
@@ -36,7 +39,7 @@ import kotlin.jvm.JvmInline
  * ```
  */
 @JvmInline
-value class GeneralNames @Throws(Throwable::class) constructor(
+value class X509GeneralNames @Throws(Throwable::class) constructor(
     val entries: List<Asn1Element>
 ) {
 
@@ -78,7 +81,7 @@ value class GeneralNames @Throws(Throwable::class) constructor(
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findSubjectAltNames() =
             runWrappingAs(a=::Asn1Exception) {
-                find(ObjectIdentifier("2.5.29.17"))?.let { GeneralNames(it) }
+                find(ObjectIdentifier("2.5.29.17"))?.let { X509GeneralNames(it) }
             }
 
         @Throws(Asn1Exception::class)
@@ -89,7 +92,7 @@ value class GeneralNames @Throws(Throwable::class) constructor(
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findIssuerAltNames() =
             runWrappingAs(a=::Asn1Exception) {
-                find(ObjectIdentifier("2.5.29.18"))?.let { GeneralNames(it) }
+                find(ObjectIdentifier("2.5.29.18"))?.let { X509GeneralNames(it) }
             }
 
         private fun List<X509CertificateExtension>.find(oid: ObjectIdentifier): List<Asn1Element>? {

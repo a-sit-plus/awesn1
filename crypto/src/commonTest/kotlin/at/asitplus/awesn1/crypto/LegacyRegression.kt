@@ -41,7 +41,7 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
         is Pkcs1RsaPrivateKeyInfo -> LegacyRsaPrivateKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is RsaPublicKeyInfo -> LegacyRsaPublicKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is X509AlgorithmIdentifier -> LegacySignatureAlgorithmIdentifier.decodeFromTlv(element.asSequence()).toCurrent()
-        is SignatureValue -> LegacySignatureValue.decodeFromTlv(element.asPrimitive()).toCurrent()
+        is X509SignatureValue -> LegacySignatureValue.decodeFromTlv(element.asPrimitive()).toCurrent()
         is SubjectPublicKeyInfo -> LegacySubjectPublicKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is Pkcs10CsrAttribute -> LegacyAttribute.decodeFromTlv(element.asSequence()).toCurrent()
         is X500AttributeTypeAndValue -> LegacyAttributeTypeAndValue.decodeFromTlv(element.asSequence()).toCurrent()
@@ -113,7 +113,7 @@ private fun LegacySignatureAlgorithmIdentifier.toCurrent() =
         parameters = parameters,
     )
 
-private fun LegacySignatureValue.toCurrent() = SignatureValue(rawBitString)
+private fun LegacySignatureValue.toCurrent() = X509SignatureValue(rawBitString)
 
 private fun LegacySubjectPublicKeyInfo.toCurrent() =
     SubjectPublicKeyInfo(

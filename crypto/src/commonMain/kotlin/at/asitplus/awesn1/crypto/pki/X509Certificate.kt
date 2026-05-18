@@ -4,7 +4,7 @@
 package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
-import at.asitplus.awesn1.crypto.SignatureValue
+import at.asitplus.awesn1.crypto.X509SignatureValue
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,7 +22,7 @@ import kotlinx.serialization.Serializable
 data class X509Certificate(
     val tbsCertificate: X509TbsCertificate,
     val signatureAlgorithm: X509AlgorithmIdentifier,
-    val signatureValue: SignatureValue,
+    val signatureValue: X509SignatureValue,
 ) {
     companion object {
         const val PEM_LABEL = "CERTIFICATE"
