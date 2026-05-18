@@ -7,7 +7,6 @@ import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
-import kotlinx.serialization.serializer
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTutorial04OctetWrapped by testSuite(
@@ -17,7 +16,7 @@ val SerializationTutorial04OctetWrapped by testSuite(
         val value = TutorialOctetCarrier(
             wrapped = OctetStringEncapsulated(5),
         )
-        val der =            DER.encodeToByteArray( value)
+        val der = DER.encodeToByteArray(value)
         der.toHexString() shouldBe "30050403020105"
         DER.decodeFromByteArray<TutorialOctetCarrier>(der) shouldBe value
     }
