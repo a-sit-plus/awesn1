@@ -9,7 +9,6 @@ package at.asitplus.awesn1
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.encoding.internal.Sink
 import at.asitplus.awesn1.encoding.*
-
 import kotlinx.serialization.Serializable
 import kotlin.experimental.ExperimentalObjCName
 import kotlin.native.ObjCName
@@ -1030,6 +1029,14 @@ sealed interface Asn1OctetString {
      * It makes sense to have this for both kinds of octet strings, since many intermediate processing steps don't care about semantics.
      */
     val content: ByteArray
+
+    /***
+     * returns this octet string as an [Asn1Element]
+     */
+    fun asElement(): Asn1Element = when(this) {
+        is Asn1EncapsulatingOctetString -> this
+        is Asn1PrimitiveOctetString -> this
+    }
 
     companion object {
         /** Constructs a new ASN.1 OCTET STRING primitive containing these bytes */

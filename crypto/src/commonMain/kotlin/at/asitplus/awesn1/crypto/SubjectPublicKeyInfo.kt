@@ -12,6 +12,8 @@ import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.encoding.readNull
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.decodeFromTlv
+import at.asitplus.awesn1.serialization.encodeToTlv
 import kotlinx.serialization.Serializable
 
 /**
@@ -39,7 +41,7 @@ data class SubjectPublicKeyInfo(
         }
         requireNotNull(algorithmParameters) { "RSA SubjectPublicKeyInfo must contain NULL params" }
         algorithmParameters!!.asPrimitive().readNull()
-        return DER.decodeFromTlv(RsaPublicKeyInfo.serializer(), Asn1Element.parse(subjectPublicKey.rawBytes))
+        return DER.decodeFromTlv( Asn1Element.parse(subjectPublicKey.rawBytes))
     }
 
     companion object {
@@ -51,7 +53,7 @@ data class SubjectPublicKeyInfo(
                 RSA_ENCRYPTION_OID,
                 listOf(Asn1.Null())
             ),
-            subjectPublicKey = Asn1BitString(DER.encodeToTlv(RsaPublicKeyInfo.serializer(), publicKey).derEncoded)
+            subjectPublicKey = Asn1BitString(DER.encodeToTlv(publicKey).derEncoded)
         )
 
         fun rsa(modulus: Asn1Integer, exponent: Asn1Integer): SubjectPublicKeyInfo =

@@ -3,15 +3,12 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.decodeRethrowing
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.toInt
+import at.asitplus.awesn1.serialization.decodeFromTlv
+import at.asitplus.awesn1.serialization.encodeToTlv
 import kotlinx.serialization.Serializable
 
 /**
@@ -37,9 +34,10 @@ data class Pkcs8PrivateKeyInfo(
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
-): Versioned {
+) : Versioned {
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
+
     /**
      *
      * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
@@ -57,17 +55,11 @@ data class Pkcs8PrivateKeyInfo(
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPrivateKey(): Pkcs1RsaPrivateKeyInfo =
-        DER.decodeFromTlv(
-            Pkcs1RsaPrivateKeyInfo.serializer(),
-            privateKey.asEncapsulatingOctetString().decodeRethrowing { next() }
-        )
+        DER.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next() })
 
     @Throws(Asn1Exception::class)
     fun decodeEcPrivateKey(): Sec1EcPrivateKeyInfo =
-        DER.decodeFromTlv(
-            Sec1EcPrivateKeyInfo.serializer(),
-            privateKey.asEncapsulatingOctetString().decodeRethrowing { next() }
-        )
+        DER.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next() })
 
     companion object {
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
@@ -77,9 +69,7 @@ data class Pkcs8PrivateKeyInfo(
             Pkcs8PrivateKeyInfo(
                 rawVersion = Asn1Integer.ZERO,
                 privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
-                privateKey = Asn1.OctetStringEncapsulating {
-                    +DER.encodeToTlv(Pkcs1RsaPrivateKeyInfo.serializer(), privateKey)
-                },
+                privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(privateKey) },
                 attributes = attributes,
             )
 
@@ -93,9 +83,7 @@ data class Pkcs8PrivateKeyInfo(
                 EC_PUBLIC_KEY_OID,
                 curveOid?.let { listOf(it.encodeToTlv()) }.orEmpty(),
             ),
-            privateKey = Asn1.OctetStringEncapsulating {
-                +DER.encodeToTlv(Sec1EcPrivateKeyInfo.serializer(), sec1Key)
-            },
+            privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(sec1Key) },
             attributes = attributes,
         )
     }

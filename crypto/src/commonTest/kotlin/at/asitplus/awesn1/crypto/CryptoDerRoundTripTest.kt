@@ -9,11 +9,12 @@ import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.TestSuiteScope
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
-import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.json.Json
 import kotlin.random.Random
 import kotlin.time.Instant
+import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 
 val CryptoDerRoundTripTest by testSuite {
     "Property checks" - {
@@ -98,7 +99,9 @@ private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyI
         oid = randomOid(random),
         parameters = randomRawElement(random).takeIf { random.nextBoolean() },
     ),
-    encryptedData = Asn1PrimitiveOctetString(randomBytes(random, 32)),
+    encryptedData = if (random.nextBoolean()) Asn1EncapsulatingOctetString(
+        listOf(Asn1PrimitiveOctetString(randomBytes(random, 32)))
+    ) else Asn1PrimitiveOctetString(randomBytes(random, 32)),
 )
 
 private fun randomRsaOtherPrimeInfo(random: Random) = Pkcs1RsaOtherPrimeInfo(

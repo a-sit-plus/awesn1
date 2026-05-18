@@ -44,7 +44,7 @@ value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
     })
 
     init {
-        //would be nice to assert exactly 1 or 2 children, but reality is a b****.
+        require(element.children.isNotEmpty()) { "AlgorithmIdentifier must not be an empty SEQUENCE" }
     }
 
     /**
