@@ -11,6 +11,7 @@ import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.Sink
 import kotlinx.serialization.Serializable
 import kotlin.experimental.ExperimentalObjCName
+import kotlin.IgnorableReturnValue
 import kotlin.native.ObjCName
 
 /**
@@ -1089,6 +1090,7 @@ internal fun Int.encodeLength(): ByteArray {
 }
 
 @Throws(IllegalArgumentException::class)
+@IgnorableReturnValue
 internal fun Sink.encodeLength(len: Long): Int {
     require(len >= 0)
     return when {

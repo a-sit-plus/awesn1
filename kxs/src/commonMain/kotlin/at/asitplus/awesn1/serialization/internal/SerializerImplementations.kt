@@ -76,7 +76,7 @@ internal object Asn1ElementSerializer : KSerializer<Asn1Element> {
         encoder: Encoder,
         value: Asn1Element
     ) {
-        encoder.requireDerEncoder("Asn1ElementSerializer")
+        val _ = encoder.requireDerEncoder("Asn1ElementSerializer")
         encoder.encodeSerializableValue(delegate, value.derEncoded)
     }
 
@@ -87,7 +87,7 @@ internal object Asn1ElementSerializer : KSerializer<Asn1Element> {
      */
     @Throws(kotlinx.serialization.SerializationException::class)
     override fun deserialize(decoder: Decoder): Asn1Element {
-        decoder.requireDerDecoder("Asn1ElementSerializer")
+        val _ = decoder.requireDerDecoder("Asn1ElementSerializer")
         return delegate.deserialize(decoder).let { Asn1Element.Companion.parse(it) }
     }
 

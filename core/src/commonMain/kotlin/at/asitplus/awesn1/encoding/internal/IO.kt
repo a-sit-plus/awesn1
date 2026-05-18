@@ -9,6 +9,7 @@
 package at.asitplus.awesn1.encoding.internal
 
 import at.asitplus.awesn1.InternalAwesn1Api
+import kotlin.IgnorableReturnValue
 
 @InternalAwesn1Api
 interface Source<S : Sink> {
@@ -26,6 +27,7 @@ interface Source<S : Sink> {
      * Removes all bytes from this source, writes them to sink, and returns the total number of bytes written to sink.
      * Return 0 if this source is exhausted.
      */
+    @IgnorableReturnValue
     fun transferTo(sink: S): Long
 }
 
@@ -78,6 +80,7 @@ interface Sink {
      *
      * @return [endIndex] - [startIndex]
      */
+    @IgnorableReturnValue
     fun appendUnsafe(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size): Int
 }
 

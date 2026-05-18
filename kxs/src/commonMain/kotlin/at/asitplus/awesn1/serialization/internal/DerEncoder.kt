@@ -456,8 +456,8 @@ class DerEncoder internal constructor(
             layoutPlan.ensureNoAmbiguousOptionalLayout(descriptor)
         }
         val tagTemplate = if (hasPendingBeginStructureTagTemplate) {
-            inlineHintState.consume()
-            consumePropertyContextOrNull()
+            val _ = inlineHintState.consume()
+            val _ = consumePropertyContextOrNull()
             pendingBeginStructureTagTemplate.also {
                 hasPendingBeginStructureTagTemplate = false
                 pendingBeginStructureTagTemplate = null

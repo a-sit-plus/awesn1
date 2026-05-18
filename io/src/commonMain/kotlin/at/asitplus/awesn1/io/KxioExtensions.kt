@@ -11,6 +11,7 @@ import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.encoding.KxIoSink
 import at.asitplus.awesn1.encoding.KxIoSource
 import at.asitplus.awesn1.encoding.internal.*
+import kotlin.IgnorableReturnValue
 
 /**
  * Parses an ASN.1 element from the given source with the specified size limit.
@@ -121,8 +122,10 @@ fun kotlinx.io.Source.decodeAsn1VarUInt(): Pair<UInt, ByteArray> =
 
 fun kotlinx.io.Source.decodeAsn1VarBigInt() = KxIoSource(this).decodeAsn1VarBigInt()
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1VarInt(number: UInt): Int =
     KxIoSink(this).writeAsn1VarInt(number)
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1VarInt(number: ULong): Int =
     KxIoSink(this).writeAsn1VarInt(number)

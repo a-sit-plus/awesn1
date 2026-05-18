@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.asp)
     alias(libs.plugins.sbombastic)
     alias(libs.plugins.spotless)
+    alias(libs.plugins.bcv)
     kotlin("multiplatform") version kotlinVer apply false
     kotlin("plugin.serialization") version kotlinVer apply false
     id("com.android.kotlin.multiplatform.library") version libs.versions.agp.get() apply (false)

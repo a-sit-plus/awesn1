@@ -13,6 +13,7 @@ import kotlinx.io.UnsafeIoApi
 import kotlinx.io.readByteArray
 import kotlinx.io.unsafe.UnsafeBufferOperations
 import kotlinx.io.writeToInternalBuffer
+import kotlin.IgnorableReturnValue
 import kotlin.jvm.JvmInline
 
 @JvmInline
@@ -28,6 +29,7 @@ value class KxIoSource(val source: kotlinx.io.Source) : Source<KxIoSink> {
     override fun skip(nBytes: Long) = source.skip(nBytes)
 
     override fun peek(): KxIoSource = KxIoSource(source.peek())
+    @IgnorableReturnValue
     override fun transferTo(sink: KxIoSink): Long =source.transferTo(sink.sink)
 
 }
@@ -39,6 +41,7 @@ class KxIoSink(internal val sink: kotlinx.io.Sink) : Sink {
 
     override fun write(bytes: ByteArray, startIndex: Int, endIndex: Int)=sink.write(bytes, startIndex, endIndex)
 
+    @IgnorableReturnValue
     override fun appendUnsafe(bytes: ByteArray, startIndex: Int, endIndex: Int): Int {
         require(startIndex in 0..<endIndex) { "StartIndex must be between 0 and $endIndex" }
         sink.writeToInternalBuffer {

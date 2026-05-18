@@ -36,8 +36,8 @@ internal class DerLayoutPlanContext(
 
         bitStringCompatible[descriptor] = descriptor.isAsn1BitStringCompatibleDescriptor()
         // Warm default analyses used frequently in runtime paths.
-        analyzeNullable(descriptor)
-        possibleLeadingTags(descriptor)
+        val _ = analyzeNullable(descriptor)
+        val _ = possibleLeadingTags(descriptor)
 
         if (descriptor.kind is StructureKind.CLASS || descriptor.kind is StructureKind.OBJECT) {
             ensureNoAmbiguousOptionalLayout(descriptor)

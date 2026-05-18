@@ -10,6 +10,7 @@ bouncycastle = "1.83"
 testballoon = "1.0.0-K2.4.0-Beta2"
 testballoonAddons = "0.9.0"
 spotless = "8.2.1"
+bcv = "0.18.1"
 
 [libraries]
 kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
@@ -23,3 +24,4 @@ sbombastic = { module = "at.asitplus.gradle.sbombastic:at.asitplus.gradle.sbomba
 asp = { id = "at.asitplus.gradle.conventions", version.ref = "asp" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 sbombastic = { id = "at.asitplus.gradle.sbombastic", version.ref = "sbombastic" }
+bcv = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "bcv" }

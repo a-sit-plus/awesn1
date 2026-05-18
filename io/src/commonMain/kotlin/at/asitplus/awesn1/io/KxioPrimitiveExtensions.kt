@@ -24,6 +24,7 @@ import at.asitplus.awesn1.encoding.internal.writeTwosComplementLong
 import at.asitplus.awesn1.encoding.internal.writeTwosComplementUInt
 import at.asitplus.awesn1.encoding.internal.writeTwosComplementULong
 import kotlinx.io.readByteArray
+import kotlin.IgnorableReturnValue
 import kotlin.time.Instant
 
 private fun kotlinx.io.Source.readAsn1ContentBytes(nBytes: Int): ByteArray {
@@ -92,51 +93,67 @@ fun kotlinx.io.Source.readAsn1UtcTimeContent(nBytes: Int): Instant =
 fun kotlinx.io.Source.readAsn1GeneralizedTimeContent(nBytes: Int): Instant =
     Instant.decodeGeneralizedTimeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1BooleanContent(value: Boolean): Int =
     writeAsn1ContentBytes(value.encodeToAsn1ContentBytes())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1IntContent(value: Int): Int =
     writeAsn1ContentBytes(value.encodeToAsn1ContentBytes())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1LongContent(value: Long): Int =
     writeAsn1ContentBytes(value.encodeToAsn1ContentBytes())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1UIntContent(value: UInt): Int =
     writeAsn1ContentBytes(value.encodeToAsn1ContentBytes())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1ULongContent(value: ULong): Int =
     writeAsn1ContentBytes(value.encodeToAsn1ContentBytes())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1ByteContent(value: Byte): Int =
     writeAsn1IntContent(value.toInt())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1ShortContent(value: Short): Int =
     writeAsn1IntContent(value.toInt())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1UByteContent(value: UByte): Int =
     writeAsn1UIntContent(value.toUInt())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1UShortContent(value: UShort): Int =
     writeAsn1UIntContent(value.toUInt())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1Asn1IntegerContent(value: Asn1Integer): Int =
     writeAsn1ContentBytes(value.encodeToAsn1ContentBytes())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1RealContent(value: Asn1Real): Int =
     writeAsn1ContentBytes(value.encodeToAsn1ContentBytes())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1DoubleContent(value: Double): Int =
     writeAsn1RealContent(Asn1Real(value))
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1FloatContent(value: Float): Int =
     writeAsn1RealContent(Asn1Real(value))
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1StringContent(value: String): Int =
     writeAsn1ContentBytes(value.encodeToByteArray())
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1UtcTimeContent(value: Instant): Int =
     writeAsn1ContentBytes(value.encodeToAsn1UtcTimePrimitive().content)
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeAsn1GeneralizedTimeContent(value: Instant): Int =
     writeAsn1ContentBytes(value.encodeToAsn1GeneralizedTimePrimitive().content)
 
@@ -152,14 +169,18 @@ fun kotlinx.io.Source.readTwosComplementInt(nBytes: Int): Int =
 fun kotlinx.io.Source.readTwosComplementUInt(nBytes: Int): UInt =
     KxIoSource(this).readTwosComplementUInt(nBytes)
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeTwosComplementLong(value: Long): Int =
     KxIoSink(this).writeTwosComplementLong(value)
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeTwosComplementULong(value: ULong): Int =
     KxIoSink(this).writeTwosComplementULong(value)
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeTwosComplementUInt(value: UInt): Int =
     KxIoSink(this).writeTwosComplementUInt(value)
 
+@IgnorableReturnValue
 fun kotlinx.io.Sink.writeMagnitudeLong(value: Long): Int =
     KxIoSink(this).writeMagnitudeLong(value)

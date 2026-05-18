@@ -65,7 +65,7 @@ value class GeneralNames @Throws(Throwable::class) constructor(
             e.asSequence().also {
                 if (it.children.size != 2) throw Asn1StructuralException("Invalid otherName Alternative Name found (!=2 children): ${it.toDerHexString()}")
                 if (it.children.last().tag != GeneralNameImplicitTags.otherName) throw Asn1StructuralException("Invalid otherName Alternative Name found (implicit tag != 0): ${it.toDerHexString()}")
-                ObjectIdentifier.decodeFromAsn1ContentBytes(it.children.first().asPrimitive().content)
+                val _ = ObjectIdentifier.decodeFromAsn1ContentBytes(it.children.first().asPrimitive().content)
             }
         }
 

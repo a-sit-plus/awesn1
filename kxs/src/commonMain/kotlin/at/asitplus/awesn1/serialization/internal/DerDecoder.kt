@@ -251,7 +251,7 @@ class DerDecoder internal constructor(
                 if (elementIndex >= elements.size) return CompositeDecoder.DECODE_DONE
                 couldBeNull = false
 
-                applyCurrentPropertyContext(
+                val _ = applyCurrentPropertyContext(
                     ownerDescriptor = descriptor,
                     propertyIndex = elementIndex,
                     isTrailing = true,
@@ -714,7 +714,7 @@ class DerDecoder internal constructor(
                 "ASN.1 CHOICE only supports kotlinx SealedClassSerializer"
             )
 
-        validateAndResolveImplicitTagOverride(
+        val _ = validateAndResolveImplicitTagOverride(
             actualTag = currentAnnotatedElement.tag,
             inlineAsn1Tag = inlineAnnotation,
             propertyAsn1Tag = propertyAsn1Tag,

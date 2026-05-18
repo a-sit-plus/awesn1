@@ -9,7 +9,7 @@ import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 
-val `DER tag parsing` by testSuite {
+val DerTagParsing by testSuite {
     "rejects universal tag zero" - {
         withData(
             "primitive incomplete" to "00",

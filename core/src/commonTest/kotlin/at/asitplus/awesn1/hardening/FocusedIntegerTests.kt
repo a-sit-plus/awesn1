@@ -192,9 +192,9 @@ private val nonMinimal = listOf(
     )
 )
 
-val `Focused INTEGER Tests` by testSuite {
+val FocusedInegerTests by testSuite {
 
-    withData(nameFn = { it.name }, nonMinimal+minimal, compact = false) { (_, hex, shouldAccept, note, expected) ->
+    withData(nameFn = { it.name }, nonMinimal + minimal, compact = false) { (_, hex, shouldAccept, note, expected) ->
         withClue(note) {
             if (shouldAccept)
                 Asn1Integer.parseFromDerHexString(hex).toDerHexString() shouldBe hex.replace(" ", "")
@@ -202,15 +202,15 @@ val `Focused INTEGER Tests` by testSuite {
                 shouldThrow<Asn1Exception> {
                     Asn1Integer.parseFromDerHexString(hex)
                 }
-                    val decoded =
-                        Asn1Integer.fromTwosComplement((Asn1Element.parseFromDerHexString(hex) as Asn1Primitive).content)
+                val decoded =
+                    Asn1Integer.fromTwosComplement((Asn1Element.parseFromDerHexString(hex) as Asn1Primitive).content)
 
-                    withClue("Manual decoding is lenient as escape hatch") {
-                        decoded shouldBe expected
-                    }
-                    withClue("Round-trip mormalizes") {
-                        Asn1Integer.decodeFromTlv(decoded.encodeToTlv()) shouldBe expected
-                    }
+                withClue("Manual decoding is lenient as escape hatch") {
+                    decoded shouldBe expected
+                }
+                withClue("Round-trip mormalizes") {
+                    Asn1Integer.decodeFromTlv(decoded.encodeToTlv()) shouldBe expected
+                }
             }
         }
     }

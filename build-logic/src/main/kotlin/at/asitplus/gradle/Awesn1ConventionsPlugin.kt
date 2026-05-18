@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.extraProperties
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import java.io.File
 import java.util.*
 
@@ -65,7 +66,12 @@ class Awesn1ConventionsExtension(private val project: Project) {
         }
         project.silence()
 
-        project.extensions.getByType<KotlinMultiplatformExtension>().apply {
+        //bug in conventions to be fixed with kotlin 2.4 release
+        project.tasks.withType<KotlinCompilationTask<*>>().configureEach {
+            compilerOptions.freeCompilerArgs.add("-Xreturn-value-checker=full")
+        }
+
+          project.extensions.getByType<KotlinMultiplatformExtension>().apply {
             compilerOptions.freeCompilerArgs.add("-Xexpect-actual-classes")
             sourceSets.whenObjectAdded {
                 languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")

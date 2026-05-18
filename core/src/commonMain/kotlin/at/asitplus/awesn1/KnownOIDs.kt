@@ -3,6 +3,8 @@
 
 package at.asitplus.awesn1
 
+import kotlin.IgnorableReturnValue
+
 /**
  * Holds known OIDs and their descriptions.
  * If the `oids` module is part of your classpath, call `KnownOIDs.describeAll()` to add descriptions for all
@@ -47,6 +49,7 @@ object KnownOIDs : MutableMap<ObjectIdentifier,String>{
      * This method is neither thread-safe nor coroutine-safe! Unguarded concurrent calls can cause loss of descriptions.
      * OID descriptions need to live outside the actual OID objects, because this semantic enhancement will never be serialized and thus cannot be deserialized.
      */
+    @IgnorableReturnValue
     override fun put(
         key: ObjectIdentifier,
         value: String
@@ -54,6 +57,7 @@ object KnownOIDs : MutableMap<ObjectIdentifier,String>{
         return oidDescriptions.put(key, value)
     }
 
+    @IgnorableReturnValue
     override fun remove(key: ObjectIdentifier): String? {
         return oidDescriptions.remove(key)
     }

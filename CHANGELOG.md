@@ -2,6 +2,7 @@
 
 ## NEXT
 * Drop deprecated Apple X64 targets
+* First preview of return value checker
 * Add catch-all fallback to OID-based open-polymorphism
     * Allow defining a fallback-catchall class that has an oid property that is used to when no exact match for an OID is present
     * Example: OID-based extensions modelled as an open base class and some concrete subclasses with fixed OIDs:

@@ -19,6 +19,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.experimental.or
+import kotlin.IgnorableReturnValue
 import kotlin.jvm.JvmInline
 
 private val REGEX_BASE10 = Regex("[0-9]+")
@@ -313,6 +314,7 @@ internal value class VarUInt private constructor(val words: UByteArray) {
 
         internal fun constructUnsafe(ownedArray: UByteArray) = constructFromUntrimmed(ownedArray, true)
 
+        @IgnorableReturnValue
         internal fun Sink.writeAsn1VarInt(number: VarUInt): Int {
             if (number.isZero()) {
                 writeByte(0)

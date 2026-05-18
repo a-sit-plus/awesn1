@@ -10,6 +10,8 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlin.random.Random
 
+expect val bitSetTestsCompacted: Boolean
+
 
 val bitStringEdgeCases by testSuite {
     "empty (03 01 00)" {
@@ -18,9 +20,9 @@ val bitStringEdgeCases by testSuite {
         )
     }
 
-    withData(nameFn = { "$it padding bits" }, List(8) { it.toByte() }, compact = false) - { numPaddingBits ->
+    withData(nameFn = { "$it padding bits" }, List(8) { it.toByte() }, compact = bitSetTestsCompacted) - { numPaddingBits ->
 
-        withData(nameFn = { "raw length: $it" }, listOf(1, 2, 3), compact = false) - { len ->
+        withData(nameFn = { "raw length: $it" }, listOf(1, 2, 3), compact = bitSetTestsCompacted) - { len ->
             val bitStringStart = "03 0${len + 1} ${numPaddingBits.hexPadded()} "
 
             withData(nameFn = {
@@ -29,13 +31,13 @@ val bitStringEdgeCases by testSuite {
                 var name = bitStringStart
                 repeat(len - 1) { name += Random.nextInt(0, 255).toByte().hexPadded() + " " }
                 name
-            }, compact = false) - { hexBytes ->
+            }, compact = bitSetTestsCompacted) - { hexBytes ->
 
                 val legal = legalFinalBytes(numPaddingBits.toInt())
                 val illegal = List(255) { it.toByte() }.filterNot { it in legal }
 
                 if (legal.isNotEmpty()) "zero-ed out (legal)" - {
-                    withData(nameFn = { "xx = ${it.hexPadded()}" }, legal, compact = false) { i ->
+                    withData(nameFn = { "xx = ${it.hexPadded()}" }, legal, compact = bitSetTestsCompacted) { i ->
                         val derEncoded = "$hexBytes${i.hexPadded()}"
                         Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded) as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
                             numPaddingBits, derEncoded.replace(" ", "").substring(6).hexToByteArray(HexFormat.UpperCase)
@@ -47,7 +49,7 @@ val bitStringEdgeCases by testSuite {
                     withData(
                         nameFn = { "xx = ${it.hexPadded()}" },
                         illegal,
-                        compact = false
+                        compact = bitSetTestsCompacted
                     ) { i ->
                         shouldThrow<Asn1Exception> {
                             Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("$hexBytes${i.hexPadded()}") as Asn1Primitive)
@@ -64,7 +66,7 @@ val bitStringEdgeCases by testSuite {
         withData(
             nameFn = { "numPaddingBits = $it" },
             List(255) { it.toByte() }.filterNot { it < 8.toByte() },
-            compact = false
+            compact = bitSetTestsCompacted
         ) { numPaddingBits ->
 
             shouldThrow<Asn1Exception> {
@@ -97,7 +99,7 @@ val manualBitStringPadding  by testSuite {
             (i * 8).toByte()
         }
         "zero (legal)" - {
-            withData(nameFn = { "xx = ${it.hexPadded()}" }, legal, compact = false) { i ->
+            withData(nameFn = { "xx = ${it.hexPadded()}" }, legal, compact = bitSetTestsCompacted) { i ->
                 Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
                     0x03.toByte(), byteArrayOf(i)
                 )
@@ -108,7 +110,7 @@ val manualBitStringPadding  by testSuite {
             withData(
                 nameFn = { "xx = ${it.hexPadded()}" },
                 List(255) { it.toByte() }.filterNot { it in legal },
-                compact = false
+                compact = bitSetTestsCompacted
             ) { i ->
                 shouldThrow<Asn1Exception> {
                     Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive)
