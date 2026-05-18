@@ -3,6 +3,7 @@ package at.asitplus.awesn1.serialization
 import at.asitplus.awesn1.docs.CustomAttribute
 import at.asitplus.awesn1.docs.ConcreteCustomAttribute
 import at.asitplus.testballoon.PropertyTest
+import at.asitplus.testballoon.TestBalloonAddons
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession
 import de.infix.testBalloon.framework.core.invocation
@@ -16,6 +17,7 @@ class ModuleTestSession : TestSession(
         .testScope(isEnabled = false, timeout = 20.minutes)
 ) {
     init {
+        TestBalloonAddons.compactConcurrent = true
         PropertyTest.compactByDefault = true
         // --8<-- [start:kxs-default-der-registry-setup]
         DefaultDer.register(SerializersModule {

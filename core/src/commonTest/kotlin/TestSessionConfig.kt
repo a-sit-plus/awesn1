@@ -4,6 +4,7 @@ import at.asitplus.awesn1.encoding.internal.Source
 import at.asitplus.awesn1.encoding.internal.readAsn1Element
 import at.asitplus.testballoon.DataTest
 import at.asitplus.testballoon.PropertyTest
+import at.asitplus.testballoon.TestBalloonAddons
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession
 import de.infix.testBalloon.framework.core.invocation
@@ -18,6 +19,7 @@ class ModuleTestSession : TestSession(
     init {
         PropertyTest.compactByDefault = true
         DataTest.compactByDefault = true
+        TestBalloonAddons.compactConcurrent = true
     }
 }
 

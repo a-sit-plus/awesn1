@@ -1,10 +1,10 @@
 import at.asitplus.testballoon.PropertyTest
+import at.asitplus.testballoon.TestBalloonAddons
 import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldNotBe
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
 import kotlin.time.Duration.Companion.minutes
 import de.infix.testBalloon.framework.core.testScope
@@ -23,5 +23,6 @@ class ModuleTestSession : TestSession(
 ) {
     init {
         PropertyTest.compactByDefault=true
+        TestBalloonAddons.compactConcurrent = true
     }
 }
