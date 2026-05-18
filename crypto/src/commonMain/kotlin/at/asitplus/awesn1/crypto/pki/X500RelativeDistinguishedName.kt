@@ -53,7 +53,6 @@ value class X500RelativeDistinguishedName(val attrsAndValues: Set<X500AttributeT
  *  the component `AttributeValue` is determined by the `AttributeType`; in
  *  general it will be a `DirectoryString`.
  *
- *  This class does not perform semantic validations.
  */
 @ConsistentCopyVisibility
 @Serializable

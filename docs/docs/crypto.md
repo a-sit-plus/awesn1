@@ -29,6 +29,16 @@ They are still ASN.1, but they are not universally useful building blocks in the
 `Asn1Integer`, `ObjectIdentifier`, or `Asn1Time`.
 Keeping them in a separate module keeps `core` small, generic, and reusable.
 
+!!! warning "This is not a full-fledged cryptography stack"
+    The `crypto` module is not trying to provide:
+    
+    * Semantic validation of cryptographic structures (it does perform stric structural validations)
+    * Certificate path validation
+    * Signature verification policy
+    * …
+    
+    If you need any of those, check out [Signum](https://a-sit-plus.github.io/signum/), which is currently being ported over to work on top of awesn1. 
+
 ## Maven Coordinates
 
 ```kotlin
