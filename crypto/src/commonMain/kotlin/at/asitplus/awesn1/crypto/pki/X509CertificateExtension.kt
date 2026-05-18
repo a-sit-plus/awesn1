@@ -64,12 +64,11 @@ data class X509CertificateExtension private constructor(
      */
 
     val critical: Boolean by lazy {
-        rawCritical.let {
-            when (it) {
+            when (rawCritical) {
                 null, 0x00.toByte() -> false
                 else -> true
             }
-        }
+
     }
 
     override fun equals(other: Any?): Boolean =
