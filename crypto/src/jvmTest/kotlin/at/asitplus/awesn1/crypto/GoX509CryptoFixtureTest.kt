@@ -3,6 +3,7 @@ package at.asitplus.awesn1.crypto
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
+import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
 import at.asitplus.awesn1.decodeFromPem
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.testballoon.invoke
@@ -80,7 +81,7 @@ val GoX509CryptoFixtureTest by testSuite {
             Pkcs10CertificationRequest.serializer(),
         )
 
-        decoded.certificationRequestInfo.rawVersion shouldBe Asn1Integer.ZERO
+        decoded.certificationRequestInfo.version shouldBe X509TbsCertificate.Version.V1
     }
 }
 

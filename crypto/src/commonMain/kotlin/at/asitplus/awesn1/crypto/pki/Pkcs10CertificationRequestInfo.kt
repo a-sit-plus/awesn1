@@ -3,11 +3,9 @@
 
 package at.asitplus.awesn1.crypto.pki
 
-import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
-import at.asitplus.awesn1.crypto.Versioned
 import at.asitplus.awesn1.serialization.Asn1Tag
-import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,31 +22,22 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs10CertificationRequestInfo(
-    override val rawVersion: Asn1Integer = Asn1Integer.ZERO,
+    val version: Version = Version.V1,
     val subjectName: List<X500RelativeDistinguishedName>,
     val publicKey: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 0u)
     val attributes: List<Pkcs10CsrAttribute> = emptyList(),
-) : Versioned {
-    constructor(
-        version: Int = 1,
-        subjectName: List<X500RelativeDistinguishedName>,
-        publicKey: SubjectPublicKeyInfo,
-        attributes: List<Pkcs10CsrAttribute> = emptyList(),
-    ) : this(Asn1Integer(version - 1), subjectName, publicKey, attributes)
+) {
 
     /**
+     * Legal CSR versions. As per [RFC2986](https://www.rfc-editor.org/rfc/rfc2986.html#section-4), only V1 is defined.
      *
-     * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
-     * version commonly referred to as the version of a CSR
-     *
-     * | RAW Version | (Semantic) Version |
-     * |:-----------:|:----------------:|
-     * | 0           | 1                |
-     * The integer must fit the valid Int value range (within [Int.MIN_VALUE]..[Int.MAX_VALUE]), otherwise a [NumberFormatException] will be thrown.
-     *
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * | Encoded Version | Semantic Version |
+     * |:---------------:|:----------------:|
+     * | 0               | V1                |
      */
-    override val version: Int by lazy { rawVersion.toInt() + 1 }
-
+    @Asn1Tag(tagNumber = 0x02uL, tagClass = Asn1Tag.Class.UNIVERSAL)
+    enum class Version {
+        V1
+    }
 }

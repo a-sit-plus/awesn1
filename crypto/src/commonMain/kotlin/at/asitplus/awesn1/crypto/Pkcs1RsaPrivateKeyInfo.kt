@@ -4,6 +4,7 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
@@ -27,18 +28,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs1RsaPrivateKeyInfo(
-    /**
-     * corresponds verbatim to [RFC8017](https://www.rfc-editor.org/rfc/rfc8017.html#appendix-A.1.2):
-     *  version is the version number, for compatibility with future
-     *       revisions of this document.  It SHALL be 0 for this version of the
-     *       document, unless multi-prime is used; in which case, it SHALL be
-     *       1.
-     *
-     *             Version ::= INTEGER { two-prime(0), multi(1) }
-     *                (CONSTRAINED BY
-     *                {-- version must be multi if otherPrimeInfos present --})
-     */
-    override val rawVersion: Asn1Integer,
+    val version: Version,
     val modulus: Asn1Integer.Positive,
     val publicExponent: Asn1Integer.Positive,
     val privateExponent: Asn1Integer.Positive,
@@ -48,14 +38,22 @@ data class Pkcs1RsaPrivateKeyInfo(
     val exponent2: Asn1Integer.Positive,
     val coefficient: Asn1Integer.Positive,
     val otherPrimeInfos: List<Pkcs1RsaOtherPrimeInfo>? = null,
-) : Versioned {
+) {
     /**
+     * Corresponds verbatim to [RFC8017](https://www.rfc-editor.org/rfc/rfc8017.html#appendix-A.1.2):
      *
-     * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
-     * version commonly referred to as the version of a private key
-     * The integer must fit the valid Int value range (within [Int.MIN_VALUE]..[Int.MAX_VALUE]), otherwise a [NumberFormatException] will be thrown.
+     *  version is the version number, for compatibility with future
+     *       revisions of this document.  It SHALL be 0 for this version of the
+     *       document, unless multi-prime is used; in which case, it SHALL be
+     *       1.
      *
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     *             Version ::= INTEGER { two-prime(0), multi(1) }
+     *                (CONSTRAINED BY
+     *                {-- version must be multi if otherPrimeInfos present --})
      */
-    override val version: Int by lazy { rawVersion.toInt() }
+    @Asn1Tag(tagNumber = 0x02uL, tagClass = Asn1Tag.Class.UNIVERSAL)
+    enum class Version {
+        TWO_PRIME, MULTI
+    }
 }
+

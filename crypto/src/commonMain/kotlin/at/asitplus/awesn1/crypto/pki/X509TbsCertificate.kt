@@ -7,12 +7,10 @@ import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
-import at.asitplus.awesn1.crypto.Versioned
 import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
-import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
 @Deprecated("Use X509TbsCertificate instead", ReplaceWith("X509TbsCertificate"))
@@ -76,10 +74,12 @@ typealias TbsCertificate = X509TbsCertificate
  * ```
  *
  */
+@ConsistentCopyVisibility
 @Serializable
-data class X509TbsCertificate(
+//CTOR internal for testing
+data class X509TbsCertificate internal constructor(
     @Asn1Tag(tagNumber = 0u)
-    private val taggedVersion: ExplicitlyTagged<Asn1Integer>? = null,
+    private val taggedVersion: ExplicitlyTagged<Version>? = null,
     val serialNumber: Asn1Integer,
     val signatureAlgorithm: X509AlgorithmIdentifier,
     val issuerName: List<X500RelativeDistinguishedName>,
@@ -92,9 +92,9 @@ data class X509TbsCertificate(
     val subjectUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 3u)
     private val taggedExtensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
-) : Versioned {
+) {
     constructor(
-        version: Int? = null,
+        version: Version? = Version.V3,
         serialNumber: Asn1Integer,
         signatureAlgorithm: X509AlgorithmIdentifier,
         issuerName: List<X500RelativeDistinguishedName>,
@@ -106,7 +106,7 @@ data class X509TbsCertificate(
         subjectUniqueID: Asn1BitString? = null,
         extensions: List<X509CertificateExtension>? = null,
     ) : this(
-        taggedVersion = version?.let { ExplicitlyTagged(Asn1Integer(it - 1)) },
+        taggedVersion = version?.let { ExplicitlyTagged(it) },
         serialNumber = serialNumber,
         signatureAlgorithm = signatureAlgorithm,
         issuerName = issuerName,
@@ -120,25 +120,13 @@ data class X509TbsCertificate(
 
     val extensions: List<X509CertificateExtension>? by taggedExtensions
 
-    override val rawVersion: Asn1Integer? by taggedVersion
-
     /**
-     *
-     * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
-     * version commonly referred to as the version of a certificate
-     *
-     * | RAW Version | (Semantic) Version |
-     * |:-----------:|:----------------:|
-     * | (absent)    | 1                |
-     * | 0           | 1                |
-     * | 1           | 2                |
-     * | 2           | 3                |
-     *
-     * The integer must fit the valid Int value range (within [Int.MIN_VALUE]..[Int.MAX_VALUE]), otherwise a [NumberFormatException] will be thrown.
-     *
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * The raw value of the certificate version, useful if nullness of encoded version is needed.
      */
-    override val version: Int by lazy { rawVersion?.toInt()?.let { it + 1 } ?: 1 }
+    val rawVersion: Version? by taggedVersion
+
+    val version: Version get() = rawVersion ?: Version.V1
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is X509TbsCertificate) return false
@@ -170,6 +158,23 @@ data class X509TbsCertificate(
         result = 31 * result + (taggedExtensions?.hashCode() ?: 0)
         return result
     }
+
+    /**
+     *
+     *
+     * | Encoded Version | (Semantic) Version |
+     * |:---------------:|:----------------:|
+     * | (absent)        | 1                |
+     * | 0               | 1                |
+     * | 1               | 2                |
+     * | 2               | 3                |
+     *
+     */
+    @Asn1Tag(tagNumber = 0x02uL, tagClass = Asn1Tag.Class.UNIVERSAL)
+    enum class Version {
+        V1, V2, V3
+    }
+
 
 }
 

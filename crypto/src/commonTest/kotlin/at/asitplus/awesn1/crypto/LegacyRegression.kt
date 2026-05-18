@@ -3,7 +3,9 @@ package at.asitplus.awesn1.crypto
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Integer.Sign
+import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.parse
+import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.crypto.legacy.EcPrivateKeyInfo as LegacyEcPrivateKeyInfo
 import at.asitplus.awesn1.crypto.legacy.EncryptedPrivateKeyInfo as LegacyEncryptedPrivateKeyInfo
 import at.asitplus.awesn1.crypto.legacy.Pkcs8PrivateKeyInfo as LegacyPkcs8PrivateKeyInfo
@@ -21,15 +23,6 @@ import at.asitplus.awesn1.crypto.legacy.pki.RelativeDistinguishedName as LegacyR
 import at.asitplus.awesn1.crypto.legacy.pki.TbsCertificate as LegacyTbsCertificate
 import at.asitplus.awesn1.crypto.legacy.pki.X509Certificate as LegacyX509Certificate
 import at.asitplus.awesn1.crypto.legacy.pki.X509CertificateExtension as LegacyX509CertificateExtension
-import at.asitplus.awesn1.crypto.pki.Pkcs10CsrAttribute
-import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
-import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
-import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
-import at.asitplus.awesn1.crypto.pki.X509Certificate
-import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
-import at.asitplus.awesn1.serialization.ExplicitlyTagged
 
 internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     val element = Asn1Element.parse(encoded)
@@ -45,8 +38,12 @@ internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
         is SubjectPublicKeyInfo -> LegacySubjectPublicKeyInfo.decodeFromTlv(element.asSequence()).toCurrent()
         is Pkcs10CsrAttribute -> LegacyAttribute.decodeFromTlv(element.asSequence()).toCurrent()
         is X500AttributeTypeAndValue -> LegacyAttributeTypeAndValue.decodeFromTlv(element.asSequence()).toCurrent()
-        is Pkcs10CertificationRequest -> LegacyPkcs10CertificationRequest.decodeFromTlv(element.asSequence()).toCurrent()
-        is Pkcs10CertificationRequestInfo -> LegacyPkcs10CertificationRequestInfo.decodeFromTlv(element.asSequence()).toCurrent()
+        is Pkcs10CertificationRequest -> LegacyPkcs10CertificationRequest.decodeFromTlv(element.asSequence())
+            .toCurrent()
+
+        is Pkcs10CertificationRequestInfo -> LegacyPkcs10CertificationRequestInfo.decodeFromTlv(element.asSequence())
+            .toCurrent()
+
         is X500RelativeDistinguishedName -> LegacyRelativeDistinguishedName.decodeFromTlv(element.asSet()).toCurrent()
         is X509TbsCertificate -> LegacyTbsCertificate.decodeFromTlv(element.asSequence()).toCurrent()
         is X509Certificate -> LegacyX509Certificate.decodeFromTlv(element.asSequence()).toCurrent()
@@ -60,7 +57,7 @@ internal fun decodeLegacyCertificateAsCurrent(encoded: ByteArray): X509Certifica
 
 private fun LegacyEcPrivateKeyInfo.toCurrent() =
     Sec1EcPrivateKeyInfo(
-        rawVersion = Asn1Integer(version),
+        version = Sec1EcPrivateKeyInfo.Version.V1,
         privateKey = privateKey,
         taggedParameters = parameters?.let(::ExplicitlyTagged),
         taggedPublicKey = publicKey?.let(::ExplicitlyTagged),
@@ -74,7 +71,7 @@ private fun LegacyEncryptedPrivateKeyInfo.toCurrent() =
 
 private fun LegacyPkcs8PrivateKeyInfo.toCurrent() =
     Pkcs8PrivateKeyInfo(
-        rawVersion = Asn1Integer(version),
+        Pkcs8PrivateKeyInfo.Version.V1,
         privateKeyAlgorithm = X509AlgorithmIdentifier(algorithmOid, algorithmParameters),
         privateKey = privateKey,
         attributes = attributes?.toSet(),
@@ -89,7 +86,7 @@ private fun LegacyRsaOtherPrimeInfo.toCurrent() =
 
 private fun LegacyRsaPrivateKeyInfo.toCurrent() =
     Pkcs1RsaPrivateKeyInfo(
-        rawVersion = Asn1Integer(version),
+        version = if (version == 0) Pkcs1RsaPrivateKeyInfo.Version.TWO_PRIME else Pkcs1RsaPrivateKeyInfo.Version.MULTI,
         modulus = modulus as Asn1Integer.Positive,
         publicExponent = publicExponent as Asn1Integer.Positive,
         privateExponent = privateExponent as Asn1Integer.Positive,
@@ -138,7 +135,7 @@ private fun LegacyRelativeDistinguishedName.toCurrent() =
 
 private fun LegacyPkcs10CertificationRequestInfo.toCurrent() =
     Pkcs10CertificationRequestInfo(
-         rawVersion = Asn1Integer(version),
+        version = Pkcs10CertificationRequestInfo.Version.V1,
         subjectName = subjectName.map { it.toCurrent() },
         publicKey = publicKey.toCurrent(),
         attributes = attributes.map { it.toCurrent() },
@@ -160,7 +157,12 @@ private fun LegacyX509CertificateExtension.toCurrent() =
 
 private fun LegacyTbsCertificate.toCurrent() =
     X509TbsCertificate(
-        version = version?.let { it+1 },
+        version = version?.let { when(it) {
+            0-> X509TbsCertificate.Version.V1
+            1-> X509TbsCertificate.Version.V2
+            2-> X509TbsCertificate.Version.V3
+            else -> error("Unknown version $it")
+        } },
         serialNumber = Asn1Integer.fromByteArray(serialNumber, Sign.POSITIVE),
         signatureAlgorithm = signatureAlgorithm.toCurrent(),
         issuerName = issuerName.map { it.toCurrent() },

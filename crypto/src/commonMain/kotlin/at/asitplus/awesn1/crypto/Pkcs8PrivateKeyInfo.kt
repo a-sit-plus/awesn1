@@ -29,29 +29,14 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class Pkcs8PrivateKeyInfo(
-    override val rawVersion: Asn1Integer,
+    val version: Version,
     val privateKeyAlgorithm: X509AlgorithmIdentifier,
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
-) : Versioned {
+) {
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
-
-    /**
-     *
-     * [rawVersion] reopresents the encoded integer, (semantic) [version] denotes the
-     * version commonly referred to as the version of a private key
-     *
-     * | RAW Version | (Semantic) Version |
-     * |:-----------:|:----------------:|
-     * | 0           | 1                |
-     *
-     * The integer must fit the valid Int value range (within [Int.MIN_VALUE]..[Int.MAX_VALUE]), otherwise a [NumberFormatException] will be thrown.
-     *
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
-     */
-    override val version: Int by lazy { rawVersion.toInt() + 1 }
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPrivateKey(): Pkcs1RsaPrivateKeyInfo =
@@ -67,7 +52,7 @@ data class Pkcs8PrivateKeyInfo(
 
         fun rsa(privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
             Pkcs8PrivateKeyInfo(
-                rawVersion = Asn1Integer.ZERO,
+                version = Version.V1,
                 privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
                 privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(privateKey) },
                 attributes = attributes,
@@ -78,7 +63,7 @@ data class Pkcs8PrivateKeyInfo(
             curveOid: ObjectIdentifier?,
             attributes: Set<Asn1Element>? = null,
         ): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
-            rawVersion = Asn1Integer.ZERO,
+            version = Version.V1,
             privateKeyAlgorithm = X509AlgorithmIdentifier(
                 EC_PUBLIC_KEY_OID,
                 curveOid?.let { listOf(it.encodeToTlv()) }.orEmpty(),
@@ -86,5 +71,15 @@ data class Pkcs8PrivateKeyInfo(
             privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(sec1Key) },
             attributes = attributes,
         )
+    }
+
+    /**
+     * | Encoded Version | Semantic Version |
+     * |:---------------:|:----------------:|
+     * | 0               | V1                |
+     */
+    @Asn1Tag(tagNumber = 0x02uL, tagClass = Asn1Tag.Class.UNIVERSAL)
+    enum class Version {
+        V1
     }
 }
