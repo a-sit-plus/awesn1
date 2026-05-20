@@ -102,7 +102,7 @@ private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyI
     encryptedData = if (random.nextBoolean()) Asn1EncapsulatingOctetString(
         listOf(Asn1PrimitiveOctetString(randomBytes(random, 32)))
     ) else Asn1PrimitiveOctetString(randomBytes(random, 32)),
-)
+).also { Json.decodeFromString<EncryptedPrivateKeyInfo>(Json.encodeToString(it)) }
 
 private fun randomRsaOtherPrimeInfo(random: Random) = Pkcs1RsaOtherPrimeInfo(
     prime = positiveAsn1Integer(random),
