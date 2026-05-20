@@ -842,7 +842,7 @@ class Asn1EncapsulatingOctetString(
      */
     val children: List<Asn1Element>
 ) :
-    Asn1Primitive(Tag.OCTET_STRING),
+    Asn1PrimitiveOctetString(byteArrayOf()),
     Asn1OctetString, Iterable<Asn1Element> {
 
     @PublishedApi
@@ -889,7 +889,7 @@ class Asn1EncapsulatingOctetString(
  * Cast to [Asn1OctetString] instead.
  */
 @Serializable(with = Asn1PrimitiveOctetStringFallbackBase64Serializer::class)
-class Asn1PrimitiveOctetString(content: ByteArray) : Asn1Primitive(Tag.OCTET_STRING, content),
+open class Asn1PrimitiveOctetString(content: ByteArray) : Asn1Primitive(Tag.OCTET_STRING, content),
     Asn1OctetString {
 
     override fun equals(other: Any?): Boolean {
