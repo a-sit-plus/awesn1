@@ -31,7 +31,7 @@ data class Pkcs10CsrAttribute(
     companion object {
         val EXTENSION_REQUEST_OID = ObjectIdentifier("1.2.840.113549.1.9.14")
 
-        fun wrapExtensions(extensions: List<X509CertificateExtension>): Pkcs10CsrAttribute {
+        fun ExtensionRequest(extensions: List<X509CertificateExtension>): Pkcs10CsrAttribute {
             require(extensions.isNotEmpty()) { "At least one extension is required" }
             return Pkcs10CsrAttribute(
                 EXTENSION_REQUEST_OID,
