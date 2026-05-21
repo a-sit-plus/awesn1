@@ -65,7 +65,11 @@ data class X500AttributeTypeAndValue(
         str.encodeToTlv(),
     )
 
-    override fun toString() = value.toString()
+    override fun toString(): String =
+        "X500AttributeTypeAndValue(" +
+                "oid=$oid, " +
+                "value=$value" +
+                ")"
 
     @Suppress("FunctionName")
     companion object {
@@ -76,8 +80,12 @@ data class X500AttributeTypeAndValue(
         val ORGANIZATIONAL_UNIT_OID = ObjectIdentifier("2.5.4.11")
 
         fun CommonName(value: Asn1String) = X500AttributeTypeAndValue(COMMON_NAME_OID, value)
+        fun CommonName(value: String) = X500AttributeTypeAndValue(COMMON_NAME_OID, Asn1String.UTF8(value))
         fun Country(value: Asn1String) = X500AttributeTypeAndValue(COUNTRY_OID, value)
+        fun Country(value: String) = X500AttributeTypeAndValue(COUNTRY_OID, Asn1String.Printable(value))
         fun Organization(value: Asn1String) = X500AttributeTypeAndValue(ORGANIZATION_OID, value)
+        fun Organization(value: String) = X500AttributeTypeAndValue(ORGANIZATION_OID, Asn1String.UTF8(value))
         fun OrganizationalUnit(value: Asn1String) = X500AttributeTypeAndValue(ORGANIZATIONAL_UNIT_OID, value)
+        fun OrganizationalUnit(value: String) = X500AttributeTypeAndValue(ORGANIZATIONAL_UNIT_OID, Asn1String.UTF8(value))
     }
 }
