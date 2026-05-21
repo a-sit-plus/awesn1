@@ -558,6 +558,10 @@ class DerDecoder internal constructor(
                     }
                 }
                 elementIndex++
+                //serial name is not a type guarantee so we guard here. someone could use our serializer names, after all
+                if (deserializer is Asn1ElementFallbackBase64SerializerBase<*>) {
+                    return castDecoded(deserializer.decodeFromAsn1Element(processedElement))
+                }
                 return castDecoded(processedElement)
             }
         }

@@ -1,9 +1,7 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.Asn1Real
-import at.asitplus.awesn1.Asn1String
-import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.*
+import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.signum.indispensable.pki.AttributeTypeAndValue
 import at.asitplus.signum.indispensable.pki.RelativeDistinguishedName
 import at.asitplus.testballoon.invoke
@@ -13,9 +11,11 @@ import de.infix.testBalloon.framework.core.invocation
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
+@OptIn(ExperimentalStdlibApi::class)
 val SerializationTestFormatCompatibility by testSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
@@ -89,6 +89,90 @@ val SerializationTestFormatCompatibility by testSuite(
                 DER.encodeToByteArray(Asn1Integer.serializer(), positive)
             )
         }
+    }
+
+    "ASN.1 element tree serializers support JSON fallback and DER" {
+        val primitive = Asn1Primitive(7uL, byteArrayOf(0x01, 0x02))
+        val sequence = Asn1.Sequence { +primitive }
+        val set = Asn1.Set {
+            +Asn1Primitive(4uL, byteArrayOf(0x02))
+            +Asn1Primitive(4uL, byteArrayOf(0x01))
+        }
+        val setOf = Asn1.SetOf {
+            +Asn1Primitive(4uL, byteArrayOf(0x02))
+            +Asn1Primitive(4uL, byteArrayOf(0x01))
+        } as Asn1SetOf
+        val tagged = Asn1.ExplicitlyTagged(0uL) { +primitive }
+        val custom = Asn1CustomStructure(listOf(primitive), 99uL)
+        val customSequenceTag = Asn1CustomStructure(listOf(primitive), Asn1Element.Tag.SEQUENCE.tagValue)
+        val customSetTag = Asn1CustomStructure(listOf(primitive), Asn1Element.Tag.SET.tagValue)
+        val customPrimitive = Asn1CustomStructure.asPrimitive(listOf(primitive), 100uL)
+        val encapsulatingOctets = Asn1EncapsulatingOctetString(listOf(primitive))
+        val primitiveOctets = Asn1PrimitiveOctetString(byteArrayOf(0x01, 0x02, 0x03))
+
+        fun <T> roundTripJsonAndDer(serializer: KSerializer<T>, value: T) {
+            Json.decodeFromString(
+                serializer,
+                Json.encodeToString(serializer, value)
+            ) shouldBe value
+            DER.decodeFromByteArray(
+                serializer,
+                DER.encodeToByteArray(serializer, value)
+            ) shouldBe value
+        }
+
+        roundTripJsonAndDer(Asn1Element.serializer(), sequence)
+        roundTripJsonAndDer(Asn1Structure.serializer(), customPrimitive)
+        roundTripJsonAndDer(Asn1ExplicitlyTagged.serializer(), tagged)
+        roundTripJsonAndDer(Asn1Sequence.serializer(), sequence)
+        roundTripJsonAndDer(Asn1CustomStructure.serializer(), custom)
+        roundTripJsonAndDer(Asn1CustomStructure.serializer(), customSequenceTag)
+        roundTripJsonAndDer(Asn1CustomStructure.serializer(), customSetTag)
+        roundTripJsonAndDer(Asn1CustomStructure.serializer(), customPrimitive)
+        roundTripJsonAndDer(Asn1EncapsulatingOctetString.serializer(), encapsulatingOctets)
+        roundTripJsonAndDer(Asn1PrimitiveOctetString.serializer(), primitiveOctets)
+        roundTripJsonAndDer(Asn1Set.serializer(), set)
+        roundTripJsonAndDer(Asn1SetOf.serializer(), setOf)
+        roundTripJsonAndDer(Asn1Primitive.serializer(), primitive)
+        roundTripJsonAndDer(Asn1OctetString.serializer(), primitiveOctets)
+
+        Json.decodeFromString(
+            Asn1Sequence.serializer(),
+            Json.encodeToString(Asn1Element.serializer(), sequence)
+        ) shouldBe sequence
+        Json.decodeFromString(
+            Asn1Structure.serializer(),
+            Json.encodeToString(Asn1CustomStructure.serializer(), customPrimitive)
+        ) shouldBe customPrimitive
+
+        Json.decodeFromString(
+            Asn1CustomStructure.serializer(),
+            Json.encodeToString(Asn1CustomStructure.serializer(), customSequenceTag)
+        )::class shouldBe Asn1CustomStructure::class
+        DER.decodeFromByteArray(
+            Asn1CustomStructure.serializer(),
+            DER.encodeToByteArray(Asn1CustomStructure.serializer(), customSequenceTag)
+        )::class shouldBe Asn1CustomStructure::class
+        Json.decodeFromString(
+            Asn1CustomStructure.serializer(),
+            Json.encodeToString(Asn1CustomStructure.serializer(), customSetTag)
+        )::class shouldBe Asn1CustomStructure::class
+        DER.decodeFromByteArray(
+            Asn1CustomStructure.serializer(),
+            DER.encodeToByteArray(Asn1CustomStructure.serializer(), customSetTag)
+        )::class shouldBe Asn1CustomStructure::class
+    }
+
+    "Asn1SetOf DER serializer decodes back to Asn1SetOf" {
+        val setOf = Asn1.SetOf {
+            +Asn1Primitive(4uL, byteArrayOf(0x02))
+            +Asn1Primitive(4uL, byteArrayOf(0x01))
+        } as Asn1SetOf
+
+        val encoded = DER.encodeToByteArray(Asn1SetOf.serializer(), setOf)
+
+        encoded.toHexString() shouldBe "3106040101040102"
+        DER.decodeFromByteArray(Asn1SetOf.serializer(), encoded) shouldBe setOf
     }
 
 }

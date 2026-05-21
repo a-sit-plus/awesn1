@@ -16,7 +16,6 @@ import kotlin.native.ObjCName
 /**
  * Base ASN.1 data class. Can either be a primitive (holding a value), or a structure (holding other ASN.1 elements)
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
 @Serializable(with = Asn1ElementFallbackBase64Serializer::class)
 sealed class Asn1Element(
     val tag: Tag
@@ -477,8 +476,7 @@ val Asn1Null = Asn1Primitive(Asn1Element.Tag.NULL, byteArrayOf())
 /**
  * ASN.1 structure. Contains no data itself, but holds zero or more [children]
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1StructureFallbackBase64Serializer::class)
 sealed class Asn1Structure(
     /**
      * The tag identifying this structure
@@ -686,8 +684,7 @@ sealed class Asn1Structure(
 /**
  * Explicit ASN.1 Tag. Can contain any number of [children]
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1ExplicitlyTaggedFallbackBase64Serializer::class)
 class Asn1ExplicitlyTagged
 /**
  * @param tag the ASN.1 Tag to be used will be properly encoded to have [BERTags.CONSTRUCTED] and
@@ -740,8 +737,7 @@ internal constructor(tag: ULong, children: List<Asn1Element>) :
  * ASN.1 SEQUENCE 0x30 ([BERTags.SEQUENCE] OR [BERTags.CONSTRUCTED])
  * @param children the elements to put into this sequence
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1SequenceFallbackBase64Serializer::class)
 class Asn1Sequence internal constructor(children: List<Asn1Element>) :
     Asn1Structure(Tag.SEQUENCE, children, sortChildren = false, shouldBeSorted = false) {
 
@@ -759,8 +755,7 @@ fun createAsn1Sequence(children: List<Asn1Element>): Asn1Sequence = Asn1Sequence
 /**
  * ASN1 structure (i.e. containing child nodes) with custom tag
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1CustomStructureFallbackBase64Serializer::class)
 class Asn1CustomStructure private constructor(
     tag: Tag, children: List<Asn1Element>, sortChildren: Boolean, shouldBeSorted: Boolean
 ) :
@@ -847,8 +842,7 @@ class Asn1CustomStructure private constructor(
  * ASN.1 OCTET STRING 0x04 ([BERTags.OCTET_STRING]) containing an [Asn1Element]
  * @param children the elements to put into this sequence
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1EncapsulatingOctetStringFallbackBase64Serializer::class)
 class Asn1EncapsulatingOctetString(children: List<Asn1Element>) :
     Asn1Structure(Tag.OCTET_STRING, children, sortChildren = false, shouldBeSorted = false),
     Asn1OctetString {
@@ -876,8 +870,7 @@ class Asn1EncapsulatingOctetString(children: List<Asn1Element>) :
  * When parsing, you should NOT cast to this class.
  * Cast to [Asn1OctetString] instead.
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1PrimitiveOctetStringFallbackBase64Serializer::class)
 class Asn1PrimitiveOctetString(content: ByteArray) : Asn1Primitive(Tag.OCTET_STRING, content),
     Asn1OctetString {
 
@@ -895,8 +888,7 @@ class Asn1PrimitiveOctetString(content: ByteArray) : Asn1Primitive(Tag.OCTET_STR
 /**
  * ASN.1 SET 0x31 ([BERTags.SET] OR [BERTags.CONSTRUCTED])
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1SetFallbackBase64Serializer::class)
 open class Asn1Set private constructor(children: List<Asn1Element>, dontSort: Boolean) :
     Asn1Structure(Tag.SET, children, !dontSort, shouldBeSorted = true) {
 
@@ -929,8 +921,7 @@ fun createAsn1Set(children: List<Asn1Element>): Asn1Set = Asn1Set(children)
  * @param children the elements to put into this set. will be automatically checked to have the same tag and sorted by DER-encoded bytes
  * @throws Asn1Exception if children are using different tags
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1SetOfFallbackBase64Serializer::class)
 class Asn1SetOf @Throws(Asn1Exception::class) internal constructor(children: List<Asn1Element>) :
     Asn1Set(children.also { it ->
         if (it.any { elem -> elem.tag != it.first().tag }) throw Asn1Exception("SET OF must only contain elements of the same tag")
@@ -939,8 +930,7 @@ class Asn1SetOf @Throws(Asn1Exception::class) internal constructor(children: Lis
 /**
  * ASN.1 primitive. Holds no children, but [content] under [tag]
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1PrimitiveFallbackBase64Serializer::class)
 open class Asn1Primitive(
     tag: Tag,
     /**
@@ -1019,8 +1009,7 @@ open class Asn1Primitive(
  * If you are expecting arbitrary bytes, [Asn1OctetString] is the correct type to look for.
  * (Your arbitrary bytes might inadvertently be valid ASN.1!)
  */
-@Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-@Serializable(with = Asn1ElementFallbackBase64Serializer::class)
+@Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
 sealed interface Asn1OctetString {
 
     /**
