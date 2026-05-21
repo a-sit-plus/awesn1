@@ -27,14 +27,22 @@ typealias SignatureAlgorithmIdentifier = X509AlgorithmIdentifier
 @Serializable
 @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
 value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
-    constructor(
-        oid: ObjectIdentifier,
-        parameters: Asn1Element? = null
-    ) : this(Asn1.Sequence {
-        +oid
-        parameters?.let { +it }
-    })
 
+    /**
+     * Convenience constructor for creating an instance of `X509AlgorithmIdentifier`
+     * using an `ObjectIdentifier` and a list of `Asn1Element` parameters.
+     *
+     * The passed [parameters] are unrolled, making construction of the algorithm identifier object work as follows:
+     * ```
+     * Asn1.Sequence {
+     *     +oid
+     *     parameters.forEach { +it }
+     * }
+     * ```
+     *
+     * @param oid The object identifier representing the algorithm.
+     * @param parameters A list of ASN.1 elements representing the algorithm parameters.
+     */
     constructor(
         oid: ObjectIdentifier,
         parameters: List<Asn1Element>
@@ -45,6 +53,7 @@ value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
 
     init {
         require(element.children.isNotEmpty()) { "AlgorithmIdentifier must not be an empty SEQUENCE" }
+        oid //check that oid is present
     }
 
     /**
@@ -52,7 +61,7 @@ value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
      */
     override val oid: ObjectIdentifier
         get() = (element.asSequence().children.firstOrNull() as? Asn1Primitive)?.readOid()
-            ?: throw Asn1Exception("AlgorithmIdentifier is empty")
+            ?: throw Asn1Exception("AlgorithmIdentifier has no OID: $element")
 
     /**
      * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target

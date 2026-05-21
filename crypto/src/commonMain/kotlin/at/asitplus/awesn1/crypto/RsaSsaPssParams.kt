@@ -29,6 +29,7 @@ import kotlinx.serialization.Serializable
  * RFC defaults without forcing callers to reject unsupported parameter combinations while parsing an outer
  * [X509AlgorithmIdentifier].
  */
+@ConsistentCopyVisibility
 @Serializable
 //CTOR internal for testing
 data class RsaSsaPssParams internal constructor(
@@ -83,8 +84,8 @@ data class RsaSsaPssParams internal constructor(
         const val DEFAULT_SALT_LENGTH = 20
         const val DEFAULT_TRAILER_FIELD = 1
 
-        val SHA1_IDENTIFIER = X509AlgorithmIdentifier(SHA1_OID, Asn1.Null())
-        val MGF1_SHA1_IDENTIFIER = X509AlgorithmIdentifier(MGF1_OID, SHA1_IDENTIFIER.element)
+        val SHA1_IDENTIFIER = X509AlgorithmIdentifier(SHA1_OID, listOf(Asn1.Null()))
+        val MGF1_SHA1_IDENTIFIER = X509AlgorithmIdentifier(MGF1_OID, listOf(SHA1_IDENTIFIER.element))
     }
 
     override fun equals(other: Any?): Boolean {

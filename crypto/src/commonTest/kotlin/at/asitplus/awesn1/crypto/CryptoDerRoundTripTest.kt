@@ -97,7 +97,7 @@ private fun randomEcPrivateKey(random: Random) = Sec1EcPrivateKeyInfo(
 private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyInfo(
     encryptionAlgorithm = X509AlgorithmIdentifier(
         oid = randomOid(random),
-        parameters = randomRawElement(random).takeIf { random.nextBoolean() },
+        parameters = randomRawElement(random).takeIf { random.nextBoolean() }?.let { listOf(it) }?:listOf(),
     ),
     encryptedData = if (random.nextBoolean()) Asn1EncapsulatingOctetString(
         listOf(Asn1PrimitiveOctetString(randomBytes(random, 32)))
