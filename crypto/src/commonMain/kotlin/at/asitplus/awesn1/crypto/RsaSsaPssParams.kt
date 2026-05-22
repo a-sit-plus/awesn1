@@ -43,15 +43,15 @@ data class RsaSsaPssParams internal constructor(
     private val taggedTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
 ) {
     constructor(
-        hashAlgorithm: X509AlgorithmIdentifier? = SHA1_IDENTIFIER,
-        maskGenAlgorithm: X509AlgorithmIdentifier? = MGF1_SHA1_IDENTIFIER,
-        saltLength: Int? = DEFAULT_SALT_LENGTH,
-        trailerField: Int? = DEFAULT_TRAILER_FIELD,
+        hashAlgorithm: X509AlgorithmIdentifier = SHA1_IDENTIFIER,
+        maskGenAlgorithm: X509AlgorithmIdentifier = MGF1_SHA1_IDENTIFIER,
+        saltLength: Int = DEFAULT_SALT_LENGTH,
+        trailerField: Int = DEFAULT_TRAILER_FIELD,
     ) : this(
-        taggedHashAlgorithm = hashAlgorithm?.let(::ExplicitlyTagged),
-        taggedMaskGenAlgorithm = maskGenAlgorithm?.let(::ExplicitlyTagged),
-        taggedSaltLength = saltLength?.let(::Asn1Integer)?.let(::ExplicitlyTagged),
-        taggedTrailerField = trailerField?.let(::Asn1Integer)?.let(::ExplicitlyTagged),
+        taggedHashAlgorithm = hashAlgorithm.takeIf { it != SHA1_IDENTIFIER }?.let(::ExplicitlyTagged),
+        taggedMaskGenAlgorithm = maskGenAlgorithm.takeIf { it != MGF1_SHA1_IDENTIFIER }?.let(::ExplicitlyTagged),
+        taggedSaltLength = saltLength.takeIf { it != DEFAULT_SALT_LENGTH }?.let { ExplicitlyTagged(Asn1Integer(it)) },
+        taggedTrailerField = trailerField.takeIf { it != DEFAULT_TRAILER_FIELD }?.let { ExplicitlyTagged(Asn1Integer(it)) },
     )
 
     val hashAlgorithm: X509AlgorithmIdentifier? by taggedHashAlgorithm
