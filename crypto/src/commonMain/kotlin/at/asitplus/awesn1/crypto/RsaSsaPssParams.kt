@@ -43,15 +43,15 @@ data class RsaSsaPssParams internal constructor(
     private val taggedTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
 ) {
     constructor(
-        hashAlgorithm: X509AlgorithmIdentifier? = null,
-        maskGenAlgorithm: X509AlgorithmIdentifier? = null,
-        saltLength: Asn1Integer? = null,
-        trailerField: Asn1Integer? = null,
+        hashAlgorithm: X509AlgorithmIdentifier? = SHA1_IDENTIFIER,
+        maskGenAlgorithm: X509AlgorithmIdentifier? = MGF1_SHA1_IDENTIFIER,
+        saltLength: Int? = DEFAULT_SALT_LENGTH,
+        trailerField: Int? = DEFAULT_TRAILER_FIELD,
     ) : this(
-        hashAlgorithm?.let(::ExplicitlyTagged),
-        maskGenAlgorithm?.let(::ExplicitlyTagged),
-        saltLength?.let(::ExplicitlyTagged),
-        trailerField?.let(::ExplicitlyTagged),
+        taggedHashAlgorithm = hashAlgorithm?.let(::ExplicitlyTagged),
+        taggedMaskGenAlgorithm = maskGenAlgorithm?.let(::ExplicitlyTagged),
+        taggedSaltLength = saltLength?.let(::Asn1Integer)?.let(::ExplicitlyTagged),
+        taggedTrailerField = trailerField?.let(::Asn1Integer)?.let(::ExplicitlyTagged),
     )
 
     val hashAlgorithm: X509AlgorithmIdentifier? by taggedHashAlgorithm
