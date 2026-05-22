@@ -9,6 +9,11 @@ The `crypto` module provides ASN.1-backed cryptographic and PKI model types buil
 If you are looking for certificates, public keys, private keys, PKCS#10 requests, or common algorithm identifiers,
 this is the module you want.
 
+!!! info "`kxs`-powered starting with 0.3.0"
+    The `crypto` module depends on both `core` and `kxs`.
+    DER handling in `crypto` now goes through awesn1's `kotlinx.serialization` integration from `kxs`,
+    rather than manual DER encode/decode implementations inside `crypto`.
+
 ## Why This Is Not in `core`
 
 `core` is intentionally limited to generic ASN.1 infrastructure:
@@ -24,14 +29,21 @@ They are still ASN.1, but they are not universally useful building blocks in the
 `Asn1Integer`, `ObjectIdentifier`, or `Asn1Time`.
 Keeping them in a separate module keeps `core` small, generic, and reusable.
 
+!!! warning "This is not a full-fledged cryptography stack"
+    The `crypto` module is not trying to provide:
+    
+    * Semantic validation of cryptographic structures (it does perform stric structural validations)
+    * Certificate path validation
+    * Signature verification policy
+    * …
+    
+    If you need any of those, check out [Signum](https://a-sit-plus.github.io/signum/), which is currently being ported over to work on top of awesn1. 
+
 ## Maven Coordinates
 
 ```kotlin
 implementation("at.asitplus.awesn1:crypto:$version")
 ```
-
-`crypto` depends on `core`.
-For `kotlinx.serialization` DER usage in your own code, add the `kxs` module.
 
 ## Scope
 
@@ -43,19 +55,21 @@ policy enforcement, or cryptographic operations.
 The module currently includes models such as:
 
 - `SubjectPublicKeyInfo`
-- `PrivateKeyInfo`
+- `Pkcs8PrivateKeyInfo`
 - `EncryptedPrivateKeyInfo`
-- `RsaPublicKey`
-- `RsaPrivateKey`
-- `EcPrivateKey`
-- `EcdsaSignatureValue`
-- `SignatureAlgorithmIdentifier`
+- `RsaPublicKeyInfo`
+- `Pkcs1RsaPrivateKeyInfo`
+- `Pkcs1RsaOtherPrimeInfo`
+- `Sec1EcPrivateKeyInfo`
+- `SignatureValue`
+- `X509AlgorithmIdentifier`
+- `RsaSsaPssParams`
 - `X509Certificate`
-- `TbsCertificate`
+- `X509TbsCertificate`
 - `X509CertificateExtension`
 - `Pkcs10CertificationRequest`
 - `Pkcs10CertificationRequestInfo`
-- DN-related helper models such as `RelativeDistinguishedName`, `AttributeTypeAndValue`, and `Attribute`
+- DN-related helper models such as `X500RelativeDistinguishedName`, `X500AttributeTypeAndValue`, and `Attribute`
 
 These are structural models.
 They parse and encode ASN.1 DER correctly, but they do not aim to be a full certificate validation stack,
@@ -89,8 +103,8 @@ The `crypto` already handles the most common cryptographic data structures out o
 
 ## Relationship to Serialization
 
-The crypto model classes are ASN.1-serializable, so they can be used directly with awesn1's DER
-`kotlinx.serialization` format from the `kxs` module.
+The crypto model classes are ASN.1-serializable and their DER handling is implemented through awesn1's
+`kotlinx.serialization`-based `DER` format from the `kxs` module.
 
 That means you can use them either:
 

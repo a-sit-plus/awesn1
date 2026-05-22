@@ -328,106 +328,106 @@ val SerializationTestImplicitTagging by testSuite(
 data class NothingOnClass(val a: String)
 
 @Serializable
-@Asn1Tag(tagNumber = 1337u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+@Asn1Tag(tagNumber = 1337u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
 data class ImplicitOnClass(val a: String)
 
 @Serializable
-@Asn1Tag(tagNumber = 7331u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+@Asn1Tag(tagNumber = 7331u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
 data class ImplicitOnClassWrong(val a: String)
 
 @Serializable
-data class ImplicitOnProperty(@Asn1Tag(tagNumber = 1338u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC) val a: String)
+data class ImplicitOnProperty(@Asn1Tag(tagNumber = 1338u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC) val a: String)
 
 @Serializable
-data class ImplicitOnPropertyWrong(@Asn1Tag(tagNumber = 8331u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC) val a: String)
+data class ImplicitOnPropertyWrong(@Asn1Tag(tagNumber = 8331u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC) val a: String)
 
 @Serializable
-@Asn1Tag(tagNumber = 1337u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
-data class ImplicitOnBoth(@Asn1Tag(tagNumber = 1338u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC) val a: String)
+@Asn1Tag(tagNumber = 1337u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
+data class ImplicitOnBoth(@Asn1Tag(tagNumber = 1338u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC) val a: String)
 
 @Serializable
-@Asn1Tag(tagNumber = 73331u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
-data class ImplicitOnBothWrong(@Asn1Tag(tagNumber = 8331u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC) val a: String)
+@Asn1Tag(tagNumber = 73331u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
+data class ImplicitOnBothWrong(@Asn1Tag(tagNumber = 8331u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC) val a: String)
 
 @Serializable
-@Asn1Tag(tagNumber = 7331u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
-data class ImplicitOnBothWrongClass(@Asn1Tag(tagNumber = 1338u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC) val a: String)
+@Asn1Tag(tagNumber = 7331u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
+data class ImplicitOnBothWrongClass(@Asn1Tag(tagNumber = 1338u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC) val a: String)
 
 @Serializable
-@Asn1Tag(tagNumber = 1337u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+@Asn1Tag(tagNumber = 1337u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
 data class ImplicitOnBothWrongProperty(
     @Asn1Tag(
         tagNumber = 8331u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC
     ) val a: String
 )
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ImplicitValueClassUByte(val byte: UByte)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ImplicitValueClassUShort(val value: UShort)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ImplicitValueClassUInt(val value: UInt)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ImplicitValueClassULong(val value: ULong)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ImplicitValueClassByte(val byte: Byte)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ImplicitNestedInline(val value: InlineLayer3)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ImplicitSixLayerInline(val value: InlineLayer6)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ImplicitSixLayerUByteInline(val value: InlineUByteLayer6)
 
-@Asn1Tag(19u, Asn1TagClass.PRIVATE)
+@Asn1Tag(19u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class TaggedInlineLayer1(val value: Byte)
 
-@Asn1Tag(20u, Asn1TagClass.PRIVATE)
+@Asn1Tag(20u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class TaggedInlineLayer2(val value: TaggedInlineLayer1)
 
-@Asn1Tag(21u, Asn1TagClass.PRIVATE)
+@Asn1Tag(21u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class TaggedInlineLayer3(val value: TaggedInlineLayer2)
 
-@Asn1Tag(22u, Asn1TagClass.PRIVATE)
+@Asn1Tag(22u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class TaggedInlineLayer4(val value: TaggedInlineLayer3)
 
-@Asn1Tag(23u, Asn1TagClass.PRIVATE)
+@Asn1Tag(23u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class TaggedInlineLayer5(val value: TaggedInlineLayer4)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class TaggedInlineLayer6(val value: TaggedInlineLayer5)
@@ -480,25 +480,25 @@ value class InlineUByteLayer5(val value: InlineUByteLayer4)
 @Serializable
 value class InlineUByteLayer6(val value: InlineUByteLayer5)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class ValueClassByteClassTagged(val value: Byte)
 
 @JvmInline
 @Serializable
-value class ValueClassBytePropertyTagged(@Asn1Tag(19u, Asn1TagClass.PRIVATE) val value: Byte)
+value class ValueClassBytePropertyTagged(@Asn1Tag(19u, Asn1Tag.Class.PRIVATE) val value: Byte)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
-value class ValueClassByteClassAndPropertyTagged(@Asn1Tag(19u, Asn1TagClass.PRIVATE) val value: Byte)
+value class ValueClassByteClassAndPropertyTagged(@Asn1Tag(19u, Asn1Tag.Class.PRIVATE) val value: Byte)
 
-@Asn1Tag(19u, Asn1TagClass.PRIVATE)
+@Asn1Tag(19u, Asn1Tag.Class.PRIVATE)
 @Serializable
 data class ClassTaggedInner(val value: Byte)
 
-@Asn1Tag(18u, Asn1TagClass.PRIVATE)
+@Asn1Tag(18u, Asn1Tag.Class.PRIVATE)
 @JvmInline
 @Serializable
 value class InlineTaggedOuterClassTaggedInner(val value: ClassTaggedInner)
@@ -516,7 +516,7 @@ data class NothingOnClassNestedOnClassWrong(val a: ImplicitOnClassWrong)
 data class NothingOnClassNestedOnProperty(
     @Asn1Tag(
         tagNumber = 1337u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC
     ) val a: NothingOnClass
 )
 
@@ -524,7 +524,7 @@ data class NothingOnClassNestedOnProperty(
 data class NothingOnClassNestedOnPropertyWrong(
     @Asn1Tag(
         tagNumber = 333u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC
     ) val a: NothingOnClass
 )
 
@@ -532,7 +532,7 @@ data class NothingOnClassNestedOnPropertyWrong(
 data class NothingOnClassNestedOnPropertyOverride(
     @Asn1Tag(
         tagNumber = 666u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
     ) val a: ImplicitOnClass
 )
 
@@ -540,6 +540,6 @@ data class NothingOnClassNestedOnPropertyOverride(
 data class NothingOnClassNestedOnPropertyOverrideWrong(
     @Asn1Tag(
         tagNumber = 999u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
     ) val a: ImplicitOnClass
 )

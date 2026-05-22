@@ -16,7 +16,17 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 @Serializable
 data class ExplicitlyTagged<T>(
     val value: T,
-)
+) {
+    operator fun getValue(thisRef: Any?, property: Any?): T = value
+}
+
+operator fun <T> ExplicitlyTagged<T>?.getValue(thisRef: Any?, property: Any?): T? = this?.value
+
+
+/** Use like so: `val foo by explicitlyTaggedProperty.orValue("Some sane default that must not even align on nullability")`
+ */
+fun <T> ExplicitlyTagged<T>?.orValue(default: T): ExplicitlyTagged<T> =
+    ExplicitlyTagged(this?.value ?: default)
 
 /**
  * OCTET STRING encapsulation wrapper.
@@ -27,8 +37,8 @@ data class ExplicitlyTagged<T>(
 @Serializable
 @Asn1Tag(
     tagNumber = 4u,
-    tagClass = Asn1TagClass.UNIVERSAL,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.UNIVERSAL,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 data class OctetStringEncapsulated<T>(
     val value: T,

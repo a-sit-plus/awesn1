@@ -1,98 +1,53 @@
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1EncapsulatingOctetString
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.Asn1PrimitiveOctetString
-import at.asitplus.awesn1.Asn1String
-import at.asitplus.awesn1.Asn1Time
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.crypto.pki.Attribute
-import at.asitplus.awesn1.crypto.pki.AttributeTypeAndValue
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
-import at.asitplus.awesn1.crypto.pki.RelativeDistinguishedName
-import at.asitplus.awesn1.crypto.pki.TbsCertificate
-import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
+import at.asitplus.awesn1.*
+import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.withData
+import at.asitplus.testballoon.checkAll
+import at.asitplus.testballoon.minus
+import de.infix.testBalloon.framework.core.TestSuiteScope
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
+import kotlinx.serialization.json.Json
 import kotlin.random.Random
 import kotlin.time.Instant
-
-private const val SAMPLE_COUNT = 5
+import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 
 val CryptoDerRoundTripTest by testSuite {
-    withData(*sampleValues(::randomRawBitStringSignatureValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomBitStringSignatureValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomBitStringSignatureValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomEcdsaSignatureValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomEcPrivateKey).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomEncryptedPrivateKeyInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomRsaOtherPrimeInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomRsaPrivateKey).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomRsaPublicKey).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomSignatureAlgorithmIdentifier).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomSubjectPublicKeyInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomX509CertificateExtension).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomAttributeTypeAndValue).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomRelativeDistinguishedName).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomAttribute).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomPrivateKeyInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomPkcs10CertificationRequestInfo).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomPkcs10CertificationRequest).toTypedArray()) {value ->
-       roundTrip(value)
-    }
-    withData(*sampleValues(::randomTbsCertificate).toTypedArray()) {value ->
-       roundTrip(value)
+    "Property checks" - {
+        "SignatureValue from raw bit string" - { checkRoundTrip(::randomRawBitStringSignatureValue) }
+        "SignatureValue from raw bytes" - { checkRoundTrip(::randomBitStringSignatureValue) }
+        "SignatureValue from ECDSA components" - { checkRoundTrip(::randomEcdsaSignatureValue) }
+        "EcPrivateKeyInfo" - { checkRoundTrip(::randomEcPrivateKey) }
+        "EncryptedPrivateKeyInfo" - { checkRoundTrip(::randomEncryptedPrivateKeyInfo) }
+        "RsaOtherPrimeInfo" - { checkRoundTrip(::randomRsaOtherPrimeInfo) }
+        "RsaPrivateKeyInfo" - { checkRoundTrip(::randomRsaPrivateKey) }
+        "RsaPublicKeyInfo" - { checkRoundTrip(::randomRsaPublicKey) }
+        "SignatureAlgorithmIdentifier" - { checkRoundTrip(::randomSignatureAlgorithmIdentifier) }
+        "SubjectPublicKeyInfo" - { checkRoundTrip(::randomSubjectPublicKeyInfo) }
+        "X509CertificateExtension" - { checkRoundTrip(::randomX509CertificateExtension) }
+        "AttributeTypeAndValue" - { checkRoundTrip(::randomAttributeTypeAndValue) }
+        "RelativeDistinguishedName" - { checkRoundTrip(::randomRelativeDistinguishedName) }
+        "Attribute" - { checkRoundTrip(::randomAttribute) }
+        "Pkcs8PrivateKeyInfo" - { checkRoundTrip(::randomPrivateKeyInfo) }
+        "Pkcs10CertificationRequestInfo" - { checkRoundTrip(::randomPkcs10CertificationRequestInfo) }
+        "Pkcs10CertificationRequest" - { checkRoundTrip(::randomPkcs10CertificationRequest) }
+        "TbsCertificate" - { checkRoundTrip(::randomTbsCertificate) }
     }
 }
 
-private inline fun <reified T> roundTrip(value: T) {
-    DER.decodeFromByteArray<T>(DER.encodeToByteArray(value)) shouldBe value
+private inline fun <reified T> TestSuiteScope.checkRoundTrip(noinline generator: (Random) -> T) {
+    checkAll(compact = false, genA = kotestArbitrary { rs -> generator(rs.random) }) { value ->
+        val encoded = DER.encodeToByteArray<T>(value)
+        DER.decodeFromByteArray<T>(encoded) shouldBe value
+        if (value != null) {
+            decodeLegacyAsCurrent(value as Any, encoded) shouldBe value
+        }
+    }
 }
-
-private fun <T> sampleValues(generator: (Random) -> T): List<T> =
-    List(SAMPLE_COUNT) { index -> generator(Random(0xA51u.toInt() + index)) }
 
 private fun randomAscii(random: Random, length: Int = random.nextInt(3, 16)): String =
     buildString(length) {
@@ -125,34 +80,38 @@ private fun randomAlgorithmIdentifier(random: Random) = Asn1.Sequence {
 }
 
 private fun randomRawBitStringSignatureValue(random: Random) =
-    SignatureValue(Asn1BitString(randomBytes(random)))
+    X509SignatureValue(Asn1BitString(randomBytes(random)))
 
 private fun randomBitStringSignatureValue(random: Random) =
-    SignatureValue(randomBytes(random))
+    X509SignatureValue(randomBytes(random))
 
 private fun randomEcdsaSignatureValue(random: Random) =
-    SignatureValue.fromRS(positiveAsn1Integer(random), positiveAsn1Integer(random))
+    X509SignatureValue.fromRS(positiveAsn1Integer(random), positiveAsn1Integer(random))
 
-private fun randomEcPrivateKey(random: Random) = EcPrivateKeyInfo(
-    version = 1,
+private fun randomEcPrivateKey(random: Random) = Sec1EcPrivateKeyInfo(
     privateKey = randomBytes(random, 32),
     parameters = randomOid(random).takeIf { random.nextBoolean() },
     publicKey = Asn1BitString(randomBytes(random, 33)).takeIf { random.nextBoolean() },
 )
 
 private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyInfo(
-    encryptionAlgorithm = randomAlgorithmIdentifier(random),
-    encryptedData = Asn1PrimitiveOctetString(randomBytes(random, 32)),
+    encryptionAlgorithm = X509AlgorithmIdentifier(
+        oid = randomOid(random),
+        parameters = randomRawElement(random).takeIf { random.nextBoolean() }?.let { listOf(it) }?:listOf(),
+    ),
+    encryptedData = if (random.nextBoolean()) Asn1EncapsulatingOctetString(
+        listOf(Asn1PrimitiveOctetString(randomBytes(random, 32)))
+    ) else Asn1PrimitiveOctetString(randomBytes(random, 32)),
 )
 
-private fun randomRsaOtherPrimeInfo(random: Random) = RsaOtherPrimeInfo(
+private fun randomRsaOtherPrimeInfo(random: Random) = Pkcs1RsaOtherPrimeInfo(
     prime = positiveAsn1Integer(random),
     exponent = positiveAsn1Integer(random),
     coefficient = positiveAsn1Integer(random),
 )
 
-private fun randomRsaPrivateKey(random: Random) = RsaPrivateKeyInfo(
-    version = if (random.nextBoolean()) 0 else 1,
+private fun randomRsaPrivateKey(random: Random) = Pkcs1RsaPrivateKeyInfo(
+    version = if (random.nextBoolean()) Pkcs1RsaPrivateKeyInfo.Version.TWO_PRIME else Pkcs1RsaPrivateKeyInfo.Version.MULTI,
     modulus = positiveAsn1Integer(random),
     publicExponent = positiveAsn1Integer(random),
     privateExponent = positiveAsn1Integer(random),
@@ -169,7 +128,7 @@ private fun randomRsaPublicKey(random: Random) = RsaPublicKeyInfo(
     publicExponent = positiveAsn1Integer(random),
 )
 
-private fun randomSignatureAlgorithmIdentifier(random: Random) = SignatureAlgorithmIdentifier(
+private fun randomSignatureAlgorithmIdentifier(random: Random) = X509AlgorithmIdentifier(
     oid = randomOid(random),
     parameters = List(random.nextInt(0, 3)) { randomRawElement(random) },
 )
@@ -191,21 +150,21 @@ private fun randomX509CertificateExtension(random: Random): X509CertificateExten
     }
 }
 
-private fun randomAttributeTypeAndValue(random: Random): AttributeTypeAndValue {
+private fun randomAttributeTypeAndValue(random: Random): X500AttributeTypeAndValue {
     val stringValue = Asn1String.UTF8(randomAscii(random))
     return when (random.nextInt(5)) {
-        0 -> AttributeTypeAndValue.CommonName(stringValue)
-        1 -> AttributeTypeAndValue.Country(Asn1String.Printable("AT"))
-        2 -> AttributeTypeAndValue.Organization(stringValue)
-        3 -> AttributeTypeAndValue.OrganizationalUnit(stringValue)
-        else -> AttributeTypeAndValue.Other(randomOid(random), stringValue)
+        0 -> X500AttributeTypeAndValue.CommonName(stringValue)
+        1 -> X500AttributeTypeAndValue.Country(Asn1String.Printable("AT"))
+        2 -> X500AttributeTypeAndValue.Organization(stringValue)
+        3 -> X500AttributeTypeAndValue.OrganizationalUnit(stringValue)
+        else -> X500AttributeTypeAndValue(randomOid(random), stringValue)
     }
 }
 
 private fun randomRelativeDistinguishedName(random: Random) =
-    RelativeDistinguishedName(randomAttributeTypeAndValue(random))
+    X500RelativeDistinguishedName(randomAttributeTypeAndValue(random))
 
-private fun randomAttribute(random: Random) = Attribute(randomOid(random), randomRawElement(random))
+private fun randomAttribute(random: Random) = Pkcs10CsrAttribute(randomOid(random), randomRawElement(random))
 
 private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
     if (random.nextBoolean()) {
@@ -222,7 +181,6 @@ private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
     }
 
 private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10CertificationRequestInfo(
-    version = 0,
     subjectName = List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) },
     publicKey = randomSubjectPublicKeyInfo(random),
     attributes = List(random.nextInt(0, 3)) { randomAttribute(random) },
@@ -231,15 +189,14 @@ private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10Certifi
 private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10CertificationRequest(
     certificationRequestInfo = randomPkcs10CertificationRequestInfo(random),
     signatureAlgorithm = randomSignatureAlgorithmIdentifier(random),
-    signatureValue = SignatureValue(randomBytes(random, 32)),
+    signatureValue = X509SignatureValue(randomBytes(random, 32)),
 )
 
-private fun randomTbsCertificate(random: Random): TbsCertificate {
+private fun randomTbsCertificate(random: Random): X509TbsCertificate {
     val validFrom = randomInstant(random)
     val validUntil = Instant.fromEpochSeconds(validFrom.epochSeconds + random.nextLong(1L, 86_400L * 90))
-    return TbsCertificate(
-        version = 2,
-        serialNumber = randomBytes(random, 12),
+    return X509TbsCertificate(
+        serialNumber = Asn1Integer.fromByteArray(randomBytes(random, 12), Asn1Integer.Sign.POSITIVE),
         signatureAlgorithm = randomSignatureAlgorithmIdentifier(random),
         issuerName = List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) },
         validFrom = Asn1Time(validFrom),

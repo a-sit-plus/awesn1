@@ -21,17 +21,52 @@ import kotlinx.serialization.descriptors.SerialDescriptor
  * because that property has no distinct ASN.1 field boundary after inline unwrapping.
  *
  * @param tagNumber implicit ASN.1 tag number override
- * @param tagClass implicit ASN.1 tag-class override; defaults to [Asn1TagClass.CONTEXT_SPECIFIC]
- * while [Asn1TagClass.INFER] keeps underlying class
- * @param constructed implicit ASN.1 constructed-bit override; [Asn1ConstructedBit.INFER] keeps underlying form
+ * @param tagClass implicit ASN.1 tag-class override; defaults to [Asn1Tag.Class.CONTEXT_SPECIFIC]
+ * while [Asn1Tag.Class.INFER] keeps underlying class
+ * @param constructed implicit ASN.1 constructed-bit override; [Asn1Tag.ConstructedBit.INFER] keeps underlying form
  */
 @SerialInfo
 @Target(AnnotationTarget.CLASS, AnnotationTarget.PROPERTY)
 annotation class Asn1Tag(
     val tagNumber: ULong,
-    val tagClass: Asn1TagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    val constructed: Asn1ConstructedBit = Asn1ConstructedBit.INFER,
-)
+    val tagClass: Class = Class.CONTEXT_SPECIFIC,
+    val constructed: Asn1Tag.ConstructedBit = Asn1Tag.ConstructedBit.INFER,
+){
+    enum class ConstructedBit {
+        INFER,
+        PRIMITIVE,
+        CONSTRUCTED;
+
+        internal fun toBooleanOrNull(): Boolean? = when (this) {
+            INFER -> null
+            PRIMITIVE -> false
+            CONSTRUCTED -> true
+        }
+    }
+
+    /**
+     * ASN.1 tag-class override domain for [Asn1Tag].
+     */
+    enum class Class {
+        INFER,
+        UNIVERSAL,
+        APPLICATION,
+        CONTEXT_SPECIFIC,
+        PRIVATE;
+
+        internal fun toTagClassOrNull(): TagClass? = when (this) {
+            INFER -> null
+            UNIVERSAL -> TagClass.UNIVERSAL
+            APPLICATION -> TagClass.APPLICATION
+            CONTEXT_SPECIFIC -> TagClass.CONTEXT_SPECIFIC
+            PRIVATE -> TagClass.PRIVATE
+        }
+        /**
+         * ASN.1 constructed-bit override domain for [Asn1Tag].
+         */
+
+    }
+}
 
 /**
  * Marks [ByteArray] properties to encode/decode as ASN.1 BIT STRING.
@@ -40,39 +75,7 @@ annotation class Asn1Tag(
 @Target(AnnotationTarget.PROPERTY)
 annotation class Asn1BitString
 
-/**
- * ASN.1 tag-class override domain for [Asn1Tag].
- */
-enum class Asn1TagClass {
-    INFER,
-    UNIVERSAL,
-    APPLICATION,
-    CONTEXT_SPECIFIC,
-    PRIVATE;
 
-    internal fun toTagClassOrNull(): TagClass? = when (this) {
-        INFER -> null
-        UNIVERSAL -> TagClass.UNIVERSAL
-        APPLICATION -> TagClass.APPLICATION
-        CONTEXT_SPECIFIC -> TagClass.CONTEXT_SPECIFIC
-        PRIVATE -> TagClass.PRIVATE
-    }
-}
-
-/**
- * ASN.1 constructed-bit override domain for [Asn1Tag].
- */
-enum class Asn1ConstructedBit {
-    INFER,
-    PRIMITIVE,
-    CONSTRUCTED;
-
-    internal fun toBooleanOrNull(): Boolean? = when (this) {
-        INFER -> null
-        PRIMITIVE -> false
-        CONSTRUCTED -> true
-    }
-}
 
 internal val SerialDescriptor.asn1Tag get() = annotations.find { it is Asn1Tag } as? Asn1Tag
 internal fun SerialDescriptor.asn1Tag(index: Int) =

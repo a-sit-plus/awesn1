@@ -19,12 +19,13 @@ kotlin {
         commonMain {
             dependencies {
                 api(project(":core"))
+                api(project(":kxs"))
             }
         }
 
         commonTest {
             dependencies {
-                implementation(project(":kxs"))
+                implementation(serialization("json"))
             }
         }
     }

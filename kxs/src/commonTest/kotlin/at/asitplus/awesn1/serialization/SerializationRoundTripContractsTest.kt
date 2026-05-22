@@ -321,15 +321,15 @@ private data class ByteArrayEnvelope(
 )
 
 @Serializable
-@Asn1Tag(tagNumber = 150u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+@Asn1Tag(tagNumber = 150u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
 private data class TaggedImplicitEnvelope(
-    @Asn1Tag(tagNumber = 0u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+    @Asn1Tag(tagNumber = 0u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
     val id: Int,
-    @Asn1Tag(tagNumber = 1u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+    @Asn1Tag(tagNumber = 1u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
     val label: String,
-    @Asn1Tag(tagNumber = 2u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+    @Asn1Tag(tagNumber = 2u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
     val numbers: List<Int>,
-    @Asn1Tag(tagNumber = 3u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+    @Asn1Tag(tagNumber = 3u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
     val aliases: Map<String, String>,
 )
 
@@ -338,8 +338,8 @@ private data class ExplicitEnvelope(
     val marker: String,
     @Asn1Tag(
         tagNumber = 4u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-        constructed = Asn1ConstructedBit.CONSTRUCTED,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+        constructed = Asn1Tag.ConstructedBit.CONSTRUCTED,
     )
     val wrapped: ExplicitlyTagged<SmallRecord>,
     val trail: List<Int>,
@@ -357,7 +357,7 @@ private data class BitStringEnvelope(
     @Asn1BitString
     val flags: ByteArray,
     @Asn1BitString
-    @Asn1Tag(tagNumber = 33u, tagClass = Asn1TagClass.CONTEXT_SPECIFIC)
+    @Asn1Tag(tagNumber = 33u, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC)
     val taggedFlags: ByteArray,
     val note: String,
 ) {

@@ -3,110 +3,83 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1Sequence
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.decodeRethrowing
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.decodeToInt
-import at.asitplus.awesn1.readOid
-import at.asitplus.awesn1.serialization.Asn1Serializable
+import at.asitplus.awesn1.serialization.Asn1Tag
+import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.decodeFromTlv
+import at.asitplus.awesn1.serialization.encodeToTlv
 import kotlinx.serialization.Serializable
 
-@Serializable(with = Pkcs8PrivateKeyInfo.Companion::class)
-open class Pkcs8PrivateKeyInfo(
-    val version: Int,
-    val privateKeyAlgorithm: Asn1Sequence,
+/**
+ *
+ * As per [RFC5208](https://www.rfc-editor.org/rfc/rfc5208.html#section-5):
+ * ```
+ * PrivateKeyInfo ::= SEQUENCE {
+ *   version                   Version,
+ *   privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
+ *   privateKey                PrivateKey,
+ *   attributes           [0]  IMPLICIT Attributes OPTIONAL }
+ *
+ * Version ::= INTEGER
+ * PrivateKeyAlgorithmIdentifier ::= AlgorithmIdentifier
+ * PrivateKey ::= OCTET STRING
+ * Attributes ::= SET OF Attribute
+ * ```
+ */
+@Serializable
+data class Pkcs8PrivateKeyInfo(
+    val version: Version,
+    val privateKeyAlgorithm: X509AlgorithmIdentifier,
     val privateKey: Asn1Element,
-    val attributes: List<Asn1Element>? = null,
-) : at.asitplus.awesn1.Asn1Encodable<Asn1Sequence> {
-
-    val algorithmOid: ObjectIdentifier
-        get() = (privateKeyAlgorithm.children.firstOrNull() as? Asn1Primitive)?.readOid()
-            ?: throw Asn1Exception("PrivateKeyInfo algorithm identifier is empty")
-
-    val algorithmParameters: List<Asn1Element>
-        get() = privateKeyAlgorithm.children.drop(1)
-
-    override fun encodeToTlv() = Asn1.Sequence {
-        +Asn1.Int(version)
-        +privateKeyAlgorithm
-        +privateKey
-        attributes?.let { attrs ->
-            +(Asn1.SetOf {
-                attrs.forEach { +it }
-            } withImplicitTag 0uL)
-        }
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Pkcs8PrivateKeyInfo) return false
-        return version == other.version &&
-            privateKeyAlgorithm == other.privateKeyAlgorithm &&
-            privateKey == other.privateKey &&
-            attributes == other.attributes
-    }
-
-    override fun hashCode(): Int {
-        var result = version
-        result = 31 * result + privateKeyAlgorithm.hashCode()
-        result = 31 * result + privateKey.hashCode()
-        result = 31 * result + (attributes?.hashCode() ?: 0)
-        return result
-    }
+    @Asn1Tag(tagNumber = 0u)
+    val attributes: Set<Asn1Element>? = null,
+) {
+    val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
+    val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
 
     @Throws(Asn1Exception::class)
-    fun decodeRsaPrivateKey(): RsaPrivateKeyInfo =
-        RsaPrivateKeyInfo.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next().asSequence() })
+    fun decodeRsaPrivateKey(): Pkcs1RsaPrivateKeyInfo =
+        DER.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next() })
 
     @Throws(Asn1Exception::class)
-    fun decodeEcPrivateKey(): EcPrivateKeyInfo =
-        EcPrivateKeyInfo.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next().asSequence() })
+    fun decodeEcPrivateKey(): Sec1EcPrivateKeyInfo =
+        DER.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next() })
 
-    companion object : Asn1Serializable<Asn1Sequence, Pkcs8PrivateKeyInfo> {
-        override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
-
+    companion object {
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
-        fun rsa(privateKey: RsaPrivateKeyInfo, attributes: List<Asn1Element>? = null): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
-            version = 0,
-            privateKeyAlgorithm = Asn1.Sequence {
-                +RSA_ENCRYPTION_OID
-                +Asn1.Null()
-            },
-            privateKey = Asn1.OctetStringEncapsulating { +privateKey.encodeToTlv() },
-            attributes = attributes
-        )
+        fun rsa(privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
+            Pkcs8PrivateKeyInfo(
+                version = Version.V1,
+                privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
+                privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(privateKey) },
+                attributes = attributes,
+            )
 
         fun ec(
-            sec1Key: EcPrivateKeyInfo,
+            sec1Key: Sec1EcPrivateKeyInfo,
             curveOid: ObjectIdentifier?,
-            attributes: List<Asn1Element>? = null
+            attributes: Set<Asn1Element>? = null,
         ): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
-            version = 0,
-            privateKeyAlgorithm = Asn1.Sequence {
-                +EC_PUBLIC_KEY_OID
-                curveOid?.let { +it }
-            },
-            privateKey = Asn1.OctetStringEncapsulating { +sec1Key.encodeToTlv() },
-            attributes = attributes
+            version = Version.V1,
+            privateKeyAlgorithm = X509AlgorithmIdentifier(
+                EC_PUBLIC_KEY_OID,
+                curveOid?.let { listOf(it.encodeToTlv()) }.orEmpty(),
+            ),
+            privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(sec1Key) },
+            attributes = attributes,
         )
+    }
 
-        @Throws(Asn1Exception::class)
-        override fun doDecode(src: Asn1Sequence): Pkcs8PrivateKeyInfo = src.decodeRethrowing {
-            val version = next().asPrimitive().decodeToInt()
-            val algorithm = next().asSequence()
-            val privateKey = next()
-            val attributes = if (hasNext()) {
-                next().asSet().children
-            } else {
-                null
-            }
-            Pkcs8PrivateKeyInfo(version, algorithm, privateKey, attributes)
-        }
+    /**
+     * | Encoded Version | Semantic Version |
+     * |:---------------:|:----------------:|
+     * | 0               | V1                |
+     */
+    @Asn1Tag(tagNumber = 0x02uL, tagClass = Asn1Tag.Class.UNIVERSAL)
+    enum class Version {
+        V1
     }
 }

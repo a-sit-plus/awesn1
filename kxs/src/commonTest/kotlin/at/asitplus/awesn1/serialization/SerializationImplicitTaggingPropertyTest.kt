@@ -254,8 +254,8 @@ private class SingleFieldBoxSerializer<T>(
     private val tagAnnotation = tagNumber?.let {
         Asn1Tag(
             tagNumber = it,
-            tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-            constructed = Asn1ConstructedBit.INFER,
+            tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+            constructed = Asn1Tag.ConstructedBit.INFER,
         )
     }
 

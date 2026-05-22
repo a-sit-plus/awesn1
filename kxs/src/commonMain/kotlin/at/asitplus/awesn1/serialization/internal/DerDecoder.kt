@@ -304,8 +304,12 @@ class DerDecoder internal constructor(
             PrimitiveKind.BOOLEAN -> processedElement.asPrimitive()
                 .decodeToBoolean(expectedTag ?: Asn1Element.Tag.BOOL)
 
-            PrimitiveKind.BYTE -> processedElement.asPrimitive().decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
-                .toByte()
+            PrimitiveKind.BYTE -> processedElement.asPrimitive()
+                .decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
+                .let {
+                    if (propertyDescriptor.isKotlinUByteDescriptor()) it.toStrictUByteBacking()
+                    else it.toStrictByte()
+                }
 
             PrimitiveKind.CHAR -> processedElement.asPrimitive().decodeString(expectedTag)
                 .also { if (it.length != 1) throw SerializationException("String is not a char") }[0]
@@ -314,10 +318,22 @@ class DerDecoder internal constructor(
                 .decodeToDouble(expectedTag ?: Asn1Element.Tag.REAL)
 
             PrimitiveKind.FLOAT -> processedElement.asPrimitive().decodeToFloat(expectedTag ?: Asn1Element.Tag.REAL)
-            PrimitiveKind.INT -> processedElement.asPrimitive().decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
-            PrimitiveKind.LONG -> processedElement.asPrimitive().decodeToLong(expectedTag ?: Asn1Element.Tag.INT)
-            PrimitiveKind.SHORT -> processedElement.asPrimitive().decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
-                .toShort()
+            PrimitiveKind.INT -> if (propertyDescriptor.isKotlinUIntDescriptor()) {
+                processedElement.asPrimitive().decodeToUInt(expectedTag ?: Asn1Element.Tag.INT).toInt()
+            } else {
+                processedElement.asPrimitive().decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
+            }
+            PrimitiveKind.LONG -> if (propertyDescriptor.isKotlinULongDescriptor()) {
+                processedElement.asPrimitive().decodeToULong(expectedTag ?: Asn1Element.Tag.INT).toLong()
+            } else {
+                processedElement.asPrimitive().decodeToLong(expectedTag ?: Asn1Element.Tag.INT)
+            }
+            PrimitiveKind.SHORT -> processedElement.asPrimitive()
+                .decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
+                .let {
+                    if (propertyDescriptor.isKotlinUShortDescriptor()) it.toStrictUShortBacking()
+                    else it.toStrictShort()
+                }
 
             PrimitiveKind.STRING -> processedElement.asPrimitive().decodeString(expectedTag)
             SerialKind.ENUM -> processedElement.asPrimitive()
@@ -542,7 +558,9 @@ class DerDecoder internal constructor(
                     }
                 }
                 elementIndex++
-                return castDecoded(processedElement)
+                require(deserializer is Asn1ElementFallbackBase64SerializerBase<*>) {
+                    "Reserved SerialName for Asn1ElementFallbackBase64SerializerBase reused by: ${deserializer::class.simpleName}"}
+                return castDecoded(deserializer.decodeFromAsn1Element(processedElement))
             }
         }
 
@@ -582,12 +600,12 @@ class DerDecoder internal constructor(
         when (deserializer) {
             UByte.serializer() -> return processedElement.asPrimitive()
                 .decodeToUInt(expectedTag ?: Asn1Element.Tag.INT)
-                .toUByte()
+                .toStrictUByte()
                 .also { elementIndex++ }.let(::castDecoded)
 
             UShort.serializer() -> return processedElement.asPrimitive()
                 .decodeToUInt(expectedTag ?: Asn1Element.Tag.INT)
-                .toUShort()
+                .toStrictUShort()
                 .also { elementIndex++ }.let(::castDecoded)
 
             UInt.serializer() -> return processedElement.asPrimitive()
@@ -803,3 +821,39 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
         if (tag != implicitTagOverride) throw SerializationException(Asn1TagMismatchException(implicitTagOverride, tag))
         String.decodeFromAsn1ContentBytes(content)
     }
+
+private fun Int.toStrictByte(): Byte =
+    if (this in Byte.MIN_VALUE..Byte.MAX_VALUE) toByte()
+    else throw SerializationException("ASN.1 INTEGER value $this is out of range for Byte")
+
+private fun Int.toStrictShort(): Short =
+    if (this in Short.MIN_VALUE..Short.MAX_VALUE) toShort()
+    else throw SerializationException("ASN.1 INTEGER value $this is out of range for Short")
+
+private fun UInt.toStrictUByte(): UByte =
+    if (this <= UByte.MAX_VALUE.toUInt()) toUByte()
+    else throw SerializationException("ASN.1 INTEGER value $this is out of range for UByte")
+
+private fun UInt.toStrictUShort(): UShort =
+    if (this <= UShort.MAX_VALUE.toUInt()) toUShort()
+    else throw SerializationException("ASN.1 INTEGER value $this is out of range for UShort")
+
+private fun Int.toStrictUByteBacking(): Byte =
+    if (this in 0..UByte.MAX_VALUE.toInt()) toByte()
+    else throw SerializationException("ASN.1 INTEGER value $this is out of range for UByte")
+
+private fun Int.toStrictUShortBacking(): Short =
+    if (this in 0..UShort.MAX_VALUE.toInt()) toShort()
+    else throw SerializationException("ASN.1 INTEGER value $this is out of range for UShort")
+
+private fun SerialDescriptor.isKotlinUByteDescriptor(): Boolean =
+    serialName.removeSuffix("?") == "kotlin.UByte"
+
+private fun SerialDescriptor.isKotlinUShortDescriptor(): Boolean =
+    serialName.removeSuffix("?") == "kotlin.UShort"
+
+private fun SerialDescriptor.isKotlinUIntDescriptor(): Boolean =
+    serialName.removeSuffix("?") == "kotlin.UInt"
+
+private fun SerialDescriptor.isKotlinULongDescriptor(): Boolean =
+    serialName.removeSuffix("?") == "kotlin.ULong"

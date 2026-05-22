@@ -192,6 +192,23 @@ For examples of explicit tagging in broadly deployed PKI syntax, see
 1. {{ asn1js_iframe('kxs-explicit-wrapper') -}}
    Explore on <a href="{{ asn1js_url('kxs-explicit-wrapper') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
+`ExplicitlyTagged<T>` can also be used as a property delegate when reading model objects.
+The delegated property unwraps the contained value while preserving Kotlin's inferred type; nullable wrappers unwrap
+to nullable values.
+
+```kotlin
+@Asn1Tag(tagNumber = 0u)
+val taggedVersion: ExplicitlyTagged<Asn1Integer>? = null
+
+val actualTaggedVersion by taggedVersion // Asn1Integer?
+```
+
+Use `orValue(default)` when an absent wrapper should read as a non-null default while keeping delegate syntax.
+
+```kotlin
+val effectiveHashAlgorithm by hashAlgorithm.orValue(SHA1_IDENTIFIER)
+```
+
 ## Modelling CHOICE with Sealed Types
 
 Sealed polymorphism maps naturally to ASN.1 `CHOICE`, where one wire value can represent one of several
@@ -364,9 +381,10 @@ This mirrors practical requirements in detached signatures, timestamp containers
 For standard background, see [CMS (RFC 5652)](https://www.rfc-editor.org/rfc/rfc5652).
 
 Real-world ASN.1 codecs (or rather: the business logic built on top) typically produce structurally valid data but are sometimes not perfectly spec-conformant at the encoding level.
-For example, production implementations exist that misencode `TRUE` or show other low-level flaws.
-See:
-[encoding flaws documented by Warden Supreme](https://a-sit-plus.github.io/warden-supreme/technical/quirks/#encoding-flaws) for real-world examples at scale.
+For example, production implementations exist that misencode `TRUE` or show other low-level flaws
+(see
+[encoding flaws documented by Warden Supreme](https://a-sit-plus.github.io/warden-supreme/technical/quirks/#encoding-flaws) for real-world examples at scale).
+Hence, we model the signed box using a raw ASN.1 structure and don't care for such details.
 
 For this example, we assume `ExamplePayload` is a normal domain model defined elsewhere and reused in multiple contexts.
 In `SignedBox`, this payload must be implicitly tagged according to spec, but we also want to preserve it as raw
@@ -381,8 +399,6 @@ The pattern in this sample uses a value class to still get the job done:
 - a `@Transient` parsed value is materialized at instantiation time, so structurally invalid raw payloads are rejected
   immediately.
 - both `payload` and `signature` in `SignedBox` are implicitly tagged members.
-- strict rich decoding rejects known non-canonical encodings (for example `BOOLEAN TRUE = 0x01`) while still exposing
-  the canonical raw payload element when decoding succeeds.
 
 This pattern is the complex extension of the implicit-tagging workaround shown in `ElementTaggingTest` (`ValueClassImplicitlyTaggedElement`).
 
@@ -398,10 +414,6 @@ This pattern is the complex extension of the implicit-tagging workaround shown i
 2. {{ asn1js_iframe('core-hook-serialization-signedbox-canonical') -}}
    Explore on <a href="{{ asn1js_url('core-hook-serialization-signedbox-canonical') }}" target="_blank" rel="noopener">
    asn1js.eu</a>
-3. {{ asn1js_iframe('core-hook-serialization-signedbox-noncanonical') -}}
-   Explore on <a href="{{ asn1js_url('core-hook-serialization-signedbox-noncanonical') }}" target="_blank" rel="noopener">
-   asn1js.eu</a>
-
 
 
 ## Format Options

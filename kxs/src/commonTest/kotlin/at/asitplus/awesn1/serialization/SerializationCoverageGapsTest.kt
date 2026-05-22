@@ -57,6 +57,25 @@ val SerializationTestCoverageGaps by testSuite(
         }
     }
 
+    "ExplicitlyTagged delegate exposes typed value" {
+        val wrapped = ExplicitlyTagged(5)
+        val value by wrapped
+
+        value shouldBe 5
+    }
+
+    "Nullable ExplicitlyTagged delegate exposes nullable typed value" {
+        val wrapped: ExplicitlyTagged<Asn1Integer>? = ExplicitlyTagged(Asn1Integer(5u))
+        val value by wrapped
+
+        value shouldBe Asn1Integer(5u)
+
+        val missing: ExplicitlyTagged<Asn1Integer>? = null
+        val nullValue by missing
+
+        nullValue shouldBe null
+    }
+
     "Asn1BitString on non-ByteArray targets is currently ignored (no shape change)" {
         val value = InvalidBitStringTarget(1)
         val encoded = DER.encodeToByteArray(value)
@@ -160,16 +179,16 @@ val SerializationTestCoverageGaps by testSuite(
 private data class InferTagOnPrimitive(
     @Asn1Tag(
         tagNumber = 9u,
-        tagClass = Asn1TagClass.INFER,
-        constructed = Asn1ConstructedBit.INFER,
+        tagClass = Asn1Tag.Class.INFER,
+        constructed = Asn1Tag.ConstructedBit.INFER,
     ) val value: Int,
 )
 
 @Serializable
 @Asn1Tag(
     tagNumber = 3u,
-    tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    constructed = Asn1ConstructedBit.INFER,
+    tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+    constructed = Asn1Tag.ConstructedBit.INFER,
 )
 private data class InferConstructedOnClass(
     val value: Int,
@@ -184,8 +203,8 @@ private data class ExplicitNoTag(
 private data class ExplicitWrongClass(
     @Asn1Tag(
         tagNumber = 0u,
-        tagClass = Asn1TagClass.UNIVERSAL,
-        constructed = Asn1ConstructedBit.CONSTRUCTED,
+        tagClass = Asn1Tag.Class.UNIVERSAL,
+        constructed = Asn1Tag.ConstructedBit.CONSTRUCTED,
     ) val wrapped: ExplicitlyTagged<Int>,
 )
 
@@ -193,8 +212,8 @@ private data class ExplicitWrongClass(
 private data class ExplicitWrongConstructed(
     @Asn1Tag(
         tagNumber = 0u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-        constructed = Asn1ConstructedBit.PRIMITIVE,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+        constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
     ) val wrapped: ExplicitlyTagged<Int>,
 )
 

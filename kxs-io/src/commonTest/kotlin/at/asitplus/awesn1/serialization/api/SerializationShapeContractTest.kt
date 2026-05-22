@@ -92,7 +92,7 @@ data class DisambiguatedMiddleNullableRawAsn1(
     val prefix: Int,
     @Asn1Tag(
         tagNumber = 0u,
-        constructed = Asn1ConstructedBit.CONSTRUCTED
+        constructed = Asn1Tag.ConstructedBit.CONSTRUCTED
     ) val extension: ExplicitlyTagged<Asn1Element>?,
     val suffix: Int,
 )

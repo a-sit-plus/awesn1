@@ -43,8 +43,8 @@ private sealed interface Rfc5280GeneralName
 @JvmInline
 @Asn1Tag(
     tagNumber = 2u,
-    tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 private value class Rfc5280DnsName(
     val value: String,
@@ -54,8 +54,8 @@ private value class Rfc5280DnsName(
 @JvmInline
 @Asn1Tag(
     tagNumber = 6u,
-    tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-    constructed = Asn1ConstructedBit.PRIMITIVE,
+    tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+    constructed = Asn1Tag.ConstructedBit.PRIMITIVE,
 )
 private value class Rfc5280UriName(
     val value: String,
@@ -116,7 +116,7 @@ private data class SignedBox private constructor(
 }
 // --8<-- [end:core-hook-serialization-signedbox-definitions]
 
-private fun coreHookSerializationSignedBoxDer(): Pair<ByteArray, ByteArray> {
+private fun coreHookSerializationSignedBoxDer(): ByteArray{
     // --8<-- [start:core-hook-serialization-signedbox-roundtrip]
     val payload = ExamplePayload(
         algorithmIdentifier = ObjectIdentifier("1.2.840.113549.1.1.11"),
@@ -146,22 +146,11 @@ private fun coreHookSerializationSignedBoxDer(): Pair<ByteArray, ByteArray> {
             /* (2)! */ "3029a12006092a864886f70d01010b0204677c5bc00204695d8f400101ff0404deadbeef82050102030405"
 
 
-    val decodedCanonical = DER.decodeFromByteArray<SignedBox>(canonicalDer)
-    assertEquivalentPayload(decodedCanonical.payload, payload)
-    decodedCanonical.rawPayload.derEncoded.toHexString().contains("0101ff") shouldBe true
-
-    // Some in-the-wild encoders emit BOOLEAN TRUE as 0x01 instead of DER-canonical 0xFF.
-    val nonCanonical =
-        DER.decodeFromByteArray<SignedBox>(canonicalDer.toHexString().replaceFirst("0101ff", "010101").hexToByteArray())
-
-    val nonCanonicalDer = DER.encodeToByteArray(nonCanonical)
-
-    //non-canonical boolean is kept: 0x00 = false, other single-byte values are considered true
-    nonCanonicalDer.toHexString() shouldBe
-            /* (3)! */ "3029a12006092a864886f70d01010b0204677c5bc00204695d8f400101010404deadbeef82050102030405"
+    val decoded = DER.decodeFromByteArray<SignedBox>(canonicalDer)
+    assertEquivalentPayload(decoded.payload, payload)
     // --8<-- [end:core-hook-serialization-signedbox-roundtrip]
 
-    return canonicalDer to nonCanonicalDer
+    return canonicalDer
 }
 
 private fun coreHookBuilderDer(): ByteArray {
@@ -280,9 +269,8 @@ val CoreDocumentationHooks by testSuite(
     }
 
     "Core serialization hook models SignedBox with raw payload preservation" {
-        val (canonicalDer, nonCanonicalDer) = coreHookSerializationSignedBoxDer()
+        val canonicalDer = coreHookSerializationSignedBoxDer()
         emitAsn1JsSample("core-hook-serialization-signedbox-canonical", canonicalDer)
-        emitAsn1JsSample("core-hook-serialization-signedbox-noncanonical", nonCanonicalDer)
     }
 
     "Core builder hook composes ASN.1 frames" {

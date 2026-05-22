@@ -26,8 +26,8 @@ val SerializationTutorial03ExplicitWrapper by testSuite(
 private data class TutorialExplicitCarrier(
     @Asn1Tag(
         tagNumber = 0u,
-        tagClass = Asn1TagClass.CONTEXT_SPECIFIC,
-        constructed = Asn1ConstructedBit.CONSTRUCTED,
+        tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC,
+        constructed = Asn1Tag.ConstructedBit.CONSTRUCTED,
     )
     val wrapped: ExplicitlyTagged<Int>,
 )
