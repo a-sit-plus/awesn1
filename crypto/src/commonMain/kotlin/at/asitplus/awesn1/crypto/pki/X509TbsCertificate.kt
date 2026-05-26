@@ -112,8 +112,8 @@ data class X509TbsCertificate internal constructor(
         validity = Validity(validFrom, validUntil),
         subjectName = subjectName,
         subjectPublicKeyInfo = subjectPublicKeyInfo,
-        rawIssuerUniqueID = issuerUniqueID?.let { LenientBitString(it) },
-        rawSubjectUniqueID = subjectUniqueID?.let { LenientBitString(it) },
+        rawIssuerUniqueID = issuerUniqueID?.let(::LenientBitString),
+        rawSubjectUniqueID = subjectUniqueID?.let(::LenientBitString),
         taggedExtensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
     )
 
