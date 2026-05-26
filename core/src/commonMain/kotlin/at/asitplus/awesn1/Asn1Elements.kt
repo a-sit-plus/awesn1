@@ -868,14 +868,10 @@ class Asn1EncapsulatingOctetString(
     override fun iterator(): Asn1Structure.Iterator = _sequence.iterator()
 
     //we compare bytearrays so it equals with primitive octet string inited from bytes
-    override fun equals(other: Any?): Boolean {
-        if (other is Asn1OctetString) return this.content contentEquals other.content
-        return super.equals(other)
-    }
-
+    override fun equals(other: Any?): Boolean = super<Asn1OctetString>.equals(other)
 
     //we hash bytearray so it equals with primitive octet string inited from bytes
-    override fun hashCode(): Int = content.contentHashCode()
+    override fun hashCode(): Int = super<Asn1OctetString>.hashCode()
 
     override fun prettyPrintHeader(indent: Int) =
         (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent) + " " +
@@ -905,11 +901,13 @@ open class Asn1OctetString private constructor(
 
     override val content: ByteArray by content.orLazy(contentProvider)
 
+    //we compare bytearrays so it equals with primitive octet string inited from bytes
     override fun equals(other: Any?): Boolean {
-        if (other is Asn1EncapsulatingOctetString) return this.content contentEquals other.content
-        return super.equals(other)
+        if (other is Asn1OctetString) return this.content contentEquals other.content
+        return false
     }
 
+    //we hash bytearray so it equals with primitive octet string inited from bytes
     override fun hashCode(): Int = content.contentHashCode()
 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "OCTET STRING " + super.prettyPrintHeader(0)
