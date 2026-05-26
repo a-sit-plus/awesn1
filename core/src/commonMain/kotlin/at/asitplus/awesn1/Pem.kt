@@ -28,7 +28,7 @@ interface PemLabelSpec<out T> {
     val alternativePemLabels: Iterable<String> get() = emptySet()
 }
 /** All PEM labels accepted for this data type when decoding */
-val PemLabelSpec<*>.validPemLabels get() = canonicalPemLabel.asSequence() + alternativePemLabels.asSequence()
+val PemLabelSpec<*>.validPemLabels get() =  alternativePemLabels.asSequence() + canonicalPemLabel
 
 data class PemBlock(
     override val pemLabel: String,

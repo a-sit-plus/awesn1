@@ -38,7 +38,7 @@ data class Pkcs8PrivateKeyInfo(
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
 
-    override val pemLabel: String get() = PEM_LABEL
+    override val pemLabel: String get() = PEM_LABEL_PRIVATE_KEY
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPrivateKey(): Pkcs1RsaPrivateKeyInfo =
