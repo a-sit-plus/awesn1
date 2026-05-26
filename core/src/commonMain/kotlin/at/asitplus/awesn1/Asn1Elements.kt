@@ -845,21 +845,13 @@ typealias Asn1PrimitiveOctetString = Asn1OctetString
  * May be an [Asn1EncapsulatingOctetString] if the contained bytes are valid ASN.1.
  */
 @Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
-sealed class Asn1OctetString private constructor(
-    content: ByteArray?,
-    contentProvider: () -> ByteArray,
-) : Asn1Primitive(Tag.OCTET_STRING) {
+sealed class Asn1OctetString : Asn1Primitive {
 
     /** This is an implementation detail, you shouldn't check for it */
     private class NotEncapsulating(content: ByteArray) : Asn1OctetString(content)
 
-    private constructor(content: ByteArray) : this(content, { throw ImplementationError("OCTET STRING init error") })
-
-    protected constructor(contentProvider: () -> ByteArray) : this(null, contentProvider)
-
-    override val content: ByteArray by content.orLazy(contentProvider)
-
-    override fun hashCode(): Int = content.contentHashCode()
+    private constructor(content: ByteArray) : super(Tag.OCTET_STRING, content)
+    constructor(contentProvider: () -> ByteArray) : super(Tag.OCTET_STRING, contentProvider)
 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "OCTET STRING " + super.prettyPrintHeader(0)
 
@@ -982,24 +974,20 @@ class Asn1SetOf @Throws(Asn1Exception::class) internal constructor(children: Lis
  * ASN.1 primitive. Holds no children, but [content] under [tag]
  */
 @Serializable(with = Asn1PrimitiveFallbackBase64Serializer::class)
-open class Asn1Primitive internal constructor(
+open class Asn1Primitive private constructor(
     tag: Tag,
+    content: ByteArray?,
+    contentProvider: (()->ByteArray)?
 ) : Asn1Element(tag) {
 
-    constructor(tag: Tag, content: ByteArray) : this(tag) {
-        rawContent = content
-    }
+    constructor(tag: Tag, content: ByteArray) : this(tag, content, null)
+    constructor(tag: Tag, contentProvider: ()->ByteArray) : this(tag, null, contentProvider)
 
     init {
         if (tag.isConstructed) throw IllegalArgumentException("A primitive cannot have a CONSTRUCTED tag")
     }
 
-    /**
-     * Raw data contained in this ASN.1 primitive in its encoded form. Requires decoding to interpret it
-     */
-    internal lateinit var rawContent: ByteArray
-
-    open val content: ByteArray get() = rawContent
+    val content: ByteArray by content.orLazy(contentProvider!!)
 
     override val contentLength: Int get() = content.size
     override fun doEncode(sink: Sink) {
