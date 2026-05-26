@@ -13,6 +13,7 @@ import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.runWrappingAs
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.decodeFromTlv
+import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
 @Deprecated("Use X509GeneralNames instead", ReplaceWith("X509GeneralNames"))
@@ -40,6 +41,7 @@ typealias GeneralNames = X509GeneralNames
  * ```
  */
 @JvmInline
+@Serializable
 value class X509GeneralNames @Throws(Throwable::class) constructor(
     val entries: List<Asn1Element>
 ) {

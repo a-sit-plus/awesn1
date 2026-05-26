@@ -43,6 +43,7 @@
         * Rename `RsaPublicKeyInfo` -> `Pkcs1RsaPublicKeyInfo`
         * Rename `EcPrivateKeyInfo` -> `Sec1EcPrivateKeyInfo`
         * Rename `Attribute` -> `Pkcs10CsrAttribute`
+        * Rename `Pkcs10CsrAttribute.X509CertificateExtension` -> `Pkcs10CsrAttribute.ExtensionRequest` <!-- forgot to rename in previous PR-->
     * Drop deprecated Apple X64 targets
 
 ## 0.2.1
