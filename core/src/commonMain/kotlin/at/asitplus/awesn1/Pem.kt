@@ -200,7 +200,7 @@ private fun String.parseAsPemBlocks(): List<PemBlock> = buildList {
 
     while (lines.hasNext()) {
         //consume lines in helper until found
-        val label = findNextBeginFence(lines) ?: break
+        val label = findBeginFence(lines.next()) ?: continue
         require(label.isNotBlank()) { "Empty PEM boundary string" }
 
         val headers = mutableListOf<PemHeader>()
@@ -251,13 +251,6 @@ private fun String.parseAsPemBlocks(): List<PemBlock> = buildList {
         }
     }
 }.ifEmpty { throw IllegalArgumentException("No PEM blocks found in string") }
-
-private fun findNextBeginFence(lines: Iterator<String>): String? {
-    while (lines.hasNext()) {
-        findBeginFence(lines.next())?.let { return it }
-    }
-    return null
-}
 
 private fun findBeginFence(line: String): String? = when {
     line.startsWith(FENCE_PREFIX_BEGIN) && line.endsWith(FENCE_SUFFIX) ->
