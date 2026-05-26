@@ -40,7 +40,6 @@ data class Pkcs1RsaPrivateKeyInfo(
     val coefficient: Asn1Integer.Positive,
     val otherPrimeInfos: List<Pkcs1RsaOtherPrimeInfo>? = null,
 ) : WithPemLabel {
-    override val pemLabel: String get() = canonicalPemLabel
     /**
      * Corresponds verbatim to [RFC8017](https://www.rfc-editor.org/rfc/rfc8017.html#appendix-A.1.2):
      *
@@ -58,8 +57,10 @@ data class Pkcs1RsaPrivateKeyInfo(
         TWO_PRIME, MULTI
     }
 
+    override val pemLabel: String get() = PEM_LABEL
     companion object : PemLabelSpec<Pkcs1RsaPrivateKeyInfo> {
-        override val canonicalPemLabel: String get() = "RSA PRIVATE KEY"
+        const val PEM_LABEL = "RSA PRIVATE KEY"
+        override val canonicalPemLabel: String get() = PEM_LABEL
     }
 }
 

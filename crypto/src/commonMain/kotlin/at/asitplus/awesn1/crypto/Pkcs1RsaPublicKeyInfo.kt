@@ -23,9 +23,10 @@ data class Pkcs1RsaPublicKeyInfo(
     val modulus: Asn1Integer,
     val publicExponent: Asn1Integer,
 ) : WithPemLabel {
-    override val pemLabel: String get() = canonicalPemLabel
+    override val pemLabel: String get() = PEM_LABEL
 
     companion object : PemLabelSpec<Pkcs1RsaPublicKeyInfo> {
-        override val canonicalPemLabel: String get() = "RSA PUBLIC KEY"
+        const val PEM_LABEL = "RSA PUBLIC KEY"
+        override val canonicalPemLabel: String get() = PEM_LABEL
     }
 }

@@ -21,16 +21,14 @@ interface WithPemLabel {
 
 interface PemLabelSpec<out T> {
 
-    /**
-     * The standard or commonly agreed-upon PEM label for this data type.
-     */
+    /** The standard or commonly agreed-upon PEM label for this data type. */
     val canonicalPemLabel: String
 
-    /**
-     * All accepted PEM labels for this data type.
-     */
-    val validPemLabels: Set<String> get() = canonicalPemLabel.let { setOf(it) }
+    /** Alternate PEM labels accepted for this data type when decoding */
+    val alternativePemLabels: Iterable<String> get() = emptySet()
 }
+/** All PEM labels accepted for this data type when decoding */
+val PemLabelSpec<*>.validPemLabels get() = canonicalPemLabel.asSequence() + alternativePemLabels.asSequence()
 
 data class PemBlock(
     override val pemLabel: String,
@@ -150,7 +148,9 @@ interface Asn1PemDecodable<A : Asn1Element, T : Asn1Encodable<A>>
 }
 
 fun PemLabelSpec<*>.validate(src: WithPemLabel) {
-    validPemLabels.let { require(src.pemLabel in it) { "PEM label is ${src.pemLabel}, expected one of ${it.joinToString { it }}" } }
+    require(src.pemLabel in validPemLabels) {
+        "PEM label is ${src.pemLabel}, expected one of ${validPemLabels.joinToString()}"
+    }
 }
 
 fun <T> PemDecodable<T>.decodeFromPemBlock(src: PemBlock): T =
@@ -187,8 +187,10 @@ fun <T : PemEncodable> PemDecodable<T>.decodeAllFromPem(src: String): List<T> =
     src.parseAsPemBlocks().map(this::decodeFromPemBlock)
 
 @Throws(IllegalArgumentException::class)
-private fun String.parseAsPemBlock(): PemBlock = parseAsPemBlocks().singleOrNull()
-    ?: throw IllegalArgumentException("Multiple or no PEM blocks found in string")
+private fun String.parseAsPemBlock(): PemBlock =
+    parseAsPemBlocks().singleOrNull()
+        /** parseAsPemBlocks() always returns nonempty */
+        ?: throw IllegalArgumentException("Multiple PEM blocks found in string")
 
 @Throws(IllegalArgumentException::class)
 private fun String.parseAsPemBlocks(): List<PemBlock> = buildList {

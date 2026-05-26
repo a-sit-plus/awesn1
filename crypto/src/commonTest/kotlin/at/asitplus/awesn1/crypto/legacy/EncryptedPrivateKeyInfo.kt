@@ -20,7 +20,7 @@ open class EncryptedPrivateKeyInfo(
     val encryptedData: Asn1PrimitiveOctetString,
 ) : Asn1PemEncodable<Asn1Sequence> {
 
-    override val pemLabel get() = canonicalPemLabel
+    override val pemLabel get() = PEM_LABEL
 
     override fun encodeToTlv() = Asn1.Sequence {
         +encryptionAlgorithm
@@ -36,7 +36,8 @@ open class EncryptedPrivateKeyInfo(
     override fun hashCode(): Int = 31 * encryptionAlgorithm.hashCode() + encryptedData.hashCode()
 
     companion object : Asn1PemDecodable<Asn1Sequence, EncryptedPrivateKeyInfo>, Asn1Serializable<Asn1Sequence, EncryptedPrivateKeyInfo> {
-        override val canonicalPemLabel: String get() = "ENCRYPTED PRIVATE KEY"
+        const val PEM_LABEL = "ENCRYPTED PRIVATE KEY"
+        override val canonicalPemLabel: String get() = PEM_LABEL
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
 
         @Throws(Asn1Exception::class)

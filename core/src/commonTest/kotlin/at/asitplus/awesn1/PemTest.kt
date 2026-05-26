@@ -88,7 +88,7 @@ val PemTest by testSuite {
         val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
             Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
                 override val canonicalPemLabel: String = "ASN1 INTEGER"
-                override val validPemLabels: Set<String> = setOf(canonicalPemLabel, "INTEGER ALIAS")
+                override val alternativePemLabels: Set<String> get() = setOf("INTEGER ALIAS")
             }
 
         val aliasPem = source.encodeToPemBlock().copy(pemLabel = "INTEGER ALIAS").encodeToPem()

@@ -26,12 +26,13 @@ data class Pkcs10CertificationRequest(
     val signatureAlgorithm: X509AlgorithmIdentifier,
     val signatureValue: X509SignatureValue,
 ) : WithPemLabel {
-    override val pemLabel: String get() = canonicalPemLabel
+    override val pemLabel: String get() = PEM_LABEL
 
     companion object : PemLabelSpec<Pkcs10CertificationRequest> {
+        const val PEM_LABEL = "CERTIFICATE REQUEST"
 
-        override val canonicalPemLabel: String get() = "CERTIFICATE REQUEST"
+        override val canonicalPemLabel: String get() = PEM_LABEL
 
-        override val validPemLabels: Set<String> = setOf(canonicalPemLabel, "NEW CERTIFICATE REQUEST")
+        override val alternativePemLabels: Set<String> = setOf("NEW CERTIFICATE REQUEST")
     }
 }

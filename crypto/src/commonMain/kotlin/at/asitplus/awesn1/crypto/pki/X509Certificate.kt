@@ -26,11 +26,11 @@ data class X509Certificate(
     val signatureAlgorithm: X509AlgorithmIdentifier,
     val signatureValue: X509SignatureValue,
 ) : WithPemLabel {
-    override val pemLabel: String get() = canonicalPemLabel
+    override val pemLabel: String get() = PEM_LABEL
 
     companion object : PemLabelSpec<X509Certificate> {
-        override val canonicalPemLabel: String get() = "CERTIFICATE"
-
-        override val validPemLabels: Set<String> =setOf(canonicalPemLabel,"TRUSTED CERTIFICATE")
+        const val PEM_LABEL = "CERTIFICATE"
+        override val canonicalPemLabel: String get() = PEM_LABEL
+        override val alternativePemLabels get() = setOf("TRUSTED CERTIFICATE")
     }
 }

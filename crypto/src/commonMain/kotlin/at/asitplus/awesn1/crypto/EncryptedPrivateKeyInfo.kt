@@ -27,9 +27,10 @@ data class EncryptedPrivateKeyInfo(
     @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
     val encryptedData: Asn1OctetString,
 ) : WithPemLabel {
-    override val pemLabel: String get() = canonicalPemLabel
+    override val pemLabel: String get() = PEM_LABEL
 
     companion object : PemLabelSpec<EncryptedPrivateKeyInfo> {
-        override val canonicalPemLabel: String get() = "ENCRYPTED PRIVATE KEY"
+        const val PEM_LABEL = "ENCRYPTED PRIVATE KEY"
+        override val canonicalPemLabel: String get() = PEM_LABEL
     }
 }

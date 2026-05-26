@@ -55,7 +55,7 @@ data class Sec1EcPrivateKeyInfo internal constructor(
         taggedParameters = parameters?.let(::ExplicitlyTagged),
         taggedPublicKey = publicKey?.let(::ExplicitlyTagged),
     )
-    override val pemLabel: String get() = canonicalPemLabel
+    override val pemLabel: String get() = PEM_LABEL
 
     val parameters: ObjectIdentifier? by taggedParameters
 
@@ -87,7 +87,8 @@ data class Sec1EcPrivateKeyInfo internal constructor(
     }
 
     companion object : PemLabelSpec<Sec1EcPrivateKeyInfo> {
-        override val canonicalPemLabel: String get() = "EC PRIVATE KEY"
+        const val PEM_LABEL = "EC PRIVATE KEY"
+        override val canonicalPemLabel: String get() = PEM_LABEL
 
     }
 

@@ -23,7 +23,7 @@ class Asn1OidException(message: String, val oid: ObjectIdentifier) : Asn1Excepti
  * Runs [block] and encapsulates any thrown exception in an [Asn1Exception] unless it already is one
  */
 @Throws(Asn1Exception::class)
-inline fun <R> runRethrowing(block: () -> R) =    runWrappingAs(a=::Asn1Exception, block)
+inline fun <R> runRethrowing(block: () -> R) = runWrappingAs(a=::Asn1Exception, block)
 
 /**
  * Decodes this ASN.1 structure using the provided [decoder] lambda, rethrowing any caught exception

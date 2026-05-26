@@ -23,7 +23,7 @@ open class Pkcs10CertificationRequest(
     val signatureValue: SignatureValue,
 ) : Asn1PemEncodable<Asn1Sequence> {
 
-    override val pemLabel get() = canonicalPemLabel
+    override val pemLabel get() = PEM_LABEL
 
     override fun encodeToTlv() = Asn1.Sequence {
         +certificationRequestInfo
@@ -52,7 +52,8 @@ open class Pkcs10CertificationRequest(
     {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
 
-        override val canonicalPemLabel get() = "CERTIFICATE REQUEST"
+        const val PEM_LABEL = "CERTIFICATE REQUEST"
+        override val canonicalPemLabel get() = PEM_LABEL
 
         @Throws(Asn1Exception::class)
         override fun doDecode(src: Asn1Sequence): Pkcs10CertificationRequest = src.decodeRethrowing {

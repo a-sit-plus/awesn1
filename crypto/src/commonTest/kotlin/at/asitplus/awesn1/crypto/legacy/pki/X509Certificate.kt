@@ -23,7 +23,7 @@ open class X509Certificate(
     val signatureValue: SignatureValue,
 ) : Asn1PemEncodable<Asn1Sequence> {
 
-    override val pemLabel get() = canonicalPemLabel
+    override val pemLabel get() = PEM_LABEL
 
     override fun encodeToTlv() = Asn1.Sequence {
         +tbsCertificate
@@ -51,7 +51,8 @@ open class X509Certificate(
         Asn1PemDecodable<Asn1Sequence, X509Certificate>
     {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
-        override val canonicalPemLabel get() =  "CERTIFICATE"
+        const val PEM_LABEL = "CERTIFICATE"
+        override val canonicalPemLabel get() = PEM_LABEL
 
         @Throws(Asn1Exception::class)
         override fun doDecode(src: Asn1Sequence): X509Certificate = src.decodeRethrowing {

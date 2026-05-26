@@ -30,7 +30,7 @@ data class SubjectPublicKeyInfo(
     val algorithmOid: ObjectIdentifier get() = algorithmIdentifier.oid
     val algorithmParameters: Asn1Element? get() = algorithmIdentifier.parameters
 
-    override val pemLabel: String get() = canonicalPemLabel
+    override val pemLabel: String get() = PEM_LABEL_PUBLIC_KEY
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPublicKey(): Pkcs1RsaPublicKeyInfo {
@@ -50,7 +50,7 @@ data class SubjectPublicKeyInfo(
         const val PEM_LABEL_RSA_PUBLIC_KEY = "RSA PUBLIC KEY"
 
         override val canonicalPemLabel: String get() = PEM_LABEL_PUBLIC_KEY
-        override val validPemLabels: Set<String> = setOf(canonicalPemLabel, PEM_LABEL_RSA_PUBLIC_KEY)
+        override val alternativePemLabels: Set<String> = setOf(PEM_LABEL_RSA_PUBLIC_KEY)
 
 
         fun rsa(publicKey: Pkcs1RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
