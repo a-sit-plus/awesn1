@@ -850,7 +850,8 @@ sealed class Asn1OctetString private constructor(
     contentProvider: () -> ByteArray,
 ) : Asn1Primitive(Tag.OCTET_STRING) {
 
-    private class Basic(content: ByteArray) : Asn1OctetString(content)
+    /** This is an implementation detail, you shouldn't check for it */
+    private class NotEncapsulating(content: ByteArray) : Asn1OctetString(content)
 
     private constructor(content: ByteArray) : this(content, { throw ImplementationError("OCTET STRING init error") })
 
@@ -877,7 +878,7 @@ sealed class Asn1OctetString private constructor(
             }.getOrElse {
                 //recursive decoding failed, so we interpret is as primitive
                 require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
-                Asn1OctetString.Basic(source.readByteArray(length.toInt()))
+                Asn1OctetString.NotEncapsulating(source.readByteArray(length.toInt()))
             }
 
         operator fun invoke(content: ByteArray) =
