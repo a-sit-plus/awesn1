@@ -70,7 +70,7 @@ private fun positiveAsn1Integer(random: Random): Asn1Integer.Positive =
 private fun randomRawElement(random: Random): Asn1Element = when (random.nextInt(4)) {
     0 -> Asn1Integer(random.nextLong(-10_000L, 10_000L)).encodeToTlv()
     1 -> Asn1String.UTF8(randomAscii(random)).encodeToTlv()
-    2 -> Asn1PrimitiveOctetString(randomBytes(random))
+    2 -> Asn1OctetString(randomBytes(random))
     else -> Asn1BitString(randomBytes(random)).encodeToTlv()
 }
 
@@ -100,8 +100,8 @@ private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyI
         parameters = randomRawElement(random).takeIf { random.nextBoolean() }?.let { listOf(it) }?:listOf(),
     ),
     encryptedData = if (random.nextBoolean()) Asn1EncapsulatingOctetString(
-        listOf(Asn1PrimitiveOctetString(randomBytes(random, 32)))
-    ) else Asn1PrimitiveOctetString(randomBytes(random, 32)),
+        listOf(Asn1OctetString(randomBytes(random, 32)))
+    ) else Asn1OctetString(randomBytes(random, 32)),
 ).also { Json.decodeFromString<EncryptedPrivateKeyInfo>(Json.encodeToString(it)) }
 
 private fun randomRsaOtherPrimeInfo(random: Random) = Pkcs1RsaOtherPrimeInfo(
@@ -144,7 +144,7 @@ private fun randomX509CertificateExtension(random: Random): X509CertificateExten
     val oid = randomOid(random)
     val critical = random.nextBoolean()
     return if (random.nextBoolean()) {
-        X509CertificateExtension(oid, critical, Asn1PrimitiveOctetString(randomBytes(random, 12)))
+        X509CertificateExtension(oid, critical, Asn1OctetString(randomBytes(random, 12)))
     } else {
         X509CertificateExtension(oid, critical, Asn1EncapsulatingOctetString(listOf(randomRawElement(random))))
     }

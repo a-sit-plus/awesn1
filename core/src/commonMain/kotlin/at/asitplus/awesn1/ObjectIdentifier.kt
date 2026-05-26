@@ -64,40 +64,36 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
      * for details.
      * Lazily evaluated.
      */
-    val bytes: ByteArray by if (bytes != null) lazyOf(bytes) else lazy {
-        nodes!!.toOidBytes()
-    }
+    val bytes: ByteArray by bytes.orLazy { nodes!!.toOidBytes() }
 
     /**
      * Lazily evaluated list of OID nodes (e.g. `[1, 2, 35, 4654]`)
      */
-    val nodes: List<String> by lazy {
-        if (nodes != null) nodes.map { it.toString() } else {
-            val (first, second) =
-                if (this.bytes[0] >= 80) {
-                    VarUInt(2u) to VarUInt(this.bytes[0].toUByte() - 80u)
-                } else {
-                    VarUInt(this.bytes[0].toUByte() / 40u) to VarUInt(this.bytes[0].toUByte() % 40u)
-                }
-            var index = 1
-            val collected = mutableListOf(first, second)
-            while (index < this.bytes.size) {
-                if (this.bytes[index] >= 0) {
-                    collected += VarUInt(this.bytes[index].toUInt())
-                    index++
-                } else {
-                    val nodeStart = index
-                    while (this.bytes[index] < 0) {
-                        index++
-                    }
-                    val nodeEndExclusive = index + 1
-                    val (decoded, nextIndex) = this.bytes.decodeAsn1VarBigUIntValue(nodeStart, nodeEndExclusive)
-                    collected += decoded
-                    index = nextIndex
-                }
+    val nodes: List<String> by nodes?.map { it.toString() }.orLazy {
+        val (first, second) =
+            if (this.bytes[0] >= 80) {
+                VarUInt(2u) to VarUInt(this.bytes[0].toUByte() - 80u)
+            } else {
+                VarUInt(this.bytes[0].toUByte() / 40u) to VarUInt(this.bytes[0].toUByte() % 40u)
             }
-            collected.map { it.toString() }
+        var index = 1
+        val collected = mutableListOf(first, second)
+        while (index < this.bytes.size) {
+            if (this.bytes[index] >= 0) {
+                collected += VarUInt(this.bytes[index].toUInt())
+                index++
+            } else {
+                val nodeStart = index
+                while (this.bytes[index] < 0) {
+                    index++
+                }
+                val nodeEndExclusive = index + 1
+                val (decoded, nextIndex) = this.bytes.decodeAsn1VarBigUIntValue(nodeStart, nodeEndExclusive)
+                collected += decoded
+                index = nextIndex
+            }
         }
+        collected.map { it.toString() }
     }
 
     /**

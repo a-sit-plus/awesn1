@@ -370,7 +370,7 @@ fun String.encodeToAsn1Primitive() = Asn1String.UTF8(this).encodeToTlv()
 /**
  * Produces an OCTET STRING as [Asn1Primitive]
  */
-fun ByteArray.encodeToAsn1OctetStringPrimitive() = Asn1PrimitiveOctetString(this)
+fun ByteArray.encodeToAsn1OctetStringPrimitive() = Asn1OctetString(this)
 
 /**
  * Produces a BIT STRING as [Asn1Primitive]

@@ -11,7 +11,7 @@ import at.asitplus.awesn1.Asn1Encodable
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1ExplicitlyTagged
 import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1PrimitiveOctetString
+import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.Asn1Set
 import at.asitplus.awesn1.Asn1StructuralException
@@ -125,7 +125,7 @@ private fun Source<*>.readAsn1Element(tagAndLength: TagAndLength, tagAndLengthBy
         }.getOrElse {
             //recursive decoding failed, so we interpret is as primitive
             require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
-            Asn1PrimitiveOctetString(readByteArray(length.toInt())) as Asn1Element
+            Asn1OctetString(readByteArray(length.toInt())) as Asn1Element
         }
 
         //IMPLICIT-ly TAGGED ASN.1 CONSTRUCTED; we don't know if it is a SET OF, SET, SEQUENCE,… so we default to sequence semantics

@@ -7,8 +7,8 @@ package at.asitplus.awesn1
 
 
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
-import at.asitplus.awesn1.encoding.internal.Sink
 import at.asitplus.awesn1.encoding.*
+import at.asitplus.awesn1.encoding.internal.Sink
 import kotlinx.serialization.Serializable
 import kotlin.experimental.ExperimentalObjCName
 import kotlin.native.ObjCName
@@ -842,15 +842,13 @@ class Asn1EncapsulatingOctetString(
      */
     val children: List<Asn1Element>
 ) :
-    Asn1PrimitiveOctetString(byteArrayOf()),
-    Asn1OctetString, Iterable<Asn1Element> {
+    Asn1OctetString(
+        { throughBuffer { sink -> children.forEach { it.encodeTo(sink) } } }
+    ), Iterable<Asn1Element> {
 
+    //this is nice to have for `isActuallySorted`, `iterator`, and `decodeAs`
     @PublishedApi
     internal val _sequence = Asn1Sequence(children)
-
-    override val content: ByteArray by lazy {
-        throughBuffer { sink -> _sequence.children.forEach { it.encodeTo(sink) } }
-    }
 
     /**
      * indicated whether the structure's children are actually sorted.
@@ -869,17 +867,24 @@ class Asn1EncapsulatingOctetString(
 
     override fun iterator(): Asn1Structure.Iterator = _sequence.iterator()
 
+    //we compare bytearrays so it equals with primitive octet string inited from bytes
     override fun equals(other: Any?): Boolean {
-        if (other is Asn1PrimitiveOctetString) return this.content contentEquals other.content
+        if (other is Asn1OctetString) return this.content contentEquals other.content
         return super.equals(other)
     }
 
+
+    //we hash bytearray so it equals with primitive octet string inited from bytes
     override fun hashCode(): Int = content.contentHashCode()
 
     override fun prettyPrintHeader(indent: Int) =
         (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent) + " " +
                 content.toHexString(HexFormat.UpperCase)
 }
+
+
+@Deprecated("Replace with Asn1OctetString", ReplaceWith("Asn1OctetString(content)"))
+typealias Asn1PrimitiveOctetString = Asn1OctetString
 
 /**
  * ASN.1 OCTET STRING 0x04 ([BERTags.OCTET_STRING]) containing arbitrary bytes
@@ -888,9 +893,17 @@ class Asn1EncapsulatingOctetString(
  * When parsing, you should NOT cast to this class.
  * Cast to [Asn1OctetString] instead.
  */
-@Serializable(with = Asn1PrimitiveOctetStringFallbackBase64Serializer::class)
-open class Asn1PrimitiveOctetString(content: ByteArray) : Asn1Primitive(Tag.OCTET_STRING, content),
-    Asn1OctetString {
+@Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
+open class Asn1OctetString private constructor(
+    content: ByteArray?,
+    contentProvider: () -> ByteArray,
+) : Asn1Primitive(Tag.OCTET_STRING) {
+
+    constructor(content: ByteArray) : this(content, { throw ImplementationError("OCTET STRING init error") })
+
+    protected constructor(contentProvider: () -> ByteArray) : this(null, contentProvider)
+
+    override val content: ByteArray by content.orLazy(contentProvider)
 
     override fun equals(other: Any?): Boolean {
         if (other is Asn1EncapsulatingOctetString) return this.content contentEquals other.content
@@ -1023,39 +1036,6 @@ open class Asn1Primitive internal constructor(
         return true
     }
 }
-
-
-/**
- * Interface describing an ASN.1 OCTET STRING.
- *
- * Awesn1 will attempt to parse any ASN.1 OCTET STRING's content as ASN.1.
- * If this attempt succeeds, this will be an [Asn1EncapsulatingOctetString].
- * Otherwise, it will be an [Asn1PrimitiveOctetString].
- *
- * If you are expecting arbitrary bytes, [Asn1OctetString] is the correct type to look for.
- * (Your arbitrary bytes might inadvertently be valid ASN.1!)
- */
-@Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
-sealed interface Asn1OctetString {
-
-    /**
-     * Raw data contained in this ASN.1 primitive in its encoded form. Requires decoding to interpret it.
-     *
-     * It makes sense to have this for both kinds of octet strings, since many intermediate processing steps don't care about semantics.
-     */
-    val content: ByteArray
-
-    companion object {
-        /** Constructs a new ASN.1 OCTET STRING primitive containing these bytes */
-        operator fun invoke(bytes: ByteArray) =
-            Asn1PrimitiveOctetString(bytes)
-
-        /** Constructs a new ASN.1 OCTET STRING primitive encapsulating these children */
-        operator fun invoke(children: List<Asn1Element>) =
-            Asn1EncapsulatingOctetString(children)
-    }
-}
-
 
 @Throws(IllegalArgumentException::class)
 internal fun Int.encodeLength(): ByteArray {

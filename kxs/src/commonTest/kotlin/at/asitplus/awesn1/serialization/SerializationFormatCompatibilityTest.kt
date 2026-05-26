@@ -2,8 +2,6 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.signum.indispensable.pki.AttributeTypeAndValue
-import at.asitplus.signum.indispensable.pki.RelativeDistinguishedName
 import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
@@ -108,7 +106,7 @@ val SerializationTestFormatCompatibility by testSuite(
         val customSetTag = Asn1CustomStructure(listOf(primitive), Asn1Element.Tag.SET.tagValue)
         val customPrimitive = Asn1CustomStructure.asPrimitive(listOf(primitive), 100uL)
         val encapsulatingOctets = Asn1EncapsulatingOctetString(listOf(primitive))
-        val primitiveOctets = Asn1PrimitiveOctetString(byteArrayOf(0x01, 0x02, 0x03))
+        val primitiveOctets = Asn1OctetString(byteArrayOf(0x01, 0x02, 0x03))
 
         fun <T> roundTripJsonAndDer(serializer: KSerializer<T>, value: T) {
             Json.decodeFromString(
@@ -130,7 +128,7 @@ val SerializationTestFormatCompatibility by testSuite(
         roundTripJsonAndDer(Asn1CustomStructure.serializer(), customSetTag)
         roundTripJsonAndDer(Asn1CustomStructure.serializer(), customPrimitive)
         roundTripJsonAndDer(Asn1EncapsulatingOctetString.serializer(), encapsulatingOctets)
-        roundTripJsonAndDer(Asn1PrimitiveOctetString.serializer(), primitiveOctets)
+        roundTripJsonAndDer(Asn1OctetString.serializer(), primitiveOctets)
         roundTripJsonAndDer(Asn1Set.serializer(), set)
         roundTripJsonAndDer(Asn1SetOf.serializer(), setOf)
         roundTripJsonAndDer(Asn1Primitive.serializer(), primitive)
