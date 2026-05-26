@@ -45,7 +45,7 @@ data class SubjectPublicKeyInfo(
         }
         requireNotNull(algorithmParameters) { "RSA SubjectPublicKeyInfo must contain NULL params" }
         algorithmParameters!!.asPrimitive().readNull()
-        return DER.decodeFromTlv( Asn1Element.parse(subjectPublicKey.rawBytes))
+        return DER.decodeFromTlv( Asn1Element.parse(subjectPublicKey.bitCarryingBytes))
     }
 
     companion object : PemLabelSpec<SubjectPublicKeyInfo> {

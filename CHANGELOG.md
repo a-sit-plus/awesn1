@@ -8,15 +8,23 @@
             * If a matching subclass OID is encountered, deserialise to that subtype, if not: fallback to open base class and assign encountered OID to the oid property of the base class
     * Asn1Integer now has `toInt()` and `toIntOrNull()` 
     * `ExplicitlyTagged<T>` can now be used as a property delegate
-    * `BitSet` now comes with `copyOf()`
-    * expose `runRethrowing`
-    * add `asAsn1Element()` to octet string
+    * `BitSet`
+        * new `copyOf()` function that returns a new deep-copied `BitSet` with the same content as the original
+        * new `nextSetBitAfter(index)` function for exclusive "next bit after this index" searches
+        * Is now directly serializable also from/to ASN.1 as `Asn1BitString`
 * **Fixes:**
-    * Make encapsulating octet strings primitives:
-        * This prevents footguns like implementing `<Asn1Encodable<Asn1Primitive>` and then having decoding fail because the contents of an octet string happened to be a valid ASN.1 structure.
+    * X.509 General Names parsing 
     * Fix value/inline class handling
         * Fix raw Asn1Element deserialzation bug where tag overrides would causes errors instead of correct conversions
         * Fix silent truncation of `Byte`/`UByte` and `Short`/`UShort` when deserializing, but throw instead
+    * `BitSet`:
+        * Fix public byte views leaking preallocated or trailing zero backing bytes
+        * Fix `Asn1BitString(BitSet)` encoding of preallocated and sparse bit sets
+        * Fix `equals` so comparisons are symmetric and based on logical compact content
+        * Add `hashCode` consistent with compact byte equality
+        * Fix `BitSet(nBits) { ... }` creating a bogus final bit when the initializer returned `false` for the last index
+        * Make `nextSetBit` search compact logical bytes instead of raw backing buffer
+    * Preserve malformed X.509 certificate unique IDs during DER decoding and re-encoding, while exposing strict `Asn1BitString` semantic getters that throw lazily on invalid padding
 * Hardening:
     * Reject UNIVERSAL zero tagged asn.1 elements
     * Fail hard for unterminated ASN.1 varints even below the maximum number of bytes to decode
@@ -27,13 +35,19 @@
         * Padding bits must be zeroed out
         * If padding is present, at least one byte of data must be present
         * ByteArrays to be serialized as BIT STRING using `@Asn1BitString` annotation now enforce zero padding bits on deserialization
+    * Add tests for `BitSet` compaction, equality/hash behaviour, `Asn1BitString(BitSet)` edge cases, initializer behaviour, and inclusive/exclusive next-set-bit boundaries
     * Tighten raw ASN.1 BOOLEAN to strict `0x00` / `0xFF` and manually relax in compound usages
-        * X509CertificateExtension now carries raw bytes to keep malformed inputs, but sanitizes eagerly 
+        * X509CertificateExtension now carries raw bytes to keep malformed inputs, but sanitizes eagerly
 * **Other Changes:**
+    * `BitSet`:
+        * Clarify `nextSetBit` docs: search starts inclusively from `fromIndex`
+        * Clarify `forEachIndexed`
+        * Now serializes like `Asn1BitString` (and not as binary string any more) and can thus be used interoperably in serializable ASN.1 structures (but not `Asn1Encodable`s)
     * Core renames:
         * `Asn1TagClass` -> `Asn1Tag.Class`
         * `Asn1TagConstructedBit` -> `Asn1Tag.ConstructedBit`
         * `Asn1ElementStringSerializer` -> `Asn1ElementFallbackBase64Serializer` (you should never have used this, aynways!)
+        * `Asn1BitStringSerializer` -> `Asn1BitStringComponentSerializer`
     * **Massively refactor `crypto` classes**:
         * Everything's now based on kotlinx.serialization (`kxs` module)
         * Add RSA PSS Param class and helper parsing functions

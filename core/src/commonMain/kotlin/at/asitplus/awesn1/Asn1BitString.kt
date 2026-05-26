@@ -18,55 +18,42 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
- * Represents an abstraction for ASN.1 bit strings or structures that are conceptually similar.
- * This interface provides access to the raw byte representation and padding information.
- *
- * This interface exists to model abstractions where a spec demands a BIT STRING, but reality may prove the assumption
- * that specs are implemented as intended wrong. The `crypto` module comes with a `CursedBitString`
- */
-interface Asn1BitStringish {
-    /**
-     * Number of bits needed to pad the bit string to a byte boundary
-     */
-    val numPaddingBits: Byte
-
-    /**
-     * The raw bytes containing the bit string. The bits contained in [rawBytes] are laid out, as printed when calling
-     * [BitSet.toBitStringView], right-padded with [numPaddingBits] many zero bits to the last byte boundary.
-     *
-     * The [overallContent] of this bit string is `byteArrayOf(numPaddingBits, *rawBytes)`
-     */
-    val rawBytes: ByteArray
-}
-
-val Asn1BitStringish.overallContentLength get() = rawBytes.size + 1
-
-val Asn1BitStringish.overallContent get() = byteArrayOf(numPaddingBits, *rawBytes)
-
-/**
  * ASN.1 BIT STRING, enforcing strict DER rules:
  * 1. The number of padding bits must be in range 0..7
  * 2. The raw bytes must not be empty if padding bits are set
  * 3. The padding bits must be zero
+ *
+ * When serialized to a non-DER format, the following representation is used:`"$numPaddingBits:${base64Strict(bitCarryingBytes)}"`
+ *
+ * ```
+ * val bitSet = BitSet.fromString("001")
+ * val bitString = Asn1BitString(bitSet)
+ *
+ * Json.encodeToString(bitString)  //produces "5:IA=="
+ * ```
  */
 @ConsistentCopyVisibility
 @Serializable(with = Asn1BitString.Companion::class)
 data class Asn1BitString private constructor(
-    /**
-     * Number of bits needed to pad the bit string to a byte boundary
-     */
-    override val numPaddingBits: Byte,
+
+    val numPaddingBits: Byte,
+
+    val bitCarryingBytes: ByteArray,
+
+    ) : Asn1Encodable<Asn1Primitive> {
+
+    @Deprecated("Use bitCarryingBytes instead", ReplaceWith("bitCarryingBytes"))
+    val rawBytes: ByteArray get() = bitCarryingBytes
 
     /**
-     * The raw bytes containing the bit string. The bits contained in [rawBytes] are laid out, as printed when calling
-     * [BitSet.toBitStringView], right-padded with [numPaddingBits] many zero bits to the last byte boundary.
-     *
-     * The [overallContent] of this bit string is `byteArrayOf(numPaddingBits, *rawBytes)`
+     * The total length of the bit string content octets, including the padding-bit-count byte.
      */
-    override val rawBytes: ByteArray,
+    val overallContentLength get() = bitCarryingBytes.size + 1
 
-    ) : Asn1BitStringish, Asn1Encodable<Asn1Primitive> {
-
+    /**
+     * The DER content octets of the bit string, including the padding-bit-count byte.
+     */
+    val overallContent get() = byteArrayOf(numPaddingBits, *bitCarryingBytes)
 
     /**
      * helper constructor to be able to use [fromBitSet]
@@ -75,7 +62,7 @@ data class Asn1BitString private constructor(
 
     /**
      * Creates an ASN.1 BIT STRING from the provided bitSet.
-     * The transformation to [rawBytes] and the calculation of [numPaddingBits] happens
+     * The transformation to [bitCarryingBytes] and the calculation of [numPaddingBits] happens
      * immediately in the constructor. Hence, modifications to the source BitSet have no effect on the resulting [Asn1BitString].
      *
      * **BEWARE:** a bitset (as [BitSet] implements it) is, by definition, only as long as the highest bit set!
@@ -83,16 +70,16 @@ data class Asn1BitString private constructor(
      *
      *  - set the last bit you require as tailing zero to one
      *  - call this constructor
-     *  - flip the previously set bit back (this will be the lowest bit set in last byte of [rawBytes]).
+     *  - flip the previously set bit back (this will be the lowest bit set in last byte of [bitCarryingBytes]).
      *
-     * @param source the source [BitSet], which is discarded after [rawBytes] and [numPaddingBits] have been calculated
+     * @param source the source [BitSet], which is discarded after [bitCarryingBytes] and [numPaddingBits] have been calculated
      *
      * @throws Asn1Exception if [source] does not fulfill the ASN.1 BIT STRING requirements
      */
     constructor(source: BitSet) : this(fromBitSet(source))
 
     /**
-     * Constructs an ASN.1 BIT STRING with [source] used for [rawBytes] and zero padding bits
+     * Constructs an ASN.1 BIT STRING with [source] used for [bitCarryingBytes] and zero padding bits
      *
      * @throws Asn1Exception if [source] does not fulfill the ASN.1 BIT STRING requirements
      */
@@ -101,19 +88,25 @@ data class Asn1BitString private constructor(
     init {
         runRethrowing {
             require(numPaddingBits in 0..7) { "Number of padding bits must be in range 0..7. Found: $numPaddingBits" }
-            if (numPaddingBits > 0.toByte()) require(rawBytes.isNotEmpty()) { "Raw bytes must not be empty if padding bits are set" }
+            if (numPaddingBits > 0.toByte()) require(bitCarryingBytes.isNotEmpty()) { "Raw bytes must not be empty if padding bits are set" }
 
             repeat(numPaddingBits.toInt()) {
-                require((rawBytes.last().toInt() and (1.shl(it))) == 0) { "Last $numPaddingBits padding bits must be zeroed out. Last byte is: ${rawBytes.last().toUByte().toString(2).padStart(8, '0')}" }
+                require(
+                    (bitCarryingBytes.last().toInt() and (1.shl(it))) == 0
+                ) {
+                    "Last $numPaddingBits padding bits must be zeroed out. Last byte is: ${
+                        bitCarryingBytes.last().toUByte().toString(2).padStart(8, '0')
+                    }"
+                }
             }
         }
     }
 
     /**
-     * Transforms [rawBytes] and wraps into a [BitSet]. The last [numPaddingBits] bits are ignored.
+     * Transforms [bitCarryingBytes] and wraps into a [BitSet]. The last [numPaddingBits] bits are ignored.
      * This is a deep copy and mirrors the bits in every byte to match
      * the native bitset layout where bit and byte indices run in opposite direction.
-     * Hence, modifications to the resulting bitset do not affect [rawBytes]
+     * Hence, modifications to the resulting bitset do not affect [bitCarryingBytes]
      *
      * Note: Tailing zeroes never count towards the length of the bitset
      *
@@ -121,14 +114,14 @@ data class Asn1BitString private constructor(
      *
      */
     fun toBitSet(): BitSet {
-        val size = rawBytes.size.toLong() * 8 - numPaddingBits
+        val size = bitCarryingBytes.size.toLong() * 8 - numPaddingBits
         val bitset = BitSet(size)
-        for (i in rawBytes.indices) {
+        for (i in bitCarryingBytes.indices) {
             val bitOffset = i.toLong() * 8L
             for (bitIndex in 0..<8) {
                 val globalIndex = bitOffset + bitIndex
                 if (globalIndex == size) return bitset
-                bitset[globalIndex] = (rawBytes[i].toInt() and (0x80 shr bitIndex) != 0)
+                bitset[globalIndex] = (bitCarryingBytes[i].toInt() and (0x80 shr bitIndex) != 0)
             }
         }
         return bitset
@@ -143,7 +136,7 @@ data class Asn1BitString private constructor(
                 return Asn1BitString(src.content[0], src.content.sliceArray(1..<src.content.size))
             }
         },
-        fallbackSerializer = Asn1BitStringSerializer,
+        fallbackSerializer = Asn1BitStringComponentSerializer,
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_BIT_STRING, PrimitiveKind.STRING)
@@ -168,7 +161,7 @@ data class Asn1BitString private constructor(
 
     }
 
-    override fun encodeToTlv() = Asn1Primitive(Asn1Element.Tag.BIT_STRING, byteArrayOf(numPaddingBits, *rawBytes))
+    override fun encodeToTlv() = Asn1Primitive(Asn1Element.Tag.BIT_STRING, byteArrayOf(numPaddingBits, *bitCarryingBytes))
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
@@ -176,21 +169,21 @@ data class Asn1BitString private constructor(
         other as Asn1BitString
 
         if (numPaddingBits != other.numPaddingBits) return false
-        if (!rawBytes.contentEquals(other.rawBytes)) return false
+        if (!bitCarryingBytes.contentEquals(other.bitCarryingBytes)) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = numPaddingBits.toInt()
-        result = 31 * result + rawBytes.contentHashCode()
+        result = 31 * result + bitCarryingBytes.contentHashCode()
         return result
     }
 
     override fun toString(): String {
         return "Asn1BitString(" +
                 "numPaddingBits=$numPaddingBits, " +
-                "rawBytes=${rawBytes.contentToString()}" +
+                "rawBytes=${bitCarryingBytes.contentToString()}" +
                 ")"
     }
 }
@@ -198,16 +191,16 @@ data class Asn1BitString private constructor(
 /**
  * String serializer for [Asn1BitString] used for interoperability with non-DER serialization formats.
  *
- * When used with the `awesn1.kxs` DER format, this serializer is bypassed and native BIT STRING DER TLV
+ * When [Asn1BitString] is used with the `awesn1.kxs` DER format, this serializer is bypassed and native BIT STRING DER TLV
  * encoding/decoding is used.
  */
 @OptIn(ExperimentalEncodingApi::class)
-internal object Asn1BitStringSerializer : KSerializer<Asn1BitString> {
+private object Asn1BitStringComponentSerializer : KSerializer<Asn1BitString> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_BIT_STRING, PrimitiveKind.STRING)
 
     override fun serialize(encoder: Encoder, value: Asn1BitString) {
-        val encodedRaw = Base64.encode(value.rawBytes)
+        val encodedRaw = Base64.encode(value.bitCarryingBytes)
         encoder.encodeString("${value.numPaddingBits}:$encodedRaw")
     }
 
@@ -215,7 +208,7 @@ internal object Asn1BitStringSerializer : KSerializer<Asn1BitString> {
         val serialized = decoder.decodeString()
         val parts = serialized.split(':', limit = 2)
         require(parts.size == 2) { "Invalid Asn1BitString format: '$serialized'" }
-        val padding = parts[0].toInt().also { require(it in 0..7) { "Invalid padding bits: $it" } }
+        val padding = parts[0].toInt()
         val raw = Base64.decode(parts[1])
         return Asn1BitString.fromRawParts(padding.toByte(), raw)
     }

@@ -173,7 +173,7 @@ internal object ByteArrayShapePolicy {
                     "Byte Arrays deserialized from BIT STRING must not have padding bits. Found $numPaddingBits padding bits. " +
                             "If you require padding, directly use Asn1BitString to represent the property."
                 )
-            }.rawBytes
+            }.bitCarryingBytes
 
         ByteArrayShape.OCTET_STRING -> primitive.content
         ByteArrayShape.NOT_APPLICABLE -> throw SerializationException("Byte-array shape is not applicable")

@@ -61,15 +61,17 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
     val directoryNames: List<List<X500RelativeDistinguishedName>> get() =
         entries.filter { it.tag == GeneralNameImplicitTags.directoryName }
             .map { e ->
-                e.asSequence().children.map { DER.decodeFromTlv<X500RelativeDistinguishedName>( it) }
+                e.asStructure().children.single().asSequence().children
+                    .map { DER.decodeFromTlv<X500RelativeDistinguishedName>(it) }
             }
 
     val otherNames: List<Asn1Sequence> get() =
         entries.filter { it.tag == GeneralNameImplicitTags.otherName }.map { e ->
-            e.asSequence().also {
+            e.asStructure().let {
                 if (it.children.size != 2) throw Asn1StructuralException("Invalid otherName Alternative Name found (!=2 children): ${it.toDerHexString()}")
                 if (it.children.last().tag != GeneralNameImplicitTags.otherName) throw Asn1StructuralException("Invalid otherName Alternative Name found (implicit tag != 0): ${it.toDerHexString()}")
                 ObjectIdentifier.decodeFromAsn1ContentBytes(it.children.first().asPrimitive().content)
+                Asn1.Sequence { it.children.forEach { child -> +child } }
             }
         }
 
@@ -108,15 +110,15 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
 /**
  *
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.2.1.6), these are
- * implicit tag numbers for `GeneralName` alternatives.
+ * context-specific tags for `GeneralName` alternatives.
  */
 object GeneralNameImplicitTags {
-    val otherName = Asn1.ImplicitTag(0uL)
+    val otherName = Asn1.ExplicitTag(0uL)
     val rfc822Name = Asn1.ImplicitTag(1uL)
     val dnsName = Asn1.ImplicitTag(2uL)
-    val x400Address = Asn1.ImplicitTag(3uL)
-    val directoryName = Asn1.ImplicitTag(4uL)
-    val ediPartyName = Asn1.ImplicitTag(5uL)
+    val x400Address = Asn1.ExplicitTag(3uL)
+    val directoryName = Asn1.ExplicitTag(4uL)
+    val ediPartyName = Asn1.ExplicitTag(5uL)
     val uniformResourceIdentifier = Asn1.ImplicitTag(6uL)
     val ipAddress = Asn1.ImplicitTag(7uL)
     val registeredID = Asn1.ImplicitTag(8uL)

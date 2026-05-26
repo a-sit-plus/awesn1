@@ -4,12 +4,9 @@
 package at.asitplus.awesn1.crypto.pki
 
 import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1BitStringish
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
-import at.asitplus.awesn1.crypto.CursedBitString
-import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
-import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
+import at.asitplus.awesn1.crypto.*
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
@@ -89,9 +86,9 @@ data class X509TbsCertificate internal constructor(
     val subjectName: List<X500RelativeDistinguishedName>,
     val subjectPublicKeyInfo: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 1u)
-    val issuerUniqueID: CursedBitString? = null,
+    val rawIssuerUniqueID: LenientBitString? = null,
     @Asn1Tag(tagNumber = 2u)
-    val subjectUniqueID: CursedBitString? = null,
+    val rawSubjectUniqueID: LenientBitString? = null,
     @Asn1Tag(tagNumber = 3u)
     private val taggedExtensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
 ) {
@@ -115,8 +112,8 @@ data class X509TbsCertificate internal constructor(
         validity = Validity(validFrom, validUntil),
         subjectName = subjectName,
         subjectPublicKeyInfo = subjectPublicKeyInfo,
-        issuerUniqueID = issuerUniqueID?.let { CursedBitString(it) },
-        subjectUniqueID = subjectUniqueID?.let { CursedBitString(it) },
+        rawIssuerUniqueID = issuerUniqueID?.let { LenientBitString(it) },
+        rawSubjectUniqueID = subjectUniqueID?.let { LenientBitString(it) },
         taggedExtensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
     )
 
@@ -129,6 +126,16 @@ data class X509TbsCertificate internal constructor(
 
     val version: Version get() = rawVersion ?: Version.V1
 
+    /**
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     */
+    val issuerUniqueID: Asn1BitString? by rawIssuerUniqueID
+
+    /**
+     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     */
+    val subjectUniqueID: Asn1BitString? by rawSubjectUniqueID
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is X509TbsCertificate) return false
@@ -140,8 +147,8 @@ data class X509TbsCertificate internal constructor(
         if (validity != other.validity) return false
         if (subjectName != other.subjectName) return false
         if (subjectPublicKeyInfo != other.subjectPublicKeyInfo) return false
-        if (issuerUniqueID != other.issuerUniqueID) return false
-        if (subjectUniqueID != other.subjectUniqueID) return false
+        if (rawIssuerUniqueID != other.rawIssuerUniqueID) return false
+        if (rawSubjectUniqueID != other.rawSubjectUniqueID) return false
         if (taggedExtensions != other.taggedExtensions) return false
 
         return true
@@ -155,8 +162,8 @@ data class X509TbsCertificate internal constructor(
         result = 31 * result + validity.hashCode()
         result = 31 * result + subjectName.hashCode()
         result = 31 * result + subjectPublicKeyInfo.hashCode()
-        result = 31 * result + (issuerUniqueID?.hashCode() ?: 0)
-        result = 31 * result + (subjectUniqueID?.hashCode() ?: 0)
+        result = 31 * result + (rawIssuerUniqueID?.hashCode() ?: 0)
+        result = 31 * result + (rawSubjectUniqueID?.hashCode() ?: 0)
         result = 31 * result + (taggedExtensions?.hashCode() ?: 0)
         return result
     }
@@ -180,6 +187,15 @@ data class X509TbsCertificate internal constructor(
 
 }
 
+/**
+ * Non-throwing variant of [X509TbsCertificate.issuerUniqueID] that returns null if the bit string is malformed.
+ */
+val X509TbsCertificate.issuerUniqueIdOrNull: Asn1BitString? get() = rawIssuerUniqueID?.strictOrNull
+
+/**
+ * Non-throwing variant of [X509TbsCertificate.subjectUniqueID] that returns null if the bit string is malformed.
+ */
+val X509TbsCertificate.subjectUniqueIdOrNull: Asn1BitString? get() = rawSubjectUniqueID?.strictOrNull
 
 /**
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
