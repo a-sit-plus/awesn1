@@ -1,10 +1,11 @@
 package at.asitplus.awesn1.crypto
 
+import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
-import at.asitplus.awesn1.crypto.pki.GeneralNameImplicitTags
+import at.asitplus.awesn1.crypto.pki.GeneralNameTags
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findIssuerAltNames
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findSubjectAltNames
@@ -25,6 +26,7 @@ val X509GeneralNamesTest by testSuite {
 
         subjectAltNames shouldNotBe null
         subjectAltNames!!.assertExpectedFixtureNames()
+        subjectAltNames.assertShape()
         subjectAltNames.assertRoundTripsWithExtension(cert.extension("2.5.29.17"))
     }
 
@@ -34,6 +36,7 @@ val X509GeneralNamesTest by testSuite {
 
         issuerAltNames shouldNotBe null
         issuerAltNames!!.assertExpectedFixtureNames()
+        issuerAltNames.assertShape()
         issuerAltNames.assertRoundTripsWithExtension(cert.extension("2.5.29.18"))
     }
 
@@ -76,7 +79,7 @@ private fun X509GeneralNames.assertOtherNameContent() {
     val otherName = otherNames.single()
     val typeId = ObjectIdentifier.decodeFromAsn1ContentBytes(otherName.children[0].asPrimitive().content)
     val value = otherName.children[1]
-        .also { it.tag shouldBe GeneralNameImplicitTags.otherName }
+        .also { it.tag shouldBe GeneralNameTags.otherNameValue }
         .asStructure()
         .children
         .single()
@@ -86,6 +89,28 @@ private fun X509GeneralNames.assertOtherNameContent() {
 
     typeId shouldBe ObjectIdentifier("1.2.3.4")
     value shouldBe "some other identifier"
+}
+
+private fun X509GeneralNames.assertShape() {
+    entries.single { it.tag == GeneralNameTags.otherName }
+        .asStructure()
+        .children
+        .let { children ->
+            children.size shouldBe 2
+            children[1].tag shouldBe GeneralNameTags.otherNameValue
+        }
+
+    entries.single { it.tag == GeneralNameTags.rfc822Name }.asPrimitive().tag shouldBe GeneralNameTags.rfc822Name
+    entries.single { it.tag == GeneralNameTags.dnsName }.asPrimitive().tag shouldBe GeneralNameTags.dnsName
+    entries.single { it.tag == GeneralNameTags.uniformResourceIdentifier }.asPrimitive().tag shouldBe GeneralNameTags.uniformResourceIdentifier
+    entries.single { it.tag == GeneralNameTags.ipAddress }.asPrimitive().tag shouldBe GeneralNameTags.ipAddress
+    entries.single { it.tag == GeneralNameTags.registeredID }.asPrimitive().tag shouldBe GeneralNameTags.registeredID
+
+    entries.single { it.tag == GeneralNameTags.directoryName }
+        .asStructure()
+        .children
+        .single()
+        .tag shouldBe Asn1Element.Tag.SEQUENCE
 }
 
 private fun X509GeneralNames.assertRoundTripsWithExtension(extension: X509CertificateExtension) {
