@@ -45,6 +45,7 @@
         * Rename `Attribute` -> `Pkcs10CsrAttribute`
         * Rename `Pkcs10CsrAttribute.X509CertificateExtension` -> `Pkcs10CsrAttribute.ExtensionRequest` <!-- forgot to rename in previous PR-->
     * Drop deprecated Apple X64 targets
+    * Rework PEM parsing to be far more usable in practice
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever, so publishing 0.2.0 went south.
