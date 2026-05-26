@@ -7,8 +7,11 @@ package at.asitplus.awesn1
 
 
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
+import at.asitplus.awesn1.Asn1OctetString.Companion.invoke
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.Sink
+import at.asitplus.awesn1.encoding.internal.Source
+import at.asitplus.awesn1.encoding.internal.doParseExactly
 import kotlinx.serialization.Serializable
 import kotlin.experimental.ExperimentalObjCName
 import kotlin.native.ObjCName
@@ -831,6 +834,58 @@ class Asn1CustomStructure private constructor(
     }
 }
 
+
+@Deprecated("Replace with Asn1OctetString", ReplaceWith("Asn1OctetString(content)"))
+typealias Asn1PrimitiveOctetString = Asn1OctetString
+
+/**
+ * ASN.1 OCTET STRING 0x04 ([BERTags.OCTET_STRING]) containing arbitrary bytes
+ * @param content the data to hold
+ *
+ * When parsing, you should NOT cast to this class.
+ * Cast to [Asn1OctetString] instead.
+ */
+@Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
+sealed class Asn1OctetString private constructor(
+    content: ByteArray?,
+    contentProvider: () -> ByteArray,
+) : Asn1Primitive(Tag.OCTET_STRING) {
+
+    private class Basic(content: ByteArray) : Asn1OctetString(content)
+
+    private constructor(content: ByteArray) : this(content, { throw ImplementationError("OCTET STRING init error") })
+
+    protected constructor(contentProvider: () -> ByteArray) : this(null, contentProvider)
+
+    override val content: ByteArray by content.orLazy(contentProvider)
+
+    override fun hashCode(): Int = content.contentHashCode()
+
+    override fun prettyPrintHeader(indent: Int) = (" " * indent) + "OCTET STRING " + super.prettyPrintHeader(0)
+
+    companion object {
+        /**
+         * Constructs an [Asn1OctetString].
+         * Consumes exactly [length] bytes from [source].
+         * Will construct an [Asn1EncapsulatingOctetString] if the contained bytes are valid ASN.1.
+         */
+        operator fun invoke(source: Source<*>, length: Long): Asn1OctetString =
+            catchingUnwrapped {
+                //try to decode recursively
+                val decoded = source.peek().doParseExactly(length)
+                source.skip(length)
+                Asn1EncapsulatingOctetString(decoded)
+            }.getOrElse {
+                //recursive decoding failed, so we interpret is as primitive
+                require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
+                Asn1OctetString.Basic(source.readByteArray(length.toInt()))
+            }
+
+        operator fun invoke(content: ByteArray) =
+            this(wrapInUnsafeSource(content), content.size.toLong())
+    }
+}
+
 /**
  * ASN.1 OCTET STRING 0x04 ([BERTags.OCTET_STRING]) containing an [Asn1Element]
  * @param children the elements to put into this sequence
@@ -867,50 +922,17 @@ class Asn1EncapsulatingOctetString(
 
     override fun iterator(): Asn1Structure.Iterator = _sequence.iterator()
 
-    //we compare bytearrays so it equals with primitive octet string inited from bytes
-    override fun equals(other: Any?): Boolean = super<Asn1OctetString>.equals(other)
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other is Asn1EncapsulatingOctetString) return this.children == other.children
+        return super.equals(other)
+    }
 
-    //we hash bytearray so it equals with primitive octet string inited from bytes
-    override fun hashCode(): Int = super<Asn1OctetString>.hashCode()
+    override fun hashCode() = this.children.hashCode()
 
     override fun prettyPrintHeader(indent: Int) =
         (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent) + " " +
                 content.toHexString(HexFormat.UpperCase)
-}
-
-
-@Deprecated("Replace with Asn1OctetString", ReplaceWith("Asn1OctetString(content)"))
-typealias Asn1PrimitiveOctetString = Asn1OctetString
-
-/**
- * ASN.1 OCTET STRING 0x04 ([BERTags.OCTET_STRING]) containing arbitrary bytes
- * @param content the data to hold
- *
- * When parsing, you should NOT cast to this class.
- * Cast to [Asn1OctetString] instead.
- */
-@Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
-open class Asn1OctetString private constructor(
-    content: ByteArray?,
-    contentProvider: () -> ByteArray,
-) : Asn1Primitive(Tag.OCTET_STRING) {
-
-    constructor(content: ByteArray) : this(content, { throw ImplementationError("OCTET STRING init error") })
-
-    protected constructor(contentProvider: () -> ByteArray) : this(null, contentProvider)
-
-    override val content: ByteArray by content.orLazy(contentProvider)
-
-    //we compare bytearrays so it equals with primitive octet string inited from bytes
-    override fun equals(other: Any?): Boolean {
-        if (other is Asn1OctetString) return this.content contentEquals other.content
-        return false
-    }
-
-    //we hash bytearray so it equals with primitive octet string inited from bytes
-    override fun hashCode(): Int = content.contentHashCode()
-
-    override fun prettyPrintHeader(indent: Int) = (" " * indent) + "OCTET STRING " + super.prettyPrintHeader(0)
 }
 
 
