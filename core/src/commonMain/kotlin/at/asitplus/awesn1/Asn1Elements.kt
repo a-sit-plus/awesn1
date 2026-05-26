@@ -842,8 +842,7 @@ typealias Asn1PrimitiveOctetString = Asn1OctetString
  * ASN.1 OCTET STRING 0x04 ([BERTags.OCTET_STRING]) containing arbitrary bytes
  * @param content the data to hold
  *
- * When parsing, you should NOT cast to this class.
- * Cast to [Asn1OctetString] instead.
+ * May be an [Asn1EncapsulatingOctetString] if the contained bytes are valid ASN.1.
  */
 @Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
 sealed class Asn1OctetString private constructor(

@@ -64,12 +64,12 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
      * for details.
      * Lazily evaluated.
      */
-    val bytes: ByteArray by bytes.orLazy { nodes!!.toOidBytes() }
+    val bytes: ByteArray by bytes orLazy { nodes!!.toOidBytes() }
 
     /**
      * Lazily evaluated list of OID nodes (e.g. `[1, 2, 35, 4654]`)
      */
-    val nodes: List<String> by nodes?.map { it.toString() }.orLazy {
+    val nodes: List<String> by nodes?.map { it.toString() } orLazy {
         val (first, second) =
             if (this.bytes[0] >= 80) {
                 VarUInt(2u) to VarUInt(this.bytes[0].toUByte() - 80u)
