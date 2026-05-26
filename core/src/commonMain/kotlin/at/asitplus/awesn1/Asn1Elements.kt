@@ -871,7 +871,7 @@ sealed class Asn1OctetString private constructor(
         operator fun invoke(source: Source<*>, length: Long): Asn1OctetString =
             catchingUnwrapped {
                 //try to decode recursively
-                val decoded = source.peek().doParseExactly(length)
+                val decoded = source.peek().doParseExactly(length).also { require (it.isNotEmpty()) }
                 source.skip(length)
                 Asn1EncapsulatingOctetString(decoded)
             }.getOrElse {
