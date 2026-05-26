@@ -12,6 +12,16 @@ import at.asitplus.awesn1.serialization.getValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
 
+@Serializable
+sealed interface RsaParams
+
+/**
+ * This is just NULL, but we need a common interface for RSA
+ */
+@Serializable
+@Asn1Tag( tagNumber = 5uL, tagClass = Asn1Tag.Class.UNIVERSAL, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+object RsaPkcs1PaddingParams : RsaParams
+
 /**
  * RSASSA-PSS parameters as specified by
  * [RFC 4055, section 3.1](https://www.rfc-editor.org/rfc/rfc4055.html#section-3.1):
@@ -41,7 +51,7 @@ data class RsaSsaPssParams internal constructor(
     private val taggedSaltLength: ExplicitlyTagged<Asn1Integer>? = null,
     @Asn1Tag(tagNumber = 3u)
     private val taggedTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
-) {
+): RsaParams {
     constructor(
         hashAlgorithm: X509AlgorithmIdentifier = SHA1_IDENTIFIER,
         maskGenAlgorithm: X509AlgorithmIdentifier = MGF1_SHA1_IDENTIFIER,

@@ -50,9 +50,9 @@ open class X509Certificate(
         Asn1Serializable<Asn1Sequence, X509Certificate>,
         Asn1PemDecodable<Asn1Sequence, X509Certificate>
     {
-        const val PEM_LABEL = "CERTIFICATE"
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
-        override val pemLabel get() = PEM_LABEL
+        const val PEM_LABEL = "CERTIFICATE"
+        override val canonicalPemLabel get() = PEM_LABEL
 
         @Throws(Asn1Exception::class)
         override fun doDecode(src: Asn1Sequence): X509Certificate = src.decodeRethrowing {

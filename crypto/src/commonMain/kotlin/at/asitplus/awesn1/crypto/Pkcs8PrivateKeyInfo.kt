@@ -34,9 +34,11 @@ data class Pkcs8PrivateKeyInfo(
     val privateKey: Asn1Element,
     @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
-) {
+) : WithPemLabel {
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
+
+    override val pemLabel: String get() = PEM_LABEL_PRIVATE_KEY
 
     @Throws(Asn1Exception::class)
     fun decodeRsaPrivateKey(): Pkcs1RsaPrivateKeyInfo =
@@ -46,9 +48,18 @@ data class Pkcs8PrivateKeyInfo(
     fun decodeEcPrivateKey(): Sec1EcPrivateKeyInfo =
         DER.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next() })
 
-    companion object {
+    companion object : PemLabelSpec<Pkcs8PrivateKeyInfo> {
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
+
+        const val PEM_LABEL_PRIVATE_KEY = "PRIVATE KEY"
+        const val PEM_LABEL_RSA_PRIVATE_KEY = Pkcs1RsaPrivateKeyInfo.PEM_LABEL
+        const val PEM_LABEL_EC_PRIVATE_KEY = Sec1EcPrivateKeyInfo.PEM_LABEL
+
+        override val canonicalPemLabel: String = PEM_LABEL_PRIVATE_KEY
+        override val alternativePemLabels: Set<String> =
+            setOf(PEM_LABEL_RSA_PRIVATE_KEY, PEM_LABEL_EC_PRIVATE_KEY)
+
 
         fun rsa(privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
             Pkcs8PrivateKeyInfo(

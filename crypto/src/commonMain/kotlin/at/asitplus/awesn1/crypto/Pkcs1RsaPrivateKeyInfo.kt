@@ -5,7 +5,8 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.serialization.Asn1Tag
-import at.asitplus.awesn1.toInt
+import at.asitplus.awesn1.WithPemLabel
+import at.asitplus.awesn1.PemLabelSpec
 import kotlinx.serialization.Serializable
 
 /**
@@ -38,7 +39,7 @@ data class Pkcs1RsaPrivateKeyInfo(
     val exponent2: Asn1Integer.Positive,
     val coefficient: Asn1Integer.Positive,
     val otherPrimeInfos: List<Pkcs1RsaOtherPrimeInfo>? = null,
-) {
+) : WithPemLabel {
     /**
      * Corresponds verbatim to [RFC8017](https://www.rfc-editor.org/rfc/rfc8017.html#appendix-A.1.2):
      *
@@ -54,6 +55,12 @@ data class Pkcs1RsaPrivateKeyInfo(
     @Asn1Tag(tagNumber = 0x02uL, tagClass = Asn1Tag.Class.UNIVERSAL)
     enum class Version {
         TWO_PRIME, MULTI
+    }
+
+    override val pemLabel: String get() = PEM_LABEL
+    companion object : PemLabelSpec<Pkcs1RsaPrivateKeyInfo> {
+        const val PEM_LABEL = "RSA PRIVATE KEY"
+        override val canonicalPemLabel: String get() = PEM_LABEL
     }
 }
 

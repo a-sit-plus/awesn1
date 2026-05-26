@@ -18,6 +18,12 @@ import kotlinx.serialization.Serializable
  *   subjectPKInfo SubjectPublicKeyInfo{{ PKInfoAlgorithms }},
  *   attributes    [0] Attributes{{ CRIAttributes }}
  * }
+ *
+ * Attribute { ATTRIBUTE:IOSet } ::= SEQUENCE {
+ *   type   ATTRIBUTE.&id({IOSet}),
+ *   values SET SIZE(1..MAX) OF ATTRIBUTE.&Type({IOSet}{@type})
+ * }
+ *
  * ```
  */
 @Serializable

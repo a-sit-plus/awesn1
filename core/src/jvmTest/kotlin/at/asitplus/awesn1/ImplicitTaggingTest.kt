@@ -4,11 +4,10 @@ import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.without
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.Int
-import at.asitplus.testballoon.checkAllSuites
+import at.asitplus.testballoon.checkAll
 import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.minus
 import at.asitplus.testballoon.withData
-import at.asitplus.testballoon.withDataSuites
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
 import de.infix.testBalloon.framework.core.testSuite
@@ -21,7 +20,7 @@ import io.kotest.property.arbitrary.uLong
 val ImplicitTaggingTest by testSuite {
 
     "Plain" - {
-        checkAllSuites(Arb.uLong()) { tagNum ->
+        checkAll(Arb.uLong()) - { tagNum ->
             val universalConstructed = Asn1Element.Tag(tagNum, constructed = true)
 
             "universalConstructed" {
@@ -62,7 +61,7 @@ val ImplicitTaggingTest by testSuite {
     }
 
     "Primitive" - {
-        checkAllSuites(Arb.uLong()) { tagNum ->
+        checkAll(Arb.uLong()) - { tagNum ->
             val primitive = Asn1Primitive(tagNum, byteArrayOf())
 
             "setup" {
@@ -117,7 +116,7 @@ val ImplicitTaggingTest by testSuite {
 
 
     "Constructed" - {
-        checkAllSuites(Arb.uLong()) { tagNum ->
+        checkAll(Arb.uLong()) - { tagNum ->
             val set = Asn1Set(listOf())
 
             "setup" {
@@ -131,7 +130,7 @@ val ImplicitTaggingTest by testSuite {
                 (set withImplicitTag tagNum).tag.tagClass shouldBe TagClass.CONTEXT_SPECIFIC
             }
 
-            withDataSuites(nameFn = { "$tagNum $it" }, data = TagClass.entries) { tagClass ->
+            withData(nameFn = { "$tagNum $it" }, data = TagClass.entries) - { tagClass ->
                 val newTagValue = tagNum / 2uL
 
                 "setup" {

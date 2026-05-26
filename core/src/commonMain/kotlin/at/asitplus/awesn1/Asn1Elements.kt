@@ -1019,14 +1019,6 @@ sealed interface Asn1OctetString {
      */
     val content: ByteArray
 
-    /***
-     * returns this octet string as an [Asn1Element]
-     */
-    fun asElement(): Asn1Element = when(this) {
-        is Asn1EncapsulatingOctetString -> this
-        is Asn1PrimitiveOctetString -> this
-    }
-
     companion object {
         /** Constructs a new ASN.1 OCTET STRING primitive containing these bytes */
         operator fun invoke(bytes: ByteArray) =
@@ -1035,6 +1027,14 @@ sealed interface Asn1OctetString {
         /** Constructs a new ASN.1 OCTET STRING primitive encapsulating these children */
         operator fun invoke(children: List<Asn1Element>) =
             Asn1EncapsulatingOctetString(children)
+    }
+
+    /***
+     * returns this octet string as an [Asn1Element]
+     */
+    fun asElement(): Asn1Element = when(this) {
+        is Asn1EncapsulatingOctetString -> this
+        is Asn1PrimitiveOctetString -> this
     }
 }
 

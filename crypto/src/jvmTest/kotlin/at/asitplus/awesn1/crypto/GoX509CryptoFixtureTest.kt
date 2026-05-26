@@ -30,7 +30,7 @@ val GoX509CryptoFixtureTest by testSuite {
 
     "PKCS#1 RSA public key" {
         val encoded = hexFixture("pkcs1-rsa-public-key.hex")
-        val decoded = checkRoundTrip(encoded, RsaPublicKeyInfo.serializer())
+        val decoded = checkRoundTrip(encoded, Pkcs1RsaPublicKeyInfo.serializer())
 
         decoded.publicExponent.toString().toLong() shouldBe 3L
     }

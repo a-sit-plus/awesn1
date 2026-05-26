@@ -41,7 +41,7 @@ class Der internal constructor(
     override fun <T> decodeFromByteArray(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
-    ): T = runWrappingAs(a=::SerializationException) {
+    ): T = runWrappingAs(a = ::SerializationException) {
         val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
         val decoder = DerDecoder(
             if (bytes.isEmpty()) emptyList() else Asn1Element.parseAll(bytes),
@@ -82,7 +82,7 @@ class Der internal constructor(
         @ExperimentalSerializationApi
         @Throws(SerializationException::class, ImplementationError::class)
         fun <T> encodeToTlv(der: Der, serializer: SerializationStrategy<T>, value: T): Asn1Element? =
-            runWrappingAs(a=::SerializationException) {
+            runWrappingAs(a = ::SerializationException) {
                 val layoutPlan = DerLayoutPlanContext(der.configuration).also { it.prime(serializer.descriptor) }
                 val encoder = DerEncoder(
                     serializersModule = der.configuration.serializersModule,
@@ -105,7 +105,7 @@ class Der internal constructor(
     @ExperimentalSerializationApi
     @Throws(SerializationException::class, ImplementationError::class)
     fun <T> decodeFromTlv(deserializer: DeserializationStrategy<T>, source: Asn1Element): T =
-        runWrappingAs(a=::SerializationException) {
+        runWrappingAs(a = ::SerializationException) {
             val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
             val decoder = DerDecoder(
                 listOf(source),
@@ -183,6 +183,23 @@ inline fun <reified T> Der.decodeFromTlv(source: Asn1Element): T =
 @ExperimentalSerializationApi
 inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
     decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source) as T
+
+@ExperimentalSerializationApi
+inline fun <reified T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
+    source: PemBlock,
+    der: Der = DER
+): T {
+    validate(source)
+    return der.decodeFromDer(source.payload)
+}
+
+
+@ExperimentalSerializationApi
+inline fun <reified T : WithPemLabel> T.encodeToPemBlock(der: Der = DER): PemBlock =
+    PemBlock(pemLabel, payload = der.encodeToByteArray(this))
+
+@ExperimentalSerializationApi
+inline fun <reified T : WithPemLabel> T.encodeToPem(der: Der = DER): String = encodeToPemBlock(der).encodeToPem()
 
 interface DerEncoder : Encoder, Asn1DerEncoder {
     val der: Der

@@ -8,10 +8,15 @@
             * If a matching subclass OID is encountered, deserialise to that subtype, if not: fallback to open base class and assign encountered OID to the oid property of the base class
     * Asn1Integer now has `toInt()` and `toIntOrNull()` 
     * `ExplicitlyTagged<T>` can now be used as a property delegate
+    * expose `runRethrowing`
+    * add `asAsn1Element()` to octet string
 * **Fixes:**
     * Fix value/inline class handling
     * Fix raw Asn1Element deserialzation bug where tag overrides would causes errors instead of correct conversions
     * Fix silent truncation of `Byte`/`UByte` and `Short`/`UShort` when deserializing, but throw instead
+* **Hardening:**
+    * Tighten raw ASN.1 BOOLEAN to strict `0x00` / `0xFF` and manually relax in compound usages
+        * X509CertificateExtension now carries raw bytes to keep malformed inputs, but sanitizes eagerly
 * **Other Changes:**
     * Core renames:
         * `Asn1TagClass` -> `Asn1Tag.Class`
@@ -35,11 +40,12 @@
         * Rename `TbsCertificate` -> `X509TbsCertificate`
         * Rename `RsaPrivateKeyInfo` -> `Pkcs1RsaPrivateKeyInfo`
         * Rename `RsaOtherPrimeInfo` -> `Pkcs1RsaOtherPrimeInfo`
+        * Rename `RsaPublicKeyInfo` -> `Pkcs1RsaPublicKeyInfo`
         * Rename `EcPrivateKeyInfo` -> `Sec1EcPrivateKeyInfo`
         * Rename `Attribute` -> `Pkcs10CsrAttribute`
+        * Rename `Pkcs10CsrAttribute.X509CertificateExtension` -> `Pkcs10CsrAttribute.ExtensionRequest` <!-- forgot to rename in previous PR-->
     * Drop deprecated Apple X64 targets
-    * Tighten raw ASN.1 BOOLEAN to strict `0x00` / `0xFF` and manually relax in compound usages
-        * X509CertificateExtension now carries raw bytes to keep malformed inputs, but sanitizes eagerly
+    * Rework PEM parsing to be far more usable in practice
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever, so publishing 0.2.0 went south.

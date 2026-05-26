@@ -3,6 +3,9 @@
 
 package at.asitplus.awesn1.serialization
 
+import at.asitplus.awesn1.*
+import at.asitplus.awesn1.encoding.parse
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
 

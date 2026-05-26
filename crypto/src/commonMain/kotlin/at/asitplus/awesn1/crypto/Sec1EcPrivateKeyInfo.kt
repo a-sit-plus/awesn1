@@ -4,12 +4,12 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.PemLabelSpec
+import at.asitplus.awesn1.WithPemLabel
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
-import at.asitplus.awesn1.toInt
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -42,7 +42,8 @@ data class Sec1EcPrivateKeyInfo internal constructor(
     private val taggedParameters: ExplicitlyTagged<ObjectIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
     private val taggedPublicKey: ExplicitlyTagged<Asn1BitString>? = null,
-)  {
+) : WithPemLabel {
+
     constructor(
         version: Version = Version.V1,
         privateKey: ByteArray,
@@ -54,6 +55,7 @@ data class Sec1EcPrivateKeyInfo internal constructor(
         taggedParameters = parameters?.let(::ExplicitlyTagged),
         taggedPublicKey = publicKey?.let(::ExplicitlyTagged),
     )
+    override val pemLabel: String get() = PEM_LABEL
 
     val parameters: ObjectIdentifier? by taggedParameters
 
@@ -82,6 +84,12 @@ data class Sec1EcPrivateKeyInfo internal constructor(
                 "parameters=$parameters, " +
                 "publicKey=$publicKey" +
                 ")"
+    }
+
+    companion object : PemLabelSpec<Sec1EcPrivateKeyInfo> {
+        const val PEM_LABEL = "EC PRIVATE KEY"
+        override val canonicalPemLabel: String get() = PEM_LABEL
+
     }
 
     /**
