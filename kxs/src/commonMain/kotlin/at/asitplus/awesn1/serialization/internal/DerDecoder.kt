@@ -720,8 +720,8 @@ class DerDecoder internal constructor(
                 "ASN.1 CHOICE only supports kotlinx SealedClassSerializer"
             )
 
-        validateAndResolveImplicitTagOverride(
-            actualTag = currentAnnotatedElement.tag,
+        rejectAsn1TagOnChoice(
+            choiceSerialName = deserializer.descriptor.serialName,
             inlineAsn1Tag = inlineAnnotation,
             propertyAsn1Tag = propertyAsn1Tag,
             classAsn1Tag = deserializer.descriptor.asn1Tag,

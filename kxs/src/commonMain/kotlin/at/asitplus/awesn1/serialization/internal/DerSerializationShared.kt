@@ -137,6 +137,26 @@ internal fun SerialDescriptor.requireNoAsn1TagOnInlineBackingProperty() {
     }
 }
 
+@Throws(SerializationException::class)
+internal fun rejectAsn1TagOnChoice(
+    choiceSerialName: String,
+    inlineAsn1Tag: Asn1Tag? = null,
+    propertyAsn1Tag: Asn1Tag? = null,
+    classAsn1Tag: Asn1Tag? = null,
+) {
+    val tagSource = when {
+        propertyAsn1Tag != null -> "property"
+        inlineAsn1Tag != null -> "inline"
+        classAsn1Tag != null -> "class"
+        else -> return
+    }
+    val tagNumber = propertyAsn1Tag?.tagNumber ?: inlineAsn1Tag?.tagNumber ?: classAsn1Tag?.tagNumber
+    throw SerializationException(
+        "@Asn1Tag on ASN.1 CHOICE is not supported for $choiceSerialName ($tagSource tag $tagNumber). " +
+                "Model the tagged wrapper explicitly."
+    )
+}
+
 @OptIn(InternalSerializationApi::class)
 internal fun <T> resolveOpenPolymorphicAsn1SerializerOrNull(
     serializer: SerializationStrategy<T>,

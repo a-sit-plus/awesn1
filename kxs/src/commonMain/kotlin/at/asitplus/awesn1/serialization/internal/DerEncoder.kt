@@ -419,7 +419,8 @@ class DerEncoder internal constructor(
                 "ASN.1 CHOICE only supports kotlinx SealedClassSerializer"
             )
 
-        val tagTemplate = resolveAsn1TagTemplate(
+        rejectAsn1TagOnChoice(
+            choiceSerialName = serializer.descriptor.serialName,
             inlineAsn1Tag = inlineAnnotation,
             propertyAsn1Tag = propertyAnnotation,
             classAsn1Tag = serializer.descriptor.asn1Tag,
@@ -441,7 +442,7 @@ class DerEncoder internal constructor(
             )
         }
 
-        appendElement(elements.first(), tagTemplate)
+        appendElement(elements.first())
     }
 
     /**
