@@ -28,7 +28,7 @@ import kotlin.time.Instant
  * Parses the provided [source] into a single [Asn1Element]. Consumes all bytes and throws if more than one ASN.1 structure was found or trailing bytes were detected.
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @return the parsed [Asn1Element]
  *
  * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [source]
@@ -41,7 +41,7 @@ fun Asn1Element.Companion.parse(source: ByteArray, limit: Long = source.size.toL
  * Convenience wrapper around [parseAll], taking a [ByteArray] as [source]
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @see parse
  */
 @Throws(Asn1Exception::class)
@@ -52,7 +52,7 @@ fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long = source.size.
  * Convenience wrapper around [parseFirst], taking a [ByteArray] as [source].
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @return a pair of the first parsed [Asn1Element] mapped to the remaining bytes
  * @see at.asitplus.awesn1.encoding.internal.readAsn1Element
  */
@@ -541,7 +541,7 @@ fun String.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray) = bytes.decode
  * Convenience method, directly DER-decoding a byte array to [T]
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @throws Asn1Exception if invalid data is provided
  */
 @Throws(Asn1Exception::class)
@@ -561,7 +561,7 @@ fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1Decodable<A, T>.decodeFromDer(
  * Exception-free version of [decodeFromDer]
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  */
 fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1Decodable<A, T>.decodeFromDerOrNull(
     src: ByteArray,

@@ -17,7 +17,7 @@ import at.asitplus.awesn1.encoding.internal.*
  *
  * @param source The data source from which the ASN.1 element will be read.
  * @param limit The maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @return The parsed ASN.1 element.
  * @throws Asn1Exception if the input does not parse or if it exceeds the specified limit.
  * This includes length encoding indicating a length greater than [limit],
@@ -32,7 +32,7 @@ fun Asn1Element.Companion.parse(source: kotlinx.io.Source, limit: Long): Asn1Ele
  *
  * @param source The input source from which the ASN.1 elements will be parsed.
  * @param limit The maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @return A list of parsed ASN.1 elements.
  * @throws Asn1Exception if the input does not parse or if it exceeds the specified limit.
  * This includes length encoding indicating a length greater than [limit],
@@ -47,7 +47,7 @@ fun Asn1Element.Companion.parseAll(source: kotlinx.io.Source, limit: Long): List
  *
  * @param source The input source from which the ASN.1 element will be read.
  * @param limit The maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @return A pair containing the parsed ASN.1 element and the total number of bytes consumed.
  * @throws Asn1Exception if the input does not parse or if it exceeds the specified limit.
  * This includes length encoding indicating a length greater than [limit],
@@ -61,7 +61,7 @@ fun Asn1Element.Companion.parseFirst(source: kotlinx.io.Source, limit: Long): Pa
  * Reads an ASN.1 element from the source up to the specified byte limit.
  *
  * @param limit The maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @return A pair consisting of the parsed ASN.1 element and the number of bytes consumed.
  * @throws Asn1Exception if the input does not parse or if it exceeds the specified limit.
  * This includes length encoding indicating a length greater than [limit],
@@ -76,7 +76,7 @@ fun kotlinx.io.Source.readAsn1Element(limit: Long): Pair<Asn1Element, Long> =
  * of ASN.1 elements along with the total number of bytes read.
  *
  * @param limit The maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @return A pair containing a list of parsed ASN.1 elements and the total number of bytes read.
  * @throws Asn1Exception if the input does not parse or if it exceeds the specified limit.
  * This includes length encoding indicating a length greater than [limit],
@@ -99,7 +99,7 @@ fun Asn1Element.encodeToDer(sink: kotlinx.io.Sink) {
  *
  * @param source The source from which the DER-encoded data will be read.
  * @param limit The maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @param assertTag Optional. If provided, ensures that the decoded element matches this tag.
  * @return The decoded ASN.1 object of type [T].
  * @throws Asn1Exception if the input does not parse or if it exceeds the specified limit.

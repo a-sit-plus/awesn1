@@ -49,8 +49,7 @@ class DerDecoder internal constructor(
         source: Source<*>,
         der: Der,
         layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
-        limit: Long
-    ) : this(source.readFullyToAsn1Elements(if(limit<der.configuration.maxInputLength)limit else der.configuration.maxInputLength).first, der, layoutPlan)
+    ) : this(source.readFullyToAsn1Elements(der.configuration.maxInputLength).first, der, layoutPlan)
 
     override val serializersModule get() = der.serializersModule
 

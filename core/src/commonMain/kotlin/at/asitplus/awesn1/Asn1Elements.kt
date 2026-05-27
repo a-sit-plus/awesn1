@@ -41,7 +41,7 @@ sealed class Asn1Element(
          * Ignores and strips all whitespace.
          *
          * @param limit the maximum allowed total number of encoded DER bytes to consume. Defaults to null to use allow reading the full contents of the string.
-         * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+         * This limit is enforced before reading or peeking from the underlying source.
          * @throws [Throwable] all sorts of errors on invalid input
          */
         @Throws(Throwable::class)

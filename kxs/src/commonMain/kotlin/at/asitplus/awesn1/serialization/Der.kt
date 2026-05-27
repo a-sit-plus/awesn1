@@ -42,8 +42,7 @@ class Der internal constructor(
      * Decodes [bytes] as DER using [deserializer].
      *
      * The configured [DerConfiguration.maxInputLength] is the maximum allowed total number of encoded DER bytes to
-     * consume. Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires
-     * some lookahead. Hence, some more bytes may be processed before aborting**.
+     * consume. This limit is enforced before reading or peeking from the underlying source.
      *
      * @throws SerializationException if the input does not parse as DER or violates descriptor/tag/nullability constraints.
      */
@@ -55,7 +54,7 @@ class Der internal constructor(
         val decoder = DerDecoder(
             if (bytes.isEmpty()) emptyList() else Asn1Element.parseAll(
                 source = bytes,
-                limit = if (configuration.maxInputLength < bytes.size.toLong()) configuration.maxInputLength else bytes.size.toLong()
+                limit = configuration.maxInputLength
             ),
             der = this,
             layoutPlan = layoutPlan,
@@ -136,8 +135,8 @@ class Der internal constructor(
  * If `false`, nullable `null` values are omitted by default.
  * exactly as originally decoded.
  * @property maxInputLength maximum allowed total number of encoded DER bytes to consume before refusing to parse and
- * throwing. Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some
- * lookahead. Hence, some more bytes may be processed before aborting**. Defaults to [UInt.MAX_VALUE].
+ * throwing. This limit is enforced before reading or peeking from the underlying source.
+ * Defaults to [UInt.MAX_VALUE].
  * @property serializersModule serializers used for contextual/open-polymorphic resolution.
  */
 data class DerConfiguration(
@@ -154,8 +153,7 @@ data class DerConfiguration(
  * - [explicitNulls]: encode `null` as ASN.1 `NULL` or omit nullable values.
  * - [serializersModule]: module used for contextual/open-polymorphic serializers.
  * - [maxInputLength] maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
- *   Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead.
- *   Hence, some more bytes may be processed before aborting**. Defaults to [UInt.MAX_VALUE].
+ *   This limit is enforced before reading or peeking from the underlying source. Defaults to [UInt.MAX_VALUE].
  */
 class DerBuilder internal constructor() {
     var encodeDefaults: Boolean = true
@@ -163,8 +161,7 @@ class DerBuilder internal constructor() {
     /**
      * Maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
      *
-     * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead.
-     * Hence, some more bytes may be processed before aborting**.
+     * This limit is enforced before reading or peeking from the underlying source.
      */
     var maxInputLength: Long = UInt.MAX_VALUE.toLong()
     var serializersModule: SerializersModule = EmptySerializersModule()
@@ -205,8 +202,7 @@ inline fun <reified T> Der.decodeFromTlv(source: Asn1Element): T =
  * Decodes [source] from DER bytes using the inferred deserializer for [T].
  *
  * The configured [DerConfiguration.maxInputLength] is the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead.
- * Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  */
 @ExperimentalSerializationApi
 inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
@@ -254,8 +250,7 @@ object DefaultDer {
     /**
      * Maximum allowed total number of encoded DER bytes to consume for the default [DER] instance.
      *
-     * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead.
-     * Hence, some more bytes may be processed before aborting**.
+     * This limit is enforced before reading or peeking from the underlying source.
      */
     var maxInputLength: Long = UInt.MAX_VALUE.toLong()
         set(value) {

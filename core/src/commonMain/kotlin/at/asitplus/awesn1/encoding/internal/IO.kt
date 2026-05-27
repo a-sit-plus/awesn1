@@ -29,6 +29,87 @@ interface Source<S : Sink> {
     fun transferTo(sink: S): Long
 }
 
+@InternalAwesn1Api
+class BoundedSource<S : Sink>(
+    private val source: Source<S>,
+    private val limit: Long,
+) : Source<S> {
+
+    private var bytesRead = 0L
+
+    init {
+        require(limit >= 0) { "Limit must be non-negative" }
+    }
+
+    companion object {
+        operator fun <S : Sink> invoke(source: Source<S>, limit: Long?): Source<S> =
+            limit?.let { BoundedSource(source, it) } ?: source
+    }
+
+    private val remaining: Long get() = limit - bytesRead
+
+    private fun requireRemaining(nBytes: Long) {
+        require(nBytes >= 0) { "Cannot read a negative number of bytes" }
+        require(nBytes <= remaining) {
+            buildString {
+                append("Source limit exceeded: requested ")
+                append(nBytes)
+                append(" bytes with ")
+                append(remaining)
+                append(" remaining (")
+                append(bytesRead)
+                append("/")
+                append(limit)
+                append(" already read)")
+            }
+        }
+    }
+
+    override fun readByte(): Byte {
+        requireRemaining(1)
+        return source.readByte().also { bytesRead++ }
+    }
+
+    /**
+     * if the limit is reached, it may still not be exhausted. the limit just limits what can be read.
+     * This makes sure that we don't leave dangling bytes when checking for exhaustion
+     */
+    override fun exhausted()= source.exhausted()
+
+    override fun readByteArray(nBytes: Int): ByteArray {
+        requireRemaining(nBytes.toLong())
+        return source.readByteArray(nBytes).also { bytesRead += nBytes.toLong() }
+    }
+
+    override fun skip(nBytes: Long) {
+        requireRemaining(nBytes)
+        source.skip(nBytes)
+        bytesRead += nBytes
+    }
+
+    override fun peek(): Source<S> = BoundedSource(source.peek(), remaining)
+
+    override fun transferTo(sink: S): Long {
+        if (exhausted()) return 0
+        var transferred = 0L
+        val buffer = ByteArray(DEFAULT_TRANSFER_BUFFER_SIZE)
+        var buffered = 0
+        while (remaining > 0 && !source.exhausted()) {
+            buffer[buffered++] = readByte()
+            transferred++
+            if (buffered == buffer.size) {
+                sink.write(buffer)
+                buffered = 0
+            }
+        }
+        if (buffered > 0) {
+            sink.write(buffer, endIndex = buffered)
+        }
+        return transferred
+    }
+}
+
+private const val DEFAULT_TRANSFER_BUFFER_SIZE = 8 * 1024
 
 @InternalAwesn1Api
 inline fun Source<*>.readUByte() = readByte().toUByte()

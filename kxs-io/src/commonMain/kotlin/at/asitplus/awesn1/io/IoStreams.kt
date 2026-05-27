@@ -18,8 +18,7 @@ import kotlin.reflect.typeOf
  * Decodes a DER value from [source] using the inferred deserializer for [T].
  *
  * The configured [at.asitplus.awesn1.serialization.DerConfiguration.maxInputLength] is the maximum allowed total number
- * of encoded DER bytes to consume. Note that this limit is exactly enforced wrt. the number of consumed bytes **but the
- * parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * of encoded DER bytes to consume. This limit is enforced before reading or peeking from the underlying source.
  *
  * @throws SerializationException if the input does not parse as DER or violates descriptor/tag/nullability constraints.
  */
@@ -34,8 +33,7 @@ inline fun <reified T> Der.decodeFromSource(source: kotlinx.io.Source): T =
  * Decodes a DER value from [source] using [deserializer].
  *
  * The configured [at.asitplus.awesn1.serialization.DerConfiguration.maxInputLength] is the maximum allowed total number
- * of encoded DER bytes to consume. Note that this limit is exactly enforced wrt. the number of consumed bytes **but the
- * parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * of encoded DER bytes to consume. This limit is enforced before reading or peeking from the underlying source.
  *
  * @throws SerializationException if the input does not parse as DER or violates descriptor/tag/nullability constraints.
  */

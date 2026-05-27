@@ -168,7 +168,7 @@ val funkyLengthEncoding by testSuite {
             "30 03 05 00 01 (one leftover octet inside parent)" {
                 shouldThrow<Asn1Exception> {
                     Asn1Element.parseFromDerHexString("30 03 05 00 01")
-                }.message shouldBe "Source exhausted"
+                }.message shouldBe "Source limit exceeded: requested 1 bytes with 0 remaining (1/1 already read)"
             }
         }
 

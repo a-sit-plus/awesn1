@@ -11,7 +11,7 @@ import kotlin.jvm.JvmName
  * Parses the provided [source] into a single [Asn1Element].
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  */
 @InternalAwesn1Api
 @Throws(Asn1Exception::class)
@@ -25,7 +25,7 @@ fun Asn1Element.Companion.parse(source: Source<*>, limit: Long): Asn1Element =
  * Parses all ASN.1 elements from [source].
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  */
 @InternalAwesn1Api
 @Throws(Asn1Exception::class)
@@ -36,7 +36,7 @@ fun Asn1Element.Companion.parseAll(source: Source<*>, limit: Long): List<Asn1Ele
  * Parses the first ASN.1 element from [source].
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  */
 @InternalAwesn1Api
 @Throws(Asn1Exception::class)
@@ -52,18 +52,19 @@ internal inline fun Source<*>.doParseExactly(nBytes: Long): List<Asn1Element> = 
 @JvmName("doParseExactlyULong")
 private fun Source<*>.doParseExactly(nBytes: ULong): List<Asn1Element> = mutableListOf<Asn1Element>().also { list ->
     require(nBytes <= Long.MAX_VALUE.toULong()) { "Max number of bytes to read exceeds ${Long.MAX_VALUE}: $nBytes" }
+    val boundedSource = BoundedSource(this, nBytes.toLong())
     var nBytesRead: ULong = 0u
     while (nBytesRead < nBytes) {
-        val peekTagAndLen = peekTagAndLen()
+        val peekTagAndLen = boundedSource.peekTagAndLen()
         require(peekTagAndLen.tagAndLength.length <= (nBytes.toLong() - peekTagAndLen.bytesRead)) {
             "ASN.1 element length for tag ${peekTagAndLen.first.tag} exceeds parent length: ${peekTagAndLen.tagAndLength.length} > ${(nBytes.toLong() - peekTagAndLen.bytesRead)}"
         }
         val numberOfNextBytesRead = peekTagAndLen.second.toULong() + peekTagAndLen.first.length.toULong()
         require(numberOfNextBytesRead <= Long.MAX_VALUE.toULong()) { "Length overflow: $numberOfNextBytesRead" }
         if (nBytesRead + numberOfNextBytesRead > nBytes) break
-        skip(peekTagAndLen.second.toLong()) // we only peeked before, so now we need to skip,
-        //                                     since we want to recycle the result below
-        val (elem, read) = readAsn1Element(peekTagAndLen.first, peekTagAndLen.second, (nBytes - nBytesRead).toLong())
+        boundedSource.skip(peekTagAndLen.second.toLong()) // we only peeked before, so now we need to skip,
+                                                                    // since we want to recycle the result below
+        val (elem, read) = boundedSource.readAsn1Element(peekTagAndLen.first, peekTagAndLen.second, (nBytes - nBytesRead).toLong())
         list.add(elem)
         nBytesRead += read.toULong()
         require(nBytesRead <= Long.MAX_VALUE.toULong()) { "Length overflow: $nBytesRead" }
@@ -75,43 +76,47 @@ private fun Source<*>.doParseExactly(nBytes: ULong): List<Asn1Element> = mutable
  * Reads all parsable ASN.1 elements from this source.
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @throws Asn1Exception on error if any illegal element or any trailing bytes are encountered
  */
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
 fun Source<*>.readFullyToAsn1Elements(limit: Long): Pair<List<Asn1Element>, Long> =
-    mutableListOf<Asn1Element>().let { list ->
-        var bytesRead = 0L
-        while (!exhausted()) {
-            val remainingLimit = limit - bytesRead
-            require(remainingLimit > 0) { "ASN.1 element exceeds limit: $bytesRead >= $limit" }
-            readAsn1Element(remainingLimit).also { (elem, nBytes) ->
-                bytesRead += nBytes
-                list.add(elem)
+    BoundedSource(this, limit).let { boundedSource ->
+        mutableListOf<Asn1Element>().let { list ->
+            var bytesRead = 0L
+            while (!boundedSource.exhausted()) {
+                val remainingLimit = limit - bytesRead
+                require(remainingLimit > 0) { "ASN.1 element exceeds limit: $bytesRead >= $limit" }
+                boundedSource.readAsn1Element(remainingLimit).also { (elem, nBytes) ->
+                    bytesRead += nBytes
+                    list.add(elem)
+                }
             }
+            Pair(list, bytesRead)
         }
-        Pair(list, bytesRead)
     }
 
 /**
  * Reads a [TagAndLength] and the number of consumed bytes from the source without consuming it
  */
 @InternalAwesn1Api
-private fun Source<*>.peekTagAndLen() = peek().readTagAndLength()
+private fun BoundedSource<*>.peekTagAndLen() = (peek() as BoundedSource<*>).readTagAndLength()
 
 /**
  * Decodes a single [Asn1Element] from this source.
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  * @return the decoded element and the number of bytes read from the source
  */
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
 fun Source<*>.readAsn1Element(limit: Long): Pair<Asn1Element, Long> = runRethrowing {
-    val (readTagAndLength, bytesRead) = readTagAndLength()
-    readAsn1Element(readTagAndLength, bytesRead, limit)
+    BoundedSource(this, limit).let { boundedSource ->
+        val (readTagAndLength, bytesRead) = boundedSource.readTagAndLength()
+        boundedSource.readAsn1Element(readTagAndLength, bytesRead, limit)
+    }
 }
 
 /**
@@ -119,7 +124,7 @@ fun Source<*>.readAsn1Element(limit: Long): Pair<Asn1Element, Long> = runRethrow
  */
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
-private fun Source<*>.readAsn1Element(
+private fun BoundedSource<*>.readAsn1Element(
     tagAndLength: TagAndLength,
     tagAndLengthBytes: Int,
     limit: Long
@@ -127,6 +132,7 @@ private fun Source<*>.readAsn1Element(
     runRethrowing {
         val (tag, length) = tagAndLength
         val totalLength = tagAndLengthBytes.toLong() + length
+        //fail fast
         require(totalLength <= limit) { "Length of ASN.1 element exceeds limit: $totalLength > $limit" }
 
         //ASN.1 SEQUENCE
@@ -167,7 +173,7 @@ private val TagAndLength.length: Long get() = second
  * Reads [TagAndLength] and the number of consumed bytes from the source
  */
 @InternalAwesn1Api
-private fun Source<*>.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowing {
+private fun BoundedSource<*>.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowing {
     if (exhausted()) throw IllegalArgumentException("Can't read TLV, input empty")
 
     val tag = readAsn1Tag()
@@ -185,7 +191,7 @@ val Pair<TagAndLength, Int>.bytesRead: Int get() = second
  */
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
-private fun Source<*>.decodeLength(): Pair<Long, Int> =
+private fun BoundedSource<*>.decodeLength(): Pair<Long, Int> =
     readByte().let { firstByte ->
         if (firstByte.isBerShortForm()) {
             Pair(firstByte.toUByte().toLong(), 1)
@@ -214,7 +220,7 @@ internal infix fun Byte.byteMask(mask: Int) = (this and mask.toUInt().toByte()).
 
 
 @InternalAwesn1Api
-fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
+fun BoundedSource<*>.readAsn1Tag(): Asn1Element.Tag =
     readByte().let { firstByte ->
         (firstByte byteMask 0x1F).let { tagNumber ->
             if (tagNumber <= 30U) Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))
@@ -231,7 +237,7 @@ fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
  * Decodes [src] as DER using this [Asn1Decodable].
  *
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
- * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
+ * This limit is enforced before reading or peeking from the underlying source.
  */
 @InternalAwesn1Api
 @Throws(Asn1Exception::class)
