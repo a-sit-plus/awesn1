@@ -56,7 +56,7 @@ private fun decodeCertificateFixture(name: String): X509Certificate {
         ?: error("Missing certificate fixture: $name")
 
     return PemBlock.decodeAllFromPem(fixture.readText())
-        .first { it.label == X509Certificate.PEM_LABEL }
+        .first { it.pemLabel == X509Certificate.PEM_LABEL }
         .payload
         .let { DER.decodeFromByteArray(X509Certificate.serializer(), it) }
 }
