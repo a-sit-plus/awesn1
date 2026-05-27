@@ -45,7 +45,18 @@ fun <T> ExplicitlyTagged<T>?.orValue(default: T): ExplicitlyTagged<T> =
 )
 data class OctetStringEncapsulated<T>(
     val value: T,
-)
+) {
+    operator fun getValue(thisRef: Any?, property: Any?): T = value
+}
+
+
+operator fun <T> OctetStringEncapsulated<T>?.getValue(thisRef: Any?, property: Any?): T? = this?.value
+
+
+/** Use like so: `val foo by octetStringEncapsulated.orValue("Some sane default that must not even align on nullability")`
+ */
+fun <T> OctetStringEncapsulated<T>?.orValue(default: T): OctetStringEncapsulated<T> =
+    OctetStringEncapsulated(this?.value ?: default)
 
 private const val ExplicitlyTaggedSerialName =
     "at.asitplus.awesn1.serialization.ExplicitlyTagged"

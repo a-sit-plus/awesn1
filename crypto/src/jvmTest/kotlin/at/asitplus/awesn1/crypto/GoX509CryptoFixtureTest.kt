@@ -1,12 +1,8 @@
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.PemBlock
-import at.asitplus.awesn1.crypto.legacy.RsaPrivateKeyInfo
-import at.asitplus.awesn1.crypto.legacy.pki.Pkcs10CertificationRequestInfo
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo.Version
-import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
+import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
 import at.asitplus.awesn1.decodeFromPem
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.testballoon.invoke
@@ -84,7 +80,7 @@ val GoX509CryptoFixtureTest by testSuite {
             Pkcs10CertificationRequest.serializer(),
         )
 
-        decoded.certificationRequestInfo.version shouldBe Version.V1
+        decoded.certificationRequestInfo.version shouldBe  Pkcs10CertificationRequestInfo.Version.V1
     }
 }
 

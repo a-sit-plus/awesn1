@@ -156,8 +156,12 @@ class DerDecoder internal constructor(
             is StructureKind.OBJECT,
             is StructureKind.LIST,
             is StructureKind.MAP -> {
-                if (element is Asn1Structure) {
-                    val children = element.children
+                if (element is Asn1Structure || element is Asn1EncapsulatingOctetString) {
+                    val children = when(element){
+                        is Asn1Structure -> element.children
+                        is Asn1EncapsulatingOctetString -> element.children
+                        else -> throw ImplementationError("OCTET STRING UNWRAPPING")
+                    }
 
                     val effectiveChildren =
                         if (dropFirstChildInNextStructure) {

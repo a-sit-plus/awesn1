@@ -32,22 +32,22 @@ val CastingTest by testSuite {
         shouldThrow<Asn1StructuralException> { Asn1.OctetStringEncapsulating { +Asn1.Null() }.asSet() }
         shouldThrow<Asn1StructuralException> { Asn1.OctetStringEncapsulating { +Asn1.Null() }.asExplicitlyTagged() }
         shouldThrow<Asn1StructuralException> { Asn1.OctetStringEncapsulating { +Asn1.Null() }.asSequence() }
+        shouldThrow<Asn1StructuralException> {Asn1.OctetStringEncapsulating { +Asn1.Null() }.let { it.asStructure() shouldBe it }}
 
         Asn1.OctetStringEncapsulating { +Asn1.Null() }.let { it.asEncapsulatingOctetString() shouldBe it }
         //Reinterpreting this way must always work
         Asn1.OctetStringEncapsulating { +Asn1.Null() }.let { it.asPrimitive() shouldBe it }
-        Asn1.OctetStringEncapsulating { +Asn1.Null() }.let { it.asStructure() shouldBe it }
     }
 
 
     "OctetString PRIMITIVE" {
-        shouldThrow<Asn1StructuralException> { Asn1PrimitiveOctetString(byteArrayOf()).asSet() }
-        shouldThrow<Asn1StructuralException> { Asn1PrimitiveOctetString(byteArrayOf()).asStructure() }
-        shouldThrow<Asn1StructuralException> { Asn1PrimitiveOctetString(byteArrayOf()).asSequence() }
-        shouldThrow<Asn1StructuralException> { Asn1PrimitiveOctetString(byteArrayOf()).asExplicitlyTagged() }
-        shouldThrow<Asn1StructuralException> { Asn1PrimitiveOctetString(byteArrayOf()).asEncapsulatingOctetString() }
-        Asn1PrimitiveOctetString(byteArrayOf()).let { it.asOctetString() shouldBe it }
-        Asn1PrimitiveOctetString(byteArrayOf()).let { it.asPrimitive() shouldBe it }
+        shouldThrow<Asn1StructuralException> { Asn1OctetString(byteArrayOf()).asSet() }
+        shouldThrow<Asn1StructuralException> { Asn1OctetString(byteArrayOf()).asStructure() }
+        shouldThrow<Asn1StructuralException> { Asn1OctetString(byteArrayOf()).asSequence() }
+        shouldThrow<Asn1StructuralException> { Asn1OctetString(byteArrayOf()).asExplicitlyTagged() }
+        shouldThrow<Asn1StructuralException> { Asn1OctetString(byteArrayOf()).asEncapsulatingOctetString() }
+        Asn1OctetString(byteArrayOf()).let { it.asOctetString() shouldBe it }
+        Asn1OctetString(byteArrayOf()).let { it.asPrimitive() shouldBe it }
     }
 
 

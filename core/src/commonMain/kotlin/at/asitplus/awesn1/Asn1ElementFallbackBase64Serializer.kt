@@ -79,9 +79,9 @@ object Asn1EncapsulatingOctetStringFallbackBase64Serializer :
     )
 
 @OptIn(ExperimentalEncodingApi::class)
-object Asn1PrimitiveOctetStringFallbackBase64Serializer :
-    Asn1ElementFallbackBase64SerializerBase<Asn1PrimitiveOctetString>(
-        decodeElement = { it as Asn1PrimitiveOctetString },
+object Asn1OctetStringFallbackBase64Serializer :
+    Asn1ElementFallbackBase64SerializerBase<Asn1OctetString>(
+        decodeElement = { it as Asn1OctetString },
         encodeElement = { it }
     )
 
@@ -101,12 +101,6 @@ object Asn1SetOfFallbackBase64Serializer : Asn1ElementFallbackBase64SerializerBa
 object Asn1PrimitiveFallbackBase64Serializer : Asn1ElementFallbackBase64SerializerBase<Asn1Primitive>(
     decodeElement = { it.asPrimitive() },
     encodeElement = { it }
-)
-
-@OptIn(ExperimentalEncodingApi::class)
-object Asn1OctetStringFallbackBase64Serializer : Asn1ElementFallbackBase64SerializerBase<Asn1OctetString>(
-    decodeElement = { it.asOctetString() },
-    encodeElement = { it.asElement() }
 )
 
 private val ASN1_ELEMENT_FALLBACK_BASE64_DESCRIPTOR =

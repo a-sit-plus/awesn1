@@ -5,7 +5,7 @@ package at.asitplus.awesn1.crypto.legacy
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1PrimitiveOctetString
+import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.Asn1PemDecodable
 import at.asitplus.awesn1.Asn1PemEncodable
 import at.asitplus.awesn1.Asn1Sequence
@@ -17,7 +17,7 @@ import kotlinx.serialization.Serializable
 @Serializable(with = EncryptedPrivateKeyInfo.Companion::class)
 open class EncryptedPrivateKeyInfo(
     val encryptionAlgorithm: Asn1Sequence,
-    val encryptedData: Asn1PrimitiveOctetString,
+    val encryptedData: Asn1OctetString,
 ) : Asn1PemEncodable<Asn1Sequence> {
 
     override val pemLabel get() = PEM_LABEL
@@ -43,7 +43,7 @@ open class EncryptedPrivateKeyInfo(
         @Throws(Asn1Exception::class)
         override fun doDecode(src: Asn1Sequence): EncryptedPrivateKeyInfo = src.decodeRethrowing {
             val algorithm = next().asSequence()
-            val encryptedData = Asn1PrimitiveOctetString(next().asPrimitive().content)
+            val encryptedData = Asn1OctetString(next().asPrimitive().content)
             EncryptedPrivateKeyInfo(algorithm, encryptedData)
         }
     }

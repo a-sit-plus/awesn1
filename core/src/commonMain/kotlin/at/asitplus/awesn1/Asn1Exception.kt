@@ -35,6 +35,17 @@ inline fun <R> Asn1Structure.decodeRethrowing(
     requireFullConsumption: Boolean = true,
     decoder: Asn1Structure.Iterator.() -> R
 ) = runRethrowing { this@decodeRethrowing.decodeAs(requireFullConsumption, decoder) }
+/**
+ * Decodes this ASN.1 structure using the provided [decoder] lambda, rethrowing any caught exception
+ * as an [Asn1Exception].
+ * This is a wrapper around [Asn1Structure.decodeAs] that ensures exceptions thrown during decoding are
+ * consistently rethrown as [Asn1Exception], using the [runRethrowing] utility.
+ */
+inline fun <R> Asn1EncapsulatingOctetString.decodeRethrowing(
+    requireFullConsumption: Boolean = true,
+    decoder: Asn1Structure.Iterator.() -> R
+) = runRethrowing { this@decodeRethrowing.decodeAs(requireFullConsumption, decoder) }
+
 
 class ImplementationError(message: String? = null) :
     Throwable("$message\nThis is an implementation error. Please report this bug at https://github.com/a-sit-plus/awesn1/issues/new/")

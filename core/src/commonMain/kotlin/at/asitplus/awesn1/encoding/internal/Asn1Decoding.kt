@@ -11,7 +11,7 @@ import at.asitplus.awesn1.Asn1Encodable
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1ExplicitlyTagged
 import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1PrimitiveOctetString
+import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.Asn1Set
 import at.asitplus.awesn1.Asn1StructuralException
@@ -44,7 +44,7 @@ fun Asn1Element.Companion.parseFirst(source: Source<*>): Pair<Asn1Element, Long>
 
 @InternalAwesn1Api
 @Suppress("NOTHING_TO_INLINE")
-private inline fun Source<*>.doParseExactly(nBytes: Long): List<Asn1Element> = doParseExactly(nBytes.toULong())
+internal inline fun Source<*>.doParseExactly(nBytes: Long): List<Asn1Element> = doParseExactly(nBytes.toULong())
 
 @InternalAwesn1Api
 @JvmName("doParseExactlyULong")
@@ -119,14 +119,7 @@ private fun Source<*>.readAsn1Element(tagAndLength: TagAndLength, tagAndLengthBy
         else if (tag.isExplicitlyTagged) Asn1ExplicitlyTagged(tag.tagValue, doParseExactly(length))
 
         //ASN.1 OCTET STRING
-        else if (tag == Asn1Element.Tag.OCTET_STRING) catchingUnwrapped {
-            //try to decode recursively
-            Asn1EncapsulatingOctetString(peek().doParseExactly(length)).also { skip(length) } as Asn1Element
-        }.getOrElse {
-            //recursive decoding failed, so we interpret is as primitive
-            require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
-            Asn1PrimitiveOctetString(readByteArray(length.toInt())) as Asn1Element
-        }
+        else if (tag == Asn1Element.Tag.OCTET_STRING) Asn1OctetString(this, length)
 
         //IMPLICIT-ly TAGGED ASN.1 CONSTRUCTED; we don't know if it is a SET OF, SET, SEQUENCE,… so we default to sequence semantics
         else if (tag.isConstructed) Asn1CustomStructure(doParseExactly(length), tag.tagValue, tag.tagClass)

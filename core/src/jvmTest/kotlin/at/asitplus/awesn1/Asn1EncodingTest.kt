@@ -72,7 +72,7 @@ val Asn1EncodingTest by testSuite {
                     +OctetStringEncapsulating {
                         +Asn1EncapsulatingOctetString(
                             listOf(
-                                Asn1PrimitiveOctetString(
+                                Asn1OctetString(
                                     byteArrayOf(
                                         7,
                                         6,

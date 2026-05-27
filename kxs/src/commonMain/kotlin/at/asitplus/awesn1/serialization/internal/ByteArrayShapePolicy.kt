@@ -6,7 +6,7 @@ package at.asitplus.awesn1.serialization.internal
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1PrimitiveOctetString
+import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.encoding.asAsn1BitString
 import at.asitplus.awesn1.serialization.isAsn1BitString
 import kotlinx.serialization.SerializationException
@@ -151,7 +151,7 @@ internal object ByteArrayShapePolicy {
         shape: ByteArrayShape,
     ): Asn1Element = when (shape) {
         ByteArrayShape.BIT_STRING -> Asn1BitString(bytes).encodeToTlv()
-        ByteArrayShape.OCTET_STRING -> Asn1PrimitiveOctetString(bytes)
+        ByteArrayShape.OCTET_STRING -> Asn1OctetString(bytes)
         ByteArrayShape.NOT_APPLICABLE -> throw SerializationException("Byte-array shape is not applicable")
     }
 

@@ -7,7 +7,7 @@ import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1EncapsulatingOctetString
 import at.asitplus.awesn1.Asn1Encodable
 import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1PrimitiveOctetString
+import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.Asn1TagMismatchException
 import at.asitplus.awesn1.Identifiable
@@ -50,7 +50,7 @@ open class X509CertificateExtension @Throws(Asn1Exception::class) protected cons
     constructor(
         oid: ObjectIdentifier,
         critical: Boolean = false,
-        value: Asn1PrimitiveOctetString
+        value: Asn1OctetString
     ) : this(oid, value, if (critical) Bool(true) else null)
 
     override fun encodeToTlv() = Asn1.Sequence {
