@@ -1,6 +1,6 @@
 # Changelog
 
-## NEXT
+## 0.3.0
 * **Features:**
     * Add catch-all fallback to OID-based open-polymorphism
         * Allow defining a fallback-catchall class that has an oid property that is used to when no exact match for an OID is present
@@ -73,6 +73,9 @@
         * Rename `Pkcs10CsrAttribute.X509CertificateExtension` -> `Pkcs10CsrAttribute.ExtensionRequest` <!-- forgot to rename in previous PR-->
     * Drop deprecated Apple X64 targets
     * Rework PEM parsing to be far more usable in practice
+* Dependency Updates:
+    * Kotlin 2.3.21
+    * Serialization 1.11.0
 
 ## 0.2.1
 Equivalent to 0.2.0 but maven central is more brittle than ever, so publishing 0.2.0 went south.
