@@ -102,7 +102,7 @@ fun Source<*>.readFullyToAsn1Elements(limit: Long?): Pair<List<Asn1Element>, Lon
  * Reads a [TagAndLength] and the number of consumed bytes from the source without consuming it
  */
 @InternalAwesn1Api
-private fun BoundedSource<*>.peekTagAndLen() = (peek() as BoundedSource<*>).readTagAndLength()
+private fun BoundedSource<*>.peekTagAndLen() = peek().readTagAndLength()
 
 /**
  * Decodes a single [Asn1Element] from this source.

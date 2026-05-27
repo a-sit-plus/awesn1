@@ -84,7 +84,7 @@ internal class BoundedSource<S : Sink>(
         bytesRead += nBytes
     }
 
-    override fun peek(): Source<S> = BoundedSource(source.peek(), remaining)
+    override fun peek(): BoundedSource<S> = BoundedSource(source.peek(), remaining)
 
     override fun transferTo(sink: S): Long {
         if (exhausted()) return 0
