@@ -28,6 +28,7 @@ kotlin {
             }
         }
         commonTest {
+            kotlin.srcDir(project(":core").layout.projectDirectory.dir("src/sharedTest"))
             dependencies {
                 implementation(serialization("json"))
                 implementation(kotest("property"))

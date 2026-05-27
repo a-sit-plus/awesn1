@@ -36,15 +36,20 @@ sealed class Asn1Element(
     }
 
     companion object {
-
         /**
          * Convenience method to directly parse a HEX-string representation of DER-encoded data.
          * Ignores and strips all whitespace.
+         *
+         * @param limit the maximum allowed total number of encoded DER bytes to consume. Defaults to null to use allow reading the full contents of the string.
+         * This limit is enforced before reading or peeking from the underlying source.
          * @throws [Throwable] all sorts of errors on invalid input
          */
         @Throws(Throwable::class)
-        fun parseFromDerHexString(derEncoded: String) =
-            Asn1Element.parse(derEncoded.replace(Regex("\\s"), "").hexToByteArray(HexFormat.UpperCase))
+        fun parseFromDerHexString(derEncoded: String, limit: Long? = null): Asn1Element {
+            val byteArray = derEncoded.filterNot { it == ':' }.replace(Regex("\\s"), "").uppercase()
+                .hexToByteArray(HexFormat.UpperCase)
+            return Asn1Element.parse(byteArray, limit)
+        }
     }
 
     /**
@@ -251,6 +256,18 @@ sealed class Asn1Element(
             tagValue, encode(tagClass, constructed, tagValue)
         )
 
+        val tagClass: TagClass by lazy {
+            checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
+                "An Illegal Tag class has been found. This should be impossible!"
+            }
+        }
+
+        init {
+            if (tagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
+                throw Asn1Exception("Illegal DER tag: universal tag 0 (end-of-contents) is not allowed")
+            }
+        }
+
         companion object {
             private fun encode(tagClass: TagClass, constructed: Boolean, tagValue: ULong): ByteArray {
                 val derEncoded: ByteArray =
@@ -323,12 +340,6 @@ sealed class Asn1Element(
                 )
             }
 
-        }
-
-        val tagClass: TagClass by lazy {
-            checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
-                "An Illegal Tag class has been found. This should be impossible!"
-            }
         }
 
         val name

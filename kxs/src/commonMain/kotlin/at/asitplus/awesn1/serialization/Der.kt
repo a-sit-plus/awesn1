@@ -6,7 +6,7 @@
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.parseAll
+import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
@@ -38,14 +38,23 @@ class Der internal constructor(
     ): ByteArray = encodeToTlv(serializer, value)?.derEncoded ?: byteArrayOf()
 
 
+    /**
+     * Decodes [bytes] as DER using [deserializer].
+     *
+     * The configured [DerConfiguration.maxInputLength] is the maximum allowed total number of encoded DER bytes to
+     * consume. This limit is enforced before reading or peeking from the underlying source.
+     *
+     * @throws SerializationException if the input does not parse as DER or violates descriptor/tag/nullability constraints.
+     */
     override fun <T> decodeFromByteArray(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
     ): T = runWrappingAs(a = ::SerializationException) {
         val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
         val decoder = DerDecoder(
-            if (bytes.isEmpty()) emptyList() else Asn1Element.parseAll(bytes),
-            serializersModule = configuration.serializersModule,
+            if (bytes.isEmpty()) emptyList() else listOf(
+                Asn1Element.parse(source = bytes, limit = configuration.maxInputLength)
+            ),
             der = this,
             layoutPlan = layoutPlan,
         )
@@ -85,7 +94,6 @@ class Der internal constructor(
             runWrappingAs(a = ::SerializationException) {
                 val layoutPlan = DerLayoutPlanContext(der.configuration).also { it.prime(serializer.descriptor) }
                 val encoder = DerEncoder(
-                    serializersModule = der.configuration.serializersModule,
                     der = der,
                     layoutPlan = layoutPlan,
                 )
@@ -109,7 +117,6 @@ class Der internal constructor(
             val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
             val decoder = DerDecoder(
                 listOf(source),
-                serializersModule = configuration.serializersModule,
                 der = this,
                 layoutPlan = layoutPlan,
             )
@@ -126,11 +133,15 @@ class Der internal constructor(
  * @property explicitNulls if `true`, nullable properties are encoded as ASN.1 `NULL` by default.
  * If `false`, nullable `null` values are omitted by default.
  * exactly as originally decoded.
+ * @property maxInputLength maximum allowed total number of encoded DER bytes to consume before refusing to parse and
+ * throwing. This limit is enforced before reading or peeking from the underlying source.
+ * Defaults to [UInt.MAX_VALUE].
  * @property serializersModule serializers used for contextual/open-polymorphic resolution.
  */
 data class DerConfiguration(
     val encodeDefaults: Boolean = true,
     val explicitNulls: Boolean = false,
+    val maxInputLength: Long = UInt.MAX_VALUE.toLong(),
     val serializersModule: SerializersModule = EmptySerializersModule(),
 )
 
@@ -140,15 +151,25 @@ data class DerConfiguration(
  * - [encodeDefaults]: include/exclude default-valued properties.
  * - [explicitNulls]: encode `null` as ASN.1 `NULL` or omit nullable values.
  * - [serializersModule]: module used for contextual/open-polymorphic serializers.
+ * - [maxInputLength] maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
+ *   This limit is enforced before reading or peeking from the underlying source. Defaults to [UInt.MAX_VALUE].
  */
 class DerBuilder internal constructor() {
     var encodeDefaults: Boolean = true
     var explicitNulls: Boolean = false
+
+    /**
+     * Maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
+     *
+     * This limit is enforced before reading or peeking from the underlying source.
+     */
+    var maxInputLength: Long = UInt.MAX_VALUE.toLong()
     var serializersModule: SerializersModule = EmptySerializersModule()
 
     internal fun build() = DerConfiguration(
         encodeDefaults = encodeDefaults,
         explicitNulls = explicitNulls,
+        maxInputLength = maxInputLength,
         serializersModule = serializersModule,
     )
 }
@@ -179,6 +200,9 @@ inline fun <reified T> Der.decodeFromTlv(source: Asn1Element): T =
 
 /**
  * Decodes [source] from DER bytes using the inferred deserializer for [T].
+ *
+ * The configured [DerConfiguration.maxInputLength] is the maximum allowed total number of encoded DER bytes to consume.
+ * This limit is enforced before reading or peeking from the underlying source.
  */
 @ExperimentalSerializationApi
 inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
@@ -223,6 +247,18 @@ fun DER(config: DerBuilder.() -> Unit = {}) =
 
 @ExperimentalSerializationApi
 object DefaultDer {
+    /**
+     * Maximum allowed total number of encoded DER bytes to consume for the default [DER] instance.
+     *
+     * This limit is enforced before reading or peeking from the underlying source.
+     */
+    var maxInputLength: Long = UInt.MAX_VALUE.toLong()
+        set(value) {
+            check(!consumed) {
+                "Default DER limit has already been set during default DER initialization"
+            }
+            field = value
+        }
     private val contributors = mutableListOf<SerializersModule>()
     private var consumed = false
 
@@ -243,5 +279,6 @@ object DefaultDer {
 val DER: Der by lazy {
     DER {
         serializersModule = DefaultDer.consumeSerializers()
+        maxInputLength = DefaultDer.maxInputLength
     }
 }

@@ -15,11 +15,7 @@ val TagSortingTest by testSuite {
         val sortedClasses =
             listOf(TagClass.UNIVERSAL, TagClass.APPLICATION, TagClass.CONTEXT_SPECIFIC, TagClass.PRIVATE)
         checkAll(iterations = 1000, Arb.uLong()) - { a ->
-            val tagA = Asn1Element.Tag(
-                a,
-                constructed = false,
-                tagClass = TagClass.UNIVERSAL
-            )
+
             val tagAAPP = Asn1Element.Tag(
                 a,
                 constructed = false,
@@ -36,41 +32,54 @@ val TagSortingTest by testSuite {
                 tagClass = TagClass.PRIVATE
             )
 
-            val tagAC = Asn1Element.Tag(
+            val tagAC = if (a > 0uL) Asn1Element.Tag(
                 a,
                 constructed = true,
                 tagClass = TagClass.UNIVERSAL
-            )
+            ) else null
 
-
-            tagA.compareTo(tagAC) shouldBe 0
-
-            tagA shouldBeLessThan tagAAPP
-            tagAAPP shouldBeLessThan tagACTX
-            tagACTX shouldBeLessThan tagAP
-
-            tagAC shouldBeLessThan tagAAPP
-            tagAC shouldBeLessThan tagACTX
-            tagAC shouldBeLessThan tagAP
-
-
-            checkAll(iterations = 1000, Arb.uLong()) { b ->
-                val tagB = Asn1Element.Tag(
-                    b,
+            if (a > 0uL) {
+                val tagA = Asn1Element.Tag(
+                    a,
                     constructed = false,
                     tagClass = TagClass.UNIVERSAL
                 )
+                tagA.compareTo(tagAC!!) shouldBe 0
 
-                if (a < b) {
-                    tagA shouldBeLessThan tagB
-                } else if (a > b) {
-                    tagA shouldBeGreaterThan tagB
-                }
+                tagA shouldBeLessThan tagAAPP
+            }
+            tagAAPP shouldBeLessThan tagACTX
+            tagACTX shouldBeLessThan tagAP
+            tagAC?.let {
+                it shouldBeLessThan tagAAPP
+                it shouldBeLessThan tagACTX
+                it shouldBeLessThan tagAP
+            }
 
-                sortedClasses.forEachIndexed { i, left ->
-                    sortedClasses.drop(i + 1).forEach { right ->
-                        Asn1Element.Tag(a, constructed = false, tagClass = left) shouldBeLessThan
-                                Asn1Element.Tag(b, constructed = false, tagClass = right)
+            if (a > 0uL) {
+                val tagA = Asn1Element.Tag(
+                    a,
+                    constructed = false,
+                    tagClass = TagClass.UNIVERSAL
+                )
+                checkAll(iterations = 1000, Arb.uLong(min = 1uL)) { b ->
+                    val tagB = Asn1Element.Tag(
+                        b,
+                        constructed = false,
+                        tagClass = TagClass.UNIVERSAL
+                    )
+
+                    if (a < b) {
+                        tagA shouldBeLessThan tagB
+                    } else if (a > b) {
+                        tagA shouldBeGreaterThan tagB
+                    }
+
+                    sortedClasses.forEachIndexed { i, left ->
+                        sortedClasses.drop(i + 1).forEach { right ->
+                            Asn1Element.Tag(a, constructed = false, tagClass = left) shouldBeLessThan
+                                    Asn1Element.Tag(b, constructed = false, tagClass = right)
+                        }
                     }
                 }
             }

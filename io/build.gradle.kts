@@ -30,6 +30,7 @@ kotlin {
             }
         }
         commonTest {
+            kotlin.srcDir(project(":core").layout.projectDirectory.dir("src/sharedTest"))
             dependencies {
                 implementation(kotest("property"))
             }

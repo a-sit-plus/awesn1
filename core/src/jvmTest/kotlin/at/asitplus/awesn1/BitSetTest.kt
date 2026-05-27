@@ -16,7 +16,6 @@ import at.asitplus.awesn1.BitSet as KmpBitSet
 
 val BitSetTest by testSuite {
 
-    //outer container required for checkall
     "Custom BitSet Implementation" - {
         "manual tests" {
             KmpBitSet.fromString("011011100101110111").toBitStringView() shouldBe "011011100101110111"

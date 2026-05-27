@@ -45,7 +45,7 @@ value class X509SignatureValue(val rawBitString: Asn1BitString) {
 
     constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
-    val rawBytes: ByteArray get() = rawBitString.rawBytes
+    val rawBytes: ByteArray get() = rawBitString.bitCarryingBytes
 
     @Throws(Asn1Exception::class)
     fun decodeRS(): Pair<Asn1Integer.Positive, Asn1Integer.Positive> =

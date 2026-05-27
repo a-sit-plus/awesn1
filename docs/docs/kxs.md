@@ -250,6 +250,35 @@ For inline/value-class alternatives, place those annotations on the value class 
 3. {{ asn1js_iframe('kxs-choice-primitive-text') -}}
    Explore on <a href="{{ asn1js_url('kxs-choice-primitive-text') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
+### Tagged CHOICE Values
+
+Do not put `@Asn1Tag` on a sealed `CHOICE` type or on a property whose type is a sealed `CHOICE`.
+awesn1 rejects this because ASN.1 implicit tagging replaces the tag of an existing TLV, but `CHOICE` has no tag of
+its own. Only the selected alternative has a tag. Retagging that selected alternative would change the alternative
+itself instead of tagging the `CHOICE` value, and can produce invalid DER or make decoding ambiguous.
+
+This matters in real profiles. X.509 defines `GeneralName` and `Name` like this:
+
+```asn1
+GeneralName ::= CHOICE {
+  dNSName         [2] IA5String,
+  directoryName  [4] Name
+}
+
+Name ::= CHOICE {
+  rdnSequence RDNSequence
+}
+```
+
+`dNSName [2] IA5String` can be modeled as an implicitly tagged primitive alternative, because `IA5String` has a tag
+that can be replaced. `directoryName [4] Name` is different: `Name` is itself a `CHOICE`, so there is no `Name` tag to
+replace. The wire shape must be a context-specific constructed `[4]` wrapper containing the selected `Name`
+alternative, for example the `rdnSequence` `SEQUENCE`.
+
+Model this kind of schema as an explicit wrapper in Kotlin, with `ExplicitlyTagged<T>` or with a small
+domain-specific wrapper.
+Do not model it as `@Asn1Tag(4u)` on the sealed `Name` type or on a `Name` property.
+
 ## Open Polymorphism by Leading Tag
 
 When you have open polymorphism and subtypes are distinguishable by ASN.1 tag alone, dispatch by leading tag is the

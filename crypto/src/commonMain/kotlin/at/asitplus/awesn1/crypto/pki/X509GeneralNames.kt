@@ -8,6 +8,7 @@ import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.Asn1StructuralException
 import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.runWrappingAs
@@ -48,28 +49,30 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
 
     private fun parseStringSANs(implicitTag: Asn1Element.Tag) =
         entries.filter { it.tag == implicitTag }.map { it.asPrimitive().content.decodeToString() }
-    val dnsNames: List<String> get() = parseStringSANs(GeneralNameImplicitTags.dnsName)
-    val rfc822Names: List<String> get() = parseStringSANs(GeneralNameImplicitTags.rfc822Name)
-    val uris: List<String> get() = parseStringSANs(GeneralNameImplicitTags.uniformResourceIdentifier)
+    val dnsNames: List<String> get() = parseStringSANs(GeneralNameTags.dnsName)
+    val rfc822Names: List<String> get() = parseStringSANs(GeneralNameTags.rfc822Name)
+    val uris: List<String> get() = parseStringSANs(GeneralNameTags.uniformResourceIdentifier)
 
     val ipAddresses: List<ByteArray> get() =
-        entries.filter { it.tag == GeneralNameImplicitTags.ipAddress }
+        entries.filter { it.tag == GeneralNameTags.ipAddress }
             .map { it.asPrimitive().content.also { c ->
                 if (c.size != 4 && c.size != 16) throw Asn1StructuralException("Invalid ipAddress Alternative Name found: ${c.toHexString()}")
             }}
 
     val directoryNames: List<List<X500RelativeDistinguishedName>> get() =
-        entries.filter { it.tag == GeneralNameImplicitTags.directoryName }
+        entries.filter { it.tag == GeneralNameTags.directoryName }
             .map { e ->
-                e.asSequence().children.map { DER.decodeFromTlv<X500RelativeDistinguishedName>( it) }
+                e.asStructure().children.single().asSequence().children
+                    .map { DER.decodeFromTlv<X500RelativeDistinguishedName>(it) }
             }
 
     val otherNames: List<Asn1Sequence> get() =
-        entries.filter { it.tag == GeneralNameImplicitTags.otherName }.map { e ->
-            e.asSequence().also {
+        entries.filter { it.tag == GeneralNameTags.otherName }.map { e ->
+            e.asStructure().let {
                 if (it.children.size != 2) throw Asn1StructuralException("Invalid otherName Alternative Name found (!=2 children): ${it.toDerHexString()}")
-                if (it.children.last().tag != GeneralNameImplicitTags.otherName) throw Asn1StructuralException("Invalid otherName Alternative Name found (implicit tag != 0): ${it.toDerHexString()}")
+                if (it.children.last().tag != GeneralNameTags.otherNameValue) throw Asn1StructuralException("Invalid otherName Alternative Name found (explicit value tag != 0): ${it.toDerHexString()}")
                 ObjectIdentifier.decodeFromAsn1ContentBytes(it.children.first().asPrimitive().content)
+                Asn1.Sequence { it.children.forEach { child -> +child } }
             }
         }
 
@@ -107,17 +110,30 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
 
 /**
  *
- * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.2.1.6), these are
- * implicit tag numbers for `GeneralName` alternatives.
+ * Context-specific tags for RFC 5280 `GeneralName` alternatives.
  */
-object GeneralNameImplicitTags {
-    val otherName = Asn1.ImplicitTag(0uL)
+object GeneralNameTags {
+    val otherName = constructedContextTag(0uL)
     val rfc822Name = Asn1.ImplicitTag(1uL)
     val dnsName = Asn1.ImplicitTag(2uL)
-    val x400Address = Asn1.ImplicitTag(3uL)
-    val directoryName = Asn1.ImplicitTag(4uL)
-    val ediPartyName = Asn1.ImplicitTag(5uL)
+    val x400Address = constructedContextTag(3uL)
+
+    /*
+     * `directoryName [4] Name` is encoded as a constructed wrapper because
+     * `Name` is itself a CHOICE and has no tag that implicit tagging could replace.
+     */
+    val directoryName = constructedContextTag(4uL)
+
+    val ediPartyName = constructedContextTag(5uL)
     val uniformResourceIdentifier = Asn1.ImplicitTag(6uL)
     val ipAddress = Asn1.ImplicitTag(7uL)
     val registeredID = Asn1.ImplicitTag(8uL)
+
+    /** `OtherName.value [0] EXPLICIT ANY DEFINED BY type-id`. */
+    val otherNameValue = Asn1.ExplicitTag(0uL)
+
+    //same as explicit tag, but like this the source code reads close to the semantics:
+    //an implicitly tagged CONSTRUCTED element
+    private fun constructedContextTag(tagNumber: ULong) =
+        Asn1Element.Tag(tagNumber, constructed = true, tagClass = TagClass.CONTEXT_SPECIFIC)
 }

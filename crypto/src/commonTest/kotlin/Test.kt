@@ -1,4 +1,5 @@
 import at.asitplus.testballoon.PropertyTest
+import at.asitplus.testballoon.TestBalloonAddons
 import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldNotBe
@@ -23,5 +24,6 @@ class ModuleTestSession : TestSession(
 ) {
     init {
         PropertyTest.compactByDefault=true
+        TestBalloonAddons.compactConcurrent = true
     }
 }

@@ -42,10 +42,12 @@ private sealed class Asn1ElementHolder {
 
 @ExperimentalSerializationApi
 class DerEncoder internal constructor(
-    override val serializersModule: SerializersModule = EmptySerializersModule(),
-    override val der: Der = Der(),
+    override val der: Der,
     private val layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
 ) : AbstractEncoder(), at.asitplus.awesn1.serialization.DerEncoder {
+
+    override val serializersModule: SerializersModule
+        get() = der.configuration.serializersModule
 
     private val buffer = mutableListOf<Asn1ElementHolder>()
     private var descriptorAndIndex: Pair<SerialDescriptor, Int>? = null
@@ -417,7 +419,8 @@ class DerEncoder internal constructor(
                 "ASN.1 CHOICE only supports kotlinx SealedClassSerializer"
             )
 
-        val tagTemplate = resolveAsn1TagTemplate(
+        rejectAsn1TagOnChoice(
+            choiceSerialName = serializer.descriptor.serialName,
             inlineAsn1Tag = inlineAnnotation,
             propertyAsn1Tag = propertyAnnotation,
             classAsn1Tag = serializer.descriptor.asn1Tag,
@@ -428,7 +431,6 @@ class DerEncoder internal constructor(
             )
 
         val childSerializer = DerEncoder(
-            serializersModule = serializersModule,
             der = der,
             layoutPlan = layoutPlan,
         )
@@ -440,7 +442,7 @@ class DerEncoder internal constructor(
             )
         }
 
-        appendElement(elements.first(), tagTemplate)
+        appendElement(elements.first())
     }
 
     /**
@@ -472,7 +474,6 @@ class DerEncoder internal constructor(
         }
 
         val childSerializer = DerEncoder(
-            serializersModule = serializersModule,
             der = der,
             layoutPlan = layoutPlan,
         )

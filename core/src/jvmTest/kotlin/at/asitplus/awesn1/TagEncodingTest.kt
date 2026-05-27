@@ -52,11 +52,11 @@ val TagEncodingTest by testSuite {
     "Automated" - {
         checkAll(iterations = 100000, Arb.uLong()) {
             it.toAsn1VarInt().decodeAsn1VarULong().first shouldBe it
-            Asn1Element.Tag(it, constructed = it % 2uL == 0uL).tagValue shouldBe it
+            Asn1Element.Tag(it, constructed = it % 2uL == 0uL, tagClass = TagClass.CONTEXT_SPECIFIC).tagValue shouldBe it
         }
     }
     "Against BC" - {
-        checkAll(iterations = 1000000, Arb.int(min = 0)) {
+        checkAll(iterations = 1000000, Arb.int(min = 1)) {
             val tag = Asn1Element.Tag(it.toULong(), constructed = false)
             tag.tagValue shouldBe it.toULong()
 

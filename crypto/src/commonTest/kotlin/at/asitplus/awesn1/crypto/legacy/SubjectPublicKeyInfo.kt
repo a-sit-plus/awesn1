@@ -35,7 +35,7 @@ open class SubjectPublicKeyInfo(
 
     override fun encodeToTlv() = Asn1.Sequence {
         +algorithmIdentifier
-        +Asn1.BitString(subjectPublicKey.rawBytes)
+        +Asn1.BitString(subjectPublicKey.bitCarryingBytes)
     }
 
     @Throws(Asn1Exception::class)
@@ -45,7 +45,7 @@ open class SubjectPublicKeyInfo(
         }
         require(algorithmParameters.size == 1) { "RSA SubjectPublicKeyInfo must contain NULL params" }
         algorithmParameters.single().asPrimitive().readNull()
-        return RsaPublicKeyInfo.decodeFromTlv(Asn1Element.parse(subjectPublicKey.rawBytes).asSequence())
+        return RsaPublicKeyInfo.decodeFromTlv(Asn1Element.parse(subjectPublicKey.bitCarryingBytes).asSequence())
     }
 
     override fun equals(other: Any?): Boolean {

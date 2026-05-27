@@ -78,6 +78,9 @@ interface Asn1Serializable<A : Asn1Element, T : Asn1Encodable<A>> :
     }
 }
 
+//TODO: extend to have two fallbacks:
+// 1: for string formats (the fallback now)
+// 2: for non-der binary formats like cose or protobuf. this will mos def get us huge performance gains
 abstract class Asn1Serializer<A : Asn1Element, T : Asn1Encodable<A>>(
     override val leadingTags: Set<Asn1Element.Tag>,
     decodable: Asn1Decodable<A, T>,

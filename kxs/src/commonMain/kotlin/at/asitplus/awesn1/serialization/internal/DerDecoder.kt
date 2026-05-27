@@ -41,17 +41,17 @@ import kotlin.time.Instant
  */
 class DerDecoder internal constructor(
     private val elements: List<Asn1Element>,
-    override val serializersModule: SerializersModule = EmptySerializersModule(),
-    override val der: Der = Der(),
+    override val der: Der,
     private val layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
 ) : AbstractDecoder(), at.asitplus.awesn1.serialization.DerDecoder {
 
     internal constructor(
         source: Source<*>,
-        serializersModule: SerializersModule = EmptySerializersModule(),
-        der: Der = Der(),
+        der: Der,
         layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
-    ) : this(source.readFullyToAsn1Elements().first, serializersModule, der, layoutPlan)
+    ) : this(source.readFullyToAsn1Elements(der.configuration.maxInputLength).first, der, layoutPlan)
+
+    override val serializersModule get() = der.serializersModule
 
     private var elementIndex = 0
     private var descriptorIndex = 0
@@ -83,7 +83,7 @@ class DerDecoder internal constructor(
         serializer: Asn1Serializable<*, *>,
         processedElement: Asn1Element,
         expectedTag: Asn1Element.Tag?,
-    ): Any = when (processedElement) {
+    ): Any = runWrappingAs(a = ::SerializationException) { when (processedElement) {
         is Asn1Primitive -> {
             @Suppress("UNCHECKED_CAST")
             val primitiveDecoder = serializer as? Asn1Decodable<Asn1Primitive, *>
@@ -98,10 +98,10 @@ class DerDecoder internal constructor(
             val structureDecoder = serializer as? Asn1Decodable<Asn1Structure, *>
                 ?: throw SerializationException(
                     "Serializer ${serializer.descriptor.serialName} cannot decode ASN.1 structure values"
-                )
+            )
             structureDecoder.decodeFromTlv(processedElement, expectedTag)
         }
-    }
+    } }
 
     /**
      * Decodes the current element in an isolated child decoder context.
@@ -114,7 +114,6 @@ class DerDecoder internal constructor(
             ?: throw SerializationException("No ASN.1 element left while decoding ${deserializer.descriptor.serialName}")
         val isolated = DerDecoder(
             elements = listOf(current),
-            serializersModule = serializersModule,
             der = der,
             layoutPlan = layoutPlan,
         )
@@ -171,7 +170,6 @@ class DerDecoder internal constructor(
 
                     DerDecoder(
                         effectiveChildren,
-                        serializersModule = serializersModule,
                         der = der,
                         layoutPlan = layoutPlan,
                     )
@@ -193,7 +191,6 @@ class DerDecoder internal constructor(
 
                 DerDecoder(
                     effectiveChildren,
-                    serializersModule = serializersModule,
                     der = der,
                     layoutPlan = layoutPlan,
                 )
@@ -657,7 +654,6 @@ class DerDecoder internal constructor(
 
         val childDecoder = DerDecoder(
             elements = mutableListOf(processedElement),
-            serializersModule = serializersModule,
             der = der,
             layoutPlan = layoutPlan,
         )
@@ -723,8 +719,8 @@ class DerDecoder internal constructor(
                 "ASN.1 CHOICE only supports kotlinx SealedClassSerializer"
             )
 
-        validateAndResolveImplicitTagOverride(
-            actualTag = currentAnnotatedElement.tag,
+        rejectAsn1TagOnChoice(
+            choiceSerialName = deserializer.descriptor.serialName,
             inlineAsn1Tag = inlineAnnotation,
             propertyAsn1Tag = propertyAsn1Tag,
             classAsn1Tag = deserializer.descriptor.asn1Tag,

@@ -7,13 +7,17 @@ package at.asitplus.awesn1.io
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.serialization.Der
-import kotlinx.serialization.DeserializationStrategy
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.SerializationStrategy
-import kotlinx.serialization.serializer
+import kotlinx.serialization.*
 import kotlin.reflect.typeOf
 
+/**
+ * Decodes a DER value from [source] using the inferred deserializer for [T].
+ *
+ * The configured [at.asitplus.awesn1.serialization.DerConfiguration.maxInputLength] is the maximum allowed total number
+ * of encoded DER bytes to consume. This limit is enforced before reading or peeking from the underlying source.
+ *
+ * @throws SerializationException if the input does not parse as DER or violates descriptor/tag/nullability constraints.
+ */
 @OptIn(ExperimentalSerializationApi::class)
 inline fun <reified T> Der.decodeFromSource(source: kotlinx.io.Source): T =
     decodeFromSource(
@@ -21,6 +25,14 @@ inline fun <reified T> Der.decodeFromSource(source: kotlinx.io.Source): T =
         source,
     ) as T
 
+/**
+ * Decodes a DER value from [source] using [deserializer].
+ *
+ * The configured [at.asitplus.awesn1.serialization.DerConfiguration.maxInputLength] is the maximum allowed total number
+ * of encoded DER bytes to consume. This limit is enforced before reading or peeking from the underlying source.
+ *
+ * @throws SerializationException if the input does not parse as DER or violates descriptor/tag/nullability constraints.
+ */
 @OptIn(ExperimentalSerializationApi::class)
 fun <T> Der.decodeFromSource(
     deserializer: DeserializationStrategy<T>,
@@ -30,7 +42,10 @@ fun <T> Der.decodeFromSource(
         // Keep nullable top-level semantics consistent with Der.decodeFromByteArray(empty).
         return decodeFromByteArray(deserializer, byteArrayOf())
     }
-    val element = Asn1Element.parse(source)
+    val element = Asn1Element.parse(
+        source,
+        configuration.maxInputLength
+    )
     if (!source.exhausted()) {
         throw SerializationException("Expected a single ASN.1 value in source")
     }

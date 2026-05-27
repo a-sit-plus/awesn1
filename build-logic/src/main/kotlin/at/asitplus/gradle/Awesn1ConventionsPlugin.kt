@@ -10,7 +10,6 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.publish.PublishingExtension
-import org.gradle.api.tasks.StopExecutionException
 import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.*
@@ -148,6 +147,21 @@ class Awesn1ConventionsExtension(private val project: Project) {
                         }
                     } else
                         Logger.lifecycle("  > Signing locally published maven artefacts!")
+                }
+
+                val githubActor = findProperty("gpr.user") as String? ?: System.getenv("GITHUB_ACTOR")
+                val githubToken = findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
+                val githubRepository =
+                    findProperty("gpr.repo") as String? ?: System.getenv("GITHUB_REPOSITORY") ?: "a-sit-plus/awesn1"
+                if (githubToken != null && githubActor != null) {
+                    maven {
+                        this.name = "GitHubPackages"
+                        url = uri("https://maven.pkg.github.com/$githubRepository")
+                        credentials {
+                            username = githubActor
+                            password = githubToken
+                        }
+                    }
                 }
             }
         }

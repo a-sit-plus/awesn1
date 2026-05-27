@@ -4,12 +4,15 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1BitString
+import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.PemLabelSpec
 import at.asitplus.awesn1.WithPemLabel
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
+import at.asitplus.awesn1.toInt
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -17,7 +20,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-
 /**
  *
  * As per [RFC5915](https://www.rfc-editor.org/rfc/rfc5915.html#section-3):
@@ -56,6 +58,14 @@ data class Sec1EcPrivateKeyInfo internal constructor(
         taggedPublicKey = publicKey?.let(::ExplicitlyTagged),
     )
     override val pemLabel: String get() = PEM_LABEL
+
+    init {
+        taggedPublicKey?.value?.let {
+            if (it.numPaddingBits != 0.toByte()) {
+                throw Asn1Exception("Public key value must not have padding bits")
+            }
+        }
+    }
 
     val parameters: ObjectIdentifier? by taggedParameters
 

@@ -1,12 +1,14 @@
 package at.asitplus.awesn1
 
+import at.asitplus.awesn1.encoding.internal.Source
+import at.asitplus.awesn1.encoding.internal.readAsn1Element
 import at.asitplus.testballoon.DataTest
 import at.asitplus.testballoon.PropertyTest
+import at.asitplus.testballoon.TestBalloonAddons
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession
 import de.infix.testBalloon.framework.core.invocation
 import de.infix.testBalloon.framework.core.testScope
-import kotlin.js.JsExport
 import kotlin.time.Duration.Companion.minutes
 
 //Supercharge tests with concurrency
@@ -17,5 +19,9 @@ class ModuleTestSession : TestSession(
     init {
         PropertyTest.compactByDefault = true
         DataTest.compactByDefault = true
+        TestBalloonAddons.compactConcurrent = true
     }
 }
+
+@OptIn(InternalAwesn1Api::class)
+internal fun Source<*>.readAsn1Element() = readAsn1Element(limit = Long.MAX_VALUE)

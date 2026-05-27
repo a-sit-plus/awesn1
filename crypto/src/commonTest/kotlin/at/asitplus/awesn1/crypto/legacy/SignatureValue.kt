@@ -24,7 +24,7 @@ private constructor(val rawBitString: Asn1BitString) : Asn1Encodable<Asn1Primiti
 
     constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
-    val rawBytes: ByteArray get() = rawBitString.rawBytes
+    val rawBytes: ByteArray get() = rawBitString.bitCarryingBytes
 
     /**
      * Decodes r,s signature components from a SEQUENCE nested inside a signature values' BIT_STRING bytes.

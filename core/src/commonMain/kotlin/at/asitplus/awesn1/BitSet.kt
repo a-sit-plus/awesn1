@@ -8,6 +8,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.experimental.and
@@ -51,9 +52,19 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
 
 
     /**
+     * Creates a deep copy of the current `BitSet` instance.
+     *
+     * @return A new `BitSet` object containing the same state as the current one.
+     */
+    fun copyOf(): BitSet = BitSet(bytes.toMutableList())
+
+    /**
      * List view on the bytes backing this bit set. Changes to the bytes directly affect this bitset.
      */
-    val bytes: List<Byte> get() = buffer
+    val bytes: List<Byte> get() {
+        compact()
+        return buffer
+    }
 
     /**
      * Preallocates a buffer capable of holding [nBits] many bits
@@ -69,14 +80,16 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
     operator fun get(index: Long): Boolean = buffer.getBit(index)
 
     /**
-     * return the next bit set to true following [fromIndex]
+     * Returns the first bit set to true from [fromIndex] *(= inclusive)*.
+     * @return the index of the first bit set to true, or -1 if there are no bits set to true
      */
     fun nextSetBit(fromIndex: Long): Long {
         if (fromIndex < 0) throw IndexOutOfBoundsException("fromIndex = $fromIndex")
         val byteIndex = getByteIndex(fromIndex)
-        if (byteIndex >= buffer.size) return -1
+        val compactBytes = bytes
+        if (byteIndex >= compactBytes.size) return -1
         else {
-            buffer.subList(byteIndex, buffer.size).let { list ->
+            compactBytes.subList(byteIndex, compactBytes.size).let { list ->
                 val startIndex = getBitIndex(fromIndex).toLong()
                 for (i: Long in startIndex until list.size.toLong() * 8L) {
                     if (list.getBit(i)) return byteIndex.toLong() * 8L + i
@@ -85,6 +98,12 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
             return -1
         }
     }
+
+    /**
+     * Returns the first bit set to true *after* [index] (= exclusive).
+     * @return the index of the first bit set to true, or -1 if there are no bits set to true
+     */
+    fun nextSetBitAfter(index: Long):Long = nextSetBit(index+1)
 
     /**
      * Sets the bit at [index] to [value]
@@ -107,11 +126,17 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
     fun length(): Long = highestSetIndex() + 1L
 
     /**
-     * This is the real deal, as it has [Long] indices
+     * Iterates over each bit in the `BitSet` and invokes the provided [action] for every index and corresponding bit value.
+     *
+     * Deliberatelly not an extension function, to have precedence over the int-indexed `forEach` function of the `Iterable` interface.
+     *
+     * @param action A lambda function that is invoked with two arguments:
+     * - `i`: The index of the bit in the `BitSet`.
+     * - `it`: The value of the bit at the given index, either `true` or `false`.
      */
     //deliberately not an extension function
-    inline fun forEachIndexed(block: (i: Long, it: Boolean) -> Unit) {
-        for (i in 0..<length()) block(i, this[i])
+    inline fun forEachIndexed(action: (i: Long, it: Boolean) -> Unit) {
+        for (i in 0..<length()) action(i, this[i])
     }
 
     /**
@@ -191,14 +216,12 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
     fun memDumpView() = toByteArray().memDumpView()
 
     override fun equals(other: Any?): Boolean {
-        if (other == null) return false
-        if (other::class != BitSet::class) return false
-        other as BitSet
-        forEachIndexed { i, it ->
-            if (other[i] != it) return false
-        }
-        return true
+        if (this === other) return true
+        if (other !is BitSet) return false
+        return toByteArray().contentEquals(other.toByteArray())
     }
+
+    override fun hashCode(): Int = toByteArray().contentHashCode()
 
 
     /**
@@ -215,8 +238,7 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
         //yes, int, because if you want more, init using a bytearray!
         operator fun invoke(nBits: Int, initializer: (Int) -> Boolean): BitSet = BitSet(nBits.toLong()).apply {
             repeat(nBits) {
-                //only set true, so we don't compact, except for last index
-                if (initializer(it) || (it == nBits - 1)) set(it.toLong())
+                if (initializer(it)) set(it.toLong())
             }
         }
 
@@ -310,19 +332,16 @@ fun ByteArray.memDumpView(): String =
     joinToString(separator = " ") { it.toUByte().toString(2).padStart(8, '0') }
 
 /**
- * String serializer for [BitSet] used for interoperability with non-DER serialization formats.
- *
- * When used with the `awesn1.kxs` DER format, this serializer is bypassed and proper DER TLV
- * encoding/decoding is used.
+ * Serializer for [BitSet], behaving the same as serializing an [Asn1BitString]
  */
 object BitSetSerializer : KSerializer<BitSet> {
-    override val descriptor = PrimitiveSerialDescriptor("BitSet", PrimitiveKind.STRING)
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("at.asitplus.awesn1.BitSet", PrimitiveKind.STRING)
 
-    override fun deserialize(decoder: Decoder) = BitSet.fromString(decoder.decodeString())
+    override fun deserialize(decoder: Decoder): BitSet =
+        decoder.decodeSerializableValue(Asn1BitString.serializer()).toBitSet()
 
-    override fun serialize(encoder: Encoder, value: BitSet) {
-        encoder.encodeString(value.toBitStringView())
-    }
+    override fun serialize(encoder: Encoder, value: BitSet) =
+        encoder.encodeSerializableValue(Asn1BitString.serializer(), Asn1BitString(value))
 
 }
 

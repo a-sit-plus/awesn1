@@ -168,7 +168,12 @@ internal object ByteArrayShapePolicy {
         tagToValidate: Asn1Element.Tag?,
     ): ByteArray = when (shape) {
         ByteArrayShape.BIT_STRING ->
-            primitive.asAsn1BitString(tagToValidate ?: Asn1Element.Tag.BIT_STRING).rawBytes
+            primitive.asAsn1BitString(tagToValidate ?: Asn1Element.Tag.BIT_STRING).apply {
+                if (numPaddingBits != 0.toByte()) throw SerializationException(
+                    "Byte Arrays deserialized from BIT STRING must not have padding bits. Found $numPaddingBits padding bits. " +
+                            "If you require padding, directly use Asn1BitString to represent the property."
+                )
+            }.bitCarryingBytes
 
         ByteArrayShape.OCTET_STRING -> primitive.content
         ByteArrayShape.NOT_APPLICABLE -> throw SerializationException("Byte-array shape is not applicable")

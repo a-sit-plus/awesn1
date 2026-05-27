@@ -1,6 +1,7 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.PemBlock
+import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.catchingUnwrapped
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.decodeAllFromPem
@@ -65,7 +66,7 @@ val X509CertificateFixtureRoundTripTest by testSuite {
                 parseAndAssert()
             }.onFailure {
                 //here we re-encode s.t. it differs
-                if ((path.name.contains("nonminimal") || path.name.contains("serial-negative"))) it.shouldBeInstanceOf<AssertionFailedError>()
+                if ( path.name.contains("serial-negative")) it.shouldBeInstanceOf<AssertionFailedError>()
                 //here we can't parse
                 else it.shouldBeInstanceOf<SerializationException>()
             } else parseAndAssert()

@@ -1,7 +1,6 @@
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.internal.readAsn1Element
 import at.asitplus.awesn1.encoding.internal.readFullyToAsn1Elements
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.encoding.parseAll
@@ -82,7 +81,7 @@ val Asn1ParserTest by testSuite {
 
             shouldThrow<Asn1Exception> {
                 run {
-                    withGarbage.wrapInUnsafeSource().readFullyToAsn1Elements()
+                    withGarbage.wrapInUnsafeSource().readFullyToAsn1Elements(limit = Long.MAX_VALUE)
                 } shouldBe seq.children
             }
 
