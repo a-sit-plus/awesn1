@@ -977,17 +977,17 @@ class Asn1SetOf @Throws(Asn1Exception::class) internal constructor(children: Lis
 open class Asn1Primitive private constructor(
     tag: Tag,
     content: ByteArray?,
-    contentProvider: (()->ByteArray)?
+    contentProvider: (()->ByteArray)
 ) : Asn1Element(tag) {
 
-    constructor(tag: Tag, content: ByteArray) : this(tag, content, null)
+    constructor(tag: Tag, content: ByteArray) : this(tag, content, initImplError)
     constructor(tag: Tag, contentProvider: ()->ByteArray) : this(tag, null, contentProvider)
 
     init {
         if (tag.isConstructed) throw IllegalArgumentException("A primitive cannot have a CONSTRUCTED tag")
     }
 
-    val content: ByteArray by content.orLazy(contentProvider!!)
+    val content: ByteArray by content.orLazy(contentProvider)
 
     override val contentLength: Int get() = content.size
     override fun doEncode(sink: Sink) {
@@ -1042,6 +1042,9 @@ open class Asn1Primitive private constructor(
         if (!content.contentEquals(other.content)) return false
 
         return true
+    }
+    companion object {
+        val initImplError: () -> ByteArray = { throw ImplementationError("ASN.1 Element construction") }
     }
 }
 
