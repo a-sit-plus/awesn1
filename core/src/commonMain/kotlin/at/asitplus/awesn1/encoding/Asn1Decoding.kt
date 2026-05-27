@@ -21,6 +21,7 @@ import at.asitplus.awesn1.encoding.internal.parse
 import at.asitplus.awesn1.encoding.internal.parseAll
 import at.asitplus.awesn1.encoding.internal.parseFirst
 import kotlin.enums.enumEntries
+import kotlin.math.min
 import kotlin.time.Instant
 
 
@@ -36,7 +37,7 @@ import kotlin.time.Instant
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Element {
     if (limit != null) require(source.size <= limit) { "Byte array with size ${source.size} is too large to parse. (limit = $limit)" }
-    return parse(source.wrapInUnsafeSource(), source.size)
+    return parse(source.wrapInUnsafeSource(), source.size.toLong())
 }
 
 /**
@@ -49,7 +50,7 @@ fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Ele
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long? = null): List<Asn1Element> {
     if (limit != null) require(source.size <= limit) { "Byte array with size ${source.size} is too large to parse. (limit = $limit)" }
-    return parseAll(source.wrapInUnsafeSource(), source.size)
+    return parseAll(source.wrapInUnsafeSource(), source.size.toLong())
 }
 
 /**
@@ -65,7 +66,7 @@ fun Asn1Element.Companion.parseFirst(
     source: ByteArray,
     limit: Long? = null
 ): Pair<Asn1Element, ByteArray> =
-    parseFirst(source.wrapInUnsafeSource(), limit?.let { min(source.size, it) } ?: source.size)
+    parseFirst(source.wrapInUnsafeSource(), limit?.let { min(source.size.toLong(), it) } ?: source.size.toLong())
 .let { Pair(it.first, source.copyOfRange(it.second.toInt(), source.size)) }
 
 

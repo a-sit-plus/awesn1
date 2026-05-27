@@ -45,7 +45,6 @@ fun <T> Der.decodeFromSource(
     val element = Asn1Element.parse(
         source,
         configuration.maxInputLength
-            ?: throw IllegalArgumentException("For security reasons, a maximum length is required when deserializing from a Source, as the number of availably bytes is unknown beforehand")
     )
     if (!source.exhausted()) {
         throw SerializationException("Expected a single ASN.1 value in source")

@@ -141,7 +141,7 @@ class Der internal constructor(
 data class DerConfiguration(
     val encodeDefaults: Boolean = true,
     val explicitNulls: Boolean = false,
-    val maxInputLength: Long? = UInt.MAX_VALUE.toLong(),
+    val maxInputLength: Long = UInt.MAX_VALUE.toLong(),
     val serializersModule: SerializersModule = EmptySerializersModule(),
 )
 
@@ -163,7 +163,7 @@ class DerBuilder internal constructor() {
      *
      * This limit is enforced before reading or peeking from the underlying source.
      */
-    var maxInputLength: Long? = UInt.MAX_VALUE.toLong()
+    var maxInputLength: Long = UInt.MAX_VALUE.toLong()
     var serializersModule: SerializersModule = EmptySerializersModule()
 
     internal fun build() = DerConfiguration(
