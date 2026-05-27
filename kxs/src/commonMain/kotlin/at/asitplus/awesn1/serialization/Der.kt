@@ -6,7 +6,7 @@
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.parseAll
+import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
@@ -52,9 +52,8 @@ class Der internal constructor(
     ): T = runWrappingAs(a = ::SerializationException) {
         val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
         val decoder = DerDecoder(
-            if (bytes.isEmpty()) emptyList() else Asn1Element.parseAll(
-                source = bytes,
-                limit = configuration.maxInputLength
+            if (bytes.isEmpty()) emptyList() else listOf(
+                Asn1Element.parse(source = bytes, limit = configuration.maxInputLength)
             ),
             der = this,
             layoutPlan = layoutPlan,
@@ -142,7 +141,7 @@ class Der internal constructor(
 data class DerConfiguration(
     val encodeDefaults: Boolean = true,
     val explicitNulls: Boolean = false,
-    val maxInputLength: Long = UInt.MAX_VALUE.toLong(),
+    val maxInputLength: Long? = UInt.MAX_VALUE.toLong(),
     val serializersModule: SerializersModule = EmptySerializersModule(),
 )
 
@@ -158,12 +157,13 @@ data class DerConfiguration(
 class DerBuilder internal constructor() {
     var encodeDefaults: Boolean = true
     var explicitNulls: Boolean = false
+
     /**
      * Maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
      *
      * This limit is enforced before reading or peeking from the underlying source.
      */
-    var maxInputLength: Long = UInt.MAX_VALUE.toLong()
+    var maxInputLength: Long? = UInt.MAX_VALUE.toLong()
     var serializersModule: SerializersModule = EmptySerializersModule()
 
     internal fun build() = DerConfiguration(

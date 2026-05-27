@@ -13,6 +13,7 @@
         * new `nextSetBitAfter(index)` function for exclusive "next bit after this index" searches
         * Is now directly serializable also from/to ASN.1 as `Asn1BitString`
 * **Fixes:**
+    * Deserializing from ByteArray must consume all bytes now, otherwise it will throw. This is how it should have always been.
     * X.509 General Names parsing 
     * Fix value/inline class handling
         * Fix raw Asn1Element deserialzation bug where tag overrides would causes errors instead of correct conversions

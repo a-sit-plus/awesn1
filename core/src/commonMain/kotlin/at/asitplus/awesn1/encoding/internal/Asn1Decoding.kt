@@ -15,7 +15,7 @@ import kotlin.jvm.JvmName
  */
 @InternalAwesn1Api
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parse(source: Source<*>, limit: Long): Asn1Element =
+fun Asn1Element.Companion.parse(source: Source<*>, limit: Long?): Asn1Element =
     parseFirst(source, limit).also {
         if (!source.exhausted()) throw Asn1StructuralException("Trailing bytes found after the first ASN.1 element")
     }.first
@@ -29,7 +29,7 @@ fun Asn1Element.Companion.parse(source: Source<*>, limit: Long): Asn1Element =
  */
 @InternalAwesn1Api
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parseAll(source: Source<*>, limit: Long): List<Asn1Element> =
+fun Asn1Element.Companion.parseAll(source: Source<*>, limit: Long?): List<Asn1Element> =
     source.readFullyToAsn1Elements(limit).first
 
 /**
@@ -40,7 +40,7 @@ fun Asn1Element.Companion.parseAll(source: Source<*>, limit: Long): List<Asn1Ele
  */
 @InternalAwesn1Api
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parseFirst(source: Source<*>, limit: Long): Pair<Asn1Element, Long> =
+fun Asn1Element.Companion.parseFirst(source: Source<*>, limit: Long?): Pair<Asn1Element, Long> =
     source.readAsn1Element(limit)
 
 
@@ -81,13 +81,14 @@ private fun Source<*>.doParseExactly(nBytes: ULong): List<Asn1Element> = mutable
  */
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
-fun Source<*>.readFullyToAsn1Elements(limit: Long): Pair<List<Asn1Element>, Long> =
+fun Source<*>.readFullyToAsn1Elements(limit: Long?): Pair<List<Asn1Element>, Long> =
     BoundedSource(this, limit).let { boundedSource ->
         mutableListOf<Asn1Element>().let { list ->
             var bytesRead = 0L
             while (!boundedSource.exhausted()) {
-                val remainingLimit = limit - bytesRead
-                require(remainingLimit > 0) { "ASN.1 element exceeds limit: $bytesRead >= $limit" }
+                val remainingLimit = limit?.let { it - bytesRead }?.also {
+                    require(it > 0) { "ASN.1 element exceeds limit: $bytesRead >= $limit" }
+                }
                 boundedSource.readAsn1Element(remainingLimit).also { (elem, nBytes) ->
                     bytesRead += nBytes
                     list.add(elem)
@@ -112,7 +113,7 @@ private fun BoundedSource<*>.peekTagAndLen() = (peek() as BoundedSource<*>).read
  */
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
-fun Source<*>.readAsn1Element(limit: Long): Pair<Asn1Element, Long> = runRethrowing {
+fun Source<*>.readAsn1Element(limit: Long?): Pair<Asn1Element, Long> = runRethrowing {
     BoundedSource(this, limit).let { boundedSource ->
         val (readTagAndLength, bytesRead) = boundedSource.readTagAndLength()
         boundedSource.readAsn1Element(readTagAndLength, bytesRead, limit)
@@ -127,13 +128,13 @@ fun Source<*>.readAsn1Element(limit: Long): Pair<Asn1Element, Long> = runRethrow
 private fun BoundedSource<*>.readAsn1Element(
     tagAndLength: TagAndLength,
     tagAndLengthBytes: Int,
-    limit: Long
+    limit: Long?
 ): Pair<Asn1Element, Long> =
     runRethrowing {
         val (tag, length) = tagAndLength
         val totalLength = tagAndLengthBytes.toLong() + length
         //fail fast
-        require(totalLength <= limit) { "Length of ASN.1 element exceeds limit: $totalLength > $limit" }
+        limit?.let { require(totalLength <= limit) { "Length of ASN.1 element exceeds limit: $totalLength > $it" } }
 
         //ASN.1 SEQUENCE
         (if (tag.isSequence()) Asn1Sequence(doParseExactly(length))
@@ -220,7 +221,7 @@ internal infix fun Byte.byteMask(mask: Int) = (this and mask.toUInt().toByte()).
 
 
 @InternalAwesn1Api
-fun BoundedSource<*>.readAsn1Tag(): Asn1Element.Tag =
+fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
     readByte().let { firstByte ->
         (firstByte byteMask 0x1F).let { tagNumber ->
             if (tagNumber <= 30U) Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))
@@ -243,7 +244,7 @@ fun BoundedSource<*>.readAsn1Tag(): Asn1Element.Tag =
 @Throws(Asn1Exception::class)
 fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1Decodable<A, T>.decodeFromDer(
     src: Source<*>,
-    limit: Long,
+    limit: Long?,
     assertTag: Asn1Element.Tag? = null
 ): T =
     @Suppress("UNCHECKED_CAST")

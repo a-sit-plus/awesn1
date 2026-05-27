@@ -7,11 +7,7 @@ package at.asitplus.awesn1.io
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.serialization.Der
-import kotlinx.serialization.DeserializationStrategy
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.SerializationStrategy
-import kotlinx.serialization.serializer
+import kotlinx.serialization.*
 import kotlin.reflect.typeOf
 
 /**
@@ -46,7 +42,11 @@ fun <T> Der.decodeFromSource(
         // Keep nullable top-level semantics consistent with Der.decodeFromByteArray(empty).
         return decodeFromByteArray(deserializer, byteArrayOf())
     }
-    val element = Asn1Element.parse(source, configuration.maxInputLength)
+    val element = Asn1Element.parse(
+        source,
+        configuration.maxInputLength
+            ?: throw IllegalArgumentException("For security reasons, a maximum length is required when deserializing from a Source, as the number of availably bytes is unknown beforehand")
+    )
     if (!source.exhausted()) {
         throw SerializationException("Expected a single ASN.1 value in source")
     }

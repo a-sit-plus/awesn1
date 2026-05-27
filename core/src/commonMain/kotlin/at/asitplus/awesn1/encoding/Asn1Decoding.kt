@@ -34,7 +34,7 @@ import kotlin.time.Instant
  * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [source]
  */
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parse(source: ByteArray, limit: Long = source.size.toLong()): Asn1Element =
+fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Element =
     parse(source.wrapInUnsafeSource(), limit)
 
 /**
@@ -45,7 +45,7 @@ fun Asn1Element.Companion.parse(source: ByteArray, limit: Long = source.size.toL
  * @see parse
  */
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long = source.size.toLong()): List<Asn1Element> =
+fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long? = null): List<Asn1Element> =
     parseAll(source.wrapInUnsafeSource(), limit)
 
 /**
@@ -59,7 +59,7 @@ fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long = source.size.
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parseFirst(
     source: ByteArray,
-    limit: Long = source.size.toLong()
+    limit: Long? = null
 ): Pair<Asn1Element, ByteArray> =
     parseFirst(source.wrapInUnsafeSource(), limit)
         .let { Pair(it.first, source.copyOfRange(it.second.toInt(), source.size)) }

@@ -73,15 +73,6 @@ val BoundedSourceTest by testSuite {
         source.readCount shouldBe 4
     }
 
-    "bounded source invoke with null limit returns source" {
-        val source = CountingSource(byteArrayOf(1, 2, 3))
-        val unbounded: Source<ByteArraySink> = BoundedSource(source, null)
-        val bounded: Source<ByteArraySink> = BoundedSource(source, 1)
-
-        (unbounded === source) shouldBe true
-        (bounded === source) shouldBe false
-    }
-
     "der parser does not peek past bounded parent length" {
         val source = CountingSource(byteArrayOf(0x30, 0x02, 0x1f, 0x81.toByte(), 0x00))
 

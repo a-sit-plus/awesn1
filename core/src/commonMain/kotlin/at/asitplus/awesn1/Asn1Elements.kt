@@ -48,7 +48,7 @@ sealed class Asn1Element(
         fun parseFromDerHexString(derEncoded: String, limit: Long? = null): Asn1Element {
             val byteArray = derEncoded.filterNot { it == ':' }.replace(Regex("\\s"), "").uppercase()
                 .hexToByteArray(HexFormat.UpperCase)
-            return Asn1Element.parse(byteArray, limit ?: byteArray.size.toLong())
+            return Asn1Element.parse(byteArray, limit)
         }
     }
 
