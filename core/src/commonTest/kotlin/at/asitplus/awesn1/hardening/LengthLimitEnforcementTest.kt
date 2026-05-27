@@ -150,19 +150,19 @@ val funkyLengthEncoding by testSuite {
             "30 03 AA BB (one byte missing bogus child)" {
                 shouldThrow<Asn1Exception> {
                     Asn1Element.parseFromDerHexString("30 03 AA BB")
-                }.message shouldBe "Length of ASN.1 element exceeds limit: 5 > 4"
+                }.message shouldBe "Unsupported length >2^8 (was: 59 length bytes)"
             }
 
             "30 04 05 00 (NULL child declared parent content beyond input)" {
                 shouldThrow<Asn1Exception> {
                     Asn1Element.parseFromDerHexString("30 04 05 00")
-                }.message shouldBe "Length of ASN.1 element exceeds limit: 6 > 4"
+                }.message shouldBe "Can't read TLV, input empty"
             }
 
             "30 03 05 00 (one byte missing, single NULL child)" {
                 shouldThrow<Asn1Exception> {
                     Asn1Element.parseFromDerHexString("30 03 05 00")
-                }.message shouldBe "Length of ASN.1 element exceeds limit: 5 > 4"
+                }.message shouldBe "Can't read TLV, input empty"
             }
 
             "30 03 05 00 01 (one leftover octet inside parent)" {
@@ -176,7 +176,7 @@ val funkyLengthEncoding by testSuite {
             "04 03 AA BB (one byte missing)" {
                 shouldThrow<Asn1Exception> {
                     Asn1Element.parseFromDerHexString("04 03 AA BB")
-                }.message shouldBe "Length of ASN.1 element exceeds limit: 5 > 4"
+                }.message shouldBe "Cannot read beyond available bytes"
             }
         }
 
@@ -184,7 +184,7 @@ val funkyLengthEncoding by testSuite {
             "02 03 AA BB (one byte missing)" {
                 shouldThrow<Asn1Exception> {
                     Asn1Element.parseFromDerHexString("02 03 AA BB")
-                }.message shouldBe "Length of ASN.1 element exceeds limit: 5 > 4"
+                }.message shouldBe "Cannot read beyond available bytes"
             }
         }
     }

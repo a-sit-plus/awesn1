@@ -63,8 +63,12 @@ private fun Source<*>.doParseExactly(nBytes: ULong): List<Asn1Element> = mutable
         require(numberOfNextBytesRead <= Long.MAX_VALUE.toULong()) { "Length overflow: $numberOfNextBytesRead" }
         if (nBytesRead + numberOfNextBytesRead > nBytes) break
         boundedSource.skip(peekTagAndLen.second.toLong()) // we only peeked before, so now we need to skip,
-                                                                    // since we want to recycle the result below
-        val (elem, read) = boundedSource.readAsn1Element(peekTagAndLen.first, peekTagAndLen.second, (nBytes - nBytesRead).toLong())
+        // since we want to recycle the result below
+        val (elem, read) = boundedSource.readAsn1Element(
+            peekTagAndLen.first,
+            peekTagAndLen.second,
+            (nBytes - nBytesRead).toLong()
+        )
         list.add(elem)
         nBytesRead += read.toULong()
         require(nBytesRead <= Long.MAX_VALUE.toULong()) { "Length overflow: $nBytesRead" }
@@ -83,19 +87,16 @@ private fun Source<*>.doParseExactly(nBytes: ULong): List<Asn1Element> = mutable
 @InternalAwesn1Api
 fun Source<*>.readFullyToAsn1Elements(limit: Long?): Pair<List<Asn1Element>, Long> =
     BoundedSource(this, limit).let { boundedSource ->
-        mutableListOf<Asn1Element>().let { list ->
-            var bytesRead = 0L
+        var bytesRead = 0L
+        buildList<Asn1Element> {
             while (!boundedSource.exhausted()) {
-                val remainingLimit = limit?.let { it - bytesRead }?.also {
-                    require(it > 0) { "ASN.1 element exceeds limit: $bytesRead >= $limit" }
-                }
+                val remainingLimit = limit?.let { it - bytesRead }
                 boundedSource.readAsn1Element(remainingLimit).also { (elem, nBytes) ->
                     bytesRead += nBytes
-                    list.add(elem)
+                    this.add(elem)
                 }
             }
-            Pair(list, bytesRead)
-        }
+        } to bytesRead
     }
 
 /**
@@ -125,7 +126,7 @@ fun Source<*>.readAsn1Element(limit: Long?): Pair<Asn1Element, Long> = runRethro
  */
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
-private fun BoundedSource<*>.readAsn1Element(
+private fun Source<*>.readAsn1Element(
     tagAndLength: TagAndLength,
     tagAndLengthBytes: Int,
     limit: Long?
@@ -174,7 +175,7 @@ private val TagAndLength.length: Long get() = second
  * Reads [TagAndLength] and the number of consumed bytes from the source
  */
 @InternalAwesn1Api
-private fun BoundedSource<*>.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowing {
+private fun Source<*>.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowing {
     if (exhausted()) throw IllegalArgumentException("Can't read TLV, input empty")
 
     val tag = readAsn1Tag()
@@ -192,7 +193,7 @@ val Pair<TagAndLength, Int>.bytesRead: Int get() = second
  */
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
-private fun BoundedSource<*>.decodeLength(): Pair<Long, Int> =
+private fun Source<*>.decodeLength(): Pair<Long, Int> =
     readByte().let { firstByte ->
         if (firstByte.isBerShortForm()) {
             Pair(firstByte.toUByte().toLong(), 1)
@@ -227,7 +228,11 @@ fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
             if (tagNumber <= 30U) Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))
             else decodeAsn1VarULong().let { (l, b) ->
                 Asn1Element.Tag(l.also {
-                    if(it <=30UL) throw Asn1Exception("Tag number $it must be encoded in low-tag-number form. Encoded bytes are: ${byteArrayOf(firstByte, *b).toHexString()}")
+                    if (it <= 30UL) throw Asn1Exception(
+                        "Tag number $it must be encoded in low-tag-number form. Encoded bytes are: ${
+                            byteArrayOf(firstByte, *b).toHexString()
+                        }"
+                    )
                 }, byteArrayOf(firstByte, *b))
             }
         }

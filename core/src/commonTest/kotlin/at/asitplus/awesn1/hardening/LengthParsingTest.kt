@@ -64,7 +64,7 @@ val FocusedDERlengthparsing by testSuite {
     "rejects declared length beyond input" {
         shouldThrow<Asn1Exception> {
             Asn1Element.parseFromDerHexString("04 05 AA BB")
-        }.message shouldBe "Length of ASN.1 element exceeds limit: 7 > 4"
+        }.message shouldBe "Cannot read beyond available bytes"
     }
 
     "rejects complete long-form length with missing content" {

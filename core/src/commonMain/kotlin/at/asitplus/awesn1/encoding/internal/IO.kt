@@ -32,21 +32,20 @@ interface Source<S : Sink> {
 @InternalAwesn1Api
 internal class BoundedSource<S : Sink>(
     private val source: Source<S>,
-    private val limit: Long?,
+    private val limit: Long,
 ) : Source<S> {
 
     private var bytesRead = 0L
 
     init {
-        limit?.let { require(it >= 0) { "Limit must be non-negative" } }
+        require(limit >= 0) { "Limit must be non-negative" }
     }
 
-    private val remaining: Long? get() = limit?.let { it - bytesRead }
+    private val remaining: Long get() = limit - bytesRead
 
     private fun requireRemaining(nBytes: Long) {
         require(nBytes >= 0) { "Cannot read a negative number of bytes" }
-        if (remaining == null) return
-        require(nBytes <= remaining!!) {
+        require(nBytes <= remaining) {
             buildString {
                 append("Source limit exceeded: requested ")
                 append(nBytes)
@@ -89,12 +88,10 @@ internal class BoundedSource<S : Sink>(
     override fun transferTo(sink: S): Long {
         if (exhausted()) return 0
 
-        if (remaining == null) return source.transferTo(sink)
-
         var transferred = 0L
         val buffer = ByteArray(8 * 1024) //sensible buffer
         var buffered = 0
-        while (remaining!! > 0 && !source.exhausted()) {
+        while (remaining > 0 && !source.exhausted()) {
             buffer[buffered++] = readByte()
             transferred++
             if (buffered == buffer.size) {
@@ -106,6 +103,11 @@ internal class BoundedSource<S : Sink>(
             sink.write(buffer, endIndex = buffered)
         }
         return transferred
+    }
+
+    companion object {
+        operator fun <S : Sink> invoke(source: Source<S>, limit: Long?): Source<S> =
+            limit?.let { BoundedSource(source, it) } ?: source
     }
 }
 

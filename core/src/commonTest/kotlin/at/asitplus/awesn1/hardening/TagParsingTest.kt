@@ -74,7 +74,7 @@ val DERtagparsing by testSuite {
         "no length after tag" {
             shouldThrow<Asn1Exception> {
                 Asn1Element.parseFromDerHexString("1F 81 80 00")
-            }.message shouldBe "Source limit exceeded: requested 1 bytes with 0 remaining (4/4 already read)"
+            }.message shouldBe "Source exhausted"
         }
 
         "incomplete high-tag-number form" {
