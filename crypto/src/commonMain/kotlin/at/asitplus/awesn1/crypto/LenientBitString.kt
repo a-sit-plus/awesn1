@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright (c) A-SIT Plus GmbH
+// SPDX-License-Identifier: Apache-2.0
+
 @file:OptIn(at.asitplus.awesn1.InternalAwesn1Api::class)
 
 package at.asitplus.awesn1.crypto
