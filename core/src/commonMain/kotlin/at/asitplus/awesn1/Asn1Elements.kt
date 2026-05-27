@@ -36,39 +36,20 @@ sealed class Asn1Element(
     }
 
     companion object {
-
         /**
          * Convenience method to directly parse a HEX-string representation of DER-encoded data.
          * Ignores and strips all whitespace.
          *
-         * @param limit the maximum allowed total number of encoded DER bytes to consume.
+         * @param limit the maximum allowed total number of encoded DER bytes to consume. Defaults to null to use allow reading the full contents of the string.
          * Note that this limit is exactly enforced wrt. the number of consumed bytes **but the parser requires some lookahead. Hence, some more bytes may be processed before aborting**.
          * @throws [Throwable] all sorts of errors on invalid input
          */
         @Throws(Throwable::class)
-        private fun parsePreCleaned(derEncoded: String, limit: Long) =
-            Asn1Element.parse(derEncoded.hexToByteArray(HexFormat.UpperCase), limit)
-
-        /**
-         * Convenience method to directly parse a HEX-string representation of DER-encoded data.
-         * Ignores and strips all whitespace.
-         * @throws [Throwable] all sorts of errors on invalid input
-         */
-        @Throws(Throwable::class)
-        fun parseFromDerHexString(derEncoded: String) =
-            derEncoded.stripGarbage().let {
-                parsePreCleaned(it, limit = (it.length / 2).toLong())
-            }
-
-        /**
-         * Convenience method to directly parse a HEX-string representation of DER-encoded data.
-         * Ignores and strips all whitespace.
-         * @throws [Throwable] all sorts of errors on invalid input
-         */
-        @Throws(Throwable::class)
-        fun parseFromDerHexString(derEncoded: String, limit: Long) = parsePreCleaned(derEncoded.stripGarbage(), limit)
-
-        private fun String.stripGarbage() = filterNot { it == ':' }.replace(Regex("\\s"), "").uppercase()
+        fun parseFromDerHexString(derEncoded: String, limit: Long? = null): Asn1Element {
+            val byteArray = derEncoded.filterNot { it == ':' }.replace(Regex("\\s"), "").uppercase()
+                .hexToByteArray(HexFormat.UpperCase)
+            return Asn1Element.parse(byteArray, limit ?: byteArray.size.toLong())
+        }
     }
 
     /**
@@ -282,7 +263,7 @@ sealed class Asn1Element(
         }
 
         init {
-            if( tagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
+            if (tagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
                 throw Asn1Exception("Illegal DER tag: universal tag 0 (end-of-contents) is not allowed")
             }
         }

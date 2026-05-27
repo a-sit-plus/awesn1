@@ -126,17 +126,17 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
     fun length(): Long = highestSetIndex() + 1L
 
     /**
-     * Iterates over each bit in the `BitSet` and invokes the provided [block] for every index and corresponding bit value.
+     * Iterates over each bit in the `BitSet` and invokes the provided [action] for every index and corresponding bit value.
      *
      * Deliberatelly not an extension function, to have precedence over the int-indexed `forEach` function of the `Iterable` interface.
      *
-     * @param block A lambda function that is invoked with two arguments:
+     * @param action A lambda function that is invoked with two arguments:
      * - `i`: The index of the bit in the `BitSet`.
      * - `it`: The value of the bit at the given index, either `true` or `false`.
      */
     //deliberately not an extension function
-    inline fun forEachIndexed(block: (i: Long, it: Boolean) -> Unit) {
-        for (i in 0..<length()) block(i, this[i])
+    inline fun forEachIndexed(action: (i: Long, it: Boolean) -> Unit) {
+        for (i in 0..<length()) action(i, this[i])
     }
 
     /**

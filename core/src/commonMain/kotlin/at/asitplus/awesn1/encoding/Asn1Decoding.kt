@@ -35,9 +35,7 @@ import kotlin.time.Instant
  */
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parse(source: ByteArray, limit: Long = source.size.toLong()): Asn1Element =
-    parse(
-        source.wrapInUnsafeSource(),
-        limit.also { require(it <= source.size.toLong()) { "Limit $it is larger than source size ${source.size}" } })
+    parse(source.wrapInUnsafeSource(), limit)
 
 /**
  * Convenience wrapper around [parseAll], taking a [ByteArray] as [source]
@@ -48,9 +46,7 @@ fun Asn1Element.Companion.parse(source: ByteArray, limit: Long = source.size.toL
  */
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long = source.size.toLong()): List<Asn1Element> =
-    parseAll(
-        source.wrapInUnsafeSource(),
-        limit.also { require(it <= source.size.toLong()) { "Limit $it is larger than source size ${source.size}" } })
+    parseAll(source.wrapInUnsafeSource(), limit)
 
 /**
  * Convenience wrapper around [parseFirst], taking a [ByteArray] as [source].
@@ -65,9 +61,7 @@ fun Asn1Element.Companion.parseFirst(
     source: ByteArray,
     limit: Long = source.size.toLong()
 ): Pair<Asn1Element, ByteArray> =
-    parseFirst(
-        source.wrapInUnsafeSource(),
-        limit.also { require(it <= source.size.toLong()) { "Limit $it is larger than source size ${source.size}" } })
+    parseFirst(source.wrapInUnsafeSource(), limit)
         .let { Pair(it.first, source.copyOfRange(it.second.toInt(), source.size)) }
 
 
@@ -228,7 +222,7 @@ inline fun Asn1Primitive.decodeToFloat(assertTag: Asn1Element.Tag = Asn1Element.
 inline fun Asn1Primitive.decodeToFloatOrNull(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL) =
     catchingUnwrapped { decodeToFloat(assertTag) }.getOrNull()
 
-private fun Asn1Integer.Companion.validateDerConstraints(bytes: ByteArray) = runRethrowing{
+private fun Asn1Integer.Companion.validateDerConstraints(bytes: ByteArray) = runRethrowing {
     require(bytes.isNotEmpty()) { "ASN.1 INTEGER content must not be empty" }
 
     if (bytes.size > 1) {
