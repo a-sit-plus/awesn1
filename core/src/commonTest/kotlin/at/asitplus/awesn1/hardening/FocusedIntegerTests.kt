@@ -192,7 +192,7 @@ private val nonMinimal = listOf(
     )
 )
 
-val `Focused INTEGER Tests` by testSuite {
+val FocusedINTEGERTests by testSuite {
 
     withData(nameFn = { it.name }, nonMinimal+minimal, compact = false) { (_, hex, shouldAccept, note, expected) ->
         withClue(note) {

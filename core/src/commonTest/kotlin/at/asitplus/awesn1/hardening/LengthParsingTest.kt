@@ -8,7 +8,7 @@ import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 
-val `Focused DER length parsing` by testSuite {
+val FocusedDERlengthparsing by testSuite {
     "accepts short-form length" {
         Asn1Element.parseFromDerHexString("04 03 AA BB CC") shouldBe
                 Asn1.OctetString("AABBCC".hexToByteArray(HexFormat.UpperCase))
