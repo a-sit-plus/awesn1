@@ -34,8 +34,10 @@ import kotlin.time.Instant
  * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [source]
  */
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Element =
-    parse(source.wrapInUnsafeSource(), limit)
+fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Element {
+    if (limit != null) require(source.size <= limit) { "Byte array with size ${source.size} is too large to parse. (limit = $limit)" }
+    return parse(source.wrapInUnsafeSource(), source.size)
+}
 
 /**
  * Convenience wrapper around [parseAll], taking a [ByteArray] as [source]
@@ -45,8 +47,10 @@ fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Ele
  * @see parse
  */
 @Throws(Asn1Exception::class)
-fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long? = null): List<Asn1Element> =
-    parseAll(source.wrapInUnsafeSource(), limit)
+fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long? = null): List<Asn1Element> {
+    if (limit != null) require(source.size <= limit) { "Byte array with size ${source.size} is too large to parse. (limit = $limit)" }
+    return parseAll(source.wrapInUnsafeSource(), source.size)
+}
 
 /**
  * Convenience wrapper around [parseFirst], taking a [ByteArray] as [source].
@@ -61,8 +65,8 @@ fun Asn1Element.Companion.parseFirst(
     source: ByteArray,
     limit: Long? = null
 ): Pair<Asn1Element, ByteArray> =
-    parseFirst(source.wrapInUnsafeSource(), limit)
-        .let { Pair(it.first, source.copyOfRange(it.second.toInt(), source.size)) }
+    parseFirst(source.wrapInUnsafeSource(), limit?.let { min(source.size, it) } ?: source.size)
+.let { Pair(it.first, source.copyOfRange(it.second.toInt(), source.size)) }
 
 
 /**
