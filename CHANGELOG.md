@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## 0.3.0
 * **Features:**
     * Add catch-all fallback to OID-based open-polymorphism
