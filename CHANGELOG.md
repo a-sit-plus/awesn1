@@ -1,6 +1,10 @@
 # Changelog
 
 ## NEXT
+* **Dependency Updates:**
+    * Kotlin 2.4.0
+    * Kotlinx.io 0.9.0
+
 
 ## 0.3.0
 * **Features:**
