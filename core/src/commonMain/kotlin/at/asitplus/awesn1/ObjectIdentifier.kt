@@ -42,11 +42,7 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
         if (bytes?.isEmpty() == true || nodes?.isEmpty() == true)
             throw Asn1Exception("Empty OIDs are not supported")
 
-        bytes?.apply {
-            if (first().toUByte() > 127u) throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
-            //this is the best we can do
-            if (last() < 0) throw Asn1Exception("Encoded OID does not end with a valid ASN.1 varint")
-        }
+        bytes?.validate() //as cheap as it gets: traverse once and fail early.
         nodes?.apply {
             if (size < 2) throw Asn1StructuralException("at least two nodes required!")
             if (first() > 2u) throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
@@ -58,6 +54,25 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
         }
     }
 
+    private fun ByteArray.validate() {
+        if (first().toUByte() > 127u) throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
+
+        var i = 1
+        while (i < size) {
+            if (this[i].toInt() and 0x80 == 0) {
+                i++
+                continue
+            }
+
+            if (this[i].toInt() and 0x7f == 0) {
+                throw Asn1Exception("OID node is not minimally encoded")
+            }
+
+            while (i < size && this[i] < 0) i++
+            if (i == size) throw Asn1Exception("Encoded OID does not end with a valid ASN.1 varint")
+            i++
+        }
+    }
 
     /**
      * Efficient, but cursed encoding of OID nodes, see [Microsoft's KB entry on OIDs](https://learn.microsoft.com/en-us/windows/win32/seccertenroll/about-object-identifier)

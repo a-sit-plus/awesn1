@@ -13,6 +13,7 @@ this is the module you want.
     The `crypto` module depends on both `core` and `kxs`.
     DER handling in `crypto` now goes through awesn1's `kotlinx.serialization` integration from `kxs`,
     rather than manual DER encode/decode implementations inside `crypto`.
+    For the general data-class-first serialization workflow, see the [Serialization Tutorial](kxs.md).
 
 ## Why This Is Not in `core`
 
@@ -32,7 +33,7 @@ Keeping them in a separate module keeps `core` small, generic, and reusable.
 !!! warning "This is not a full-fledged cryptography stack"
     The `crypto` module is not trying to provide:
     
-    * Semantic validation of cryptographic structures (it does perform stric structural validations)
+    * Semantic validation of cryptographic structures (it does perform strict structural validations)
     * Certificate path validation
     * Signature verification policy
     * …
@@ -89,7 +90,7 @@ The `crypto` module is not trying to provide:
 Those concerns are deliberately separate from the ASN.1 structural layer.
 
 !!! tip "Looking for a KMP crypto provider?"
-[Signum](https://a-sit-plus.github.io/signum/) builds on awesn1 and provides a full Kotlin multiplatform cryptography stack. Batteries included.
+    [Signum](https://a-sit-plus.github.io/signum/) is currently being ported to build on top of awesn1 and provides a full Kotlin multiplatform cryptography stack. Batteries included.
 
 ## Typical Use Cases
 
@@ -100,15 +101,3 @@ The `crypto` already handles the most common cryptographic data structures out o
 - Handle PKCS#10 certificate signing requests
 - Preserve, round-trip, or transform cryptographic ASN.1 data in Kotlin Multiplatform code
 - Use these models as strongly typed payloads in ASN.1/DER serialization workflows
-
-## Relationship to Serialization
-
-The crypto model classes are ASN.1-serializable and their DER handling is implemented through awesn1's
-`kotlinx.serialization`-based `DER` format from the `kxs` module.
-
-That means you can use them either:
-
-- through low-level ASN.1 APIs from `core`
-- or through `DER.encodeToByteArray(...)` / `DER.decodeFromByteArray(...)` from `kxs`
-
-For the general data-class-first serialization workflow, see the [Serialization Tutorial](kxs.md).

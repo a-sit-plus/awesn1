@@ -4,7 +4,12 @@
 * **Dependency Updates:**
     * Kotlin 2.4.0
     * Kotlinx.io 0.9.0
-
+* **Hardening by Fuzzing:**
+    * OID is now stricter, requiring minimal encoding
+    * UNIVERSAL Tag 15 is now rejected
+    * ASN.1 NULL semantic parsing now checks for empty content
+* **Other Changes:**
+    * Make internal Sink adapter inline 
 
 ## 0.3.0
 * **Features:**

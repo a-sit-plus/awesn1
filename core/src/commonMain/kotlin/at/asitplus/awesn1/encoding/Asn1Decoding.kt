@@ -417,7 +417,7 @@ fun Asn1Primitive.asAsn1BitString(assertTag: Asn1Element.Tag = Asn1Element.Tag.B
  * @throws Asn1Exception  on invalid input
  */
 @Throws(Asn1Exception::class)
-fun Asn1Primitive.readNull() = decode(Asn1Element.Tag.NULL) {}
+fun Asn1Primitive.readNull() = decode(Asn1Element.Tag.NULL) {if(it.isNotEmpty()) throw Asn1Exception("ASN.1 NULL must not have content! Found: ${it.toHexString()}") }
 
 /**
  * Name seems odd, but this is just an exception-free version of [readNull]

@@ -49,6 +49,37 @@ More often than not, awesn1's [first-class kotlinx-serialization integration](kx
 - `Asn1PrimitiveOctetString` holds raw bytes.
 - `Asn1EncapsulatingOctetString` holds child ASN.1 elements while still tagged as `OCTET STRING`.
 
+## Deferred Semantic Parsing
+
+awesn1 separates raw DER parsing from ASN.1 meaning. The parser first builds an `Asn1Element` tree from TLV bytes and
+only enforces constraints needed to keep that raw tree well-bounded and DER-shaped. Type-specific validation happens
+when you ask for semantics, for example by decoding a primitive as a boolean, integer, string, time, object identifier,
+or custom data class.
+
+At the raw parser layer, awesn1 rejects:
+
+- indefinite length encoding, non-minimal long-form length encoding, length overflow, and child elements that overrun
+  their parent
+- high-tag-number encoding for tag numbers that belong in low-tag-number form (`<= 30`)
+- universal tag `0` (end-of-contents) and universal tag `15`
+
+Everything else is intentionally deferred. For example, a constructed universal UTF8String is not treated as a valid
+UTF8String, but it can still be represented as an `Asn1CustomStructure` if its children form a valid raw ASN.1 tree.
+Likewise, a primitive with a tag whose content is not meaningful for that tag can still be inspected as raw bytes.
+
+Examples for semantic decoders are where ASN.1 meaning becomes strict:
+
+- `readNull()` verifies that `NULL` has empty content.
+- `decodeToBoolean()` requires one content byte and accepts only `0x00` or `0xff`.
+- `Asn1Integer.decodeFromAsn1ContentBytes()` requires non-empty, minimally encoded INTEGER content.
+- String, time, bit-string, object-identifier, and custom `Asn1Decodable` implementations perform their own
+  type-specific checks.
+
+This is useful for real-world interoperability work. You can parse malformed or quirky input into a raw tree, preserve
+it for diagnostics or signature checks, and then define a semantic model that decides how strict to be. For example,
+a data class can keep a private raw primitive for a legacy field and expose a public getter that normalizes one-byte
+non-standard boolean values, while stricter code can keep using `decodeToBoolean()`.
+
 ## ASN.1-Specific Rich Types
 
 The core module includes rich semantic types beyond raw TLV primitives:
@@ -151,7 +182,7 @@ Encoding/decoding APIs:
 
 1. Parse DER bytes into `Asn1Element`.
 2. Assert expected tags/structure.
-3. Decode primitive content bytes into Kotlin/rich types.
+3. Decode primitive content bytes into Kotlin/rich types, where semantic validation happens.
 
 ### Parse Entry Points
 

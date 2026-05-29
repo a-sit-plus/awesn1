@@ -5,6 +5,7 @@ import at.asitplus.awesn1.encoding.decodeToDouble
 import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
 import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.awesn1.encoding.parse
+import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.minus
 import at.asitplus.testballoon.withData
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
@@ -15,6 +16,7 @@ import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.json.Json
+import org.bouncycastle.asn1.ASN1InputStream
 
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -46,7 +48,7 @@ val RealTest by testSuite {
     }
 
     "Special values" - {
-         {
+         "manual large" {
             val number = "1.1897314953572317650857593266280070162123456789009876543456789098765432123456789876543212345678987654323456789876532345678765432345678876543234567"
             val bigDecimal = BigDecimal.parseString(number)
             bigDecimal.precision shouldBeGreaterThan 64L

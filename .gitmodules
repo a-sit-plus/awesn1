@@ -1,0 +1,3 @@
+[submodule "fuzz-corpora"]
+	path = fuzz-corpora
+	url = git@github.com:openssl/fuzz-corpora.git

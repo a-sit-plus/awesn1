@@ -119,6 +119,12 @@ If you want it to be serializable in DER, make the companion also implement `Asn
 `@Serializable` annotation on your type.
 (Note that this works only for ASN.1 serialization, not in a generic fashion.)
 
+!!! note "Raw first, semantics later"
+
+    awesn1 parses raw ASN.1 trees before applying type-specific meaning. See
+    [Deferred Semantic Parsing](lowlevel.md#deferred-semantic-parsing) for the exact boundary between low-level DER
+    envelope checks and semantic validation.
+
 ```kotlin
 --8<-- "at/asitplus/awesn1/docs/CoreDocumentationHooksTest.kt:core-hook-custom-type"
 ```
