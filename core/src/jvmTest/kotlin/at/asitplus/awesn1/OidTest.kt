@@ -64,7 +64,7 @@ val OidTest by testSuite {
             val stringRepesentations = mutableListOf<String>()
             repeat(39) { stringRepesentations += "0.$it" }
             repeat(39) { stringRepesentations += "1.$it" }
-            repeat(47) { stringRepesentations += "2.$it" }
+            repeat(255) { stringRepesentations += "2.$it" }
             withData(nameFn = { "String $it" }, stringRepesentations) {
                 val oid = ObjectIdentifier(it)
                 val fromBC = ASN1ObjectIdentifier(it)
@@ -94,7 +94,6 @@ val OidTest by testSuite {
 
             repeat(255 - 40) { stringRepesentations += "0.${it + 40}" }
             repeat(255 - 40) { stringRepesentations += "1.${it + 40}" }
-            repeat(255 - 48) { stringRepesentations += "2.${it + 48}" }
             repeat(255 - 3) { stringRepesentations += "${3 + it}.${it % 40}" }
 
             withData(nameFn = { "String $it" }, stringRepesentations) {

@@ -5,7 +5,9 @@
     * Kotlin 2.4.0
     * Kotlinx.io 0.9.0
 * **Hardening by Fuzzing:**
-    * OID is now stricter, requiring minimal encoding
+    * OID
+        * now stricter, requiring minimal encoding
+        * correctly parses `2` root arc now
     * UNIVERSAL Tag 15 is now rejected
     * ASN.1 NULL semantic parsing now checks for empty content
 * **Other Changes:**

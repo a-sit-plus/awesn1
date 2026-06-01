@@ -3,11 +3,14 @@ package at.asitplus.awesn1.at.asitplus.awesn1.hardening
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.encoding.decodeFromDer
+import at.asitplus.awesn1.parseFromDerHexString
 import at.asitplus.testballoon.minus
 import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 
 private data class OidVector(
     val name: String,
@@ -16,6 +19,18 @@ private data class OidVector(
 )
 
 val OidHardening by testSuite {
+
+    "manual arc 2" - {
+        withData(nameFn = {(_,str)->str},"0630848080808080808080808080808080808080309b9b9bf9b9ff30b9303030302b8104001f303030303030303030060100".hexToByteArray() to "2.340282366920938463463374607431768211424.119682471198640.7344.48.48.48.43.132.0.31.48.48.48.48.48.48.48.48.48.6.1.0",
+            "0607ffff3032301006".hexToByteArray() to "2.2096992.50.48.16.6",
+            "060485393232".hexToByteArray() to "2.617.50.50", compact = false) {(hex, string) ->
+            val parsed = ObjectIdentifier.decodeFromDer(hex)
+            parsed.toString() shouldBe string
+            ObjectIdentifier(string) shouldBe parsed
+            ObjectIdentifier(string).toString() shouldBe string
+        }
+    }
+
     "accepts minimally encoded OID arcs" - {
         withData(
             OidVector("single-byte-tail-arc", "06 02 2B 18", "1.3.24"),

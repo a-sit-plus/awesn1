@@ -48,16 +48,17 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
             if (first() > 2u) throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
             if (first() < 2u) {
                 if (get(1) > 39u) throw Asn1Exception("Second segment must be <40")
-            } else {
-                if (get(1) > 47u) throw Asn1Exception("Second segment must be <48")
             }
         }
     }
 
     private fun ByteArray.validate() {
-        if (first().toUByte() > 127u) throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
-
-        var i = 1
+        // OID content is a sequence of base-128 subidentifiers, including the first byte(s), which encode
+        // the first two arcs as one value: (arc0 * 40) + arc1. Any valid first subidentifier maps back to
+        // a sane root: 0..39 -> 0.x, 40..79 -> 1.x, 80+ -> 2.x. For example, content 0x81 0x00 is valid
+        // and decodes to first subidentifier 128, i.e. OID 2.48. So there is intentionally no eager
+        // single-byte top-level-arc check here; structural base-128 validation is enough.
+        var i = 0
         while (i < size) {
             if (this[i].toInt() and 0x80 == 0) {
                 i++
@@ -85,13 +86,11 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
      * Lazily evaluated list of OID nodes (e.g. `[1, 2, 35, 4654]`)
      */
     val nodes: List<String> by nodes?.map { it.toString() } orLazy {
-        val (first, second) =
-            if (this.bytes[0] >= 80) {
-                VarUInt(2u) to VarUInt(this.bytes[0].toUByte() - 80u)
-            } else {
-                VarUInt(this.bytes[0].toUByte() / 40u) to VarUInt(this.bytes[0].toUByte() % 40u)
-            }
-        var index = 1
+        val firstSubidentifierEndExclusive = this.bytes.indexOfFirst { it >= 0 } + 1
+        val (firstSubidentifier, firstTailIndex) =
+            this.bytes.decodeAsn1VarBigUIntValue(0, firstSubidentifierEndExclusive)
+        val (first, second) = firstSubidentifier.toOidRootArcs()
+        var index = firstTailIndex
         val collected = mutableListOf(first, second)
         while (index < this.bytes.size) {
             if (this.bytes[index] >= 0) {
@@ -192,24 +191,41 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
             ObjectIdentifier(bytes = bytes, nodes = null)
 
         @OptIn(InternalAwesn1Api::class)
-        private inline fun encodeOidBytes(firstByte: Byte, writeTailNodes: (Sink) -> Unit): ByteArray =
+        private inline fun encodeOidBytes(writeRootNodes: (Sink) -> Unit, writeTailNodes: (Sink) -> Unit): ByteArray =
             throughBuffer { sink ->
-                sink.writeByte(firstByte)
+                writeRootNodes(sink)
                 writeTailNodes(sink)
             }
 
+        //only called on the slow path, when not parsed from bytes
         @OptIn(InternalAwesn1Api::class)
         private fun UIntArray.toOidBytes(): ByteArray {
-            return encodeOidBytes((first() * 40u + get(1)).toUByte().toByte()) { sink ->
+            if (size < 2) throw Asn1StructuralException("at least two nodes required!")
+            if (first() > 2u) throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
+            if (first() < 2u && get(1) > 39u) throw Asn1Exception("Second segment must be <40")
+
+            return encodeOidBytes({ sink ->
+                if (first() < 2u) {
+                    sink.writeAsn1VarInt(first() * 40u + get(1))
+                } else {
+                    sink.writeAsn1VarInt(VarUInt(get(1)) + 80u)
+                }
+            }) { sink ->
                 for (i in 2 until size) {
                     sink.writeAsn1VarInt(this[i])
                 }
             }
         }
 
+        //only called on the slow path
         @OptIn(InternalAwesn1Api::class)
         private fun List<VarUInt>.toOidBytes(): ByteArray {
-            return encodeOidBytes((first().shortValue() * 40 + get(1).shortValue()).toUByte().toByte()) { sink ->
+            return encodeOidBytes({ sink ->
+                sink.writeAsn1VarInt(
+                    if (first() < 2u) VarUInt((first().shortValue() * 40 + get(1).shortValue()).toUInt())
+                    else get(1) + 80u
+                )
+            }) { sink ->
                 for (i in 2 until size) {
                     sink.writeAsn1VarInt(this[i])
                 }
@@ -217,6 +233,43 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
         }
 
     }
+}
+
+//uses schoolbook subtraction, but is only called on the slow path, when not parsing from bytes
+private fun VarUInt.toOidRootArcs(): Pair<VarUInt, VarUInt> =
+    when {
+        this < 40u -> VarUInt(0u) to this
+        this < 80u -> VarUInt(1u) to this - 40u
+        else -> VarUInt(2u) to this - 80u
+    }
+
+//schoolbook addition
+private operator fun VarUInt.plus(summand: UByte): VarUInt {
+    val result = bytes
+    var carry = summand.toInt()
+    for (i in result.lastIndex downTo 0) {
+        val sum = result[i].toInt() + carry
+        result[i] = sum.toUByte()
+        carry = sum ushr 8
+        if (carry == 0) return VarUInt(result)
+    }
+    return VarUInt(ubyteArrayOf(carry.toUByte(), *result))
+}
+
+//schoolbook subtraction,
+private operator fun VarUInt.minus(subtrahend: UByte): VarUInt {
+    val result = bytes
+    var borrow = subtrahend.toInt()
+    for (i in result.lastIndex downTo 0) {
+        val diff = result[i].toInt() - borrow
+        if (diff >= 0) {
+            result[i] = diff.toUByte()
+            return VarUInt(result)
+        }
+        result[i] = (diff + 256).toUByte()
+        borrow = 1
+    }
+    throw IllegalArgumentException("Result would be negative")
 }
 
 /**
