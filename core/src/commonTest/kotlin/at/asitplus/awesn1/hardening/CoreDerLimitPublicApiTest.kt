@@ -8,13 +8,11 @@ import at.asitplus.awesn1.encoding.decodeFromDerOrNull
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.encoding.parseAll
 import at.asitplus.awesn1.encoding.parseFirst
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 
-val CoreDerLimitPublicApiTest by testSuite {
+val CoreDerLimitPublicApiTest by matrixSuite {
     "byte array parsing APIs enforce total DER input limits" - {
         "parse" {
             assertExactLimitSucceedsAndBelowLimitThrows(

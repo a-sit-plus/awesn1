@@ -9,14 +9,11 @@ import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.encoding.parse
-import at.asitplus.testballoon.checkAll
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
+import at.asitplus.testballoon.matrix.MatrixSuiteScope
+import at.asitplus.testballoon.matrix.matrixSuite
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.TestSuiteScope
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
@@ -50,7 +47,7 @@ import kotlinx.serialization.serializer
 import kotlin.time.Instant
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestImplicitTaggingProperty by testSuite(
+val SerializationTestImplicitTaggingProperty by matrixSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Randomized implicit tagging across default ASN.1-serializable types" - {
@@ -214,17 +211,17 @@ val SerializationTestImplicitTaggingProperty by testSuite(
 private const val TAG_ITERATIONS = 25
 private const val VALUES_PER_TAG = 20
 
-private inline fun <reified T> TestSuiteScope.verifyImplicitTagging(
+private inline fun <reified T> MatrixSuiteScope.verifyImplicitTagging(
     valueArb: Arb<T>,
     iterationsPerTag: Int = VALUES_PER_TAG,
     crossinline assertDecoded: (expected: T, actual: T) -> Unit = { expected, actual -> actual shouldBe expected },
 ) {
     val plainSerializer = SingleFieldBoxSerializer(serializer<T>())
 
-    checkAll(iterations = TAG_ITERATIONS, implicitTagNumberArb()) - { tagNumber ->
+    property("tag", implicitTagNumberArb(), iterations = TAG_ITERATIONS) - { tagNumber ->
         val taggedSerializer = SingleFieldBoxSerializer(serializer<T>(), tagNumber)
 
-        checkAll(iterations = iterationsPerTag, valueArb) { value ->
+        property("value", valueArb, iterations = iterationsPerTag) test { value ->
             val plainChild = encodeSingleChild(plainSerializer, TaggedValue(value))
             val taggedBytes = DER.encodeToByteArray(taggedSerializer, TaggedValue(value))
             val taggedChild = Asn1Element.parse(taggedBytes).asSequence().children.single()

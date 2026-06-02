@@ -7,14 +7,12 @@ import at.asitplus.awesn1.encoding.internal.BoundedSource
 import at.asitplus.awesn1.encoding.internal.ByteArraySink
 import at.asitplus.awesn1.encoding.internal.Source
 import at.asitplus.awesn1.encoding.internal.parse
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 
 @OptIn(InternalAwesn1Api::class)
-val BoundedSourceTest by testSuite {
+val BoundedSourceTest by matrixSuite {
     "bounded source enforces exact limit" {
         val source = CountingSource(byteArrayOf(1, 2, 3))
         val bounded = BoundedSource(source, 2)

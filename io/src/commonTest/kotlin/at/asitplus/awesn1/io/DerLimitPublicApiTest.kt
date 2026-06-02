@@ -5,14 +5,12 @@ import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.hardening.DerLimitFixtures
 import at.asitplus.awesn1.hardening.assertExactLimitSucceedsAndBelowLimitThrows
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.io.Buffer
 
-val IoDerLimitPublicApiTest by testSuite {
+val IoDerLimitPublicApiTest by matrixSuite {
     "source parsing APIs enforce total DER input limits" - {
         "parse" {
             assertExactLimitSucceedsAndBelowLimitThrows(

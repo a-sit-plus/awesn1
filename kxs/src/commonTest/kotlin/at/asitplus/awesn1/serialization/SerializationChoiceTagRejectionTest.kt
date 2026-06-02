@@ -1,10 +1,9 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -15,7 +14,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationChoiceTagRejectionTest by testSuite(
+val SerializationChoiceTagRejectionTest by matrixSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Rejects class tag on sealed class CHOICE when serialized directly" {

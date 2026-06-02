@@ -2,9 +2,8 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
@@ -14,7 +13,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 
-val SerializationTutorial11OpenPolyByOid by testSuite(
+val SerializationTutorial11OpenPolyByOid by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "Open polymorphism by OID" {

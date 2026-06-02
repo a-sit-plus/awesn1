@@ -1,13 +1,10 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.testballoon.checkAll
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
+import at.asitplus.testballoon.matrix.MatrixSuiteScope
+import at.asitplus.testballoon.matrix.matrixSuite
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.TestSuiteScope
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
@@ -31,7 +28,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestRoundTripContracts by testSuite(
+val SerializationTestRoundTripContracts by matrixSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Round-trip contracts for generics, collections, maps, and value classes" - {
@@ -93,12 +90,12 @@ val SerializationTestRoundTripContracts by testSuite(
 
 private const val ROUND_TRIP_ITERATIONS = 75
 
-private inline fun <reified T> TestSuiteScope.assertRoundTrip(
+private inline fun <reified T> MatrixSuiteScope.assertRoundTrip(
     arb: Arb<T>,
     iterations: Int = ROUND_TRIP_ITERATIONS,
     crossinline assertDecoded: (expected: T, actual: T) -> Unit = { expected, actual -> actual shouldBe expected },
 ) {
-    checkAll(iterations = iterations, arb) { value ->
+    property("value", arb, iterations = iterations) test { value ->
         assertDecoded(value, DER.decodeFromByteArray<T>(DER.encodeToByteArray(value)))
     }
 }

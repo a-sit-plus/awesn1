@@ -1,11 +1,9 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 
-val AdversarialData by testSuite {
+val AdversarialData by matrixSuite {
     "Overlong length" - {
         "OCTET STRING" {
             val nineBytesLength =

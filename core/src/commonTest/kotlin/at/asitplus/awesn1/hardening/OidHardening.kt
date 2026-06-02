@@ -27,13 +27,11 @@ val OidHardening by matrixSuite {
                 "060485393232".hexToByteArray() to "2.617.50.50",
             ),
             nameFn = { _, (_, string) -> string },
-        ) - { (hex, string) ->
-            "case" {
+        ) test { (hex, string) ->
             val parsed = ObjectIdentifier.decodeFromDer(hex)
             parsed.toString() shouldBe string
             ObjectIdentifier(string) shouldBe parsed
             ObjectIdentifier(string).toString() shouldBe string
-            }
         }
     }
 
@@ -47,11 +45,9 @@ val OidHardening by matrixSuite {
                 OidVector("minimal-three-byte-tail-arc-16384", "06 04 2B 81 80 00", "1.3.16384"),
             ),
             nameFn = { _, it -> it.name },
-        ) - { (_, tlvHex, expectedOid) ->
-            "case" {
+        ) test { (_, tlvHex, expectedOid) ->
             ObjectIdentifier.decodeFromTlv(Asn1Element.parseFromDerHexString(tlvHex).asPrimitive())
                 .toString() shouldBe expectedOid
-            }
         }
     }
 
@@ -65,12 +61,10 @@ val OidHardening by matrixSuite {
                 OidVector("two-leading-zero-groups", "06 04 2B 80 80 18"),
             ),
             nameFn = { _, it -> it.name },
-        ) - { (_, tlvHex) ->
-            "case" {
+        ) test { (_, tlvHex) ->
             shouldThrow<Asn1Exception> {
                 ObjectIdentifier.decodeFromTlv(Asn1Element.parseFromDerHexString(tlvHex).asPrimitive())
             }.message shouldBe "OID node is not minimally encoded"
-            }
         }
     }
 
@@ -82,12 +76,10 @@ val OidHardening by matrixSuite {
                 OidVector("tail-arc-only-continuation-bytes", "06 03 2B 81 80"),
             ),
             nameFn = { _, it -> it.name },
-        ) - { (_, tlvHex) ->
-            "case" {
+        ) test { (_, tlvHex) ->
             shouldThrow<Asn1Exception> {
                 ObjectIdentifier.decodeFromTlv(Asn1Element.parseFromDerHexString(tlvHex).asPrimitive())
             }.message shouldBe "Encoded OID does not end with a valid ASN.1 varint"
-            }
         }
     }
 }

@@ -3,13 +3,11 @@ package at.asitplus.awesn1.hardening
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.BitSet
 import at.asitplus.awesn1.encoding.encodeToDer
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
-val BitSetCompactionHardeningTest by testSuite {
+val BitSetCompactionHardeningTest by matrixSuite {
 
     "preallocated all-zero BitSet has empty semantic representation" {
         val bits = BitSet(128)

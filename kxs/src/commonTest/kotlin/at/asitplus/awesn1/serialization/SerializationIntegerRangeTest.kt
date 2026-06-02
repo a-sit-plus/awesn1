@@ -1,12 +1,9 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import at.asitplus.testballoon.withData
+import at.asitplus.testballoon.matrix.matrixSuite
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
@@ -16,7 +13,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestIntegerRange by testSuite {
+val SerializationTestIntegerRange by matrixSuite {
 
     "Hardcoded out of bounds" - {
 
@@ -79,7 +76,7 @@ val SerializationTestIntegerRange by testSuite {
         }
     }
 
-    withData(nameFn = { it.name }, data = listOf(
+    data("integer", listOf(
         IntegerRangeFixture(
             name = "Long accepts Long.MAX_VALUE",
             source = Long.MAX_VALUE,
@@ -200,8 +197,7 @@ val SerializationTestIntegerRange by testSuite {
             serializer = UByte.serializer(),
             expected = Expected.SerializationFailure,
         ),
-    )
-    ) { fixture ->
+    ), nameFn = { _, it -> it.name }) test { fixture ->
         val encoded = DER.encodeToByteArray(fixture.source)
 
         when (val expected = fixture.expected) {

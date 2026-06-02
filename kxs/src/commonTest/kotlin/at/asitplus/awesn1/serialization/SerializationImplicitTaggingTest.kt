@@ -1,11 +1,9 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldEndWith
@@ -17,7 +15,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestImplicitTagging by testSuite(
+val SerializationTestImplicitTagging by matrixSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Implicit tagging" - {

@@ -2,8 +2,7 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.BitSet
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.SerializationException
@@ -12,7 +11,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalStdlibApi::class)
-val BitSetBitStringSerializationTest by testSuite {
+val BitSetBitStringSerializationTest by matrixSuite {
 
     "top-level BitSet and Asn1BitString share DER BIT STRING encoding" {
         val bitSet = BitSet.fromString("001")

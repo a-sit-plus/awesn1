@@ -1,15 +1,14 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial04OctetWrapped by testSuite(
+val SerializationTutorial04OctetWrapped by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "OCTET STRING encapsulation with Asn1OctetWrapped" {

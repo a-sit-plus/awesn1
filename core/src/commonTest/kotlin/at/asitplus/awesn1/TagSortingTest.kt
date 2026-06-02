@@ -14,44 +14,46 @@ val TagSortingTest by matrixSuite {
             listOf(TagClass.UNIVERSAL, TagClass.APPLICATION, TagClass.CONTEXT_SPECIFIC, TagClass.PRIVATE)
         property("a", Arb.uLong(), iterations = 1000) - { a ->
 
-            val tagAAPP = Asn1Element.Tag(
-                a,
-                constructed = false,
-                tagClass = TagClass.APPLICATION
-            )
-            val tagACTX = Asn1Element.Tag(
-                a,
-                constructed = false,
-                tagClass = TagClass.CONTEXT_SPECIFIC
-            )
-            val tagAP = Asn1Element.Tag(
-                a,
-                constructed = false,
-                tagClass = TagClass.PRIVATE
-            )
-
-            val tagAC = if (a > 0uL) Asn1Element.Tag(
-                a,
-                constructed = true,
-                tagClass = TagClass.UNIVERSAL
-            ) else null
-
-            if (a > 0uL) {
-                val tagA = Asn1Element.Tag(
+            test("class ordering") {
+                val tagAAPP = Asn1Element.Tag(
                     a,
                     constructed = false,
-                    tagClass = TagClass.UNIVERSAL
+                    tagClass = TagClass.APPLICATION
                 )
-                tagA.compareTo(tagAC!!) shouldBe 0
+                val tagACTX = Asn1Element.Tag(
+                    a,
+                    constructed = false,
+                    tagClass = TagClass.CONTEXT_SPECIFIC
+                )
+                val tagAP = Asn1Element.Tag(
+                    a,
+                    constructed = false,
+                    tagClass = TagClass.PRIVATE
+                )
 
-                tagA shouldBeLessThan tagAAPP
-            }
-            tagAAPP shouldBeLessThan tagACTX
-            tagACTX shouldBeLessThan tagAP
-            tagAC?.let {
-                it shouldBeLessThan tagAAPP
-                it shouldBeLessThan tagACTX
-                it shouldBeLessThan tagAP
+                val tagAC = if (a > 0uL) Asn1Element.Tag(
+                    a,
+                    constructed = true,
+                    tagClass = TagClass.UNIVERSAL
+                ) else null
+
+                if (a > 0uL) {
+                    val tagA = Asn1Element.Tag(
+                        a,
+                        constructed = false,
+                        tagClass = TagClass.UNIVERSAL
+                    )
+                    tagA.compareTo(tagAC!!) shouldBe 0
+
+                    tagA shouldBeLessThan tagAAPP
+                }
+                tagAAPP shouldBeLessThan tagACTX
+                tagACTX shouldBeLessThan tagAP
+                tagAC?.let {
+                    it shouldBeLessThan tagAAPP
+                    it shouldBeLessThan tagACTX
+                    it shouldBeLessThan tagAP
+                }
             }
 
             if (a > 0uL) {

@@ -12,9 +12,8 @@ import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.decodeFromDer
 import at.asitplus.awesn1.encoding.decodeToInt
 import at.asitplus.awesn1.encoding.encodeToDer
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
@@ -698,7 +697,7 @@ private fun rawSetPreservationRoundTrip(): Triple<ByteArray, ByteArray, Tutorial
 }
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationDocumentationTutorialTest by testSuite(
+val SerializationDocumentationTutorialTest by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "Baseline" {

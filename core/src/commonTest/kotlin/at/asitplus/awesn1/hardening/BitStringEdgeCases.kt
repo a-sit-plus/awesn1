@@ -32,13 +32,11 @@ val bitStringEdgeCases by matrixSuite {
                 val illegal = List(255) { it.toByte() }.filterNot { it in legal }
 
                 if (legal.isNotEmpty()) "zero-ed out (legal)" - {
-                    data("byte", legal, nameFn = { _, it -> "xx = ${it.hexPadded()}" }) - { i ->
-                        "case" {
+                    data("byte", legal, nameFn = { _, it -> "xx = ${it.hexPadded()}" }) test { i ->
                         val derEncoded = "$hexBytes${i.hexPadded()}"
                         Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded) as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
                             numPaddingBits, derEncoded.replace(" ", "").substring(6).hexToByteArray(HexFormat.UpperCase)
                         )
-                        }
                     }
                 }
 
@@ -47,14 +45,12 @@ val bitStringEdgeCases by matrixSuite {
                         "byte",
                         illegal,
                         nameFn = { _, it -> "xx = ${it.hexPadded()}" },
-                    ) - { i ->
-                        "case" {
+                    ) test { i ->
                         shouldThrow<Asn1Exception> {
                             Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("$hexBytes${i.hexPadded()}") as Asn1Primitive)
                         }.message shouldBe "Last $numPaddingBits padding bits must be zeroed out. Last byte is: ${
                             i.toUByte().toString(2).padStart(8, '0')
                         }"
-                        }
                     }
                 }
             }
@@ -66,13 +62,10 @@ val bitStringEdgeCases by matrixSuite {
             "padding",
             List(255) { it.toByte() }.filterNot { it < 8.toByte() },
             nameFn = { _, it -> "numPaddingBits = $it" },
-        ) - { numPaddingBits ->
-            "case" {
-
+        ) test { numPaddingBits ->
             shouldThrow<Asn1Exception> {
                 Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 ${numPaddingBits.hexPadded()} 00") as Asn1Primitive)
             }.message shouldBe "Number of padding bits must be in range 0..7. Found: $numPaddingBits"
-            }
         }
     }
 
@@ -85,12 +78,10 @@ val bitStringEdgeCases by matrixSuite {
             )
         }
 
-        data("hex", List(7) { "03 01 ${(it + 1).toByte().hexPadded()}" }) - { illegal ->
-            "case" {
+        data("hex", List(7) { "03 01 ${(it + 1).toByte().hexPadded()}" }) test { illegal ->
             shouldThrow<Asn1Exception> {
                 Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(illegal) as Asn1Primitive)
             }.message shouldBe "Raw bytes must not be empty if padding bits are set"
-            }
         }
     }
 
@@ -102,12 +93,10 @@ val manualBitStringPadding by matrixSuite {
             (i * 8).toByte()
         }
         "zero (legal)" - {
-            data("byte", legal, nameFn = { _, it -> "xx = ${it.hexPadded()}" }) - { i ->
-                "case" {
+            data("byte", legal, nameFn = { _, it -> "xx = ${it.hexPadded()}" }) test { i ->
                 Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
                     0x03.toByte(), byteArrayOf(i)
                 )
-                }
             }
         }
 
@@ -116,14 +105,12 @@ val manualBitStringPadding by matrixSuite {
                 "byte",
                 List(255) { it.toByte() }.filterNot { it in legal },
                 nameFn = { _, it -> "xx = ${it.hexPadded()}" },
-            ) - { i ->
-                "case" {
+            ) test { i ->
                 shouldThrow<Asn1Exception> {
                     Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive)
                 }.message shouldBe "Last 3 padding bits must be zeroed out. Last byte is: ${
                     i.toUByte().toString(2).padStart(8, '0')
                 }"
-                }
             }
 
         }

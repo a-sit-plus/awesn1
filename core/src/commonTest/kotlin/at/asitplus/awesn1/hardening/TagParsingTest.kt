@@ -17,11 +17,9 @@ val DERtagparsing by matrixSuite {
                 "constructed complete" to "20 00",
             ),
             nameFn = { _, (name, _) -> name },
-        ) - { (_, hex) ->
-            "case" {
+        ) test { (_, hex) ->
             shouldThrow<Asn1Exception> {
                 Asn1Element.parseFromDerHexString(hex)
-            }
             }
         }
     }
@@ -38,10 +36,8 @@ val DERtagparsing by matrixSuite {
                 "private constructed" to "E0 00",
             ),
             nameFn = { _, (name, _) -> name },
-        ) - { (_, hex) ->
-            "case" {
+        ) test { (_, hex) ->
             Asn1Element.parseFromDerHexString(hex).toDerHexString() shouldBe hex.replace(" ", "")
-            }
         }
     }
 
@@ -57,11 +53,9 @@ val DERtagparsing by matrixSuite {
                 "private constructed" to "E0",
             ),
             nameFn = { _, (name, _) -> name },
-        ) - { (_, hex) ->
-            "case" {
+        ) test { (_, hex) ->
             shouldThrow<Asn1Exception> {
                 Asn1Element.parseFromDerHexString(hex)
-            }
             }
         }
     }

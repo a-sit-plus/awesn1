@@ -3,12 +3,11 @@ package at.asitplus.awesn1.at.asitplus.awesn1
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 
-val FocusedDERlengthparsing by testSuite {
+val FocusedDERlengthparsing by matrixSuite {
     "accepts short-form length" {
         Asn1Element.parseFromDerHexString("04 03 AA BB CC") shouldBe
                 Asn1.OctetString("AABBCC".hexToByteArray(HexFormat.UpperCase))

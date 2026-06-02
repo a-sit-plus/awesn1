@@ -1,12 +1,11 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
-val PemTest by testSuite {
+val PemTest by matrixSuite {
 
     "round trip pem block with headers" {
         val block = PemBlock(

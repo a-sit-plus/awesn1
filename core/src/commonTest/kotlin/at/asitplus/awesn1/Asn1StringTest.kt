@@ -1,11 +1,10 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
-val Asn1StringTest by testSuite {
+val Asn1StringTest by matrixSuite {
 
     val utf8 = Asn1String.UTF8("uÄasdiu3")
     val universal = Asn1String.Universal("adsa4")
