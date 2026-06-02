@@ -7,7 +7,6 @@ package at.asitplus.awesn1
 
 
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
-import at.asitplus.awesn1.Asn1OctetString.Companion.invoke
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.Sink
 import at.asitplus.awesn1.encoding.internal.Source
@@ -265,6 +264,9 @@ sealed class Asn1Element(
         init {
             if (tagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
                 throw Asn1Exception("Illegal DER tag: universal tag 0 (end-of-contents) is not allowed")
+            }
+            if (tagValue == 15uL && tagClass == TagClass.UNIVERSAL) {
+                throw Asn1Exception("Illegal DER tag: universal tag 0x0F is not allowed")
             }
         }
 
@@ -875,7 +877,7 @@ sealed class Asn1OctetString : Asn1Primitive {
         operator fun invoke(source: Source<*>, length: Long): Asn1OctetString =
             catchingUnwrapped {
                 //try to decode recursively
-                val decoded = source.peek().doParseExactly(length).also { require (it.isNotEmpty()) }
+                val decoded = source.peek().doParseExactly(length).also { require(it.isNotEmpty()) }
                 source.skip(length)
                 Asn1EncapsulatingOctetString(decoded)
             }.getOrElse {
@@ -988,11 +990,11 @@ class Asn1SetOf @Throws(Asn1Exception::class) internal constructor(children: Lis
 open class Asn1Primitive private constructor(
     tag: Tag,
     content: ByteArray?,
-    contentProvider: (()->ByteArray)
+    contentProvider: (() -> ByteArray)
 ) : Asn1Element(tag) {
 
     constructor(tag: Tag, content: ByteArray) : this(tag, content, initImplError)
-    constructor(tag: Tag, contentProvider: ()->ByteArray) : this(tag, null, contentProvider)
+    constructor(tag: Tag, contentProvider: () -> ByteArray) : this(tag, null, contentProvider)
 
     init {
         if (tag.isConstructed) throw IllegalArgumentException("A primitive cannot have a CONSTRUCTED tag")
@@ -1054,6 +1056,7 @@ open class Asn1Primitive private constructor(
 
         return true
     }
+
     companion object {
         val initImplError: () -> ByteArray = { throw ImplementationError("ASN.1 Element construction") }
     }

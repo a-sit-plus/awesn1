@@ -16,7 +16,6 @@ import kotlinx.io.writeToInternalBuffer
 import kotlin.jvm.JvmInline
 
 @JvmInline
-
 @InternalAwesn1Api
 value class KxIoSource(val source: kotlinx.io.Source) : Source<KxIoSink> {
     override fun readByte(): Byte = source.readByte()
@@ -32,9 +31,9 @@ value class KxIoSource(val source: kotlinx.io.Source) : Source<KxIoSink> {
 
 }
 
-
+@JvmInline
 @InternalAwesn1Api
-class KxIoSink(internal val sink: kotlinx.io.Sink) : Sink {
+value class KxIoSink(internal val sink: kotlinx.io.Sink) : Sink {
     override fun writeByte(byte: Byte) =sink.writeByte(byte)
 
     override fun write(bytes: ByteArray, startIndex: Int, endIndex: Int)=sink.write(bytes, startIndex, endIndex)

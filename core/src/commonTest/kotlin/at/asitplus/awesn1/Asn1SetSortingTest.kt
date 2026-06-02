@@ -142,7 +142,7 @@ private fun randomCustomPrimitiveTag(random: Random): Asn1Element.Tag {
         tagValue = tagValue,
         constructed = false,
         tagClass = when (random.nextInt(4)) {
-            0 -> if(tagValue>0uL) TagClass.UNIVERSAL else TagClass.PRIVATE
+            0 -> if(tagValue>0uL && tagValue!=0x0fuL) TagClass.UNIVERSAL else TagClass.PRIVATE
             1 -> TagClass.APPLICATION
             2 -> TagClass.CONTEXT_SPECIFIC
             else -> TagClass.PRIVATE
