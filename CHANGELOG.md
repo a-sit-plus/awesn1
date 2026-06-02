@@ -1,8 +1,7 @@
 # Changelog
 
-## NEXT
+## 0.3.1
 * **Dependency Updates:**
-    * Kotlin 2.4.0
     * Kotlinx.io 0.9.0
 * **Hardening by Fuzzing:**
     * OID
