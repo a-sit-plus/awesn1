@@ -1,26 +1,17 @@
 package at.asitplus.awesn1
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1ExplicitlyTagged
-import at.asitplus.awesn1.Asn1Null
-import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1Sequence
-import at.asitplus.awesn1.Asn1Set
-import at.asitplus.awesn1.Asn1SetOf
-import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
-import at.asitplus.testballoon.checkAll
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import kotlin.random.Random
 
+private val byteArrayListNameFn: (Long, List<ByteArray>) -> String =
+    { i, list -> "$i: ${list.joinToString { it.toHexString() }}" }
 
-val Asn1SetSortingTest by testSuite {
+val Asn1SetSortingTest by matrixSuite {
     "SET sorts children lexicographically by DER bytes" {
         val larger = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x01))
         val smaller = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x00))
@@ -42,58 +33,71 @@ val Asn1SetSortingTest by testSuite {
     }
 
     "Property checks" - {
-        "SET sorts OCTET STRING payloads like independent DER ordering baseline" - {
-            checkAll(iterations = 750, randomOctetStringPayloadLists()) { payloads ->
-                val asn1Set = Asn1Set(payloads.map { payload ->
-                    Asn1Primitive(Asn1Element.Tag.OCTET_STRING, payload)
-                })
+        property(
+            "SET sorts OCTET STRING payloads like independent DER ordering baseline",
+            randomOctetStringPayloadLists(),
+            iterations = 750,
+            nameFn = byteArrayListNameFn
+        ) test { payloads ->
+            val asn1Set = Asn1Set(payloads.map { payload ->
+                Asn1Primitive(Asn1Element.Tag.OCTET_STRING, payload)
+            })
 
-                val expectedPayloadOrder = payloads.sortedWith(::compareOctetStringPayloadsByDerRules)
-                val actualPayloadOrder = asn1Set.children.map { it.asPrimitive().content }
+            val expectedPayloadOrder = payloads.sortedWith(::compareOctetStringPayloadsByDerRules)
+            val actualPayloadOrder = asn1Set.children.map { it.asPrimitive().content }
 
-                actualPayloadOrder.size shouldBe expectedPayloadOrder.size
-                actualPayloadOrder.zip(expectedPayloadOrder).forEach { (actual, expected) ->
-                    (actual contentEquals expected) shouldBe true
-                }
+            actualPayloadOrder.size shouldBe expectedPayloadOrder.size
+            actualPayloadOrder.zip(expectedPayloadOrder).forEach { (actual, expected) ->
+                (actual contentEquals expected) shouldBe true
             }
         }
 
-        "SET OF sorts OCTET STRING payloads like independent DER ordering baseline" - {
-            checkAll(iterations = 750, randomOctetStringPayloadLists()) { payloads ->
-                val asn1Set = Asn1SetOf(payloads.map { payload ->
-                    Asn1Primitive(Asn1Element.Tag.OCTET_STRING, payload)
-                })
+        property(
+            "SET OF sorts OCTET STRING payloads like independent DER ordering baseline",
+            randomOctetStringPayloadLists(),
+            iterations = 750,
+            nameFn = byteArrayListNameFn
+        ) test { payloads ->
+            val asn1Set = Asn1SetOf(payloads.map { payload ->
+                Asn1Primitive(Asn1Element.Tag.OCTET_STRING, payload)
+            })
 
-                val expectedPayloadOrder = payloads.sortedWith(::compareOctetStringPayloadsByDerRules)
-                val actualPayloadOrder = asn1Set.children.map { it.asPrimitive().content }
+            val expectedPayloadOrder = payloads.sortedWith(::compareOctetStringPayloadsByDerRules)
+            val actualPayloadOrder = asn1Set.children.map { it.asPrimitive().content }
 
-                actualPayloadOrder.size shouldBe expectedPayloadOrder.size
-                actualPayloadOrder.zip(expectedPayloadOrder).forEach { (actual, expected) ->
-                    (actual contentEquals expected) shouldBe true
-                }
+            actualPayloadOrder.size shouldBe expectedPayloadOrder.size
+            actualPayloadOrder.zip(expectedPayloadOrder).forEach { (actual, expected) ->
+                (actual contentEquals expected) shouldBe true
             }
         }
 
-        "SET encoding is permutation-invariant for identical OCTET STRING multiset" - {
-            checkAll(iterations = 400, randomOctetStringPayloadLists()) { payloads ->
-                val forward = Asn1Set(payloads.map { Asn1Primitive(Asn1Element.Tag.OCTET_STRING, it) })
-                val reversed = Asn1Set(payloads.asReversed().map { Asn1Primitive(Asn1Element.Tag.OCTET_STRING, it) })
+        property(
+            "SET encoding is permutation-invariant for identical OCTET STRING multiset",
+            randomOctetStringPayloadLists(),
+            iterations = 400,
+            nameFn = byteArrayListNameFn
+        ) test { payloads ->
+            val forward = Asn1Set(payloads.map { Asn1Primitive(Asn1Element.Tag.OCTET_STRING, it) })
+            val reversed =
+                Asn1Set(payloads.asReversed().map { Asn1Primitive(Asn1Element.Tag.OCTET_STRING, it) })
 
-                (forward.derEncoded contentEquals reversed.derEncoded) shouldBe true
-            }
+            (forward.derEncoded contentEquals reversed.derEncoded) shouldBe true
+
         }
 
-        "SET of random mixed nested elements is strictly DER-sorted" - {
-            checkAll(iterations = 500, randomAsn1ElementLists(maxDepth = 3)) { generated ->
-                val deduplicated = generated.distinctBy { it.derEncoded.toHexString() }
-                val set = Asn1Set(deduplicated)
-                val sortedChildrenDer = set.children.map { it.derEncoded }
+        property(
+            "SET of random mixed nested elements is strictly DER-sorted",
+            randomAsn1ElementLists(maxDepth = 3),
+            iterations = 500
+        ) test { generated ->
+            val deduplicated = generated.distinctBy { it.derEncoded.toHexString() }
+            val set = Asn1Set(deduplicated)
+            val sortedChildrenDer = set.children.map { it.derEncoded }
 
-                for (index in 1 until sortedChildrenDer.size) {
-                    val predecessor = sortedChildrenDer[index - 1]
-                    val successor = sortedChildrenDer[index]
-                    (compareUnsignedLexicographically(predecessor, successor) < 0) shouldBe true
-                }
+            for (index in 1 until sortedChildrenDer.size) {
+                val predecessor = sortedChildrenDer[index - 1]
+                val successor = sortedChildrenDer[index]
+                (compareUnsignedLexicographically(predecessor, successor) < 0) shouldBe true
             }
         }
     }
@@ -142,7 +146,7 @@ private fun randomCustomPrimitiveTag(random: Random): Asn1Element.Tag {
         tagValue = tagValue,
         constructed = false,
         tagClass = when (random.nextInt(4)) {
-            0 -> if(tagValue>0uL && tagValue!=0x0fuL) TagClass.UNIVERSAL else TagClass.PRIVATE
+            0 -> if (tagValue > 0uL && tagValue != 0x0fuL) TagClass.UNIVERSAL else TagClass.PRIVATE
             1 -> TagClass.APPLICATION
             2 -> TagClass.CONTEXT_SPECIFIC
             else -> TagClass.PRIVATE

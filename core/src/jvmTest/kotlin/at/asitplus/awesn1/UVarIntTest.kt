@@ -6,13 +6,10 @@ import at.asitplus.awesn1.encoding.decodeAsn1VarUInt
 import at.asitplus.awesn1.encoding.decodeAsn1VarULong
 import at.asitplus.awesn1.encoding.internal.*
 import at.asitplus.awesn1.encoding.toAsn1VarInt
-import at.asitplus.testballoon.checkAll
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
+import at.asitplus.testballoon.matrix.matrixSuite
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.Sign
 import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -20,7 +17,7 @@ import io.kotest.property.arbitrary.*
 import kotlin.math.ceil
 import kotlin.random.Random
 
-val UVarIntTest by testSuite {
+val UVarIntTest by matrixSuite {
 
     //TODO: buffer based tests with capped number of bytes test
     "UInts with trailing bytes" - {
@@ -33,7 +30,7 @@ val UVarIntTest by testSuite {
             buf.exhausted().shouldBeTrue()
         }
         "automated" - {
-            checkAll(Arb.uInt()) { int ->
+            property("int", Arb.uInt()) test { int ->
                 val rnd = Random.nextBytes(8)
                 val src = int.toAsn1VarInt().asList() + rnd.asList()
                 src.decodeAsn1VarUInt().first shouldBe int
@@ -55,7 +52,7 @@ val UVarIntTest by testSuite {
             buf.exhausted().shouldBeTrue()
         }
         "automated" - {
-            checkAll(Arb.uLong()) { long ->
+            property("long", Arb.uLong()) test { long ->
                 val rnd = Random.nextBytes(8)
                 val src = long.toAsn1VarInt().asList() + rnd.asList()
                 src.decodeAsn1VarULong().first shouldBe long
@@ -64,53 +61,46 @@ val UVarIntTest by testSuite {
                 buffer.decodeAsn1VarULong().first shouldBe long
                 rnd.forEach { it shouldBe buffer.readByte() }
                 buffer.exhausted().shouldBeTrue()
-
             }
         }
     }
 
     "BigInts" - {
-        "long-capped" - {
-            checkAll(iterations = 100, Arb.uLong()) { long ->
-                val uLongVarInt = long.toAsn1VarInt()
-                val bigInteger = BigInteger.fromULong(long)
-                val bigIntVarInt = bigInteger.toJavaBigInteger().toAsn1VarInt()
+        property("long-capped", Arb.uLong(), iterations = 100) test { long ->
+            val uLongVarInt = long.toAsn1VarInt()
+            val bigInteger = BigInteger.fromULong(long)
+            val bigIntVarInt = bigInteger.toJavaBigInteger().toAsn1VarInt()
 
-                bigIntVarInt shouldBe uLongVarInt
-                ByteArraySink().apply { writeAsn1VarInt(bigInteger.toJavaBigInteger()) }
-                    .readByteArray() shouldBe bigIntVarInt
-                ByteArraySink().apply { writeAsn1VarInt(long) }.readByteArray() shouldBe uLongVarInt
+            bigIntVarInt shouldBe uLongVarInt
+            ByteArraySink().apply { writeAsn1VarInt(bigInteger.toJavaBigInteger()) }
+                .readByteArray() shouldBe bigIntVarInt
+            ByteArraySink().apply { writeAsn1VarInt(long) }.readByteArray() shouldBe uLongVarInt
 
-                val rnd = Random.nextBytes(8)
-                val src = uLongVarInt.asList() + rnd.asList()
-                src.decodeAsn1VarBigInt().first shouldBe bigInteger
+            val rnd = Random.nextBytes(8)
+            val src = uLongVarInt.asList() + rnd.asList()
+            src.decodeAsn1VarBigInt().first shouldBe bigInteger
 
 
-                val buffer = src.toByteArray().wrapInUnsafeSource()
-                buffer.decodeAsn1VarBigInt().first.toString() shouldBe bigInteger.toString()
-                rnd.forEach { it shouldBe buffer.readByte() }
-                buffer.exhausted().shouldBeTrue()
-
-            }
+            val buffer = src.toByteArray().wrapInUnsafeSource()
+            buffer.decodeAsn1VarBigInt().first.toString() shouldBe bigInteger.toString()
+            rnd.forEach { it shouldBe buffer.readByte() }
+            buffer.exhausted().shouldBeTrue()
         }
 
-        "larger" - {
-            checkAll(iterations = 100, Arb.byteArray(Arb.positiveInt(1024), Arb.byte())) {
-                val bigInt = BigInteger.fromByteArray(it, Sign.POSITIVE)
-                val bigIntVarint = bigInt.toJavaBigInteger().toAsn1VarInt()
-                val rnd = Random.nextBytes(33)
-                val src = bigIntVarint.asList() + rnd
-                    .asList()
-                src.decodeAsn1VarBigInt().first.toString() shouldBe bigInt.toString()
+        property("larger", Arb.byteArray(Arb.positiveInt(1024), Arb.byte()), iterations = 100) test { bytes ->
+            val bigInt = BigInteger.fromByteArray(bytes, Sign.POSITIVE)
+            val bigIntVarint = bigInt.toJavaBigInteger().toAsn1VarInt()
+            val rnd = Random.nextBytes(33)
+            val src = bigIntVarint.asList() + rnd
+                .asList()
+            src.decodeAsn1VarBigInt().first.toString() shouldBe bigInt.toString()
 
-                val buf = src.toByteArray().wrapInUnsafeSource()
-                buf.decodeAsn1VarBigInt().first.toString() shouldBe bigInt.toString()
-                rnd.forEach { it shouldBe buf.readByte() }
-                buf.exhausted().shouldBeTrue()
-            }
+            val buf = src.toByteArray().wrapInUnsafeSource()
+            buf.decodeAsn1VarBigInt().first.toString() shouldBe bigInt.toString()
+            rnd.forEach { it shouldBe buf.readByte() }
+            buf.exhausted().shouldBeTrue()
         }
     }
-
 }
 
 //old code for regeressiontests

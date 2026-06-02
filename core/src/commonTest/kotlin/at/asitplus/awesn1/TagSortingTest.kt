@@ -1,20 +1,18 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.checkAll
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.comparables.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.uLong
 
-val TagSortingTest by testSuite {
+val TagSortingTest by matrixSuite {
 
     "Automated" - {
         val sortedClasses =
             listOf(TagClass.UNIVERSAL, TagClass.APPLICATION, TagClass.CONTEXT_SPECIFIC, TagClass.PRIVATE)
-        checkAll(iterations = 1000, Arb.uLong()) - { a ->
+        property("a", Arb.uLong(), iterations = 1000) - { a ->
 
             val tagAAPP = Asn1Element.Tag(
                 a,
@@ -62,7 +60,7 @@ val TagSortingTest by testSuite {
                     constructed = false,
                     tagClass = TagClass.UNIVERSAL
                 )
-                checkAll(iterations = 1000, Arb.uLong(min = 1uL)) { b ->
+                property("b", Arb.uLong(min = 1uL), iterations = 1000) test { b ->
                     val tagB = Asn1Element.Tag(
                         b,
                         constructed = false,

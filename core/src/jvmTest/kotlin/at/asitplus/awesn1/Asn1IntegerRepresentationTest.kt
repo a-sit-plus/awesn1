@@ -2,14 +2,11 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.decodeAsn1VarBigInt
 import at.asitplus.signum.indispensable.asn1.toAsn1VarInt
-import at.asitplus.testballoon.checkAll
-import at.asitplus.testballoon.minus
-import at.asitplus.testballoon.withData
+import at.asitplus.testballoon.matrix.matrixSuite
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.Sign
 import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
 import com.ionspin.kotlin.bignum.integer.util.toTwosComplementByteArray
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -20,11 +17,11 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
-val Asn1IntegerRepresentationTest by testSuite {
+val Asn1IntegerRepresentationTest by matrixSuite {
 
     "Manual" - {
-        withData("1027", "256", "1", "3", "8", "127", "128", "255", "512", "1024") {
-            val bigInt = BigInteger.parseString(it)
+        data("integer", listOf("1027", "256", "1", "3", "8", "127", "128", "255", "512", "1024")) test { integer ->
+            val bigInt = BigInteger.parseString(integer)
             val ref = bigInt.toString()
             val own = VarUInt(ref)
             val ownBytes = own.bytes
@@ -44,8 +41,8 @@ val Asn1IntegerRepresentationTest by testSuite {
 
 
     "Automated" - {
-        checkAll(Arb.byteArray(Arb.positiveInt(65), Arb.byte())) {
-            val bigInt = BigInteger.fromByteArray(it, Sign.POSITIVE)
+        property("bytes", Arb.byteArray(Arb.positiveInt(65), Arb.byte())) test { bytes ->
+            val bigInt = BigInteger.fromByteArray(bytes, Sign.POSITIVE)
             val ref = bigInt.toString()
             val own = VarUInt(ref)
             val ownBytes = own.bytes
@@ -55,14 +52,13 @@ val Asn1IntegerRepresentationTest by testSuite {
             own.toString() shouldBe ref
             ownBytes shouldBe bigitBytes
             own.toAsn1VarInt() shouldBe BigInteger.parseString(bigInt.toString()).toAsn1VarInt()
-
         }
     }
 
     "UUIDs" - {
-        withData(nameFn = { it.toHexString() }, List<Uuid>(100) { Uuid.random() }) {
-            val bigint = BigInteger.fromByteArray(it.toByteArray(), Sign.POSITIVE).toJavaBigInteger()
-            val own = Asn1Integer.fromUnsignedByteArray(it.toByteArray()).toJavaBigInteger()
+        data("uuid", List<Uuid>(100) { Uuid.random() }, nameFn = { _, it -> it.toHexString() }) test { uuid ->
+            val bigint = BigInteger.fromByteArray(uuid.toByteArray(), Sign.POSITIVE).toJavaBigInteger()
+            val own = Asn1Integer.fromUnsignedByteArray(uuid.toByteArray()).toJavaBigInteger()
             own shouldBe bigint
         }
     }
@@ -70,13 +66,16 @@ val Asn1IntegerRepresentationTest by testSuite {
     "TwosComplement" - {
 
         "manual" - {
-            withData(
-                "-24519924295662886907187464938912882392492723242957571281",
-                "-1457686090107523769986476796769829633039407019130",
-                "-18440417236681064435",
-                "-1"
-            ) {
-                val neg = BigInteger.parseString(it)
+            data(
+                "integer",
+                listOf(
+                    "-24519924295662886907187464938912882392492723242957571281",
+                    "-1457686090107523769986476796769829633039407019130",
+                    "-18440417236681064435",
+                    "-1",
+                ),
+            ) test { integer ->
+                val neg = BigInteger.parseString(integer)
                 val ownNeg = Asn1Integer.fromDecimalString(neg.toString())
                 withClue(neg.toString()) {
                     ownNeg.toString() shouldBe neg.toString()
@@ -86,9 +85,9 @@ val Asn1IntegerRepresentationTest by testSuite {
         }
 
         "automated" - {
-            checkAll(Arb.byteArray(Arb.positiveInt(349), Arb.byte())) {
-                val pos = BigInteger.fromByteArray(it, Sign.POSITIVE)
-                val neg = BigInteger.fromByteArray(it, Sign.NEGATIVE)
+            property("bytes", Arb.byteArray(Arb.positiveInt(349), Arb.byte())) test { bytes ->
+                val pos = BigInteger.fromByteArray(bytes, Sign.POSITIVE)
+                val neg = BigInteger.fromByteArray(bytes, Sign.NEGATIVE)
 
                 val ownPos = Asn1Integer.fromDecimalString(pos.toString())
                 ownPos.toString() shouldBe pos.toString()

@@ -1,8 +1,7 @@
 package at.asitplus.awesn1.at.asitplus.awesn1.hardening
 
 import at.asitplus.awesn1.*
-import at.asitplus.testballoon.withData
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
@@ -192,9 +191,10 @@ private val nonMinimal = listOf(
     )
 )
 
-val FocusedINTEGERTests by testSuite {
+val FocusedINTEGERTests by matrixSuite {
 
-    withData(nameFn = { it.name }, nonMinimal+minimal, compact = false) { (_, hex, shouldAccept, note, expected) ->
+    data("integer", nonMinimal + minimal, nameFn = { _, it -> it.name }) - { (_, hex, shouldAccept, note, expected) ->
+        "case" {
         withClue(note) {
             if (shouldAccept)
                 Asn1Integer.parseFromDerHexString(hex).toDerHexString() shouldBe hex.replace(" ", "")
@@ -212,6 +212,7 @@ val FocusedINTEGERTests by testSuite {
                         Asn1Integer.decodeFromTlv(decoded.encodeToTlv()) shouldBe expected
                     }
             }
+        }
         }
     }
 

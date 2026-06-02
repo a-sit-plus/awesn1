@@ -1,31 +1,22 @@
 package at.asitplus.awesn1
 
-import at.asitplus.awesn1.encoding.decodeFromDer
-import at.asitplus.awesn1.encoding.decodeToDouble
-import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
-import at.asitplus.awesn1.encoding.encodeToDer
-import at.asitplus.awesn1.encoding.parse
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import at.asitplus.testballoon.withData
+import at.asitplus.awesn1.encoding.*
+import at.asitplus.testballoon.matrix.matrixSuite
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
-import de.infix.testBalloon.framework.core.testSuite
-
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.json.Json
-import org.bouncycastle.asn1.ASN1InputStream
 
 
 @OptIn(ExperimentalStdlibApi::class)
-val RealTest by testSuite {
+val RealTest by matrixSuite {
 
     val input =
         data.lines().map { it.split("; ").let { it.first().toDouble() to it.last().hexToByteArray(HexFormat.Default) } }
-    "Encoding from Ref" - {
-        withData(data = input) { (double, bytes) ->
+    ("Encoding from Ref") - {
+        data("real", input) test { (double, bytes) ->
             val own = Asn1Real(double)
             own.encodeToDer() shouldBe bytes
             Asn1Real.decodeFromDer(bytes) shouldBe own
@@ -35,21 +26,21 @@ val RealTest by testSuite {
             Asn1Element.parse(bytes).asPrimitive().decodeToDouble() shouldBe double
 
             val real = Json.encodeToString(own)
-            println(real)
             Json.decodeFromString<Asn1Real>(" $real") shouldBe own
             Json.decodeFromString<Asn1Real>(" $real ") shouldBe own
             Json.decodeFromString<Asn1Real>("$real ") shouldBe own
-            Json.decodeFromString<Asn1Real>(real.replace(" *","*")) shouldBe own
-            Json.decodeFromString<Asn1Real>(real.replace(" * ","*")) shouldBe own
-            Json.decodeFromString<Asn1Real>(real.replace("^"," ^")) shouldBe own
-            Json.decodeFromString<Asn1Real>(real.replace("^"," ^ ")) shouldBe own
+            Json.decodeFromString<Asn1Real>(real.replace(" *", "*")) shouldBe own
+            Json.decodeFromString<Asn1Real>(real.replace(" * ", "*")) shouldBe own
+            Json.decodeFromString<Asn1Real>(real.replace("^", " ^")) shouldBe own
+            Json.decodeFromString<Asn1Real>(real.replace("^", " ^ ")) shouldBe own
             Json.decodeFromString<Asn1Real>(real) shouldBe own
         }
     }
 
     "Special values" - {
-         "manual large" {
-            val number = "1.1897314953572317650857593266280070162123456789009876543456789098765432123456789876543212345678987654323456789876532345678765432345678876543234567"
+        "manual large" {
+            val number =
+                "1.1897314953572317650857593266280070162123456789009876543456789098765432123456789876543212345678987654323456789876532345678765432345678876543234567"
             val bigDecimal = BigDecimal.parseString(number)
             bigDecimal.precision shouldBeGreaterThan 64L
             val wrongScaledMantissa = bigDecimal.significand.toJavaBigInteger().toAsn1Integer()
@@ -62,18 +53,20 @@ val RealTest by testSuite {
                 this.normalizedExponent shouldBe exponent
 
                 val real = Json.encodeToString(this)
-                println(real)
                 Json.decodeFromString<Asn1Real>(real) shouldBe this
             }
 
 
         }
 
-        withData(
-            0.0 to byteArrayOf(9, 0),
-            Double.NEGATIVE_INFINITY to byteArrayOf(9, 1, 0x41),
-            Double.POSITIVE_INFINITY to byteArrayOf(9, 1, 0x40),
-        ) { (double, bytes) ->
+        data(
+            "real",
+            listOf(
+                0.0 to byteArrayOf(9, 0),
+                Double.NEGATIVE_INFINITY to byteArrayOf(9, 1, 0x41),
+                Double.POSITIVE_INFINITY to byteArrayOf(9, 1, 0x40),
+            ),
+        ) test { (double, bytes) ->
             val own = Asn1Real(double)
             own.encodeToDer() shouldBe bytes
             Asn1Real.decodeFromDer(bytes) shouldBe own
@@ -84,12 +77,9 @@ val RealTest by testSuite {
             Asn1Element.parse(bytes).asPrimitive().decodeToDouble() shouldBe double
 
             val real = Json.encodeToString(own)
-            println(real)
             Json.decodeFromString<Asn1Real>(real) shouldBe own
         }
     }
-
-
 }
 
 //generated using asn1tools

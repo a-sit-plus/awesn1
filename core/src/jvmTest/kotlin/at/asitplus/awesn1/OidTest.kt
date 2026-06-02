@@ -2,13 +2,9 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.decodeFromDer
 import at.asitplus.awesn1.encoding.encodeToDer
-import at.asitplus.testballoon.checkAll
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import at.asitplus.testballoon.withData
+import at.asitplus.testballoon.matrix.matrixSuite
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.Sign
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
@@ -20,7 +16,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class, ExperimentalStdlibApi::class)
-val OidTest by testSuite {
+val OidTest by matrixSuite {
     "OID test" - {
 
         "manual" {
@@ -43,9 +39,9 @@ val OidTest by testSuite {
         }
 
         "Full Root Arc" - {
-            withData(nameFn = { "Byte $it" }, List(127) { it }) {
-                val oid = ObjectIdentifier.decodeFromAsn1ContentBytes(byteArrayOf(it.toUByte().toByte()))
-                val fromBC = ASN1ObjectIdentifier.fromContents(byteArrayOf(it.toByte()))
+            data("byte", List(127) { it }, nameFn = { _, it -> "Byte $it" }) test { byte ->
+                val oid = ObjectIdentifier.decodeFromAsn1ContentBytes(byteArrayOf(byte.toUByte().toByte()))
+                val fromBC = ASN1ObjectIdentifier.fromContents(byteArrayOf(byte.toByte()))
                 oid.encodeToDer() shouldBe fromBC.encoded
                 ObjectIdentifier(oid.toString()).let {
                     it shouldBe oid
@@ -65,9 +61,9 @@ val OidTest by testSuite {
             repeat(39) { stringRepesentations += "0.$it" }
             repeat(39) { stringRepesentations += "1.$it" }
             repeat(255) { stringRepesentations += "2.$it" }
-            withData(nameFn = { "String $it" }, stringRepesentations) {
-                val oid = ObjectIdentifier(it)
-                val fromBC = ASN1ObjectIdentifier(it)
+            data("string", stringRepesentations, nameFn = { _, it -> "String $it" }) test { string ->
+                val oid = ObjectIdentifier(string)
+                val fromBC = ASN1ObjectIdentifier(string)
                 oid.encodeToDer() shouldBe fromBC.encoded
                 ObjectIdentifier(oid.toString()).let {
                     it shouldBe oid
@@ -82,12 +78,11 @@ val OidTest by testSuite {
                     it.encodeToDer() shouldBe fromBC.encoded
                 }
             }
-
         }
         "Failing Root Arc" - {
-            withData(nameFn = { "Byte $it" }, List(128) { it + 128 }) {
+            data("byte", List(128) { it + 128 }, nameFn = { _, it -> "Byte $it" }) test { byte ->
                 shouldThrow<Asn1Exception> {
-                    ObjectIdentifier.decodeFromAsn1ContentBytes(byteArrayOf(it.toUByte().toByte()))
+                    ObjectIdentifier.decodeFromAsn1ContentBytes(byteArrayOf(byte.toUByte().toByte()))
                 }
             }
             val stringRepesentations = mutableListOf<String>()
@@ -96,21 +91,24 @@ val OidTest by testSuite {
             repeat(255 - 40) { stringRepesentations += "1.${it + 40}" }
             repeat(255 - 3) { stringRepesentations += "${3 + it}.${it % 40}" }
 
-            withData(nameFn = { "String $it" }, stringRepesentations) {
-                shouldThrow<Asn1Exception> {
-                    ObjectIdentifier(it)
-                }
+            data("string", stringRepesentations, nameFn = { _, it -> "String $it" }) test { string ->
+                shouldThrow<Asn1Exception> { ObjectIdentifier(string) }
             }
 
         }
 
         "Failing negative Bigints" - {
-            checkAll(iterations = 50, Arb.negativeInt()) - { negativeInt ->
-                checkAll(iterations = 15, Arb.positiveInt(39)) - { second ->
-                    checkAll(iterations = 100, Arb.intArray(Arb.int(0..128), Arb.positiveInt(Int.MAX_VALUE))) { rest ->
+            property("negative", Arb.negativeInt(), iterations = 50) - { negativeInt ->
+                property("second", Arb.positiveInt(39), iterations = 15) - { second ->
+                    property(
+                        "rest",
+                        Arb.intArray(Arb.int(0..128), Arb.positiveInt(Int.MAX_VALUE)),
+                        iterations = 100
+                    ) test { rest ->
                         listOf(0, 1, 2).forEach { first ->
                             val withNegative =
-                                intArrayOf(negativeInt, *rest).apply { shuffle() }.map { BigInteger(it) }.toTypedArray()
+                                intArrayOf(negativeInt, *rest).apply { shuffle() }.map { BigInteger(it) }
+                                    .toTypedArray()
                             shouldThrow<Asn1Exception> {
                                 ObjectIdentifier("$first.$second." + withNegative.joinToString("."))
                             }
@@ -120,17 +118,21 @@ val OidTest by testSuite {
             }
         }
         "Automated UInt Capped" - {
-            checkAll(iterations = 15, Arb.positiveInt(39)) - { second ->
-                checkAll(iterations = 500, Arb.intArray(Arb.int(0..128), Arb.positiveInt(Int.MAX_VALUE))) {
+            property("second", Arb.positiveInt(39), iterations = 15) - { second ->
+                property(
+                    "rest",
+                    Arb.intArray(Arb.int(0..128), Arb.positiveInt(Int.MAX_VALUE)),
+                    iterations = 500
+                ) test { rest ->
                     listOf(0, 1, 2).forEach { first ->
                         val oid = ObjectIdentifier(
                             first.toUInt(),
                             second.toUInt(),
-                            *(it.map { it.toUInt() }.toUIntArray())
+                            *(rest.map { it.toUInt() }.toUIntArray())
                         )
 
                         val stringRepresentation =
-                            "$first.$second" + if (it.isEmpty()) "" else ("." + it.joinToString("."))
+                            "$first.$second" + if (rest.isEmpty()) "" else ("." + rest.joinToString("."))
 
                         oid.toString() shouldBe stringRepresentation
 
@@ -140,7 +142,7 @@ val OidTest by testSuite {
                         val oid1 = ObjectIdentifier(
                             first.toUInt(),
                             second1.toUInt(),
-                            *(it.map { it.toUInt() }.toUIntArray())
+                            *(rest.map { it.toUInt() }.toUIntArray())
                         )
                         val parsed = ObjectIdentifier.decodeFromTlv(oid.encodeToTlv())
                         val fromBC = ASN1ObjectIdentifier(stringRepresentation)
@@ -168,10 +170,10 @@ val OidTest by testSuite {
         }
 
         "Automated BigInt" - {
-            checkAll(iterations = 15, Arb.positiveInt(39)) - { second ->
-                checkAll(iterations = 500, Arb.bigInt(1, 358)) {
+            property("second", Arb.positiveInt(39), iterations = 15) - { second ->
+                property("third", Arb.bigInt(1, 358), iterations = 500) test { generated ->
                     listOf(1, 2).forEach { first ->
-                        val third = BigInteger.fromByteArray(it.toByteArray(), Sign.POSITIVE)
+                        val third = BigInteger.fromByteArray(generated.toByteArray(), Sign.POSITIVE)
                         val oid = ObjectIdentifier("$first.$second.$third")
 
                         val stringRepresentation =
@@ -215,10 +217,10 @@ val OidTest by testSuite {
                 Uuid.fromBigintOrNull(bigint) shouldBe uuid
             }
 
-            withData(nameFn = { it.toString() }, List(100) { Uuid.random() }) {
-                val bigint = it.toBigInteger()
-                bigint.toString() shouldBe BigInteger.parseString(it.toHexString(), 16).toString()
-                Uuid.fromBigintOrNull(bigint) shouldBe it
+            data("uuid", List(100) { Uuid.random() }, nameFn = { _, it -> it.toString() }) test { uuid ->
+                val bigint = uuid.toBigInteger()
+                bigint.toString() shouldBe BigInteger.parseString(uuid.toHexString(), 16).toString()
+                Uuid.fromBigintOrNull(bigint) shouldBe uuid
 
                 val oidString = "2.25.$bigint"
                 val oid = ObjectIdentifier(oidString)
