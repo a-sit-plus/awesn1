@@ -50,7 +50,7 @@ val Asn1NumberEncodingTest by matrixSuite {
     }
 
 
-    "longs" - {
+    compact("longs") - {
         "failures" - {
             property("too small", Arb.bigInt(128), iterations = 5000) test { value ->
                 val v = BigInteger.fromLong(Long.MIN_VALUE).minus(1)
@@ -78,7 +78,7 @@ val Asn1NumberEncodingTest by matrixSuite {
         }
     }
 
-    "ints" - {
+    compact("ints") - {
         "failures" - {
             property(
                 "too small",
@@ -109,7 +109,7 @@ val Asn1NumberEncodingTest by matrixSuite {
         }
     }
 
-    "unsigned ints" - {
+    compact("unsigned ints") - {
         "failures" - {
             property("negative", Arb.long(Long.MIN_VALUE..<0), iterations = 5000) test { value ->
                 shouldThrow<Asn1Exception> { Asn1.Int(value).decodeToUInt() }
@@ -137,7 +137,7 @@ val Asn1NumberEncodingTest by matrixSuite {
         }
     }
 
-    "unsigned longs" - {
+    compact("unsigned longs") - {
         data(
             "manual",
             listOf(
@@ -154,7 +154,7 @@ val Asn1NumberEncodingTest by matrixSuite {
             bytes.wrapInUnsafeSource().readTwosComplementULong(bytes.size) shouldBe value
         }
 
-        "failures: " - {
+        "failures" - {
             property("negative", Arb.long(Long.MIN_VALUE..<0), iterations = 5000) test { value ->
                 shouldThrow<Asn1Exception> { Asn1.Int(value).decodeToULong() }
             }

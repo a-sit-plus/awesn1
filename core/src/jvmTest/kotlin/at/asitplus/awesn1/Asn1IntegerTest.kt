@@ -74,7 +74,7 @@ val Asn1IntegerTest by matrixSuite {
                 VarUInt(ubyteArrayOf(0x05u, 0xFCu)).shr(3).words shouldBe ubyteArrayOf(0xBFu)
             }
         }
-        "Random values" - {
+        compact("Random values") - {
             property("bytes", Arb.byteArray(Arb.int(100, 200), Arb.byte()), iterations = 100) - { bytes ->
                 val bigint = JavaBigInteger(1, bytes)
                 val varuint = VarUInt(bytes)
@@ -112,7 +112,7 @@ val Asn1IntegerTest by matrixSuite {
             bigint.toAsn1Integer() shouldBe asn1int
             asn1int.toJavaBigInteger() shouldBe bigint
         }
-        "Generic values" - {
+        compact("Generic values") - {
             property("positive", Arb.positiveLong(), iterations = 2500) test { value ->
                 val bigint = JavaBigInteger.valueOf(value)
                 val asn1int = Asn1Integer(value)
@@ -148,14 +148,12 @@ val Asn1IntegerTest by matrixSuite {
                 asn1int.toJavaBigInteger() shouldBe bigint
             }
         }
-        "Equality" - {
+        compact("Equality") - {
             val arb = Arb.byteArray(Arb.int(1500..2500), Arb.byte())
-            val randoms = List<ByteArray>(10) { arb.next() }
-
-            data("outer", randoms, nameFn = { _, it -> "$it" }) - { outer: ByteArray ->
+            property("outer", arb, iterations = 10) - { outer ->
                 val i1 = Asn1Integer.fromUnsignedByteArray(outer)
                 i1 shouldBe Asn1Integer.fromUnsignedByteArray(outer)
-                data("inner", randoms.filterNot { it contentEquals outer }) test { inner: ByteArray ->
+                property("inner", arb.filterNot { it contentEquals outer }, iterations = 10) test { inner ->
                     i1 shouldNotBe Asn1Integer.fromUnsignedByteArray(inner)
                 }
             }

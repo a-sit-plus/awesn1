@@ -6,10 +6,8 @@ import kotlinx.io.readByteArray
 import at.asitplus.awesn1.serialization.*
 
 
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
@@ -18,7 +16,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial10OpenPolyByTag by testSuite(
+val SerializationTutorial10OpenPolyByTag by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "Open polymorphism by leading tag" - {

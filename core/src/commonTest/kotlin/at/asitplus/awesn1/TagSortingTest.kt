@@ -9,7 +9,7 @@ import io.kotest.property.arbitrary.uLong
 
 val TagSortingTest by matrixSuite {
 
-    "Automated" - {
+    compact("Automated") - {
         val sortedClasses =
             listOf(TagClass.UNIVERSAL, TagClass.APPLICATION, TagClass.CONTEXT_SPECIFIC, TagClass.PRIVATE)
         property("a", Arb.uLong(), iterations = 1000) - { a ->

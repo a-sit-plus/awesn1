@@ -40,7 +40,7 @@ val Asn1IntegerRepresentationTest by matrixSuite {
     }
 
 
-    "Automated" - {
+    compact("Automated") - {
         property("bytes", Arb.byteArray(Arb.positiveInt(65), Arb.byte())) test { bytes ->
             val bigInt = BigInteger.fromByteArray(bytes, Sign.POSITIVE)
             val ref = bigInt.toString()
@@ -64,7 +64,6 @@ val Asn1IntegerRepresentationTest by matrixSuite {
     }
 
     "TwosComplement" - {
-
         "manual" - {
             data(
                 "integer",
@@ -84,7 +83,7 @@ val Asn1IntegerRepresentationTest by matrixSuite {
             }
         }
 
-        "automated" - {
+        compact("automated") - {
             property("bytes", Arb.byteArray(Arb.positiveInt(349), Arb.byte())) test { bytes ->
                 val pos = BigInteger.fromByteArray(bytes, Sign.POSITIVE)
                 val neg = BigInteger.fromByteArray(bytes, Sign.NEGATIVE)

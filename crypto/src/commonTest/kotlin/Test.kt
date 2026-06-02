@@ -1,13 +1,12 @@
-import at.asitplus.testballoon.invoke
 import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.MatrixTestDefaults
 import de.infix.testBalloon.framework.core.TestSession
 import de.infix.testBalloon.framework.core.testScope
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldNotBe
 import kotlin.time.Duration.Companion.minutes
 
-val Test by testSuite {
+val Test by matrixSuite {
 
     "This dummy test" {
         "is just making sure" shouldNotBe "that tests are indeed running"

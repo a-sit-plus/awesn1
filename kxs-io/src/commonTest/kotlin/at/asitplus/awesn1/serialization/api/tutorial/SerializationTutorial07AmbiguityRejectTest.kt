@@ -6,16 +6,15 @@ import kotlinx.io.readByteArray
 import at.asitplus.awesn1.serialization.*
 
 
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToByteArray
 
-val SerializationTutorial07AmbiguityReject by testSuite(
+val SerializationTutorial07AmbiguityReject by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "Ambiguous nullable layout is rejected" {

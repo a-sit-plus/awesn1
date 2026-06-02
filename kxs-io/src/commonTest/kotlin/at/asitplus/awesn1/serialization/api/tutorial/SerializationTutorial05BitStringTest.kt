@@ -6,9 +6,8 @@ import kotlinx.io.readByteArray
 import at.asitplus.awesn1.serialization.*
 
 
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import kotlinx.serialization.Serializable
@@ -16,7 +15,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial05BitString by testSuite(
+val SerializationTutorial05BitString by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "BIT STRING mapping with @Asn1BitString on ByteArray" {
