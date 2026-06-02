@@ -1,9 +1,7 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.withData
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.withClue
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.ints.shouldBeGreaterThan
@@ -24,7 +22,7 @@ import kotlin.getValue
 
 internal val certificateFactory = CertificateFactory.getInstance("X.509")
 
-val CustomParserTests by testSuite {
+val CustomParserTests by matrixSuite {
     val chain: Map<String, JsonObject> by lazy {
         val json = Json { ignoreUnknownKeys = true }
         val classLoader = Thread.currentThread().contextClassLoader
@@ -68,8 +66,8 @@ val CustomParserTests by testSuite {
         chain.forEach { (_, json) -> json.isNotEmpty() shouldBe true }
     }
 
-    withData(chain) {
-        val chain = it.getValue("attestationProof").jsonArray.map {
+    data("chain", chain.toList(), nameFn = { _, (name, _) -> name }) test { (_, json) ->
+        val chain = json.getValue("attestationProof").jsonArray.map {
             Base64.getMimeDecoder().decode(it.jsonPrimitive.content.replace("\n", ""))
         }
         val attestationCertChain =
@@ -85,4 +83,3 @@ val CustomParserTests by testSuite {
         }
     }
 }
-

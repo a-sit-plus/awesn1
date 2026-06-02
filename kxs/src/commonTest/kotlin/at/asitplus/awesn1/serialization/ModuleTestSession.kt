@@ -2,8 +2,6 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.docs.ConcreteCustomAttribute
 import at.asitplus.awesn1.docs.CustomAttribute
-import at.asitplus.testballoon.PropertyTest
-import at.asitplus.testballoon.TestBalloonAddons
 import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.MatrixTestDefaults
 import de.infix.testBalloon.framework.core.TestSession
@@ -21,8 +19,6 @@ class ModuleTestSession : TestSession(
         }
 ) {
     init {
-        TestBalloonAddons.compactConcurrent = true
-        PropertyTest.compactByDefault = true
         // --8<-- [start:kxs-default-der-registry-setup]
         DefaultDer.register(SerializersModule {
             polymorphicByOid(

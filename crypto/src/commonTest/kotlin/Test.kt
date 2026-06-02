@@ -1,16 +1,13 @@
-import at.asitplus.testballoon.PropertyTest
-import at.asitplus.testballoon.TestBalloonAddons
 import at.asitplus.testballoon.invoke
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.MatrixTestDefaults
+import de.infix.testBalloon.framework.core.TestSession
+import de.infix.testBalloon.framework.core.testScope
 import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldNotBe
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.invocation
 import kotlin.time.Duration.Companion.minutes
-import de.infix.testBalloon.framework.core.testScope
 
-val Test  by testSuite {
+val Test by testSuite {
 
     "This dummy test" {
         "is just making sure" shouldNotBe "that tests are indeed running"
@@ -19,11 +16,7 @@ val Test  by testSuite {
 
 //Supercharge tests with concurrency!
 class ModuleTestSession : TestSession(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Concurrent)
+    testConfig = DefaultConfiguration
         .testScope(isEnabled = false, timeout = 20.minutes)
-) {
-    init {
-        PropertyTest.compactByDefault=true
-        TestBalloonAddons.compactConcurrent = true
-    }
-}
+        .apply { MatrixTestDefaults { execution = ExecutionMode.Concurrent(1024) } }
+)

@@ -18,13 +18,7 @@ class ModuleTestSession : TestSession(
             execution = ExecutionMode.Concurrent(1024)
         }
     }
-) {
-    init {
-        PropertyTest.compactByDefault = true
-        DataTest.compactByDefault = true
-        TestBalloonAddons.compactConcurrent = true
-    }
-}
+)
 
 @OptIn(InternalAwesn1Api::class)
 internal fun Source<*>.readAsn1Element() = readAsn1Element(limit = Long.MAX_VALUE)

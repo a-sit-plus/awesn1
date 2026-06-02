@@ -5,9 +5,7 @@ import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
 import at.asitplus.awesn1.decodeFromPem
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.withData
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
 import java.nio.file.Path
@@ -15,7 +13,7 @@ import kotlin.io.path.readText
 
 private const val GO_X509_FIXTURE_ROOT = "crypto-fixtures/go-x509"
 
-val GoX509CryptoFixtureTest by testSuite {
+val GoX509CryptoFixtureTest by matrixSuite {
     "PKCS#1 RSA private key" {
         val encoded = pemPayload("pkcs1-rsa-private-key.pem")
         val decoded = checkRoundTrip(encoded, Pkcs1RsaPrivateKeyInfo.serializer())
@@ -31,13 +29,14 @@ val GoX509CryptoFixtureTest by testSuite {
         decoded.publicExponent.toString().toLong() shouldBe 3L
     }
 
-    withData(
-        nameFn = { it.name },
-        data = listOf(
+    data(
+        "public key",
+        listOf(
             PublicKeyFixture("pkix-rsa-public-key.pem", rsa = true),
             PublicKeyFixture("pkix-ed25519-public-key.pem", rsa = false),
         ),
-    ) { fixture ->
+        nameFn = { _, it -> it.name },
+    ) test { fixture ->
         val decoded = checkRoundTrip(
             pemPayload(fixture.name),
             SubjectPublicKeyInfo.serializer(),
@@ -48,14 +47,15 @@ val GoX509CryptoFixtureTest by testSuite {
         }
     }
 
-    withData(
-        nameFn = { it.name },
-        data = listOf(
+    data(
+        "private key",
+        listOf(
             PrivateKeyFixture("pkcs8-rsa-private-key.hex", NestedPrivateKey.RSA),
             PrivateKeyFixture("pkcs8-p256-private-key.hex", NestedPrivateKey.EC),
             PrivateKeyFixture("pkcs8-ed25519-private-key.hex", NestedPrivateKey.NONE),
         ),
-    ) { fixture ->
+        nameFn = { _, it -> it.name },
+    ) test { fixture ->
         val decoded = checkRoundTrip(
             hexFixture(fixture.name),
             Pkcs8PrivateKeyInfo.serializer(),
@@ -68,13 +68,14 @@ val GoX509CryptoFixtureTest by testSuite {
         }
     }
 
-    withData(
-        nameFn = { it },
-        data = listOf(
+    data(
+        "csr",
+        listOf(
             "duplicate-attributes.csr.pem",
             "duplicate-extensions.csr.pem",
         ),
-    ) { name ->
+        nameFn = { _, it -> it },
+    ) test { name ->
         val decoded = checkRoundTrip(
             pemPayload(name),
             Pkcs10CertificationRequest.serializer(),

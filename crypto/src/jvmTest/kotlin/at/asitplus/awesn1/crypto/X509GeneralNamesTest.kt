@@ -11,14 +11,13 @@ import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findIssuerAltNam
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findSubjectAltNames
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import java.nio.file.Path
 import kotlin.io.path.readText
 
-val X509GeneralNamesTest by testSuite {
+val X509GeneralNamesTest by matrixSuite {
 
     "subjectAltName extension extraction and serialization round-trips" {
         val cert = decodeCertificateFixture("ok-ext-subject-altname2.pem")
