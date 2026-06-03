@@ -1,5 +1,6 @@
 package at.asitplus.awesn1
 
+import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.comparables.shouldBeLessThan
@@ -7,7 +8,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.uLong
 
-val TagSortingTest by matrixSuite {
+val TagSortingTest by matrixSuite(execution = ExecutionMode.Concurrent(20)) {
 
     compact("Automated") - {
         val sortedClasses =

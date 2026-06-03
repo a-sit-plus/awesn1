@@ -14,7 +14,7 @@
       "os": "ubuntu-latest",
       "name": "androidRunner",
       "enableKvm": true,
-      "testCommand": "./gradlew pixelAVDAndroidDeviceTest --scan"
+      "testCommand": "./gradlew pixelAVDAndroidDeviceTest --info --scan"
     },
     {
       "os": "ubuntu-latest",
