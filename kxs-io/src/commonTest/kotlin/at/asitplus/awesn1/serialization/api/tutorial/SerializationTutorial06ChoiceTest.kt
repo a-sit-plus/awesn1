@@ -6,17 +6,15 @@ import kotlinx.io.readByteArray
 import at.asitplus.awesn1.serialization.*
 
 
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial06Choice by testSuite(
+val SerializationTutorial06Choice by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "Sealed CHOICE uses sealed polymorphism" - {

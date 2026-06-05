@@ -1,11 +1,10 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
-val Asn1BitStringTest by testSuite {
+val Asn1BitStringTest by matrixSuite {
 
     val bitSet1 = BitSet.fromString("011011100101110111")
     val bitSet2 = BitSet.fromString("011011100101110111")

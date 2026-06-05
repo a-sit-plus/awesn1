@@ -1,11 +1,10 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 
 @OptIn(ExperimentalStdlibApi::class)
-val SpecificRegressionTests by testSuite {
+val SpecificRegressionTests by matrixSuite {
     "Illegal length encoding" {
         shouldThrow<Asn1Exception> {
             // length < 128 encoded as long form

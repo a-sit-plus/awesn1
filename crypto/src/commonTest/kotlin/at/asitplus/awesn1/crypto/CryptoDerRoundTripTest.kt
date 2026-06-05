@@ -4,10 +4,8 @@ import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.checkAll
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.TestSuiteScope
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.CompactScope
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -16,31 +14,31 @@ import kotlin.random.Random
 import kotlin.time.Instant
 import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 
-val CryptoDerRoundTripTest by testSuite {
+val CryptoDerRoundTripTest by matrixSuite {
     "Property checks" - {
-        "SignatureValue from raw bit string" - { checkRoundTrip(::randomRawBitStringSignatureValue) }
-        "SignatureValue from raw bytes" - { checkRoundTrip(::randomBitStringSignatureValue) }
-        "SignatureValue from ECDSA components" - { checkRoundTrip(::randomEcdsaSignatureValue) }
-        "EcPrivateKeyInfo" - { checkRoundTrip(::randomEcPrivateKey) }
-        "EncryptedPrivateKeyInfo" - { checkRoundTrip(::randomEncryptedPrivateKeyInfo) }
-        "RsaOtherPrimeInfo" - { checkRoundTrip(::randomRsaOtherPrimeInfo) }
-        "RsaPrivateKeyInfo" - { checkRoundTrip(::randomRsaPrivateKey) }
-        "RsaPublicKeyInfo" - { checkRoundTrip(::randomRsaPublicKey) }
-        "SignatureAlgorithmIdentifier" - { checkRoundTrip(::randomSignatureAlgorithmIdentifier) }
-        "SubjectPublicKeyInfo" - { checkRoundTrip(::randomSubjectPublicKeyInfo) }
-        "X509CertificateExtension" - { checkRoundTrip(::randomX509CertificateExtension) }
-        "AttributeTypeAndValue" - { checkRoundTrip(::randomAttributeTypeAndValue) }
-        "RelativeDistinguishedName" - { checkRoundTrip(::randomRelativeDistinguishedName) }
-        "Attribute" - { checkRoundTrip(::randomAttribute) }
-        "Pkcs8PrivateKeyInfo" - { checkRoundTrip(::randomPrivateKeyInfo) }
-        "Pkcs10CertificationRequestInfo" - { checkRoundTrip(::randomPkcs10CertificationRequestInfo) }
-        "Pkcs10CertificationRequest" - { checkRoundTrip(::randomPkcs10CertificationRequest) }
-        "TbsCertificate" - { checkRoundTrip(::randomTbsCertificate) }
+        compact("SignatureValue from raw bit string") - { checkRoundTrip(::randomRawBitStringSignatureValue) }
+        compact("SignatureValue from raw bytes") - { checkRoundTrip(::randomBitStringSignatureValue) }
+        compact("SignatureValue from ECDSA components") - { checkRoundTrip(::randomEcdsaSignatureValue) }
+        compact("EcPrivateKeyInfo") - { checkRoundTrip(::randomEcPrivateKey) }
+        compact("EncryptedPrivateKeyInfo") - { checkRoundTrip(::randomEncryptedPrivateKeyInfo) }
+        compact("RsaOtherPrimeInfo") - { checkRoundTrip(::randomRsaOtherPrimeInfo) }
+        compact("RsaPrivateKeyInfo") - { checkRoundTrip(::randomRsaPrivateKey) }
+        compact("RsaPublicKeyInfo") - { checkRoundTrip(::randomRsaPublicKey) }
+        compact("SignatureAlgorithmIdentifier") - { checkRoundTrip(::randomSignatureAlgorithmIdentifier) }
+        compact("SubjectPublicKeyInfo") - { checkRoundTrip(::randomSubjectPublicKeyInfo) }
+        compact("X509CertificateExtension") - { checkRoundTrip(::randomX509CertificateExtension) }
+        compact("AttributeTypeAndValue") - { checkRoundTrip(::randomAttributeTypeAndValue) }
+        compact("RelativeDistinguishedName") - { checkRoundTrip(::randomRelativeDistinguishedName) }
+        compact("Attribute") - { checkRoundTrip(::randomAttribute) }
+        compact("Pkcs8PrivateKeyInfo") - { checkRoundTrip(::randomPrivateKeyInfo) }
+        compact("Pkcs10CertificationRequestInfo") - { checkRoundTrip(::randomPkcs10CertificationRequestInfo) }
+        compact("Pkcs10CertificationRequest") - { checkRoundTrip(::randomPkcs10CertificationRequest) }
+        compact("TbsCertificate") - { checkRoundTrip(::randomTbsCertificate) }
     }
 }
 
-private inline fun <reified T> TestSuiteScope.checkRoundTrip(noinline generator: (Random) -> T) {
-    checkAll(compact = false, genA = kotestArbitrary { rs -> generator(rs.random) }) { value ->
+private inline fun <reified T> CompactScope.checkRoundTrip(noinline generator: (Random) -> T) {
+    property("value", kotestArbitrary { rs -> generator(rs.random) }) test { value ->
         val encoded = DER.encodeToByteArray<T>(value)
         DER.decodeFromByteArray<T>(encoded) shouldBe value
         if (value != null) {

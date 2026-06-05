@@ -9,11 +9,10 @@ import at.asitplus.awesn1.serialization.*
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.encoding.parse
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -24,7 +23,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlin.time.Instant
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestInstantBridge by testSuite(
+val SerializationTestInstantBridge by matrixSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Top-level kotlin.time.Instant encodes as ASN.1 UTCTime and round-trips" {

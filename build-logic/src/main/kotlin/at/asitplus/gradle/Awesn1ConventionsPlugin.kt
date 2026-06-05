@@ -245,7 +245,12 @@ private fun Project.silence() {
         //work around IDEA bug. this happens already but IDEA does not pick up on it (gradle does)
         (project.kotlinExtension as KotlinMultiplatformExtension).sourceSets
             .filter { it.name.endsWith("Test") }
-            .forEach { it.dependencies { addTestExtensions() } }
+            .forEach {
+                it.dependencies {
+                    addTestExtensions()
+                    implementation("at.asitplus.testballoon:matrix:${AspVersions.testballoonAddons}")
+                }
+            }
         kmp.compilerOptions {
             freeCompilerArgs.add("-Xcontext-parameters")
         }

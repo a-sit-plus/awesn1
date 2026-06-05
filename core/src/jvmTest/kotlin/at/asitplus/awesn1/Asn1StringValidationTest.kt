@@ -2,12 +2,11 @@ package at.asitplus.awesn1
 
 import io.kotest.assertions.throwables.shouldThrow
 import kotlinx.serialization.json.Json
-import at.asitplus.testballoon.*
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 
 
-val Asn1StringValidationTest by testSuite{
+val Asn1StringValidationTest by matrixSuite {
 
     val json = Json
     val root = json.decodeFromString<Asn1StringFixture>(resourceText("asn1strings.json"))

@@ -1,20 +1,16 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import at.asitplus.testballoon.withData
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.withClue
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.booleanArray
 import io.kotest.property.arbitrary.int
-import at.asitplus.testballoon.checkAll
-import java.util.*
+import java.util.BitSet
 import at.asitplus.awesn1.BitSet as KmpBitSet
 
-val BitSetTest by testSuite {
+val BitSetTest by matrixSuite {
 
     "Custom BitSet Implementation" - {
         "manual tests" {
@@ -125,25 +121,29 @@ val BitSetTest by testSuite {
             kmm.memDumpView() shouldBe ""
         }
 
-        checkAll(
-            iterations = 32,
+        property(
+            "input",
             Arb.booleanArray(
                 Arb.int(1..128),
                 Arb.boolean()
-            )
+            ),
+            iterations = 32,
         ) - { input ->
-            withData(
-                input.size,
-                input.size / 2,
-                input.size / 3,
-                input.size / 4,
-                input.size / 8,
-                input.size / 10,
-                1,
-                0,
-                input.size * 2,
-                input.size * 4
-            ) { size: Int ->
+            data(
+                "size",
+                listOf(
+                    input.size,
+                    input.size / 2,
+                    input.size / 3,
+                    input.size / 4,
+                    input.size / 8,
+                    input.size / 10,
+                    1,
+                    0,
+                    input.size * 2,
+                    input.size * 4,
+                ),
+            ) test { size: Int ->
                 val jvm = BitSet(size).also {
                     input.indices.shuffled().forEach { i -> it.set(i, input[i]) }
                 }
@@ -198,19 +198,20 @@ val BitSetTest by testSuite {
                 BitSet.valueOf(jvm.toByteArray()).toByteArray() shouldBe kmm.toByteArray()
                 BitSet.valueOf(kmm.toByteArray()).toByteArray() shouldBe kmm.toByteArray()
                 BitSet.valueOf(jvm.toByteArray()).toByteArray() shouldBe jvm.toByteArray()
-
             }
         }
 
-        "toString() Tests" - {
-            checkAll(
-                iterations = 32,
-                Arb.booleanArray(
-                    Arb.int(1..128),
-                    Arb.boolean()
-                )
-            ) - { input ->
-                withData(
+        property(
+            "toString() Tests",
+            Arb.booleanArray(
+                Arb.int(1..128),
+                Arb.boolean()
+            ),
+            iterations = 32,
+        ) - { input ->
+            data(
+                "size",
+                listOf(
                     input.size,
                     input.size / 2,
                     input.size / 3,
@@ -220,31 +221,31 @@ val BitSetTest by testSuite {
                     1,
                     0,
                     input.size * 2,
-                    input.size * 4
-                ) { size ->
-                    val jvm = BitSet(size).also {
-                        input.indices.shuffled().forEach { i -> it.set(i, input[i]) }
-                    }
-                    val kmm = withClue("size: $size") {
-                        KmpBitSet(size.toLong()).also {
-                            input.indices.shuffled().forEach { i -> it[i.toLong()] = input[i] }
-                        }
-                    }
-
-                    input.forEachIndexed { i, b ->
-                        withClue("jvm[$i]") { jvm[i] shouldBe b }
-                        withClue("kmm[$i]") { kmm[i.toLong()] shouldBe b }
-                    }
-
-                    val truncated = input.dropLastWhile { !it }
-                    val monotonicOrderedStr = truncated.chunked(8)
-                        .map { byte ->
-                            (0..<8).map { runCatching { byte[it] }.getOrElse { false } }
-                                .joinToString(separator = "") { if (it) "1" else "0" }
-                        }.joinToString(separator = "") { it }.dropLastWhile { it == '0' }
-
-                    kmm.toBitStringView() shouldBe monotonicOrderedStr
+                    input.size * 4,
+                ),
+            ) test { size ->
+                val jvm = BitSet(size).also {
+                    input.indices.shuffled().forEach { i -> it.set(i, input[i]) }
                 }
+                val kmm = withClue("size: $size") {
+                    KmpBitSet(size.toLong()).also {
+                        input.indices.shuffled().forEach { i -> it[i.toLong()] = input[i] }
+                    }
+                }
+
+                input.forEachIndexed { i, b ->
+                    withClue("jvm[$i]") { jvm[i] shouldBe b }
+                    withClue("kmm[$i]") { kmm[i.toLong()] shouldBe b }
+                }
+
+                val truncated = input.dropLastWhile { !it }
+                val monotonicOrderedStr = truncated.chunked(8)
+                    .map { byte ->
+                        (0..<8).map { runCatching { byte[it] }.getOrElse { false } }
+                            .joinToString(separator = "") { if (it) "1" else "0" }
+                    }.joinToString(separator = "") { it }.dropLastWhile { it == '0' }
+
+                kmm.toBitStringView() shouldBe monotonicOrderedStr
             }
         }
     }

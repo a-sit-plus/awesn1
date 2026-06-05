@@ -8,11 +8,10 @@ import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.OidProvider
 import at.asitplus.awesn1.serialization.polymorphicByOid
-import at.asitplus.testballoon.withData
+import at.asitplus.testballoon.matrix.matrixSuite
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
@@ -23,7 +22,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(InternalSerializationApi::class)
-val MixedPolyTestsBacked by testSuite(testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)) {
+val MixedPolyTestsBacked by matrixSuite(testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)) {
     val a = Choice.A
     val b = Choice.B
 
@@ -43,22 +42,22 @@ val MixedPolyTestsBacked by testSuite(testConfig = DefaultConfiguration.invocati
         }
     }
 
-    withData(
+    data("choice", listOf(
         a to "3000",
         b to "bf7b00",
         withNestedProperties to "bf861522302006146983f0e8e892e5b7bab4e9bbd7d0cad8e8918c19bf83480602012abf7b00"
-    ) { (obj, hex) ->
+    )) test { (obj, hex) ->
         val encoded = der.encodeToByteArray(obj)
         println(encoded.toHexString())
         encoded.toHexString() shouldBe hex
         der.decodeFromByteArray<Choice>(encoded) shouldBe obj
 
     }
-    withData(
+    data("nested", listOf(
         nestedA to "3015061369a0eb8c9fe9f082a4e5a9ff95ebb6ead5ad4a",
         nestedB to "301e0614698195cc998e8698d284d1b9e29380b68cbbdc640c06466f6f626172",
         nestedC to "302006146983f0e8e892e5b7bab4e9bbd7d0cad8e8918c19bf83480602012abf7b00"
-    ) { (obj, hex) ->
+    )) test { (obj, hex) ->
         val encoded =
             der.encodeToByteArray(obj)
         println(encoded.toHexString())
@@ -120,4 +119,3 @@ sealed interface Choice {
         }
     }
 }
-

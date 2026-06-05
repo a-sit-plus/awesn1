@@ -1,15 +1,14 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial09EncodeDefaults by testSuite(
+val SerializationTutorial09EncodeDefaults by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "encodeDefaults=false omits default-valued properties" {

@@ -2,14 +2,12 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.hardening.DerLimitFixtures
 import at.asitplus.awesn1.hardening.assertExactLimitSucceedsAndBelowLimitThrows
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.decodeFromHexString
 
-val DerLimitPublicApiTest by testSuite {
+val DerLimitPublicApiTest by matrixSuite {
     "configured Der byte array APIs enforce total DER input limits" - {
         "decodeFromByteArray with explicit serializer" {
             assertExactLimitSucceedsAndBelowLimitThrows(

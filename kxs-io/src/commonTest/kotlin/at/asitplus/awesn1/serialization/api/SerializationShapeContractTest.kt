@@ -8,11 +8,10 @@ import at.asitplus.awesn1.serialization.*
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
@@ -21,7 +20,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestShapeContract by testSuite(
+val SerializationTestShapeContract by matrixSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Nullable raw ASN.1 element in the middle is rejected as undecidable" {

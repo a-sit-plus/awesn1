@@ -8,8 +8,7 @@ import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.decodeFromPem
 import at.asitplus.awesn1.serialization.encodeToPem
 import at.asitplus.awesn1.serialization.encodeToPemBlock
-import at.asitplus.testballoon.withData
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.shouldBe
 import java.io.ByteArrayInputStream
@@ -19,19 +18,19 @@ import kotlin.io.path.extension
 import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.readText
 
-val RealWorldCertificateTest by testSuite {
+val RealWorldCertificateTest by matrixSuite {
     val root = object {}.javaClass.classLoader.getResource("real-world-certs")?.toURI()?.let(Path::of)
         ?: throw IllegalStateException("Missing real-world-certs dir in resources")
 
-    withData(
-        nameFn = Path::nameWithoutExtension,
+    data(
+        "certificate",
         Files.walk(root)
             .filter(Files::isRegularFile)
             .filter { it.extension == "pem" }
             .sorted()
-            .toList()
-    )
-    { file ->
+            .toList(),
+        nameFn = { _, it -> it.nameWithoutExtension },
+    ) test { file ->
         val certPEM = file.readText()
         val tld = file.nameWithoutExtension
         val cert = PemBlock.decodeAllFromPem(certPEM)

@@ -10,15 +10,14 @@ import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
 import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlin.time.Instant
 
-val LenientBitStringTest by testSuite {
+val LenientBitStringTest by matrixSuite {
 
     "malformed unique ID decodes but strict getter throws lazily" {
         val validDer = DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = BitSet.fromString("111").let(::Asn1BitString)))

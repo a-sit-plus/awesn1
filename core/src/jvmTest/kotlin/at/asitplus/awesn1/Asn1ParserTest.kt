@@ -5,9 +5,7 @@ import at.asitplus.awesn1.encoding.internal.readFullyToAsn1Elements
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.encoding.parseAll
 import at.asitplus.awesn1.encoding.parseFirst
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlin.random.Random
@@ -18,7 +16,7 @@ private fun Asn1Element.Companion.parseInternal(input: ByteIterator) =
     parse(mutableListOf<Byte>().also { while (input.hasNext()) it.add(input.nextByte()) }.toByteArray())
 
 @OptIn(InternalAwesn1Api::class)
-val Asn1ParserTest by testSuite {
+val Asn1ParserTest by matrixSuite {
 
     "Multiple Elements" - {
         val seq = Asn1.Sequence {

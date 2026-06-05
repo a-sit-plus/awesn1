@@ -4,8 +4,7 @@ import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.OidProvider
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
@@ -24,7 +23,7 @@ data class ConcreteCustomAttribute(
 }
 // --8<-- [end:kxs-default-der-registry-definitions]
 
-val DefaultDerRegistryDocumentationTest by testSuite {
+val DefaultDerRegistryDocumentationTest by matrixSuite {
     "Default DER registry docs sample compiles and equivalent module wiring round-trips" {
 
         //setup happens one per test invocation. this cannot work otherwise. hence, check ModuleTestSession

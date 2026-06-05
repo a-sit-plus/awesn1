@@ -1,12 +1,11 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.json.Json
 
-val PemOpenSslFixtureTest by testSuite {
+val PemOpenSslFixtureTest by matrixSuite {
 
     val json = Json { ignoreUnknownKeys = false }
 

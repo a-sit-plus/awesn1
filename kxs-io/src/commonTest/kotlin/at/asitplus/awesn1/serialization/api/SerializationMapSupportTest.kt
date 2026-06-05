@@ -6,11 +6,10 @@ import kotlinx.io.readByteArray
 import at.asitplus.awesn1.serialization.*
 
 
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
@@ -19,7 +18,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestMapSupport by testSuite(
+val SerializationTestMapSupport by matrixSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Map roundtrip is supported" {

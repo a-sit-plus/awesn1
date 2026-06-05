@@ -14,8 +14,7 @@ import at.asitplus.awesn1.serialization.decodeFromPem
 import at.asitplus.awesn1.serialization.encodeToPem
 import at.asitplus.awesn1.serialization.encodeToPemBlock
 import at.asitplus.awesn1.serialization.encodeToTlv
-import at.asitplus.testballoon.withData
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
@@ -34,11 +33,11 @@ import kotlin.time.toJavaInstant
 
 private const val FIXTURE_ROOT = "certificate-fixtures"
 
-val X509CertificateFixtureRoundTripTest by testSuite {
+val X509CertificateFixtureRoundTripTest by matrixSuite {
 
-    withData(nameFn = { if (it) "OK only" else "Faulty only" }, true, false) - { ok ->
+    data("fixture kind", listOf(true, false), nameFn = { _, it -> if (it) "OK only" else "Faulty only" }) - { ok ->
         val fixtures = certificateFixtures(ok)
-        withData(nameFn = { it.name }, data = fixtures) { path ->
+        data("fixture", fixtures, nameFn = { _, it -> it.name }) test { path ->
 
             fun parseAndAssert() {
                 when (path.extension) {

@@ -2,11 +2,10 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.parse
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
@@ -17,7 +16,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestCoverageGaps by testSuite(
+val SerializationTestCoverageGaps by matrixSuite(
     testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
 ) {
     "Asn1Tag INFER keeps primitive base class/constructed while overriding tag number" {

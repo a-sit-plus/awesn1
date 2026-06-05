@@ -4,13 +4,11 @@ import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 
-val childrenLonger by testSuite {
+val childrenLonger by matrixSuite {
     "Sequence" - {
         val sequence = Asn1.Sequence {
             +Asn1.Int(1)
@@ -142,7 +140,7 @@ val childrenLonger by testSuite {
     }
 }
 
-val funkyLengthEncoding by testSuite {
+val funkyLengthEncoding by matrixSuite {
     "EOF" - {
         "SEQUENCE" - {
             //SEQUENCE is special, because we lazily read, so AA BB is not decoded as a single chunk, but we try to read tag and length

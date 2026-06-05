@@ -1,12 +1,11 @@
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 
-val CastingTest by testSuite {
+val CastingTest by matrixSuite {
 
     "Primitive" {
         shouldThrow<Asn1StructuralException> { Asn1.Int(0).asSet() }

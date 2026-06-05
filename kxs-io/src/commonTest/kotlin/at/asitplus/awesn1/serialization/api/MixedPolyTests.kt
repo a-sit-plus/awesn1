@@ -8,11 +8,10 @@ import at.asitplus.awesn1.serialization.*
 
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.testballoon.withData
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import de.infix.testBalloon.framework.core.invocation
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
@@ -25,7 +24,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(InternalSerializationApi::class)
-val MixedPolyTests by testSuite(testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)) {
+val MixedPolyTests by matrixSuite(testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)) {
 
     val a = Choice.A
     val b = Choice.B
@@ -46,21 +45,21 @@ val MixedPolyTests by testSuite(testConfig = DefaultConfiguration.invocation(Tes
         }
     }
 
-    withData(
+    data("choice", listOf(
         a to "3000",
         b to "bf7b00",
         withNestedProperties to "bf861522302006146983f0e8e892e5b7bab4e9bbd7d0cad8e8918c19bf83480602012abf7b00"
-    ) { (obj, hex) ->
+    )) test { (obj, hex) ->
         val encoded = Buffer().apply { der.encodeToSink(obj, this) }.readByteArray()
         encoded.toHexString() shouldBe hex
         der.decodeFromSource<Choice>(Buffer().apply { write(encoded) }) shouldBe obj
 
     }
-    withData(
+    data("nested", listOf(
         nestedA to "3015061369a0eb8c9fe9f082a4e5a9ff95ebb6ead5ad4a",
         nestedB to "301e0614698195cc998e8698d284d1b9e29380b68cbbdc640c06466f6f626172",
         nestedC to "302006146983f0e8e892e5b7bab4e9bbd7d0cad8e8918c19bf83480602012abf7b00"
-    ) {(obj, hex) ->
+    )) test { (obj, hex) ->
         val encoded = Buffer().apply { der.encodeToSink(obj, this) }.readByteArray()
         encoded.toHexString() shouldBe hex
         der.decodeFromSource<Choice.Nested>(Buffer().apply { write(encoded) }) shouldBe obj
@@ -116,4 +115,3 @@ sealed interface Choice {
         }
     }
 }
-

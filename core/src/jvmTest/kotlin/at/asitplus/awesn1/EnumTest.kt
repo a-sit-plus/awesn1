@@ -3,33 +3,28 @@ package at.asitplus.awesn1
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.decodeToEnum
 import at.asitplus.awesn1.encoding.decodeToEnumOrdinal
-import at.asitplus.testballoon.minus
-import at.asitplus.testballoon.withData
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 
 enum class TestEnum {
     ONE, TWO, THREE
 }
 
-val EnumTest by testSuite {
+val EnumTest by matrixSuite {
 
-    "Values beyond valid Kotlin enum ordinals should work" - {
-        withData(Long.MIN_VALUE, Long.MAX_VALUE, -1L, Int.MAX_VALUE.toLong()+1L, Int.MIN_VALUE.toLong()-1L) {
-            Asn1.Enumerated(it).decodeToEnumOrdinal() shouldBe it
-        }
-    }
+    data(
+        "Values beyond valid Kotlin enum ordinals should work",
+        listOf(Long.MIN_VALUE, Long.MAX_VALUE, -1L, Int.MAX_VALUE.toLong() + 1L, Int.MIN_VALUE.toLong() - 1L)
+    ) test { ordinal -> Asn1.Enumerated(ordinal).decodeToEnumOrdinal() shouldBe ordinal }
 
-    "encoding should produce correct ordinals" - {
-        withData(data = TestEnum.entries) {
-            val automagically = Asn1.Enumerated(it)
-            automagically shouldBe Asn1.Enumerated(it.ordinal)
-            //check correct tag
-            automagically.derEncoded shouldBe byteArrayOf(0xa, 1, it.ordinal.toByte())
+    data("encoding should produce correct ordinals", TestEnum.entries) test { entry ->
+        val automagically = Asn1.Enumerated(entry)
+        automagically shouldBe Asn1.Enumerated(entry.ordinal)
+        //check correct tag
+        automagically.derEncoded shouldBe byteArrayOf(0xa, 1, entry.ordinal.toByte())
 
-            automagically.decodeToEnumOrdinal() shouldBe it.ordinal
-            val decoded: TestEnum = automagically.decodeToEnum()
-            decoded shouldBe it
-        }
+        automagically.decodeToEnumOrdinal() shouldBe entry.ordinal
+        val decoded: TestEnum = automagically.decodeToEnum()
+        decoded shouldBe entry
     }
 }

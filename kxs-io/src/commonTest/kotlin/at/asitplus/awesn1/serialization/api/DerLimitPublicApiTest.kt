@@ -4,13 +4,11 @@ import at.asitplus.awesn1.hardening.DerLimitFixtures
 import at.asitplus.awesn1.hardening.assertExactLimitSucceedsAndBelowLimitThrows
 import at.asitplus.awesn1.io.decodeFromSource
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.minus
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import kotlinx.serialization.builtins.serializer
 import kotlinx.io.Buffer
 
-val KxsIoDerLimitPublicApiTest by testSuite {
+val KxsIoDerLimitPublicApiTest by matrixSuite {
     "configured Der source APIs enforce total DER input limits" - {
         "decodeFromSource reified convenience API" {
             assertExactLimitSucceedsAndBelowLimitThrows(

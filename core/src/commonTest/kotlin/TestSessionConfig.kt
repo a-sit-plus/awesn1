@@ -5,23 +5,20 @@ import at.asitplus.awesn1.encoding.internal.readAsn1Element
 import at.asitplus.testballoon.DataTest
 import at.asitplus.testballoon.PropertyTest
 import at.asitplus.testballoon.TestBalloonAddons
-import de.infix.testBalloon.framework.core.TestConfig
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.MatrixTestDefaults
 import de.infix.testBalloon.framework.core.TestSession
-import de.infix.testBalloon.framework.core.invocation
 import de.infix.testBalloon.framework.core.testScope
 import kotlin.time.Duration.Companion.minutes
 
 //Supercharge tests with concurrency
 class ModuleTestSession : TestSession(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Concurrent)
-        .testScope(isEnabled = false, timeout = 20.minutes)
-) {
-    init {
-        PropertyTest.compactByDefault = true
-        DataTest.compactByDefault = true
-        TestBalloonAddons.compactConcurrent = true
+    testConfig = DefaultConfiguration.testScope(isEnabled = false, timeout = 20.minutes).apply {
+        MatrixTestDefaults {
+            execution = ExecutionMode.Concurrent(1024)
+        }
     }
-}
+)
 
 @OptIn(InternalAwesn1Api::class)
 internal fun Source<*>.readAsn1Element() = readAsn1Element(limit = Long.MAX_VALUE)

@@ -1,13 +1,12 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.CancellationException
 
-val SafeThrowTests by testSuite {
+val SafeThrowTests by matrixSuite {
     "Critical failures are not swallowed" {
         shouldThrow<CancellationException> { catchingUnwrapped { throw CancellationException(null, null) } }
     }

@@ -1,11 +1,10 @@
 package at.asitplus.awesn1
 
-import at.asitplus.testballoon.invoke
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-val Asn1RealBoundsTest by testSuite {
+val Asn1RealBoundsTest by matrixSuite {
     "Malformed REAL content fails deterministically" {
         val malformedContents = listOf(
             byteArrayOf(0x80.toByte()), // binary REAL without exponent/mantissa

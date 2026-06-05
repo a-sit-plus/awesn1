@@ -5,9 +5,8 @@ import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.without
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.serialization.*
-import at.asitplus.testballoon.invoke
 import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -259,7 +258,7 @@ private fun coreHookPemAsn1() {
 }
 
 @OptIn(ExperimentalStdlibApi::class)
-val CoreDocumentationHooks by testSuite(
+val CoreDocumentationHooks by matrixSuite(
     testConfig = DefaultConfiguration
 ) {
     "Core serialization hook models RFC 5280 GeneralName CHOICE" {

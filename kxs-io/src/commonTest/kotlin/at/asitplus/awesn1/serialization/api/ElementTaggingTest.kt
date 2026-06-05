@@ -8,9 +8,7 @@ import at.asitplus.awesn1.serialization.*
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.testballoon.invoke
-import at.asitplus.testballoon.withData
-import de.infix.testBalloon.framework.core.testSuite
+import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
@@ -23,8 +21,8 @@ import kotlin.jvm.JvmInline
 import kotlin.reflect.typeOf
 
 
-val TaggedTest by testSuite {
-    withData(0, 2, 3, 4, 5, 6, 7, 8, 9) - { int ->
+val TaggedTest by matrixSuite {
+    data("int", listOf(0, 2, 3, 4, 5, 6, 7, 8, 9)) - { int ->
         "UntaggedInt" {
             Buffer().apply { DER.encodeToSink(UntaggedInt(int), this) }.readByteArray().toHexString() shouldBe "300302010$int".also {
                 DER.decodeFromSource<UntaggedInt>(Buffer().apply { write(it.hexToByteArray()) }) shouldBe UntaggedInt(
