@@ -10,7 +10,6 @@ import at.asitplus.awesn1.VarUInt.Companion.writeAsn1VarInt
 import at.asitplus.awesn1.encoding.UVARINT_MASK_UBYTE
 import at.asitplus.awesn1.encoding.bitLength
 import at.asitplus.awesn1.encoding.toTwosComplementByteArray
-import kotlin.math.ceil
 
 
 private const val UVARINT_SINGLEBYTE_MAXVALUE_UBYTE: UByte = 0x80u
@@ -99,13 +98,15 @@ private fun Source<*>.decodeAsn1VarInt(bits: Int): Pair<ULong, ByteArray> {
         if (exhausted()) throw IllegalArgumentException("Unterminated ASN.1 unsigned varint")
         val current = readUByte()
         accumulator.writeUByte(current)
-        if (current >= UVARINT_SINGLEBYTE_MAXVALUE_UBYTE) {
-            result = (current and UVARINT_MASK_UBYTE).toULong() or (result shl 7)
-        } else {
-            result = (current and UVARINT_MASK_UBYTE).toULong() or (result shl 7)
-            break
-        }
-        if (++offset > ceil((bits * 8).toFloat() * 8f / 7f)) throw IllegalArgumentException("Number too Large do decode into $bits bits!")
+        result = (current and UVARINT_MASK_UBYTE).toULong() or (result shl 7)
+
+        //only relevant for int
+        if (result.bitLength > bits)  throw IllegalArgumentException("Number too large to decode into $bits bits")
+
+        if (current < UVARINT_SINGLEBYTE_MAXVALUE_UBYTE) break
+
+        if (++offset >= ((bits + 6) / 7)) throw IllegalArgumentException("Number too Large do decode into $bits bits!")
+
     }
 
     return result to accumulator.toByteArray()

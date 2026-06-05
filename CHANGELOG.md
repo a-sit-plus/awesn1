@@ -1,6 +1,9 @@
 # Changelog
 
 ## NEXT
+* Migrate to matrix testing
+* **Hardening:**
+    * Fix hard limits on UVarInt / tag number parsing
 
 ## 0.3.1
 * **Dependency Updates:**

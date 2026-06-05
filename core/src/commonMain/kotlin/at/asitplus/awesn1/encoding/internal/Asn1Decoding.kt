@@ -4,6 +4,7 @@
 package at.asitplus.awesn1.encoding.internal
 
 import at.asitplus.awesn1.*
+import at.asitplus.awesn1.encoding.toAsn1VarInt
 import kotlin.experimental.and
 import kotlin.jvm.JvmName
 
@@ -227,13 +228,19 @@ fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
         (firstByte byteMask 0x1F).let { tagNumber ->
             if (tagNumber <= 30U) Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))
             else decodeAsn1VarULong().let { (l, b) ->
-                Asn1Element.Tag(l.also {
-                    if (it <= 30UL) throw Asn1Exception(
-                        "Tag number $it must be encoded in low-tag-number form. Encoded bytes are: ${
+                if (l <= 30UL) throw Asn1Exception(
+                    "Tag number $l must be encoded in low-tag-number form. Encoded bytes are: ${
+                        byteArrayOf(firstByte, *b).toHexString()
+                    }"
+                )
+                l.toAsn1VarInt().let { canonical ->
+                    if (!canonical.contentEquals(b)) throw Asn1Exception(
+                        "Tag number $l is not minimally encoded. Encoded bytes are: ${
                             byteArrayOf(firstByte, *b).toHexString()
-                        }"
+                        }; canonical tag-number bytes are: ${canonical.toHexString()}"
                     )
-                }, byteArrayOf(firstByte, *b))
+                }
+                Asn1Element.Tag(l, byteArrayOf(firstByte, *b))
             }
         }
     }
