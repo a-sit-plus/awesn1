@@ -341,10 +341,11 @@ private fun objectIdentifierArb(): Arb<ObjectIdentifier> = arbitrary { rs ->
 
 private fun asn1RealArb(): Arb<Asn1Real> = arbitrary { rs ->
     when (rs.random.nextInt(10)) {
-        0 -> Asn1Real.Zero
+        0 -> Asn1Real.PositiveZero
         1 -> Asn1Real.PositiveInfinity
         2 -> Asn1Real.NegativeInfinity
-        3 -> Asn1Real(Arb.numericFloat().filter { it != -0.0f }.bind())
+        3 -> Asn1Real.NaN
+        4 -> Asn1Real(Arb.numericFloat().filter { it != -0.0f }.bind())
         else -> Asn1Real(Arb.numericDouble().filter { it != -0.0 }.bind())
     }
 }
