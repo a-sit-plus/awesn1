@@ -133,18 +133,46 @@ fun Long.toTwosComplementByteArray() = when {
 /** Encodes a signed Int to a minimum-size twos-complement byte array */
 fun Int.toTwosComplementByteArray() = toLong().toTwosComplementByteArray()
 
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 fun Int.Companion.fromTwosComplementByteArray(it: ByteArray, lenient: Boolean = false) =
     it.wrapInUnsafeSource().readTwosComplementInt(it.size, lenient)
 
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 fun UInt.Companion.fromTwosComplementByteArray(it: ByteArray, lenient: Boolean = false) =
     it.wrapInUnsafeSource().readTwosComplementLong(it.size, lenient).let {
         require((0 <= it) && (it <= 0xFFFFFFFFL)) { "Value $it is out of bounds for UInt" }
         it.toUInt()
     }
 
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 fun Long.Companion.fromTwosComplementByteArray(it: ByteArray, lenient: Boolean = false) =
     it.wrapInUnsafeSource().readTwosComplementLong(it.size, lenient)
 
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 fun ULong.Companion.fromTwosComplementByteArray(it: ByteArray, lenient: Boolean = false) =
     it.wrapInUnsafeSource().readTwosComplementULong(it.size, lenient)
 

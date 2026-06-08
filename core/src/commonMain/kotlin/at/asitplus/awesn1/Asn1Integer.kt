@@ -144,6 +144,12 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
         fun fromUnsignedByteArray(magnitude: ByteArray) = Positive(VarUInt(magnitude))
 
         /** Constructs an [Asn1Integer] from its twos-complement byte representation
+         *
+         * @param lenient Relaxes DER constraints, which are:
+         * - The content of the `INTEGER` type is not empty.
+         * - The `INTEGER` value is minimally encoded, verifying that:
+         *     - Positive ints do not contain leading zero bytes unless necessary.
+         *     - Negative ints do not use excessive sign extension bytes.
          */
         fun fromTwosComplement(input: ByteArray, lenient: Boolean = false): Asn1Integer {
             if (!lenient) input.validateDerConstraints()

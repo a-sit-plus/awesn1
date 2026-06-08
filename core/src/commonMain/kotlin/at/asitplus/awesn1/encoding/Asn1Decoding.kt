@@ -86,6 +86,13 @@ fun Asn1Primitive.decodeToBooleanOrNull(assertTag: Asn1Element.Tag = Asn1Element
 /**
  * decodes this [Asn1Primitive]'s content into an enum ordinal represented as [Long]. [assertTag] defaults to [Asn1Element.Tag.ENUM], but can be
  * overridden (for implicitly tagged enums, for example)
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ *
  * @throws [Asn1Exception] on invalid input
  */
 @Throws(Asn1Exception::class)
@@ -93,7 +100,14 @@ fun Asn1Primitive.decodeToEnumOrdinal(assertTag: Asn1Element.Tag = Asn1Element.T
     decodeToLong(assertTag, lenient)
 
 
-/** Exception-free version of [decodeToEnumOrdinal]*/
+/** Exception-free version of [decodeToEnumOrdinal]
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToEnumOrdinalOrNull(
     assertTag: Asn1Element.Tag = Asn1Element.Tag.ENUM,
@@ -120,7 +134,15 @@ inline fun <reified E : Enum<E>> Asn1Primitive.decodeToEnum(
         enumEntries<E>().get(ordinal.toInt())
     }
 
-/** Exception-free version of [decodeToEnum]*/
+/** Exception-free version of [decodeToEnum]
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+
 inline fun <reified E : Enum<E>> Asn1Primitive.decodeToEnumOrNull(
     assertTag: Asn1Element.Tag = Asn1Element.Tag.ENUM,
     lenient: Boolean = false
@@ -130,26 +152,54 @@ inline fun <reified E : Enum<E>> Asn1Primitive.decodeToEnumOrNull(
 /**
  * decodes this [Asn1Primitive]'s content into an [Int]. [assertTag] defaults to [Asn1Element.Tag.INT], but can be
  *  overridden (for implicitly tagged integers, for example)
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ *
  * @throws [Asn1Exception] on invalid input
  */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.decodeToInt(assertTag: Asn1Element.Tag = Asn1Element.Tag.INT, lenient: Boolean = false) =
     runRethrowing { decode(assertTag) { Int.decodeFromAsn1ContentBytes(it, lenient) } }
 
-/** Exception-free version of [decodeToInt] */
+/** Exception-free version of [decodeToInt]
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 fun Asn1Primitive.decodeToIntOrNull(assertTag: Asn1Element.Tag = Asn1Element.Tag.INT, lenient: Boolean = false) =
     catchingUnwrapped { decodeToInt(assertTag, lenient) }.getOrNull()
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Long]. [assertTag] defaults to [Asn1Element.Tag.INT], but can be
  * overridden (for implicitly tagged longs, for example)
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ *
  * @throws [Asn1Exception] on invalid input
  */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.decodeToLong(assertTag: Asn1Element.Tag = Asn1Element.Tag.INT, lenient: Boolean = false) =
     runRethrowing { decode(assertTag) { Long.decodeFromAsn1ContentBytes(it, lenient) } }
 
-/** Exception-free version of [decodeToLong] */
+/** Exception-free version of [decodeToLong]
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToLongOrNull(
     assertTag: Asn1Element.Tag = Asn1Element.Tag.INT,
@@ -160,13 +210,27 @@ inline fun Asn1Primitive.decodeToLongOrNull(
 /**
  * decodes this [Asn1Primitive]'s content into an [UInt]√. [assertTag] defaults to [Asn1Element.Tag.INT], but can be
  * overridden (for implicitly tagged unsigned integers, for example)
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ *
  * @throws [Asn1Exception] on invalid input
  */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.decodeToUInt(assertTag: Asn1Element.Tag = Asn1Element.Tag.INT, lenient: Boolean = false) =
     runRethrowing { decode(assertTag) { UInt.decodeFromAsn1ContentBytes(it, lenient) } }
 
-/** Exception-free version of [decodeToUInt] */
+/** Exception-free version of [decodeToUInt]
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToUIntOrNull(
     assertTag: Asn1Element.Tag = Asn1Element.Tag.INT,
@@ -177,13 +241,27 @@ inline fun Asn1Primitive.decodeToUIntOrNull(
 /**
  * decodes this [Asn1Primitive]'s content into an [ULong]. [assertTag] defaults to [Asn1Element.Tag.INT], but can be
  * overridden (for implicitly tagged unsigned longs, for example)
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ *
  * @throws [Asn1Exception] on invalid input
  */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.decodeToULong(assertTag: Asn1Element.Tag = Asn1Element.Tag.INT, lenient: Boolean = false) =
     runRethrowing { decode(assertTag) { ULong.decodeFromAsn1ContentBytes(it, lenient) } }
 
-/** Exception-free version of [decodeToULong] */
+/** Exception-free version of [decodeToULong]
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToULongOrNull(
     assertTag: Asn1Element.Tag = Asn1Element.Tag.INT,
@@ -192,12 +270,26 @@ inline fun Asn1Primitive.decodeToULongOrNull(
     catchingUnwrapped { decodeToULong(assertTag, lenient) }.getOrNull()
 
 /** Decode the [Asn1Primitive] as an [Asn1Integer]
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ *
  * @throws [Asn1Exception] on invalid input */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.decodeToAsn1Integer(assertTag: Asn1Element.Tag = Asn1Element.Tag.INT, lenient: Boolean = false) =
     runRethrowing { decode(assertTag) { Asn1Integer.decodeFromAsn1ContentBytes(it, lenient) } }
 
-/** Exception-free version of [decodeToAsn1Integer] */
+/** Exception-free version of [decodeToAsn1Integer]
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToAsn1IntegerOrNull(
     assertTag: Asn1Element.Tag = Asn1Element.Tag.INT,
@@ -207,6 +299,13 @@ inline fun Asn1Primitive.decodeToAsn1IntegerOrNull(
 
 /**
  * Decodes a [Asn1Integer] from [bytes] assuming the same encoding as the [Asn1Primitive.content] property of an [Asn1Primitive] containing an ASN.1 INTEGER
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+
  */
 @Throws(Asn1Exception::class)
 fun Asn1Integer.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray, lenient: Boolean = false): Asn1Integer =
@@ -496,6 +595,12 @@ fun Instant.Companion.decodeGeneralizedTimeFromAsn1ContentBytes(bytes: ByteArray
 
 /**
  * Decodes a signed [Int] from [bytes] assuming the same encoding as the [Asn1Primitive.content] property of an [Asn1Primitive] containing an ASN.1 INTEGER
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
  * @throws Asn1Exception if the byte array is out of bounds for a signed int
  */
 @Throws(Asn1Exception::class)
@@ -504,6 +609,12 @@ fun Int.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray, lenient: Boolean 
 
 /**
  * Decodes a signed [Long] from [bytes] assuming the same encoding as the [Asn1Primitive.content] property of an [Asn1Primitive] containing an ASN.1 INTEGER
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
  * @throws Asn1Exception if the byte array is out of bounds for a signed long
  */
 @Throws(Asn1Exception::class)
@@ -512,6 +623,12 @@ fun Long.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray, lenient: Boolean
 
 /**
  * Decodes a [UInt] from [bytes] assuming the same encoding as the [Asn1Primitive.content] property of an [Asn1Primitive] containing an ASN.1 INTEGER
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
  * @throws Asn1Exception if the byte array is out of bounds for an unsigned int
  */
 @Throws(Asn1Exception::class)
@@ -520,6 +637,12 @@ fun UInt.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray, lenient: Boolean
 
 /**
  * Decodes a [ULong] from [bytes] assuming the same encoding as the [Asn1Primitive.content] property of an [Asn1Primitive] containing an ASN.1 INTEGER
+ *
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
  * @throws Asn1Exception if the byte array is out of bounds for an unsigned long
  */
 @Throws(Asn1Exception::class)

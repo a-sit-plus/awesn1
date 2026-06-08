@@ -57,7 +57,7 @@ val VarUntHardening by matrixSuite(
          */
         shouldThrow<Asn1Exception> {
             Asn1Element.parseFromDerHexString(vector.hex)
-        }.message.shouldStartWith("Number too Large do decode into")
+        }.message.shouldStartWith("Number too large to decode into")
     }
 
     data(

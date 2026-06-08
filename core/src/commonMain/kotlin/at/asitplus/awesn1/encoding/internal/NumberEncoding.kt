@@ -241,14 +241,25 @@ fun Sink.writeAsn1VarInt(number: Asn1Integer): Int {
 fun Source<*>.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> =
     decodeAsn1VarBigUInt().let { (uint, bytes) -> Asn1Integer.Positive(uint) to bytes }
 
+/**
+ * Validates the constraints of an ASN.1 `INTEGER` type acquired from this source according to DER encoding rules.
+ *
+ * This function ensures that:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *   - Positive ints do not contain leading zero bytes unless necessary.
+ *   - Negative ints do not use excessive sign extension bytes.
+ *
+ * @throws IllegalArgumentException if the constraints are violated.
+ */
 @OptIn(InternalAwesn1Api::class)
 internal fun Source<*>.validateDerIntConstraints()  {
     require(!exhausted()) { "ASN.1 INTEGER content must not be empty" }
 
     val peek = peek()
-    val first = peek.readByte().toInt() and 0xff
+    val first = peek.readUByte().toInt()
     if (peek.exhausted()) return
-    val second = peek.readByte().toInt() and 0xff
+    val second = peek.readUByte().toInt()
     require(!(first == 0x00 && (second and 0x80) == 0)) {
         "ASN.1 INTEGER is not minimally encoded"
     }
