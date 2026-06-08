@@ -1,27 +1,11 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.testballoon.matrix.MatrixSuiteScope
+import at.asitplus.testballoon.matrix.CompactConcurrency
+import at.asitplus.testballoon.matrix.CompactScope
 import at.asitplus.testballoon.matrix.matrixSuite
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
-import de.infix.testBalloon.framework.core.invocation
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
-import io.kotest.property.arbitrary.arbitrary
-import io.kotest.property.arbitrary.bind
-import io.kotest.property.arbitrary.boolean
-import io.kotest.property.arbitrary.byte
-import io.kotest.property.arbitrary.byteArray
-import io.kotest.property.arbitrary.filter
-import io.kotest.property.arbitrary.int
-import io.kotest.property.arbitrary.list
-import io.kotest.property.arbitrary.long
-import io.kotest.property.arbitrary.map
-import io.kotest.property.arbitrary.map
-import io.kotest.property.arbitrary.numericDouble
-import io.kotest.property.arbitrary.numericFloat
-import io.kotest.property.arbitrary.set
-import io.kotest.property.arbitrary.string
+import io.kotest.property.arbitrary.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -29,57 +13,57 @@ import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestRoundTripContracts by matrixSuite(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
+    defaultCompactConcurrency = CompactConcurrency.Shared(64),
 ) {
     "Round-trip contracts for generics, collections, maps, and value classes" - {
-        "Generic box of primitive value" - {
+        compact("Generic box of primitive value") - {
             assertRoundTrip(primitiveBoxArb())
         }
 
-        "Generic box of list payload" - {
+        compact("Generic box of list payload") - {
             assertRoundTrip(genericListBoxArb())
         }
 
-        "Generic pair envelope with mixed payloads" - {
+        compact("Generic pair envelope with mixed payloads") - {
             assertRoundTrip(mixedPairEnvelopeArb())
         }
 
-        "Nested collections" - {
+        compact("Nested collections") - {
             assertRoundTrip(nestedCollectionsArb())
         }
 
-        "Map with structured values" - {
+        compact("Map with structured values") - {
             assertRoundTrip(structuredMapEnvelopeArb())
         }
 
-        "Value classes inside ordinary models" - {
+        compact("Value classes inside ordinary models") - {
             assertRoundTrip(valueClassEnvelopeArb())
         }
 
-        "Generic envelope of structured payload" - {
+        compact("Generic envelope of structured payload") - {
             assertRoundTrip(genericStructuredEnvelopeArb())
         }
 
-        "Byte arrays inside collections" - {
+        compact("Byte arrays inside collections") - {
             assertRoundTrip(
                 arb = byteArrayEnvelopeArb(),
                 assertDecoded = ::assertByteArrayEnvelopeEquals,
             )
         }
 
-        "Implicit tagging on generic and collection-bearing model" - {
+        compact("Implicit tagging on generic and collection-bearing model") - {
             assertRoundTrip(taggedImplicitEnvelopeArb())
         }
 
-        "Explicitly tagged wrapper around structured payload" - {
+        compact("Explicitly tagged wrapper around structured payload") - {
             assertRoundTrip(explicitEnvelopeArb())
         }
 
-        "Octet string encapsulation around structured payload" - {
+        compact("Octet string encapsulation around structured payload") - {
             assertRoundTrip(octetWrappedEnvelopeArb())
         }
 
-        "Bit string byte arrays with tagging" - {
+        compact("Bit string byte arrays with tagging") - {
             assertRoundTrip(
                 arb = bitStringEnvelopeArb(),
                 assertDecoded = ::assertBitStringEnvelopeEquals,
@@ -88,9 +72,9 @@ val SerializationTestRoundTripContracts by matrixSuite(
     }
 }
 
-private const val ROUND_TRIP_ITERATIONS = 75
+private const val ROUND_TRIP_ITERATIONS = 1000
 
-private inline fun <reified T> MatrixSuiteScope.assertRoundTrip(
+private inline fun <reified T> CompactScope.assertRoundTrip(
     arb: Arb<T>,
     iterations: Int = ROUND_TRIP_ITERATIONS,
     crossinline assertDecoded: (expected: T, actual: T) -> Unit = { expected, actual -> actual shouldBe expected },
@@ -178,7 +162,7 @@ private fun byteArrayEnvelopeArb(): Arb<ByteArrayEnvelope> =
         Arb.map(printableAsciiKeyArb(), Arb.byteArray(Arb.int(0..16), Arb.byte()), 0, 5),
     ) { values, named ->
         ByteArrayEnvelope(
-            values = values.map {it.copyOf()},
+            values = values.map { it.copyOf() },
             named = named.mapValues { (_, value) -> value.copyOf() },
         )
     }

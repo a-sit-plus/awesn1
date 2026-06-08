@@ -37,7 +37,7 @@ val X509CertificateFixtureRoundTripTest by matrixSuite {
 
     data("fixture kind", listOf(true, false), nameFn = { _, it -> if (it) "OK only" else "Faulty only" }) - { ok ->
         val fixtures = certificateFixtures(ok)
-        data("fixture", fixtures, nameFn = { _, it -> it.name }) test { path ->
+        data( fixtures, nameFn = { _, it -> it.name }) test { path ->
 
             fun parseAndAssert() {
                 when (path.extension) {
