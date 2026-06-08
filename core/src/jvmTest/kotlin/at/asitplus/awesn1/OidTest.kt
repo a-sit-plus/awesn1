@@ -10,6 +10,8 @@ import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.property.Arb
+import io.kotest.property.RandomSource
+import io.kotest.property.Sample
 import io.kotest.property.arbitrary.*
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import kotlin.uuid.ExperimentalUuidApi
@@ -38,8 +40,8 @@ val OidTest by matrixSuite {
             oid.hashCode() shouldNotBe oid2.hashCode()
         }
 
-        "Full Root Arc" - {
-            data("byte", List(127) { it }, nameFn = { _, it -> "Byte $it" }) test { byte ->
+        compact("Full Root Arc") - {
+            data(List(127) { it }, nameFn = { _, it -> "Byte $it" }) test { byte ->
                 val oid = ObjectIdentifier.decodeFromAsn1ContentBytes(byteArrayOf(byte.toUByte().toByte()))
                 val fromBC = ASN1ObjectIdentifier.fromContents(byteArrayOf(byte.toByte()))
                 oid.encodeToDer() shouldBe fromBC.encoded
@@ -79,7 +81,7 @@ val OidTest by matrixSuite {
                 }
             }
         }
-        "Failing Root Arc" - {
+        compact("Failing Root Arc") - {
             data("byte", List(128) { it + 128 }, nameFn = { _, it -> "Byte $it" }) test { byte ->
                 shouldThrow<Asn1Exception> {
                     ObjectIdentifier.decodeFromAsn1ContentBytes(byteArrayOf(byte.toUByte().toByte()))
@@ -97,7 +99,7 @@ val OidTest by matrixSuite {
 
         }
 
-        "Failing negative Bigints" - {
+        compact("Failing negative Bigints") - {
             property("negative", Arb.negativeInt(), iterations = 50) - { negativeInt ->
                 property("second", Arb.positiveInt(39), iterations = 15) - { second ->
                     property(
@@ -117,7 +119,7 @@ val OidTest by matrixSuite {
                 }
             }
         }
-        "Automated UInt Capped" - {
+        compact("Automated UInt Capped") - {
             property("second", Arb.positiveInt(39), iterations = 15) - { second ->
                 property(
                     "rest",
@@ -169,7 +171,7 @@ val OidTest by matrixSuite {
             }
         }
 
-        "Automated BigInt" - {
+        compact("Automated BigInt") - {
             property("second", Arb.positiveInt(39), iterations = 15) - { second ->
                 property("third", Arb.bigInt(1, 358), iterations = 500) test { generated ->
                     listOf(1, 2).forEach { first ->
@@ -217,21 +219,38 @@ val OidTest by matrixSuite {
                 Uuid.fromBigintOrNull(bigint) shouldBe uuid
             }
 
-            data("uuid", List(100) { Uuid.random() }, nameFn = { _, it -> it.toString() }) test { uuid ->
-                val bigint = uuid.toBigInteger()
-                bigint.toString() shouldBe BigInteger.parseString(uuid.toHexString(), 16).toString()
-                Uuid.fromBigintOrNull(bigint) shouldBe uuid
+            compact("random") - {
+                property(object : Arb<Uuid>() {
+                    override fun edgecase(rs: RandomSource): Sample<Uuid> = sample(rs)
+                    override fun sample(rs: RandomSource): Sample<Uuid> =
+                        Sample(uuidFromRandomBytes(rs.random.nextBytes(Uuid.SIZE_BYTES)))
+                }, nameFn = { _, it -> it.toString() }) test { uuid ->
+                    val bigint = uuid.toBigInteger()
+                    bigint.toString() shouldBe BigInteger.parseString(uuid.toHexString(), 16).toString()
+                    Uuid.fromBigintOrNull(bigint) shouldBe uuid
 
-                val oidString = "2.25.$bigint"
-                val oid = ObjectIdentifier(oidString)
-                oid.encodeToDer() shouldBe ASN1ObjectIdentifier(oidString).encoded
-                oid.nodes.size shouldBe 3
-                oid.nodes.first() shouldBe "2"
-                oid.nodes[1] shouldBe "25"
-                oid.nodes.last() shouldBe bigint.toString()
+                    val oidString = "2.25.$bigint"
+                    val oid = ObjectIdentifier(oidString)
+                    oid.encodeToDer() shouldBe ASN1ObjectIdentifier(oidString).encoded
+                    oid.nodes.size shouldBe 3
+                    oid.nodes.first() shouldBe "2"
+                    oid.nodes[1] shouldBe "25"
+                    oid.nodes.last() shouldBe bigint.toString()
 
-                oid.toString() shouldBe oidString
+                    oid.toString() shouldBe oidString
+                }
             }
         }
     }
+}
+
+
+//copied from Stdlib for reproducibility
+
+private fun uuidFromRandomBytes(randomBytes: ByteArray): Uuid {
+    randomBytes[6] = (randomBytes[6].toInt() and 0x0f).toByte() /* clear version        */
+    randomBytes[6] = (randomBytes[6].toInt() or 0x40).toByte()  /* set to version 4     */
+    randomBytes[8] = (randomBytes[8].toInt() and 0x3f).toByte() /* clear variant        */
+    randomBytes[8] = (randomBytes[8].toInt() or 0x80).toByte()  /* set to IETF variant  */
+    return Uuid.fromByteArray(randomBytes)
 }

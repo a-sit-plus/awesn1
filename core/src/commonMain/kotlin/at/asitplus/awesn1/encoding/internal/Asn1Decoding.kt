@@ -4,6 +4,7 @@
 package at.asitplus.awesn1.encoding.internal
 
 import at.asitplus.awesn1.*
+import at.asitplus.awesn1.encoding.toAsn1VarInt
 import kotlin.experimental.and
 import kotlin.jvm.JvmName
 
@@ -233,11 +234,17 @@ fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
                             byteArrayOf(firstByte, *b).toHexString()
                         }"
                     )
+                    it.toAsn1VarInt().let { canonical ->
+                        if (!canonical.contentEquals(b)) throw Asn1Exception(
+                            "Tag number $l is not minimally encoded. Encoded bytes are: ${
+                                byteArrayOf(firstByte, *b).toHexString()
+                            }; canonical tag-number bytes are: ${canonical.toHexString()}"
+                        )
+                    }
                 }, byteArrayOf(firstByte, *b))
             }
         }
     }
-
 
 /**
  * Decodes [src] as DER using this [Asn1Decodable].

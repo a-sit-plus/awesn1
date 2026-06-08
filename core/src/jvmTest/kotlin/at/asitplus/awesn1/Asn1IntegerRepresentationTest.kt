@@ -55,8 +55,8 @@ val Asn1IntegerRepresentationTest by matrixSuite {
         }
     }
 
-    "UUIDs" - {
-        data("uuid", List<Uuid>(100) { Uuid.random() }, nameFn = { _, it -> it.toHexString() }) test { uuid ->
+    compact("UUIDs") - {
+        data( List<Uuid>(100) { Uuid.random() }, nameFn = { _, it -> it.toHexString() }) test { uuid ->
             val bigint = BigInteger.fromByteArray(uuid.toByteArray(), Sign.POSITIVE).toJavaBigInteger()
             val own = Asn1Integer.fromUnsignedByteArray(uuid.toByteArray()).toJavaBigInteger()
             own shouldBe bigint

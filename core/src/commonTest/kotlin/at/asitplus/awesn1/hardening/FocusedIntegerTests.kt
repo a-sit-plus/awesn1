@@ -202,7 +202,7 @@ val FocusedINTEGERTests by matrixSuite {
                     Asn1Integer.parseFromDerHexString(hex)
                 }
                     val decoded =
-                        Asn1Integer.fromTwosComplement((Asn1Element.parseFromDerHexString(hex) as Asn1Primitive).content)
+                        Asn1Integer.fromTwosComplement((Asn1Element.parseFromDerHexString(hex) as Asn1Primitive).content, lenient = true)
 
                     withClue("Manual decoding is lenient as escape hatch") {
                         decoded shouldBe expected

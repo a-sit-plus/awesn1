@@ -7,22 +7,8 @@ package at.asitplus.awesn1.io
 
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Real
-import at.asitplus.awesn1.encoding.decodeFromAsn1ContentBytes
-import at.asitplus.awesn1.encoding.decodeGeneralizedTimeFromAsn1ContentBytes
-import at.asitplus.awesn1.encoding.decodeUtcTimeFromAsn1ContentBytes
-import at.asitplus.awesn1.encoding.encodeToAsn1ContentBytes
-import at.asitplus.awesn1.encoding.encodeToAsn1GeneralizedTimePrimitive
-import at.asitplus.awesn1.encoding.encodeToAsn1UtcTimePrimitive
-import at.asitplus.awesn1.encoding.KxIoSink
-import at.asitplus.awesn1.encoding.KxIoSource
-import at.asitplus.awesn1.encoding.internal.readTwosComplementInt
-import at.asitplus.awesn1.encoding.internal.readTwosComplementLong
-import at.asitplus.awesn1.encoding.internal.readTwosComplementUInt
-import at.asitplus.awesn1.encoding.internal.readTwosComplementULong
-import at.asitplus.awesn1.encoding.internal.writeMagnitudeLong
-import at.asitplus.awesn1.encoding.internal.writeTwosComplementLong
-import at.asitplus.awesn1.encoding.internal.writeTwosComplementUInt
-import at.asitplus.awesn1.encoding.internal.writeTwosComplementULong
+import at.asitplus.awesn1.encoding.*
+import at.asitplus.awesn1.encoding.internal.*
 import kotlinx.io.readByteArray
 import kotlin.time.Instant
 
@@ -39,40 +25,103 @@ private fun kotlinx.io.Sink.writeAsn1ContentBytes(bytes: ByteArray): Int {
 fun kotlinx.io.Source.readAsn1BooleanContent(nBytes: Int = 1): Boolean =
     Boolean.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
 
-fun kotlinx.io.Source.readAsn1IntContent(nBytes: Int): Int =
-    Int.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1IntContent(nBytes: Int, lenient: Boolean = false): Int =
+    Int.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes), lenient)
 
-fun kotlinx.io.Source.readAsn1LongContent(nBytes: Int): Long =
-    Long.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1LongContent(nBytes: Int, lenient: Boolean = false): Long =
+    Long.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes), lenient)
 
-fun kotlinx.io.Source.readAsn1UIntContent(nBytes: Int): UInt =
-    UInt.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1UIntContent(nBytes: Int, lenient: Boolean = false): UInt =
+    UInt.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes), lenient)
 
-fun kotlinx.io.Source.readAsn1ULongContent(nBytes: Int): ULong =
-    ULong.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1ULongContent(nBytes: Int, lenient: Boolean = false): ULong =
+    ULong.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes), lenient)
 
-fun kotlinx.io.Source.readAsn1ByteContent(nBytes: Int): Byte =
-    readAsn1IntContent(nBytes).also {
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1ByteContent(nBytes: Int, lenient: Boolean = false): Byte =
+    readAsn1IntContent(nBytes, lenient).also {
         require(it in Byte.MIN_VALUE..Byte.MAX_VALUE) { "Value $it is out of bounds for Byte" }
     }.toByte()
 
-fun kotlinx.io.Source.readAsn1ShortContent(nBytes: Int): Short =
-    readAsn1IntContent(nBytes).also {
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1ShortContent(nBytes: Int, lenient: Boolean = false): Short =
+    readAsn1IntContent(nBytes, lenient).also {
         require(it in Short.MIN_VALUE..Short.MAX_VALUE) { "Value $it is out of bounds for Short" }
     }.toShort()
 
-fun kotlinx.io.Source.readAsn1UByteContent(nBytes: Int): UByte =
-    readAsn1UIntContent(nBytes).also {
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1UByteContent(nBytes: Int, lenient: Boolean = false): UByte =
+    readAsn1UIntContent(nBytes, lenient).also {
         require(it <= UByte.MAX_VALUE.toUInt()) { "Value $it is out of bounds for UByte" }
     }.toUByte()
 
-fun kotlinx.io.Source.readAsn1UShortContent(nBytes: Int): UShort =
-    readAsn1UIntContent(nBytes).also {
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1UShortContent(nBytes: Int, lenient: Boolean = false): UShort =
+    readAsn1UIntContent(nBytes, lenient).also {
         require(it <= UShort.MAX_VALUE.toUInt()) { "Value $it is out of bounds for UShort" }
     }.toUShort()
 
-fun kotlinx.io.Source.readAsn1Asn1IntegerContent(nBytes: Int): Asn1Integer =
-    Asn1Integer.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readAsn1Asn1IntegerContent(nBytes: Int, lenient: Boolean = false): Asn1Integer =
+    Asn1Integer.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes), lenient)
 
 fun kotlinx.io.Source.readAsn1RealContent(nBytes: Int): Asn1Real =
     Asn1Real.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
@@ -140,17 +189,45 @@ fun kotlinx.io.Sink.writeAsn1UtcTimeContent(value: Instant): Int =
 fun kotlinx.io.Sink.writeAsn1GeneralizedTimeContent(value: Instant): Int =
     writeAsn1ContentBytes(value.encodeToAsn1GeneralizedTimePrimitive().content)
 
-fun kotlinx.io.Source.readTwosComplementULong(nBytes: Int): ULong =
-    KxIoSource(this).readTwosComplementULong(nBytes)
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readTwosComplementULong(nBytes: Int, lenient: Boolean = false): ULong =
+    KxIoSource(this).readTwosComplementULong(nBytes, lenient)
 
-fun kotlinx.io.Source.readTwosComplementLong(nBytes: Int): Long =
-    KxIoSource(this).readTwosComplementLong(nBytes)
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readTwosComplementLong(nBytes: Int, lenient: Boolean = false): Long =
+    KxIoSource(this).readTwosComplementLong(nBytes, lenient)
 
-fun kotlinx.io.Source.readTwosComplementInt(nBytes: Int): Int =
-    KxIoSource(this).readTwosComplementInt(nBytes)
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readTwosComplementInt(nBytes: Int, lenient: Boolean = false): Int =
+    KxIoSource(this).readTwosComplementInt(nBytes, lenient)
 
-fun kotlinx.io.Source.readTwosComplementUInt(nBytes: Int): UInt =
-    KxIoSource(this).readTwosComplementUInt(nBytes)
+/**
+ * @param lenient Relaxes DER constraints, which are:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *     - Positive ints do not contain leading zero bytes unless necessary.
+ *     - Negative ints do not use excessive sign extension bytes.
+ */
+fun kotlinx.io.Source.readTwosComplementUInt(nBytes: Int, lenient: Boolean = false): UInt =
+    KxIoSource(this).readTwosComplementUInt(nBytes, lenient)
 
 fun kotlinx.io.Sink.writeTwosComplementLong(value: Long): Int =
     KxIoSink(this).writeTwosComplementLong(value)

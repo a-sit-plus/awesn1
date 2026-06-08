@@ -4,11 +4,11 @@ serialization = "1.11.0"
 agp = "8.12.3"
 kotlinxIoCore = "0.9.0"
 kotlinpoet = "2.2.0"
-asp = "20260526"
+asp = "20260606"
 sbombastic = "0.0.3"
 bouncycastle = "1.84"
 testballoon = "1.0.0-K2.4.0-Beta2"
-testballoonAddons = "0.10.0"
+testballoonAddons = "0.12.0"
 spotless = "8.2.1"
 
 [libraries]

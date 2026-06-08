@@ -10,7 +10,7 @@ import at.asitplus.awesn1.VarUInt.Companion.writeAsn1VarInt
 import at.asitplus.awesn1.encoding.UVARINT_MASK_UBYTE
 import at.asitplus.awesn1.encoding.bitLength
 import at.asitplus.awesn1.encoding.toTwosComplementByteArray
-import kotlin.math.ceil
+import at.asitplus.awesn1.runRethrowing
 
 
 private const val UVARINT_SINGLEBYTE_MAXVALUE_UBYTE: UByte = 0x80u
@@ -99,13 +99,15 @@ private fun Source<*>.decodeAsn1VarInt(bits: Int): Pair<ULong, ByteArray> {
         if (exhausted()) throw IllegalArgumentException("Unterminated ASN.1 unsigned varint")
         val current = readUByte()
         accumulator.writeUByte(current)
-        if (current >= UVARINT_SINGLEBYTE_MAXVALUE_UBYTE) {
-            result = (current and UVARINT_MASK_UBYTE).toULong() or (result shl 7)
-        } else {
-            result = (current and UVARINT_MASK_UBYTE).toULong() or (result shl 7)
-            break
-        }
-        if (++offset > ceil((bits * 8).toFloat() * 8f / 7f)) throw IllegalArgumentException("Number too Large do decode into $bits bits!")
+        result = (current and UVARINT_MASK_UBYTE).toULong() or (result shl 7)
+
+        //only relevant for int
+        if (result.bitLength > bits) throw IllegalArgumentException("Number too large to decode into $bits bits")
+
+        if (current < UVARINT_SINGLEBYTE_MAXVALUE_UBYTE) break
+
+        if (++offset >= ((bits + 6) / 7)) throw IllegalArgumentException("Number too large to decode into $bits bits!")
+
     }
 
     return result to accumulator.toByteArray()
@@ -140,7 +142,7 @@ fun Sink.writeTwosComplementUInt(number: UInt) = writeTwosComplementLong(number.
  */
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
-fun Source<*>.readTwosComplementULong(nBytes: Int): ULong {
+fun Source<*>.readTwosComplementULong(nBytes: Int, lenient: Boolean): ULong {
     if (nBytes == 9) {
         val leading = readByte()
         require(leading == 0.toByte()) { "Value with leading byte $leading is out of bounds for ULong" }
@@ -150,7 +152,7 @@ fun Source<*>.readTwosComplementULong(nBytes: Int): ULong {
         }
         return result
     }
-    val signed = readTwosComplementLong(nBytes)
+    val signed = readTwosComplementLong(nBytes,lenient)
     require(signed >= 0) { "Value $signed is out of bounds for ULong" }
     return signed.toULong()
 }
@@ -163,8 +165,9 @@ fun Source<*>.readTwosComplementULong(nBytes: Int): ULong {
  */
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
-fun Source<*>.readTwosComplementLong(nBytes: Int): Long {
+fun Source<*>.readTwosComplementLong(nBytes: Int, lenient: Boolean): Long {
     require(nBytes in 1..Long.SIZE_BYTES) { "Input with size $nBytes is out of bounds for Long" }
+    if(!lenient) validateDerIntConstraints()
     var value = readByte().toLong() // signed top byte, so sign extension is preserved
     repeat(nBytes - 1) {
         value = (value shl 8) or readByte().toUByte().toLong()
@@ -180,8 +183,9 @@ fun Source<*>.readTwosComplementLong(nBytes: Int): Long {
  */
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
-fun Source<*>.readTwosComplementInt(nBytes: Int): Int {
+fun Source<*>.readTwosComplementInt(nBytes: Int, lenient: Boolean): Int {
     require(nBytes in 1..Int.SIZE_BYTES) { "Input with size $nBytes is out of bounds for Int" }
+    if(!lenient) validateDerIntConstraints()
     var value = readByte().toInt() // signed top byte, so sign extension is preserved
     repeat(nBytes - 1) {
         value = (value shl 8) or readByte().toUByte().toInt()
@@ -196,8 +200,8 @@ fun Source<*>.readTwosComplementInt(nBytes: Int): Int {
  */
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
-fun Source<*>.readTwosComplementUInt(nBytes: Int): UInt {
-    val signed = readTwosComplementLong(nBytes)
+fun Source<*>.readTwosComplementUInt(nBytes: Int, lenient: Boolean): UInt {
+    val signed = readTwosComplementLong(nBytes,lenient)
     require((0 <= signed) && (signed <= 0xFFFFFFFFL)) { "Value $signed is out of bounds for UInt" }
     return signed.toUInt()
 }
@@ -236,3 +240,30 @@ fun Sink.writeAsn1VarInt(number: Asn1Integer): Int {
 @InternalAwesn1Api
 fun Source<*>.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> =
     decodeAsn1VarBigUInt().let { (uint, bytes) -> Asn1Integer.Positive(uint) to bytes }
+
+/**
+ * Validates the constraints of an ASN.1 `INTEGER` type acquired from this source according to DER encoding rules.
+ *
+ * This function ensures that:
+ * - The content of the `INTEGER` type is not empty.
+ * - The `INTEGER` value is minimally encoded, verifying that:
+ *   - Positive ints do not contain leading zero bytes unless necessary.
+ *   - Negative ints do not use excessive sign extension bytes.
+ *
+ * @throws IllegalArgumentException if the constraints are violated.
+ */
+@OptIn(InternalAwesn1Api::class)
+internal fun Source<*>.validateDerIntConstraints()  {
+    require(!exhausted()) { "ASN.1 INTEGER content must not be empty" }
+
+    val peek = peek()
+    val first = peek.readUByte().toInt()
+    if (peek.exhausted()) return
+    val second = peek.readUByte().toInt()
+    require(!(first == 0x00 && (second and 0x80) == 0)) {
+        "ASN.1 INTEGER is not minimally encoded"
+    }
+    require(!(first == 0xff && (second and 0x80) == 0x80)) {
+        "ASN.1 INTEGER is not minimally encoded"
+    }
+}

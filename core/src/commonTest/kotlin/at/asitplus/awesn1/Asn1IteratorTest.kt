@@ -9,7 +9,7 @@ import kotlin.time.Duration.Companion.minutes
 import de.infix.testBalloon.framework.core.testScope
 
 val Asn1IteratorTest by matrixSuite {
-    "Iteration" {
+    "Sequence Iteration" {
         val elm = Asn1.Sequence {
             +Asn1.Int(42)
             +Asn1.Utf8String("Hello World")

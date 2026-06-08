@@ -1,6 +1,11 @@
 # Changelog
 
 ## NEXT
+* Migrate to matrix testing
+* **Hardening:**
+    * Fix hard limits on UVarInt / tag number parsing
+    * Fix minimality constraints for integer decoding
+    * Add an optional `lienient: Boolean` flag to integer number parsing to optionally disregard minimality constraints
 
 ## 0.3.1
 * **Dependency Updates:**

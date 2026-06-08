@@ -248,7 +248,6 @@ private fun Project.silence() {
             .forEach {
                 it.dependencies {
                     addTestExtensions()
-                    implementation("at.asitplus.testballoon:matrix:${AspVersions.testballoonAddons}")
                 }
             }
         kmp.compilerOptions {
