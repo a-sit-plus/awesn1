@@ -312,13 +312,18 @@ fun Asn1Integer.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray, lenient: 
     runRethrowing { fromTwosComplement(bytes, lenient) }
 
 /** Decode the [Asn1Primitive] as an [Asn1Real]
- * @throws [Asn1Exception] on invalid input*/
+ * @throws [Asn1Exception] on invalid input
+ * 
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised. A normalised REAL means:
+ *   - mantissa and exponent can be used as-is with base `2`
+ *   - mantissa and exponent are minimally encoded
+ */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.decodeToAsn1Real(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL, lenient:Boolean=false) =
     runRethrowing { decode(assertTag) { Asn1Real.decodeFromAsn1ContentBytes(it, lenient) } }
 
 /** Exception-free version of [decodeToAsn1Real]
- * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised. A normalised REAL means:
  *   - mantissa and exponent can be used as-is with base `2`
  *   - mantissa and exponent are minimally encoded
  */
@@ -333,7 +338,7 @@ fun Asn1Primitive.decodeToDouble(assertTag: Asn1Element.Tag = Asn1Element.Tag.RE
     decodeToAsn1Real(assertTag, lenient).toDouble()
 
 /** Exception-free version of [decodeToDouble]. **Beware of possible loss of precision!**
- * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised. A normalised REAL means:
  *   - mantissa and exponent can be used as-is with base `2`
  *   - mantissa and exponent are minimally encoded
  */
@@ -342,7 +347,7 @@ inline fun Asn1Primitive.decodeToDoubleOrNull(assertTag: Asn1Element.Tag = Asn1E
     catchingUnwrapped { decodeToDouble(assertTag, lenient) }.getOrNull()
 
 /** Decode the [Asn1Primitive] as a [Float]. **Beware of *probable* loss of precision!**
- * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised. A normalised REAL means:
  *   - mantissa and exponent can be used as-is with base `2`
  *   - mantissa and exponent are minimally encoded
  * @throws [Asn1Exception] on invalid input
@@ -353,7 +358,7 @@ inline fun Asn1Primitive.decodeToFloat(assertTag: Asn1Element.Tag = Asn1Element.
     decodeToAsn1Real(assertTag, lenient).toFloat()
 
 /** Exception-free version of [decodeToFloat]. **Beware of *probable* loss of precision!**
- * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised. A normalised REAL means:
  *   - mantissa and exponent can be used as-is with base `2`
  *   - mantissa and exponent are minimally encoded
  */
