@@ -135,7 +135,7 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
             if (number.isNaN()) NaN
             else when (number) {
                 //Kotlin clearly represents -0.0 and 0.0 differently, but a check for -0.0 == 0.0 ALWAYS RETURNS TRUE. I can't even
-                -0.0, 0.0 -> if (number.sign.compareTo(-0.0) == 0) NegativeZero else PositiveZero
+                -0.0, 0.0 -> if (number.compareTo(-0.0) == 0) NegativeZero else PositiveZero
                 Double.NEGATIVE_INFINITY -> NegativeInfinity
                 Double.POSITIVE_INFINITY -> PositiveInfinity
                 else -> number.getAsn1RealComponents().let { (exponent, mantissa) -> Asn1Real(mantissa, exponent) }
