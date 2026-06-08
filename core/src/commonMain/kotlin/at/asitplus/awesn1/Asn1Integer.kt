@@ -144,21 +144,25 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
         fun fromUnsignedByteArray(magnitude: ByteArray) = Positive(VarUInt(magnitude))
 
         /** Constructs an [Asn1Integer] from its twos-complement byte representation
-         * Note that this does not enforce DER minimal-encoding constraints!
-         * **If you need strict DER parsing use [Asn1Integer.decodeFromTlv] or [Asn1Primitive.decodeToAsn1Integer]!**
          */
-        fun fromTwosComplement(input: ByteArray): Asn1Integer = when {
-            input.isEmpty() -> Positive(VarUInt())
-            (input.first() < 0) ->
-                Negative(
-                    VarUInt(
-                        VarUInt(input).inv().toString().toMutableList().decimalPlus(listOf('1'))
-                            .joinToString(separator = "")
+        fun fromTwosComplement(input: ByteArray, lenient: Boolean = false): Asn1Integer {
+            if (!lenient) input.validateDerConstraints()
+            return when {
+                input.isEmpty() -> Positive(VarUInt())
+                (input.first() < 0) ->
+                    Negative(
+                        VarUInt(
+                            VarUInt(input).inv().toString().toMutableList().decimalPlus(listOf('1'))
+                                .joinToString(separator = "")
+                        )
                     )
-                )
 
-            else -> Positive(VarUInt(input))
+                else -> Positive(VarUInt(input))
+            }
         }
+
+        private fun ByteArray.validateDerConstraints() =
+            runRethrowing { throughBuffer { it.validateDerIntConstraints() } }
     }
 }
 

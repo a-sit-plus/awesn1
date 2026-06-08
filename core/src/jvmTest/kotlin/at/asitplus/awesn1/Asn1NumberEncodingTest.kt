@@ -45,7 +45,7 @@ val Asn1NumberEncodingTest by matrixSuite {
             encoded shouldBe fromBC
             long shouldBe value
 
-            bytes.wrapInUnsafeSource().readTwosComplementLong(bytes.size) shouldBe value
+            bytes.wrapInUnsafeSource().readTwosComplementLong(bytes.size, lenient = false) shouldBe value
         }
     }
 
@@ -72,7 +72,7 @@ val Asn1NumberEncodingTest by matrixSuite {
 
             val toTwosComplementByteArray = value.toTwosComplementByteArray()
             toTwosComplementByteArray.wrapInUnsafeSource()
-                .readTwosComplementLong(toTwosComplementByteArray.size) shouldBe value
+                .readTwosComplementLong(toTwosComplementByteArray.size, lenient = false) shouldBe value
             ByteArraySink().apply { writeTwosComplementLong(value) }
                 .readByteArray() shouldBe toTwosComplementByteArray
         }
@@ -103,9 +103,9 @@ val Asn1NumberEncodingTest by matrixSuite {
             Asn1.Int(value).derEncoded shouldBe ASN1Integer(value.toLong()).encoded
             val twosComplementByteArray = value.toTwosComplementByteArray()
             twosComplementByteArray.wrapInUnsafeSource()
-                .readTwosComplementInt(twosComplementByteArray.size) shouldBe value
+                .readTwosComplementInt(twosComplementByteArray.size, lenient = false) shouldBe value
             twosComplementByteArray.wrapInUnsafeSource()
-                .readTwosComplementLong(twosComplementByteArray.size) shouldBe value
+                .readTwosComplementLong(twosComplementByteArray.size, lenient = false) shouldBe value
         }
     }
 
@@ -131,9 +131,9 @@ val Asn1NumberEncodingTest by matrixSuite {
             Asn1.Int(value).derEncoded shouldBe ASN1Integer(value.toBigInteger().toJavaBigInteger()).encoded
             val twosComplementByteArray = value.toTwosComplementByteArray()
             twosComplementByteArray.wrapInUnsafeSource()
-                .readTwosComplementUInt(twosComplementByteArray.size) shouldBe value
+                .readTwosComplementUInt(twosComplementByteArray.size, lenient = false) shouldBe value
             twosComplementByteArray.wrapInUnsafeSource()
-                .readTwosComplementULong(twosComplementByteArray.size) shouldBe value.toULong()
+                .readTwosComplementULong(twosComplementByteArray.size, lenient = false) shouldBe value.toULong()
         }
     }
 
@@ -151,7 +151,7 @@ val Asn1NumberEncodingTest by matrixSuite {
             ),
         ) test { value ->
             val bytes = (value).toTwosComplementByteArray()
-            bytes.wrapInUnsafeSource().readTwosComplementULong(bytes.size) shouldBe value
+            bytes.wrapInUnsafeSource().readTwosComplementULong(bytes.size, lenient = false) shouldBe value
         }
 
         "failures" - {
@@ -177,7 +177,7 @@ val Asn1NumberEncodingTest by matrixSuite {
             Asn1.Int(value).derEncoded shouldBe ASN1Integer(value.toBigInteger().toJavaBigInteger()).encoded
             val twosComplementByteArray = value.toTwosComplementByteArray()
             twosComplementByteArray.wrapInUnsafeSource()
-                .readTwosComplementULong(twosComplementByteArray.size) shouldBe value
+                .readTwosComplementULong(twosComplementByteArray.size, lenient = false) shouldBe value
         }
     }
 

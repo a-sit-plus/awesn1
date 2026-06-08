@@ -5,15 +5,11 @@
 
 package at.asitplus.awesn1.encoding
 
-import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.internal.decodeAsn1VarBigInt
-import at.asitplus.awesn1.encoding.internal.decodeAsn1VarUInt
-import at.asitplus.awesn1.encoding.internal.decodeAsn1VarULong
-import at.asitplus.awesn1.encoding.internal.readTwosComplementInt
-import at.asitplus.awesn1.encoding.internal.readTwosComplementLong
-import at.asitplus.awesn1.encoding.internal.readTwosComplementULong
-import at.asitplus.awesn1.encoding.internal.writeAsn1VarInt
-import at.asitplus.awesn1.encoding.internal.writeMagnitudeLong
+import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.encoding.internal.*
+import at.asitplus.awesn1.throughBuffer
+import at.asitplus.awesn1.wrapInUnsafeSource
 
 internal const val UVARINT_SINGLEBYTE_MAXVALUE: Byte = 0x80.toByte()
 internal const val UVARINT_MASK_UBYTE: UByte = 0x7Fu
@@ -137,20 +133,20 @@ fun Long.toTwosComplementByteArray() = when {
 /** Encodes a signed Int to a minimum-size twos-complement byte array */
 fun Int.toTwosComplementByteArray() = toLong().toTwosComplementByteArray()
 
-fun Int.Companion.fromTwosComplementByteArray(it: ByteArray) =
-    it.wrapInUnsafeSource().readTwosComplementInt(it.size)
+fun Int.Companion.fromTwosComplementByteArray(it: ByteArray, lenient: Boolean = false) =
+    it.wrapInUnsafeSource().readTwosComplementInt(it.size, lenient)
 
-fun UInt.Companion.fromTwosComplementByteArray(it: ByteArray) =
-    it.wrapInUnsafeSource().readTwosComplementLong(it.size).let {
+fun UInt.Companion.fromTwosComplementByteArray(it: ByteArray, lenient: Boolean = false) =
+    it.wrapInUnsafeSource().readTwosComplementLong(it.size, lenient).let {
         require((0 <= it) && (it <= 0xFFFFFFFFL)) { "Value $it is out of bounds for UInt" }
         it.toUInt()
     }
 
-fun Long.Companion.fromTwosComplementByteArray(it: ByteArray) =
-    it.wrapInUnsafeSource().readTwosComplementLong(it.size)
+fun Long.Companion.fromTwosComplementByteArray(it: ByteArray, lenient: Boolean = false) =
+    it.wrapInUnsafeSource().readTwosComplementLong(it.size, lenient)
 
-fun ULong.Companion.fromTwosComplementByteArray(it: ByteArray) =
-    it.wrapInUnsafeSource().readTwosComplementULong(it.size)
+fun ULong.Companion.fromTwosComplementByteArray(it: ByteArray, lenient: Boolean = false) =
+    it.wrapInUnsafeSource().readTwosComplementULong(it.size, lenient)
 
 /** Encodes an unsigned Long to a minimum-size unsigned byte array */
 fun Long.toUnsignedByteArray(): ByteArray = throughBuffer { it.writeMagnitudeLong(this) }
@@ -200,7 +196,6 @@ fun ByteArray.decodeAsn1VarULong(): Pair<ULong, ByteArray> = this.throughBuffer 
  */
 @Throws(IllegalArgumentException::class)
 fun ByteArray.decodeAsn1VarUInt(): Pair<UInt, ByteArray> = this.throughBuffer { it.decodeAsn1VarUInt() }
-
 
 
 /** the number of bits required to represent this number */

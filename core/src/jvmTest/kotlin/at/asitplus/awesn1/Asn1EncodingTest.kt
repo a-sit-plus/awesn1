@@ -22,7 +22,7 @@ import kotlin.time.Clock
 
 val Asn1EncodingTest by matrixSuite {
 
-    property("Boolean", Arb.boolean()) test { value ->
+    data("Boolean", listOf(true, false)) test { value ->
         val seq = Asn1.Sequence { +Asn1.Bool(value) }
         val decoded = (seq.iterator().next() as Asn1Primitive).decodeToBoolean()
         decoded shouldBe value
