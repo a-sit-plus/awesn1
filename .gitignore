@@ -15,4 +15,7 @@ metrics/
 /docs/docs/sbom/
 /docs/.cache
 /docs/__pycache__/
+/pyasn1/__pycache__/
+/pyasn1/*/__pycache__/
+/pyasn1/*/*/__pycache__/
 repo
