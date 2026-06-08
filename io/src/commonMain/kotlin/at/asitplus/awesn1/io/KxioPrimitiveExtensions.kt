@@ -123,14 +123,31 @@ fun kotlinx.io.Source.readAsn1UShortContent(nBytes: Int, lenient: Boolean = fals
 fun kotlinx.io.Source.readAsn1Asn1IntegerContent(nBytes: Int, lenient: Boolean = false): Asn1Integer =
     Asn1Integer.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes), lenient)
 
-fun kotlinx.io.Source.readAsn1RealContent(nBytes: Int): Asn1Real =
-    Asn1Real.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))
+/**
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised. A normalised REAL means:
+ *   - mantissa and exponent can be used as-is with base `2`
+ *   - mantissa and exponent are minimally encoded
+ */
+fun kotlinx.io.Source.readAsn1RealContent(nBytes: Int, lenient: Boolean = false): Asn1Real =
+    Asn1Real.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes), lenient)
 
-fun kotlinx.io.Source.readAsn1DoubleContent(nBytes: Int): Double =
-    readAsn1RealContent(nBytes).toDouble()
+/**
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised. A normalised REAL means:
+ *   - mantissa and exponent can be used as-is with base `2`
+ *   - mantissa and exponent are minimally encoded
+ */
 
-fun kotlinx.io.Source.readAsn1FloatContent(nBytes: Int): Float =
-    readAsn1RealContent(nBytes).toFloat()
+fun kotlinx.io.Source.readAsn1DoubleContent(nBytes: Int, lenient: Boolean = false): Double =
+    readAsn1RealContent(nBytes, lenient).toDouble()
+
+/**
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised. A normalised REAL means:
+ *   - mantissa and exponent can be used as-is with base `2`
+ *   - mantissa and exponent are minimally encoded
+ */
+
+fun kotlinx.io.Source.readAsn1FloatContent(nBytes: Int, lenient: Boolean = false): Float =
+    readAsn1RealContent(nBytes, lenient).toFloat()
 
 fun kotlinx.io.Source.readAsn1StringContent(nBytes: Int): String =
     String.decodeFromAsn1ContentBytes(readAsn1ContentBytes(nBytes))

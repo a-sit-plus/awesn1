@@ -2,6 +2,7 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.docs.ConcreteCustomAttribute
 import at.asitplus.awesn1.docs.CustomAttribute
+import at.asitplus.testballoon.matrix.CompactReport
 import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.MatrixTestDefaults
 import de.infix.testBalloon.framework.core.TestSession

@@ -1,29 +1,44 @@
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.*
+import at.asitplus.testballoon.matrix.CompactConcurrency
+import at.asitplus.testballoon.matrix.CompactReport
 import at.asitplus.testballoon.matrix.matrixSuite
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
+import de.infix.testBalloon.framework.core.TestConfig
+import de.infix.testBalloon.framework.core.aroundAll
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldStartWith
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.bigInt
+import io.kotest.property.arbitrary.long
 import kotlinx.serialization.json.Json
+import java.math.BigInteger
 
+
+val pyasn1 = catchingUnwrapped { PyAsn1Ref() }.getOrNull()
 
 @OptIn(ExperimentalStdlibApi::class)
 val RealTest by matrixSuite {
 
     val input =
         data.lines().map { it.split("; ").let { it.first().toDouble() to it.last().hexToByteArray(HexFormat.Default) } }
-    ("Encoding from Ref") - {
-        data("real", input) test { (double, bytes) ->
+    compact("Encoding from Asn1Tools (that failed me hard)") - {
+        data(input, nameFn = { _, (double, bytes) -> "$double, ${bytes.toHexString()}" }) test { (double, bytes) ->
             val own = Asn1Real(double)
-            own.encodeToDer() shouldBe bytes
-            Asn1Real.decodeFromDer(bytes) shouldBe own
+            // own.encodeToDer() shouldBe bytes /*turns out, this was not normalised, but we can test against pyasn1*/
+            Asn1Element.parse(bytes).asPrimitive().decodeToDouble(lenient = true) shouldBe double
+            if (!own.encodeToDer().contentEquals(bytes))
+                shouldThrow<Asn1Exception> { Asn1Real.decodeFromDer(bytes) }.message shouldStartWith "ASN.1 REAL is not minimally encoded."
+            else Asn1Real.decodeFromDer(bytes) shouldBe own
             own.toDouble() shouldBe double
 
-            double.encodeToAsn1Primitive().derEncoded shouldBe bytes
-            Asn1Element.parse(bytes).asPrimitive().decodeToDouble() shouldBe double
+            //double.encodeToAsn1Primitive().derEncoded shouldBe bytes  /*turns out, this was not normalised*/
+            Asn1Element.parse(bytes).asPrimitive().decodeToDouble(lenient = true) shouldBe double
 
             val real = Json.encodeToString(own)
             Json.decodeFromString<Asn1Real>(" $real") shouldBe own
@@ -37,8 +52,8 @@ val RealTest by matrixSuite {
         }
     }
 
-    "Special values" - {
-        "manual large" {
+    "Manual" - {
+        "large" {
             val number =
                 "1.1897314953572317650857593266280070162123456789009876543456789098765432123456789876543212345678987654323456789876532345678765432345678876543234567"
             val bigDecimal = BigDecimal.parseString(number)
@@ -60,25 +75,132 @@ val RealTest by matrixSuite {
         }
 
         data(
-            "real",
+            /*
+            01000000 Value is PLUS-INFINITY
+            01000001 Value is MINUS-INFINITY
+            01000010 Value is NOT-A-NUMBER
+            01000011 Value is minus zero
+             */
+            "Special Values",
             listOf(
                 0.0 to byteArrayOf(9, 0),
+                -0.0 to byteArrayOf(9, 1, 0x43),
+                Double.NaN to byteArrayOf(9, 1, 0x42),
                 Double.NEGATIVE_INFINITY to byteArrayOf(9, 1, 0x41),
                 Double.POSITIVE_INFINITY to byteArrayOf(9, 1, 0x40),
             ),
+            nameFn = { _, (value, bytes) -> "($value) -> ${bytes.toHexString()}" },
         ) test { (double, bytes) ->
             val own = Asn1Real(double)
             own.encodeToDer() shouldBe bytes
             Asn1Real.decodeFromDer(bytes) shouldBe own
-            own.toDouble() shouldBe double
 
+            if(double.isNaN()) own.toDouble().isNaN() shouldBe true
+            else own.toDouble() shouldBe double
 
             double.encodeToAsn1Primitive().derEncoded shouldBe bytes
-            Asn1Element.parse(bytes).asPrimitive().decodeToDouble() shouldBe double
+            
+            if(double.isNaN()) Asn1Element.parse(bytes).asPrimitive().decodeToDouble().isNaN() shouldBe true
+            else Asn1Element.parse(bytes).asPrimitive().decodeToDouble() shouldBe double
 
             val real = Json.encodeToString(own)
             Json.decodeFromString<Asn1Real>(real) shouldBe own
         }
+    }
+
+    pyasn1?.let { pyAsn1Ref ->
+        "against pyasn1"(TestConfig.aroundAll { it(); pyAsn1Ref.close() }) - {
+            compact("1 million") {
+                report = CompactReport.FailuresOnly
+                concurrency = CompactConcurrency.Shared(1)  /*due to process IO*/
+            } - {
+                property("mantissa", Arb.bigInt(256), iterations = 1000) - { mantissa ->
+                    //normalise
+                    val trailingZeroBits = mantissa.abs().lowestSetBit
+
+                    val offset = if (trailingZeroBits == -1) 0/*will be zero anyways*/ else trailingZeroBits
+
+                    val expectedMantissa = mantissa.shiftRight(offset)
+                    property(
+                        "exponent",
+                        //account for normalisation we don't overflow Long bounds
+                        Arb.long(min = Long.MIN_VALUE + offset, max = Long.MAX_VALUE - offset),
+                        iterations = 1000
+                    ) - { exponent ->
+                        //normalise
+                        val expectedExponent = exponent + trailingZeroBits
+
+                        val result = pyAsn1Ref.derRealHex(mantissa.toString(), exponent)
+
+                        result - {
+                            "normalization" {
+                                val fromComponents = Asn1Real(mantissa.toAsn1Integer(), exponent)
+                                when (mantissa) {
+                                    BigInteger.ZERO -> fromComponents shouldBe Asn1Real.PositiveZero
+                                    else -> {
+                                        val normalized = fromComponents.shouldBeInstanceOf<Asn1Real.Finite>()
+                                        normalized.normalizedExponent shouldBe expectedExponent
+                                        normalized.normalizedMantissa.toString() shouldBe expectedMantissa.toString()
+                                    }
+                                }
+                            }
+                            // now we know normalization works because of the test before so parsing from properly python-encoded
+                            // DER REAL must result in the same Asn1Real
+                            "decoding" {
+                                Asn1Real.parseFromDerHexString(result) shouldBe Asn1Real(
+                                    mantissa.toAsn1Integer(),
+                                    exponent
+                                )
+                            }
+
+                            "encoding" {
+                                Asn1Real(
+                                    mantissa.toAsn1Integer(),
+                                    exponent
+                                ).toDerHexString() shouldBe result.uppercase()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } ?: "!pyasn1 not run" { }
+}
+
+class PyAsn1Ref(
+    script: String = "src/jvmTest/pyasn1Ref.py",
+    python: String = System.getenv("PYTHON") ?: "python3",
+) : AutoCloseable {
+
+    private val process = ProcessBuilder(python, script)
+        .redirectError(ProcessBuilder.Redirect.INHERIT)
+        .start()
+
+    private val writer = process.outputStream.bufferedWriter()
+    private val reader = process.inputStream.bufferedReader()
+
+    @Synchronized
+    fun derRealHex(mantissa: String, exponent: Long): String {
+        writer.write(mantissa)
+        writer.write(' '.code)
+        writer.write(exponent.toString())
+        writer.newLine()
+        writer.flush()
+
+        val line = reader.readLine()
+            ?: error("pyasn1 worker terminated unexpectedly")
+
+        if (line.startsWith("ERROR ")) {
+            error("pyasn1 worker failed: $line")
+        }
+
+        return line.trim()
+    }
+
+    override fun close() {
+        writer.close()
+        process.destroy()
+        process.waitFor()
     }
 }
 

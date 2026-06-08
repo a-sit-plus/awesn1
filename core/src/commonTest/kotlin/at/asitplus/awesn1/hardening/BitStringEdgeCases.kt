@@ -11,10 +11,25 @@ import kotlin.random.Random
 
 
 val bitStringEdgeCases by matrixSuite {
-    "empty (03 01 00)" {
-        Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 01 00") as Asn1Primitive) shouldBe Asn1BitString(
-            byteArrayOf()
-        )
+    testSuite("empty") {
+        "legal (03 01 00)" {
+            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 01 00") as Asn1Primitive) shouldBe Asn1BitString(
+                byteArrayOf()
+            )
+        }
+        "illegal (03 00)" {
+            shouldThrow<Asn1Exception> { Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00") as Asn1Primitive) }.message shouldBe "Empty ASN.1 BIT STRING found"
+        }
+
+        "illegal (03 00 00)" {
+            shouldThrow<Asn1Exception> { Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00 00") as Asn1Primitive) }.message shouldBe "Trailing bytes found after the first ASN.1 element"
+        }
+        "legal (03 20 00 00)" {
+            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 00 00") as Asn1Primitive) shouldBe Asn1BitString(
+                byteArrayOf(0)
+            )
+        }
+
     }
 
 

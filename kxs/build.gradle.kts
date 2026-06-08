@@ -31,8 +31,6 @@ kotlin {
         commonTest {
             kotlin.srcDir(project(":core").layout.projectDirectory.dir("src/sharedTest"))
             dependencies {
-                implementation(kotest("property"))
-                implementation("at.asitplus.testballoon:property:${libs.versions.testballoonAddons.get()}")
                 implementation(project(":crypto"))
                 implementation(project(":oids"))
                 implementation("at.asitplus.signum:indispensable:3.19.3")

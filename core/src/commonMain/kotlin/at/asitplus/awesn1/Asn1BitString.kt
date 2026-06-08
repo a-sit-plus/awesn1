@@ -132,7 +132,7 @@ data class Asn1BitString private constructor(
         decodable = object : Asn1Decodable<Asn1Primitive, Asn1BitString> {
             @Throws(Asn1Exception::class)
             override fun doDecode(src: Asn1Primitive): Asn1BitString {
-                if (src.contentLength == 0) return Asn1BitString(0, byteArrayOf())
+                if (src.contentLength == 0) throw Asn1Exception("Empty ASN.1 BIT STRING found")
                 return Asn1BitString(src.content[0], src.content.sliceArray(1..<src.content.size))
             }
         },

@@ -1,11 +1,22 @@
 # Changelog
 
 ## NEXT
-* Migrate to matrix testing
+* **Fixes:**
+    * Asn1Real now properly encodes minimally. REAL encoding is an oddball because hardly any library properly supports it (pyasn1 is the rare exception).
+    * BIT STRING decoding now rejects empty content
+* **Features:**
+    * Asn1Real:
+        * Now normalizes and can thus be fed arbitrary mantissas and exponents
+        * Now supports negative zero -> deprecate `Asn1Reals.Zero` and replace with `Asn1Real.PositiveZero`
+        * Now supports NaN
+        * Now optionally supports permissive decoding but will normalise. So re-encoding will not produce the same bytes in this case.
+            * Needs to be explicitly toggled on for individual invocations of decoding functions
+            * Is NOT exposed via `decodeFromTlv()` and serialization pipelines, but lives on `Asn1Real.decodeFromAsn1ContentBytes()` et al.
 * **Hardening:**
     * Fix hard limits on UVarInt / tag number parsing
     * Fix minimality constraints for integer decoding
     * Add an optional `lienient: Boolean` flag to integer number parsing to optionally disregard minimality constraints
+* Migrate to matrix testing
 
 ## 0.3.1
 * **Dependency Updates:**

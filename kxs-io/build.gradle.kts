@@ -31,7 +31,6 @@ kotlin {
             kotlin.srcDir(project(":core").layout.projectDirectory.dir("src/sharedTest"))
             dependencies {
                 implementation(serialization("json"))
-                implementation(kotest("property"))
                 implementation(project(":oids"))
                 implementation("at.asitplus.signum:indispensable:3.19.3")
                 implementation("at.asitplus.signum:indispensable-oids:3.19.3")

@@ -48,4 +48,4 @@ inline fun <R> Asn1EncapsulatingOctetString.decodeRethrowing(
 
 
 class ImplementationError(message: String? = null) :
-    Throwable("$message\nThis is an implementation error. Please report this bug at https://github.com/a-sit-plus/awesn1/issues/new/")
+    Throwable("PFUSCH! $message\nThis is an implementation error. Please report this bug at https://github.com/a-sit-plus/awesn1/issues/new/")
