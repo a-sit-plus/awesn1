@@ -232,14 +232,14 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
                 val sign =
                     if ((0x40 and identifierOctet) == 0) Asn1Integer.Sign.POSITIVE else Asn1Integer.Sign.NEGATIVE
                 val (exponentLength, exponentOffset) = when (identifierOctet and 0b11) {
-                    0 -> 1 to 1
-                    1 -> 2 to 1
-                    2 -> 3 to 1
+                    0 -> Pair(1, 1)
+                    1 -> Pair(2, 1)
+                    2 -> Pair(3, 1)
                     else -> {
                         require(bytes.size >= 3) { "ASN.1 REAL content too short for extended exponent length" }
                         val explicitExponentLength = bytes[1].toInt() and 0xFF
                         require(explicitExponentLength > 0) { "ASN.1 REAL exponent length must be > 0" }
-                        explicitExponentLength to 2
+                        Pair(explicitExponentLength, 2)
                     }
                 }
                 val mantissaOffset = exponentOffset + exponentLength
