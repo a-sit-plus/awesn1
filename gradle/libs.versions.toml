@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.4.0-RC2"
+kotlin = "2.4.0"
 serialization = "1.11.0"
 agp = "8.12.3"
 kotlinxIoCore = "0.9.0"
