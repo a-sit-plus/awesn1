@@ -29,7 +29,7 @@ val UVarIntTest by matrixSuite {
             repeat(3) { buf.readByte() shouldBe 0.toByte() }
             buf.exhausted().shouldBeTrue()
         }
-        "automated" - {
+        compact("automated") - {
             property("int", Arb.uInt()) test { int ->
                 val rnd = Random.nextBytes(8)
                 val src = int.toAsn1VarInt().asList() + rnd.asList()
@@ -51,7 +51,7 @@ val UVarIntTest by matrixSuite {
             repeat(3) { buf.readByte() shouldBe 0.toByte() }
             buf.exhausted().shouldBeTrue()
         }
-        "automated" - {
+        compact("automated") - {
             property("long", Arb.uLong()) test { long ->
                 val rnd = Random.nextBytes(8)
                 val src = long.toAsn1VarInt().asList() + rnd.asList()
@@ -65,7 +65,7 @@ val UVarIntTest by matrixSuite {
         }
     }
 
-    "BigInts" - {
+    compact("BigInts") - {
         property("long-capped", Arb.uLong(), iterations = 100) test { long ->
             val uLongVarInt = long.toAsn1VarInt()
             val bigInteger = BigInteger.fromULong(long)

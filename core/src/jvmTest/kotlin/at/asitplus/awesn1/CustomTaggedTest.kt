@@ -9,29 +9,32 @@ import io.kotest.property.arbitrary.int
 import org.bouncycastle.asn1.ASN1InputStream
 
 val CustomTaggedTest by matrixSuite {
-    property("Custom CONSTRUCTED", Arb.int(min = 0, max = Int.MAX_VALUE/*BC limits*/)) test { tag ->
-        Asn1CustomStructure(
-            listOf(),
-            tag.toULong(),
-            TagClass.entries.filterNot { it == TagClass.UNIVERSAL }.random()
-        ).also {
-            ASN1InputStream(it.derEncoded).readObject().encoded shouldBe it.derEncoded
-            Asn1Element.parse(it.derEncoded) shouldBe it
-        }
-    }
+    compact("Custom CONSTRUCTED") - {
 
-    property("Custom as Primitive", Arb.int(min = 0, max = Int.MAX_VALUE/*BC limits*/)) test { tag ->
-        Asn1CustomStructure.asPrimitive(
-            listOf(),
-            tag.toULong(),
-            TagClass.entries.filterNot { it == TagClass.UNIVERSAL }.random()
-        ).also {
-            ASN1InputStream(it.derEncoded).readObject().encoded shouldBe it.derEncoded
-            Asn1Element.parse(it.derEncoded).apply {
-                derEncoded shouldBe it.derEncoded //it will parse to a primitive
-                this.shouldBeInstanceOf<Asn1Primitive>()
+        property(Arb.int(min = 0, max = Int.MAX_VALUE/*BC limits*/)) test { tag ->
+            Asn1CustomStructure(
+                listOf(),
+                tag.toULong(),
+                TagClass.entries.filterNot { it == TagClass.UNIVERSAL }.random()
+            ).also {
+                ASN1InputStream(it.derEncoded).readObject().encoded shouldBe it.derEncoded
+                Asn1Element.parse(it.derEncoded) shouldBe it
             }
         }
     }
-
+    compact("Custom PRIMITIVE") - {
+        property(Arb.int(min = 0, max = Int.MAX_VALUE/*BC limits*/)) test { tag ->
+            Asn1CustomStructure.asPrimitive(
+                listOf(),
+                tag.toULong(),
+                TagClass.entries.filterNot { it == TagClass.UNIVERSAL }.random()
+            ).also {
+                ASN1InputStream(it.derEncoded).readObject().encoded shouldBe it.derEncoded
+                Asn1Element.parse(it.derEncoded).apply {
+                    derEncoded shouldBe it.derEncoded //it will parse to a primitive
+                    this.shouldBeInstanceOf<Asn1Primitive>()
+                }
+            }
+        }
+    }
 }
