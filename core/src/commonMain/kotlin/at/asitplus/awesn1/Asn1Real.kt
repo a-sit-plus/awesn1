@@ -213,6 +213,10 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
 
         /**
          * Decodes a [Asn1Real] from [bytes] assuming the same encoding as the [Asn1Primitive.content] property of an [Asn1Primitive] containing an ASN.1 REAL
+         *
+         * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+         *   - mantissa and exponent can be used as-is with base `2`
+         *   - mantissa and exponent are minimally encoded
          */
         @Throws(Asn1Exception::class)
         fun decodeFromAsn1ContentBytes(bytes: ByteArray, lenient: Boolean = false): Asn1Real = runRethrowing {

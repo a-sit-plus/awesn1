@@ -317,7 +317,11 @@ fun Asn1Integer.Companion.decodeFromAsn1ContentBytes(bytes: ByteArray, lenient: 
 fun Asn1Primitive.decodeToAsn1Real(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL, lenient:Boolean=false) =
     runRethrowing { decode(assertTag) { Asn1Real.decodeFromAsn1ContentBytes(it, lenient) } }
 
-/** Exception-free version of [decodeToAsn1Real] */
+/** Exception-free version of [decodeToAsn1Real]
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+ *   - mantissa and exponent can be used as-is with base `2`
+ *   - mantissa and exponent are minimally encoded
+ */
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToAsn1RealOrNull(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL, lenient: Boolean=false): Asn1Real? =
     catchingUnwrapped { decodeToAsn1Real(assertTag, lenient) }.getOrNull()
@@ -328,19 +332,31 @@ inline fun Asn1Primitive.decodeToAsn1RealOrNull(assertTag: Asn1Element.Tag = Asn
 fun Asn1Primitive.decodeToDouble(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL, lenient:Boolean=false) =
     decodeToAsn1Real(assertTag, lenient).toDouble()
 
-/** Exception-free version of [decodeToDouble]. **Beware of possible loss of precision!** */
+/** Exception-free version of [decodeToDouble]. **Beware of possible loss of precision!**
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+ *   - mantissa and exponent can be used as-is with base `2`
+ *   - mantissa and exponent are minimally encoded
+ */
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToDoubleOrNull(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL, lenient: Boolean=false) =
     catchingUnwrapped { decodeToDouble(assertTag, lenient) }.getOrNull()
 
 /** Decode the [Asn1Primitive] as a [Float]. **Beware of *probable* loss of precision!**
- * @throws [Asn1Exception] on invalid input*/
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+ *   - mantissa and exponent can be used as-is with base `2`
+ *   - mantissa and exponent are minimally encoded
+ * @throws [Asn1Exception] on invalid input
+ */
 @Throws(Asn1Exception::class)
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToFloat(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL, lenient: Boolean=false) =
     decodeToAsn1Real(assertTag, lenient).toFloat()
 
-/** Exception-free version of [decodeToFloat]. **Beware of *probable* loss of precision!** */
+/** Exception-free version of [decodeToFloat]. **Beware of *probable* loss of precision!**
+ * @param lenient if `true` the function will not throw an exception if the input is not normalised, meaning:
+ *   - mantissa and exponent can be used as-is with base `2`
+ *   - mantissa and exponent are minimally encoded
+ */
 @Suppress("NOTHING_TO_INLINE")
 inline fun Asn1Primitive.decodeToFloatOrNull(assertTag: Asn1Element.Tag = Asn1Element.Tag.REAL, lenient: Boolean=false) =
     catchingUnwrapped { decodeToFloat(assertTag, lenient) }.getOrNull()
