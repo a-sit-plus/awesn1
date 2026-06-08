@@ -106,7 +106,7 @@ private fun Source<*>.decodeAsn1VarInt(bits: Int): Pair<ULong, ByteArray> {
 
         if (current < UVARINT_SINGLEBYTE_MAXVALUE_UBYTE) break
 
-        if (++offset >= ((bits + 6) / 7)) throw IllegalArgumentException("Number too Large do decode into $bits bits!")
+        if (++offset >= ((bits + 6) / 7)) throw IllegalArgumentException("Number too large to decode into $bits bits!")
 
     }
 
