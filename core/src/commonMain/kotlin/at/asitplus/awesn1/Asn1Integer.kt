@@ -117,8 +117,8 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
-        val ONE = Asn1Integer.Positive(VarUInt(1u))
-        val ZERO = Asn1Integer.Positive(VarUInt(0u))
+        val ONE  by lazy { Asn1Integer.Positive(VarUInt(1u)) }
+        val ZERO by lazy { Asn1Integer.Positive(VarUInt(0u)) }
 
         /** Constructs an [Asn1Integer] from a decimal string */
         fun fromDecimalString(input: String): Asn1Integer {

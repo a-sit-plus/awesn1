@@ -4,6 +4,7 @@
 * **Fixes:**
     * Asn1Real now properly encodes minimally. REAL encoding is an oddball because hardly any library properly supports it (pyasn1 is the rare exception).
     * BIT STRING decoding now rejects empty content
+    * Resolve instantiation deadlock from hell
 * **Features:**
     * Asn1Real:
         * Now normalizes and can thus be fed arbitrary mantissas and exponents

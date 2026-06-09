@@ -1,8 +1,6 @@
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.testballoon.matrix.CompactConcurrency
-import at.asitplus.testballoon.matrix.CompactScope
-import at.asitplus.testballoon.matrix.matrixSuite
+import at.asitplus.testballoon.matrix.*
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.*
@@ -12,9 +10,11 @@ import kotlinx.serialization.encodeToByteArray
 import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestRoundTripContracts by matrixSuite(
-    defaultCompactConcurrency = CompactConcurrency.Shared(64),
-) {
+val SerializationTestRoundTripContracts by matrixSuite(matrixConfig {
+    defaultCompactReport = CompactReport.FailuresOnly
+    execution = ExecutionMode.Concurrent(12)
+    defaultCompactConcurrency = CompactConcurrency.Shared(1)
+}) {
     "Round-trip contracts for generics, collections, maps, and value classes" - {
         compact("Generic box of primitive value") - {
             assertRoundTrip(primitiveBoxArb())
@@ -72,7 +72,7 @@ val SerializationTestRoundTripContracts by matrixSuite(
     }
 }
 
-private const val ROUND_TRIP_ITERATIONS = 1000
+private const val ROUND_TRIP_ITERATIONS = 100000
 
 private inline fun <reified T> CompactScope.assertRoundTrip(
     arb: Arb<T>,
