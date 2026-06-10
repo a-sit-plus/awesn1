@@ -19,9 +19,7 @@ private data class HighTagVarIntSample(
 )
 
 
-val VarUntHardening by matrixSuite(
-    matrixConfig { execution= ExecutionMode.Sequential }
-) {
+val VarUntHardening by matrixSuite {
     data(
         name = "hostile high-tag-number varints",
         values = listOf(
