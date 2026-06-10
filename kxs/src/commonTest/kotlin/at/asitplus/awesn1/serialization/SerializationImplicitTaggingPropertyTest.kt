@@ -11,8 +11,8 @@ import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.testballoon.matrix.MatrixSuiteScope
 import at.asitplus.testballoon.matrix.matrixSuite
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.assertions.withClue
@@ -48,7 +48,7 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestImplicitTaggingProperty by matrixSuite(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
+    matrixConfig { execution= ExecutionMode.Sequential }
 ) {
     "Randomized implicit tagging across default ASN.1-serializable types" - {
         "Boolean" - {

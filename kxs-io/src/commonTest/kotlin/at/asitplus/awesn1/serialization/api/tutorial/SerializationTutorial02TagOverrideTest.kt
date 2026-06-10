@@ -14,9 +14,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial02TagOverride by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial02TagOverride by matrixSuite {
     "Implicit tag override with @Asn1Tag" {
         val value = TutorialTaggedInt(value = 5)
         val der = Buffer().apply { DER.encodeToSink(value, this) }.readByteArray()

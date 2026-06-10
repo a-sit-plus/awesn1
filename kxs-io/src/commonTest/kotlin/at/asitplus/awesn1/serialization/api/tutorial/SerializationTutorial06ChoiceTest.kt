@@ -14,9 +14,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial06Choice by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial06Choice by matrixSuite {
     "Sealed CHOICE uses sealed polymorphism" - {
         "INT" {
             val value = (TutorialChoiceInt(7))

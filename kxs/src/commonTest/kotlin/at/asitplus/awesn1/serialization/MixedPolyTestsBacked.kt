@@ -9,8 +9,8 @@ import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.OidProvider
 import at.asitplus.awesn1.serialization.polymorphicByOid
 import at.asitplus.testballoon.matrix.matrixSuite
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.InternalSerializationApi
@@ -22,7 +22,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @OptIn(InternalSerializationApi::class)
-val MixedPolyTestsBacked by matrixSuite(testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)) {
+val MixedPolyTestsBacked by matrixSuite(matrixConfig { execution= ExecutionMode.Sequential }) {
     val a = Choice.A
     val b = Choice.B
 

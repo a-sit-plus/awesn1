@@ -8,9 +8,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial04OctetWrapped by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial04OctetWrapped by matrixSuite {
     "OCTET STRING encapsulation with Asn1OctetWrapped" {
         val value = TutorialOctetCarrier(
             wrapped = OctetStringEncapsulated(5),

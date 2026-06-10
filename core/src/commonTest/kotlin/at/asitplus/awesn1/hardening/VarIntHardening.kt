@@ -4,6 +4,7 @@ package at.asitplus.awesn1.at.asitplus.awesn1.hardening
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -19,7 +20,7 @@ private data class HighTagVarIntSample(
 
 
 val VarUntHardening by matrixSuite(
-    execution = ExecutionMode.Sequential,
+    matrixConfig { execution= ExecutionMode.Sequential }
 ) {
     data(
         name = "hostile high-tag-number varints",

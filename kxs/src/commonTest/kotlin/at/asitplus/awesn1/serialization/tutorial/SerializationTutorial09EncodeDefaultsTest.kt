@@ -8,9 +8,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial09EncodeDefaults by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial09EncodeDefaults by matrixSuite {
     "encodeDefaults=false omits default-valued properties" {
         val format = DER { encodeDefaults = false }
         val value = TutorialDefaults()

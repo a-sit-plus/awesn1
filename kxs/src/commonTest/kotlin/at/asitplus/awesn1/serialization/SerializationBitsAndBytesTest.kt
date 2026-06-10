@@ -1,7 +1,7 @@
 package at.asitplus.awesn1.serialization
 
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
@@ -16,7 +16,7 @@ import at.asitplus.awesn1.Asn1BitString as Asn1BitStringValue
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestBitsAndBytes by matrixSuite(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
+    matrixConfig { execution= ExecutionMode.Sequential }
 ) {
     "Bits and Bytes" - {
         "Bit string" {

@@ -46,9 +46,8 @@ val OidHardening by matrixSuite {
         }
     }
 
-    "accepts minimally encoded OID arcs" - {
+    compact("accepts minimally encoded OID arcs" )- {
         data(
-            "vector",
             listOf(
                 OidVector("single-byte-tail-arc", "06 02 2B 18", "1.3.24"),
                 OidVector("minimal-two-byte-tail-arc-128", "06 03 2B 81 00", "1.3.128"),
@@ -80,9 +79,8 @@ val OidHardening by matrixSuite {
         }
     }
 
-    "string constructor encodes valid OIDs canonically" - {
+    compact("string constructor encodes valid OIDs canonically") - {
         data(
-            "vector",
             listOf(
                 OidStringVector("0.0", "0.0", "060100"),
                 OidStringVector("0.39", "0.39", "060127"),
@@ -116,9 +114,8 @@ val OidHardening by matrixSuite {
         }
     }
 
-    "space separated OID strings are accepted" - {
+    compact("space separated OID strings are accepted") - {
         data(
-            "vector",
             listOf(
                 OidStringVector("0 0", "0.0", "060100"),
                 OidStringVector("1 2 840 113549", "1.2.840.113549", "06062a864886f70d"),
@@ -134,9 +131,8 @@ val OidHardening by matrixSuite {
         }
     }
 
-    "string constructor rejects invalid OIDs" - {
+    compact("string constructor rejects invalid OIDs") - {
         data(
-            "vector",
             listOf(
                 InvalidOidStringVector("empty string", ""),
                 InvalidOidStringVector("only one arc 0", "0"),
@@ -172,9 +168,8 @@ val OidHardening by matrixSuite {
         }
     }
 
-    "OID string and raw DER roundtrip" - {
+    compact("OID string and raw DER roundtrip") - {
         data(
-            "vector",
             listOf(
                 OidStringVector("0.0", "0.0", "060100"),
                 OidStringVector("1.2", "1.2", "06012a"),
@@ -195,9 +190,8 @@ val OidHardening by matrixSuite {
         }
     }
 
-    "rejects non-minimal base128 OID arcs" - {
+    compact("rejects non-minimal base128 OID arcs") - {
         data(
-            "vector",
             listOf(
                 OidVector("leading-zero-before-single-byte-value", "06 03 2B 80 18"),
                 OidVector("leading-zero-before-zero", "06 03 2B 80 00"),
@@ -216,9 +210,8 @@ val OidHardening by matrixSuite {
         }
     }
 
-    "rejects unterminated OID arcs" - {
+   compact( "rejects unterminated OID arcs") - {
         data(
-            "vector",
             listOf(
                 OidVector("tail-arc-only-continuation-byte", "06 02 2B 81"),
                 OidVector("tail-arc-only-continuation-bytes", "06 03 2B 81 80"),
@@ -237,7 +230,6 @@ val OidHardening by matrixSuite {
 
     "rejects empty OID content" - {
         data(
-            "vector",
             listOf(
                 OidVector("empty-oid-content", "06 00"),
             ),

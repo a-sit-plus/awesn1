@@ -28,8 +28,10 @@ val TagEncodingTest by matrixSuite {
         long shouldBe it
     }
 
-    property("length encoding", Arb.positiveInt()) test { length ->
-        ByteArraySink().apply { encodeLength(length.toLong()) }.readByteArray() shouldBe length.encodeLength()
+    compact("length encoding")- {
+        property(Arb.positiveInt()) test { length ->
+            ByteArraySink().apply { encodeLength(length.toLong()) }.readByteArray() shouldBe length.encodeLength()
+        }
     }
 
     data("Manual", listOf(207692171uL, 128uL, 36uL, 16088548868045964978uL, 15871772363588580035uL)) test { tagValue ->

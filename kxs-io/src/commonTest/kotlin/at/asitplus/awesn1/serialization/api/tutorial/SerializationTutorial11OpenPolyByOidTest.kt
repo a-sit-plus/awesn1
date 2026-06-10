@@ -19,9 +19,7 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 
-val SerializationTutorial11OpenPolyByOid by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial11OpenPolyByOid by matrixSuite {
     "Open polymorphism by OID" {
         val derCodec = DER {
             serializersModule = SerializersModule {

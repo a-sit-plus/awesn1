@@ -5,6 +5,7 @@ import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -24,7 +25,7 @@ data class UnsignedIntegerFixture(
     val expected: ULong,
 )
 
-val asn1IntegerSemanticParsing by matrixSuite(execution = ExecutionMode.Sequential) {
+val asn1IntegerSemanticParsing by matrixSuite {
 
     data(
         "valid minimal signed INTEGERs",

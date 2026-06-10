@@ -75,9 +75,8 @@ val bitStringEdgeCases by matrixSuite {
         }
     }
 
-    "Illegal number of padding bits" - {
+    compact("Illegal number of padding bits") - {
         data(
-            "padding",
             List(255) { it.toByte() }.filterNot { it < 8.toByte() },
             nameFn = { _, it -> "numPaddingBits = $it" },
         ) test { numPaddingBits ->
@@ -110,18 +109,16 @@ val manualBitStringPadding by matrixSuite {
         val legal = List(32) { i ->
             (i * 8).toByte()
         }
-        "zero (legal)" - {
-            data("byte", legal, nameFn = { _, it -> "xx = ${it.hexPadded()}" }) test { i ->
+        compact("zero (legal)") - {
+            data( legal, nameFn = { _, it -> "xx = ${it.hexPadded()}" }) test { i ->
                 Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
                     0x03.toByte(), byteArrayOf(i)
                 )
             }
         }
 
-        "illegal" - {
-            data(
-                "byte",
-                List(255) { it.toByte() }.filterNot { it in legal },
+        compact("illegal") - {
+            data(                List(255) { it.toByte() }.filterNot { it in legal },
                 nameFn = { _, it -> "xx = ${it.hexPadded()}" },
             ) test { i ->
                 shouldThrow<Asn1Exception> {

@@ -258,9 +258,7 @@ private fun coreHookPemAsn1() {
 }
 
 @OptIn(ExperimentalStdlibApi::class)
-val CoreDocumentationHooks by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val CoreDocumentationHooks by matrixSuite {
     "Core serialization hook models RFC 5280 GeneralName CHOICE" {
         val (dnsDer, uriDer) = coreHookSerializationChoiceRfcDer()
         emitAsn1JsSample("core-hook-serialization-choice-dns", dnsDer)
