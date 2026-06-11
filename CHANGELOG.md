@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## 0.4.0
 * **Fixes:**
     * Asn1Real now properly encodes minimally. REAL encoding is an oddball because hardly any library properly supports it (pyasn1 is the rare exception).
