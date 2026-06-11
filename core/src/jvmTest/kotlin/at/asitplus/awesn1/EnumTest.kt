@@ -12,10 +12,8 @@ enum class TestEnum {
 
 val EnumTest by matrixSuite {
 
-    data(
-        "Values beyond valid Kotlin enum ordinals should work",
-        listOf(Long.MIN_VALUE, Long.MAX_VALUE, -1L, Int.MAX_VALUE.toLong() + 1L, Int.MIN_VALUE.toLong() - 1L)
-    ) test { ordinal -> Asn1.Enumerated(ordinal).decodeToEnumOrdinal() shouldBe ordinal }
+    listOf(Long.MIN_VALUE, Long.MAX_VALUE, -1L, Int.MAX_VALUE.toLong() + 1L, Int.MIN_VALUE.toLong() - 1L)
+        .asData(name = "Values beyond valid Kotlin enum ordinals should work") test { ordinal -> Asn1.Enumerated(ordinal).decodeToEnumOrdinal() shouldBe ordinal }
 
     data("encoding should produce correct ordinals", TestEnum.entries) test { entry ->
         val automagically = Asn1.Enumerated(entry)

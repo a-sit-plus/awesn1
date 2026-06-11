@@ -99,16 +99,12 @@ val Asn1IntegerTest by matrixSuite {
         }
     }
     "Java BigInteger from and to Asn1Integer" - {
-        data(
-            "Specific values",
-            listOf(
+        listOf(
                 Triple("Zero", JavaBigInteger.ZERO, Asn1Integer(0)),
                 Triple("Zero from Long", JavaBigInteger.valueOf(0L), Asn1Integer(0uL)),
                 Triple("One", JavaBigInteger.ONE, Asn1Integer(1)),
                 Triple("Negative One", JavaBigInteger.ONE.unaryMinus(), Asn1Integer(-1)),
-            ),
-            nameFn = { _, it -> it.first },
-        ) test { (_, bigint, asn1int) ->
+            ).asData(name = "Specific values", nameFn = { it.first }) test { (_, bigint, asn1int) ->
             bigint.toAsn1Integer() shouldBe asn1int
             asn1int.toJavaBigInteger() shouldBe bigint
         }

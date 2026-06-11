@@ -27,21 +27,20 @@ data class UnsignedIntegerFixture(
 
 val asn1IntegerSemanticParsing by matrixSuite {
 
-    data(
-        "valid minimal signed INTEGERs",
-        listOf(
-            SignedIntegerFixture("020100", 0L),
-            SignedIntegerFixture("020101", 1L),
-            SignedIntegerFixture("02017f", 127L),
-            SignedIntegerFixture("02020080", 128L),
-            SignedIntegerFixture("020200ff", 255L),
-            SignedIntegerFixture("02020100", 256L),
+    listOf(
+        SignedIntegerFixture("020100", 0L),
+        SignedIntegerFixture("020101", 1L),
+        SignedIntegerFixture("02017f", 127L),
+        SignedIntegerFixture("02020080", 128L),
+        SignedIntegerFixture("020200ff", 255L),
+        SignedIntegerFixture("02020100", 256L),
 
-            SignedIntegerFixture("0201ff", -1L),
-            SignedIntegerFixture("020180", -128L),
-            SignedIntegerFixture("0202ff7f", -129L),
-            SignedIntegerFixture("0202ff00", -256L),
-        ),
+        SignedIntegerFixture("0201ff", -1L),
+        SignedIntegerFixture("020180", -128L),
+        SignedIntegerFixture("0202ff7f", -129L),
+        SignedIntegerFixture("0202ff00", -256L),
+    ).asData(
+        name = "valid minimal signed INTEGERs",
         nameFn = { index, fixture -> "$index: ${fixture.der}" },
     ) test { fixture ->
         val p = primitive(fixture.der)
@@ -54,20 +53,19 @@ val asn1IntegerSemanticParsing by matrixSuite {
         }
     }
 
-    data(
-        "non-minimal positive INTEGER encodings",
-        listOf(
-            "02020000",     // 0 encoded as 00 00
-            "02020001",     // 1 encoded as 00 01
-            "0202007f",     // 127 encoded as 00 7f
-            "0203000080",   // 128 encoded as 00 00 80
-            "0203000100",   // 256 encoded as 00 01 00
-        ),
+    listOf(
+        "02020000",     // 0 encoded as 00 00
+        "02020001",     // 1 encoded as 00 01
+        "0202007f",     // 127 encoded as 00 7f
+        "0203000080",   // 128 encoded as 00 00 80
+        "0203000100",   // 256 encoded as 00 01 00
+    ).asData(
+        name = "non-minimal positive INTEGER encodings",
         nameFn = { index, der -> "$index: $der" },
     ) - { der ->
         val p = primitive(der)
 
-        data("lenient", listOf(true, false)) test { lenient ->
+        listOf(true, false).asData(name = "lenient") test { lenient ->
             if (lenient) {
                 p.decodeToAsn1Integer(lenient = true).toString() shouldBe der.substring(4).toInt(radix = 16).toString()
                 p.decodeToLong(lenient = true).toString() shouldBe der.substring(4).toInt(radix = 16).toString()
@@ -84,14 +82,13 @@ val asn1IntegerSemanticParsing by matrixSuite {
         }
     }
 
-    data(
-        "non-minimal negative INTEGER encodings",
-        listOf(
-            "0202ffff",     // -1 encoded as ff ff
-            "0202ff80",     // -128 encoded as ff 80
-            "0203ffff7f",   // -129 encoded as ff ff 7f
-            "0203ffff00",   // -256 encoded as ff ff 00
-        ),
+    listOf(
+        "0202ffff",     // -1 encoded as ff ff
+        "0202ff80",     // -128 encoded as ff 80
+        "0203ffff7f",   // -129 encoded as ff ff 7f
+        "0203ffff00",   // -256 encoded as ff ff 00
+    ).asData(
+        name = "non-minimal negative INTEGER encodings",
         nameFn = { index, der -> "$index: $der" },
     ) test { der ->
         val p = primitive(der)
@@ -103,9 +100,8 @@ val asn1IntegerSemanticParsing by matrixSuite {
         shouldThrow<Asn1Exception> { p.decodeToUInt() }
     }
 
-    data(
-        "empty INTEGER content",
-        listOf("0200"),
+    listOf("0200").asData(
+        name = "empty INTEGER content",
         nameFn = { index, der -> "$index: $der" },
     ) test { der ->
         val p = primitive(der)
@@ -117,14 +113,13 @@ val asn1IntegerSemanticParsing by matrixSuite {
         shouldThrow<Asn1Exception> { p.decodeToUInt() }
     }
 
-    data(
-        "negative INTEGER encodings rejected by unsigned decoders",
-        listOf(
-            "0201ff",     // -1
-            "020180",     // -128
-            "0202ff7f",   // -129
-            "0202ff00",   // -256
-        ),
+    listOf(
+        "0201ff",     // -1
+        "020180",     // -128
+        "0202ff7f",   // -129
+        "0202ff00",   // -256
+    ).asData(
+        name = "negative INTEGER encodings rejected by unsigned decoders",
         nameFn = { index, der -> "$index: $der" },
     ) test { der ->
         val p = primitive(der)
@@ -133,19 +128,18 @@ val asn1IntegerSemanticParsing by matrixSuite {
         shouldThrow<Asn1Exception> { p.decodeToUInt() }
     }
 
-    data(
-        "valid non-negative INTEGERs for unsigned decoders",
-        listOf(
-            UnsignedIntegerFixture("020100", 0uL),
-            UnsignedIntegerFixture("020101", 1uL),
-            UnsignedIntegerFixture("02017f", 127uL),
-            UnsignedIntegerFixture("02020080", 128uL),
-            UnsignedIntegerFixture("020200ff", 255uL),
-            UnsignedIntegerFixture("02020100", 256uL),
-            UnsignedIntegerFixture("02087fffffffffffffff", Long.MAX_VALUE.toULong()),
-            UnsignedIntegerFixture("0209008000000000000000", 9223372036854775808uL),
-            UnsignedIntegerFixture("020900ffffffffffffffff", ULong.MAX_VALUE),
-        ),
+    listOf(
+        UnsignedIntegerFixture("020100", 0uL),
+        UnsignedIntegerFixture("020101", 1uL),
+        UnsignedIntegerFixture("02017f", 127uL),
+        UnsignedIntegerFixture("02020080", 128uL),
+        UnsignedIntegerFixture("020200ff", 255uL),
+        UnsignedIntegerFixture("02020100", 256uL),
+        UnsignedIntegerFixture("02087fffffffffffffff", Long.MAX_VALUE.toULong()),
+        UnsignedIntegerFixture("0209008000000000000000", 9223372036854775808uL),
+        UnsignedIntegerFixture("020900ffffffffffffffff", ULong.MAX_VALUE),
+    ).asData(
+        name = "valid non-negative INTEGERs for unsigned decoders",
         nameFn = { index, fixture -> "$index: ${fixture.der}" },
     ) test { fixture ->
         val p = primitive(fixture.der)
@@ -157,25 +151,24 @@ val asn1IntegerSemanticParsing by matrixSuite {
         }
     }
 
-    data(
-        "signed range overflow",
-        listOf(
-            // Int.MAX_VALUE     =  2147483647 = 0x7fffffff
-            // Int.MAX_VALUE + 1 =  2147483648 = 0x80000000
-            "02050080000000" to "int-positive-overflow",
+    listOf(
+        // Int.MAX_VALUE     =  2147483647 = 0x7fffffff
+        // Int.MAX_VALUE + 1 =  2147483648 = 0x80000000
+        "02050080000000" to "int-positive-overflow",
 
-            // Int.MIN_VALUE     = -2147483648 = 0x80000000
-            // Int.MIN_VALUE - 1 = -2147483649 = 0xff7fffffff
-            "0205ff7fffffff" to "int-negative-overflow",
+        // Int.MIN_VALUE     = -2147483648 = 0x80000000
+        // Int.MIN_VALUE - 1 = -2147483649 = 0xff7fffffff
+        "0205ff7fffffff" to "int-negative-overflow",
 
-            // Long.MAX_VALUE     =  9223372036854775807 = 0x7fffffffffffffff
-            // Long.MAX_VALUE + 1 =  9223372036854775808 = 0x8000000000000000
-            "0209008000000000000000" to "long-positive-overflow",
+        // Long.MAX_VALUE     =  9223372036854775807 = 0x7fffffffffffffff
+        // Long.MAX_VALUE + 1 =  9223372036854775808 = 0x8000000000000000
+        "0209008000000000000000" to "long-positive-overflow",
 
-            // Long.MIN_VALUE     = -9223372036854775808 = 0x8000000000000000
-            // Long.MIN_VALUE - 1 = -9223372036854775809 = 0xff7fffffffffffffff
-            "0209ff7fffffffffffffff" to "long-negative-overflow",
-        ),
+        // Long.MIN_VALUE     = -9223372036854775808 = 0x8000000000000000
+        // Long.MIN_VALUE - 1 = -9223372036854775809 = 0xff7fffffffffffffff
+        "0209ff7fffffffffffffff" to "long-negative-overflow",
+    ).asData(
+        name = "signed range overflow",
         nameFn = { index, fixture -> "$index: ${fixture.first} -> ${fixture.second}" },
     ) test { (der, decoder) ->
         val p = primitive(der)
@@ -193,21 +186,20 @@ val asn1IntegerSemanticParsing by matrixSuite {
         }
     }
 
-    data(
-        "signed range boundaries",
-        listOf(
-            // Int.MAX_VALUE
-            SignedIntegerFixture("02047fffffff", Int.MAX_VALUE.toLong()),
+    listOf(
+        // Int.MAX_VALUE
+        SignedIntegerFixture("02047fffffff", Int.MAX_VALUE.toLong()),
 
-            // Int.MIN_VALUE
-            SignedIntegerFixture("020480000000", Int.MIN_VALUE.toLong()),
+        // Int.MIN_VALUE
+        SignedIntegerFixture("020480000000", Int.MIN_VALUE.toLong()),
 
-            // Long.MAX_VALUE
-            SignedIntegerFixture("02087fffffffffffffff", Long.MAX_VALUE),
+        // Long.MAX_VALUE
+        SignedIntegerFixture("02087fffffffffffffff", Long.MAX_VALUE),
 
-            // Long.MIN_VALUE
-            SignedIntegerFixture("02088000000000000000", Long.MIN_VALUE),
-        ),
+        // Long.MIN_VALUE
+        SignedIntegerFixture("02088000000000000000", Long.MIN_VALUE),
+    ).asData(
+        name = "signed range boundaries",
         nameFn = { index, fixture -> "$index: ${fixture.der}" },
     ) test { fixture ->
         val p = primitive(fixture.der)
@@ -219,12 +211,11 @@ val asn1IntegerSemanticParsing by matrixSuite {
         }
     }
 
-    data(
-        "unsigned UInt range overflow",
-        listOf(
-            "02050100000000",         // UInt.MAX_VALUE + 1
-            "020900ffffffffffffffff", // ULong.MAX_VALUE
-        ),
+    listOf(
+        "02050100000000",         // UInt.MAX_VALUE + 1
+        "020900ffffffffffffffff", // ULong.MAX_VALUE
+    ).asData(
+        name = "unsigned UInt range overflow",
         nameFn = { index, der -> "$index: $der" },
     ) test { der ->
         val p = primitive(der)
@@ -234,12 +225,11 @@ val asn1IntegerSemanticParsing by matrixSuite {
         }
     }
 
-    data(
-        "raw parser accepts TLV but semantic INTEGER decoder rejects content",
-        listOf(
-            "02020001" to byteArrayOf(0x00, 0x01),
-            "0202ffff" to byteArrayOf(0xff.toByte(), 0xff.toByte()),
-        ),
+    listOf(
+        "02020001" to byteArrayOf(0x00, 0x01),
+        "0202ffff" to byteArrayOf(0xff.toByte(), 0xff.toByte()),
+    ).asData(
+        name = "raw parser accepts TLV but semantic INTEGER decoder rejects content",
         nameFn = { index, fixture -> "$index: ${fixture.first}" },
     ) test { (der, expectedContent) ->
         val p = primitive(der)

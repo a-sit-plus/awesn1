@@ -19,9 +19,7 @@ val Asn1NumberEncodingTest by matrixSuite {
 
 
     "Asn1 Number encoding" - {
-        data(
-            "Manual",
-            listOf(
+        listOf(
                 257L,
                 2f.pow(24).toLong() - 1,
                 65555,
@@ -34,8 +32,7 @@ val Asn1NumberEncodingTest by matrixSuite {
                 -2L,
                 -9994587L,
                 340281555L,
-            ),
-        ) test { value ->
+            ).asData(name = "Manual") test { value ->
             val bytes = (value).toTwosComplementByteArray()
 
             val fromBC = ASN1Integer(value).encoded
@@ -138,9 +135,7 @@ val Asn1NumberEncodingTest by matrixSuite {
     }
 
     compact("unsigned longs") - {
-        data(
-            "manual",
-            listOf(
+        listOf(
                 2f.pow(24).toULong() - 1u,
                 256uL,
                 65555uL,
@@ -148,8 +143,7 @@ val Asn1NumberEncodingTest by matrixSuite {
                 255uL,
                 360uL,
                 4113774321109173852uL,
-            ),
-        ) test { value ->
+            ).asData(name = "manual") test { value ->
             val bytes = (value).toTwosComplementByteArray()
             bytes.wrapInUnsafeSource().readTwosComplementULong(bytes.size, lenient = false) shouldBe value
         }

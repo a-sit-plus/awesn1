@@ -29,7 +29,7 @@ val RealWorldCertificateTest by matrixSuite {
             .filter { it.extension == "pem" }
             .sorted()
             .toList(),
-        nameFn = { _, it -> it.nameWithoutExtension },
+        nameFn = { it.nameWithoutExtension },
     ) test { file ->
         val certPEM = file.readText()
         val tld = file.nameWithoutExtension

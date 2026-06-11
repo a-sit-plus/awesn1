@@ -41,7 +41,7 @@ val OidTest by matrixSuite {
         }
 
         compact("Full Root Arc") - {
-            data(List(127) { it }, nameFn = { _, it -> "Byte $it" }) test { byte ->
+            data(List(127) { it }, nameFn = { "Byte $it" }) test { byte ->
                 val oid = ObjectIdentifier.decodeFromAsn1ContentBytes(byteArrayOf(byte.toUByte().toByte()))
                 val fromBC = ASN1ObjectIdentifier.fromContents(byteArrayOf(byte.toByte()))
                 oid.encodeToDer() shouldBe fromBC.encoded
@@ -63,7 +63,7 @@ val OidTest by matrixSuite {
             repeat(39) { stringRepesentations += "0.$it" }
             repeat(39) { stringRepesentations += "1.$it" }
             repeat(255) { stringRepesentations += "2.$it" }
-            data("string", stringRepesentations, nameFn = { _, it -> "String $it" }) test { string ->
+            data("string", stringRepesentations, nameFn = { "String $it" }) test { string ->
                 val oid = ObjectIdentifier(string)
                 val fromBC = ASN1ObjectIdentifier(string)
                 oid.encodeToDer() shouldBe fromBC.encoded
@@ -82,7 +82,7 @@ val OidTest by matrixSuite {
             }
         }
         compact("Failing Root Arc") - {
-            data("byte", List(128) { it + 128 }, nameFn = { _, it -> "Byte $it" }) test { byte ->
+            data("byte", List(128) { it + 128 }, nameFn = { "Byte $it" }) test { byte ->
                 shouldThrow<Asn1Exception> {
                     ObjectIdentifier.decodeFromAsn1ContentBytes(byteArrayOf(byte.toUByte().toByte()))
                 }
@@ -93,7 +93,7 @@ val OidTest by matrixSuite {
             repeat(255 - 40) { stringRepesentations += "1.${it + 40}" }
             repeat(255 - 3) { stringRepesentations += "${3 + it}.${it % 40}" }
 
-            data("string", stringRepesentations, nameFn = { _, it -> "String $it" }) test { string ->
+            data("string", stringRepesentations, nameFn = { "String $it" }) test { string ->
                 shouldThrow<Asn1Exception> { ObjectIdentifier(string) }
             }
 
@@ -224,7 +224,7 @@ val OidTest by matrixSuite {
                     override fun edgecase(rs: RandomSource): Sample<Uuid> = sample(rs)
                     override fun sample(rs: RandomSource): Sample<Uuid> =
                         Sample(uuidFromRandomBytes(rs.random.nextBytes(Uuid.SIZE_BYTES)))
-                }, nameFn = { _, it -> it.toString() }) test { uuid ->
+                }, nameFn = { it.toString() }) test { uuid ->
                     val bigint = uuid.toBigInteger()
                     bigint.toString() shouldBe BigInteger.parseString(uuid.toHexString(), 16).toString()
                     Uuid.fromBigintOrNull(bigint) shouldBe uuid

@@ -33,14 +33,14 @@ val bitStringEdgeCases by matrixSuite {
     }
 
 
-    data("padding", List(8) { it.toByte() }, nameFn = { _, it -> it.toHexString() }) - { numPaddingBits ->
-        data("length", listOf(1, 2, 3), nameFn = { _, it -> "raw length: $it" }) - { len ->
+    data("padding", List(8) { it.toByte() }, nameFn = { it.toHexString() }) - { numPaddingBits ->
+        listOf(1, 2, 3).asData(name = "length", nameFn = { "raw length: $it" }) - { len ->
             val bitStringStart = "03 0${len + 1} ${numPaddingBits.hexPadded()} "
             data("prefix", List(40) { _ ->
                 var name = bitStringStart
                 repeat(len - 1) { name += Random.nextInt(0, 255).toByte().hexPadded() + " " }
                 name
-            }, nameFn = { _, it ->
+            }, nameFn = {
                 it + "xx"
             }) { execution = ExecutionMode.Sequential } - { hexBytes ->
                 compact("generated") - {
@@ -48,7 +48,7 @@ val bitStringEdgeCases by matrixSuite {
                     val illegal = List(255) { it.toByte() }.filterNot { it in legal }
 
                     if (legal.isNotEmpty()) "zero-ed out (legal)" - {
-                        data("byte", legal, nameFn = { _, it -> "xx = ${it.hexPadded()}" }) test { i ->
+                        data("byte", legal, nameFn = { "xx = ${it.hexPadded()}" }) test { i ->
                             val derEncoded = "$hexBytes${i.hexPadded()}"
                             Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded) as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
                                 numPaddingBits,
@@ -61,7 +61,7 @@ val bitStringEdgeCases by matrixSuite {
                         data(
                             "byte",
                             illegal,
-                            nameFn = { _, it -> "xx = ${it.hexPadded()}" },
+                            nameFn = { "xx = ${it.hexPadded()}" },
                         ) test { i ->
                             shouldThrow<Asn1Exception> {
                                 Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("$hexBytes${i.hexPadded()}") as Asn1Primitive)
@@ -78,7 +78,7 @@ val bitStringEdgeCases by matrixSuite {
     compact("Illegal number of padding bits") - {
         data(
             List(255) { it.toByte() }.filterNot { it < 8.toByte() },
-            nameFn = { _, it -> "numPaddingBits = $it" },
+            nameFn = { "numPaddingBits = $it" },
         ) test { numPaddingBits ->
             shouldThrow<Asn1Exception> {
                 Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 ${numPaddingBits.hexPadded()} 00") as Asn1Primitive)
@@ -110,7 +110,7 @@ val manualBitStringPadding by matrixSuite {
             (i * 8).toByte()
         }
         compact("zero (legal)") - {
-            data( legal, nameFn = { _, it -> "xx = ${it.hexPadded()}" }) test { i ->
+            data( legal, nameFn = { "xx = ${it.hexPadded()}" }) test { i ->
                 Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
                     0x03.toByte(), byteArrayOf(i)
                 )
@@ -119,7 +119,7 @@ val manualBitStringPadding by matrixSuite {
 
         compact("illegal") - {
             data(                List(255) { it.toByte() }.filterNot { it in legal },
-                nameFn = { _, it -> "xx = ${it.hexPadded()}" },
+                nameFn = { "xx = ${it.hexPadded()}" },
             ) test { i ->
                 shouldThrow<Asn1Exception> {
                     Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive)

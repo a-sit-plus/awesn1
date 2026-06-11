@@ -45,21 +45,21 @@ val MixedPolyTests by matrixSuite(matrixConfig { execution= ExecutionMode.Sequen
         }
     }
 
-    data("choice", listOf(
+    listOf(
         a to "3000",
         b to "bf7b00",
         withNestedProperties to "bf861522302006146983f0e8e892e5b7bab4e9bbd7d0cad8e8918c19bf83480602012abf7b00"
-    )) test { (obj, hex) ->
+    ).asData(name = "choice") test { (obj, hex) ->
         val encoded = Buffer().apply { der.encodeToSink(obj, this) }.readByteArray()
         encoded.toHexString() shouldBe hex
         der.decodeFromSource<Choice>(Buffer().apply { write(encoded) }) shouldBe obj
 
     }
-    data("nested", listOf(
+    listOf(
         nestedA to "3015061369a0eb8c9fe9f082a4e5a9ff95ebb6ead5ad4a",
         nestedB to "301e0614698195cc998e8698d284d1b9e29380b68cbbdc640c06466f6f626172",
         nestedC to "302006146983f0e8e892e5b7bab4e9bbd7d0cad8e8918c19bf83480602012abf7b00"
-    )) test { (obj, hex) ->
+    ).asData(name = "nested") test { (obj, hex) ->
         val encoded = Buffer().apply { der.encodeToSink(obj, this) }.readByteArray()
         encoded.toHexString() shouldBe hex
         der.decodeFromSource<Choice.Nested>(Buffer().apply { write(encoded) }) shouldBe obj

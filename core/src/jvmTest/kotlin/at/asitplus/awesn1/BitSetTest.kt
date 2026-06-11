@@ -128,9 +128,7 @@ val BitSetTest by matrixSuite {
                 ),
                 iterations = 32,
             ) - { input ->
-                data(
-                    "size",
-                    listOf(
+                listOf(
                         input.size,
                         input.size / 2,
                         input.size / 3,
@@ -141,8 +139,7 @@ val BitSetTest by matrixSuite {
                         0,
                         input.size * 2,
                         input.size * 4,
-                    ),
-                ) test { size: Int ->
+                    ).asData(name = "size") test { size: Int ->
                     val jvm = BitSet(size).also {
                         input.indices.shuffled().forEach { i -> it.set(i, input[i]) }
                     }
@@ -209,9 +206,7 @@ val BitSetTest by matrixSuite {
                 ),
                 iterations = 32,
             ) - { input ->
-                data(
-                    "size",
-                    listOf(
+                listOf(
                         input.size,
                         input.size / 2,
                         input.size / 3,
@@ -222,8 +217,7 @@ val BitSetTest by matrixSuite {
                         0,
                         input.size * 2,
                         input.size * 4,
-                    ),
-                ) test { size ->
+                    ).asData(name = "size") test { size ->
                     val jvm = BitSet(size).also {
                         input.indices.shuffled().forEach { i -> it.set(i, input[i]) }
                     }

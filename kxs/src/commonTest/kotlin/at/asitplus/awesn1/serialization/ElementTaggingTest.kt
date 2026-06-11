@@ -17,7 +17,7 @@ import kotlin.reflect.typeOf
 
 
 val TaggedTest by matrixSuite {
-    data("int", listOf(0, 2, 3, 4, 5, 6, 7, 8, 9)) - { int ->
+    listOf(0, 2, 3, 4, 5, 6, 7, 8, 9).asData(name = "int") - { int ->
         "UntaggedInt" {
             DER.encodeToByteArray(UntaggedInt(int)).toHexString() shouldBe "300302010$int".also {
                 DER.decodeFromByteArray<UntaggedInt>(it.hexToByteArray()) shouldBe UntaggedInt(

@@ -28,7 +28,7 @@ val RealTest by matrixSuite {
     val input =
         data.lines().map { it.split("; ").let { it.first().toDouble() to it.last().hexToByteArray(HexFormat.Default) } }
     compact("Encoding from Asn1Tools (that failed me hard)") - {
-        data(input, nameFn = { _, (double, bytes) -> "$double, ${bytes.toHexString()}" }) test { (double, bytes) ->
+        data(input, nameFn = { (double, bytes) -> "$double, ${bytes.toHexString()}" }) test { (double, bytes) ->
             val own = Asn1Real(double)
             // own.encodeToDer() shouldBe bytes /*turns out, this was not normalised, but we can test against pyasn1*/
             Asn1Element.parse(bytes).asPrimitive().decodeToDouble(lenient = true) shouldBe double
@@ -74,23 +74,19 @@ val RealTest by matrixSuite {
 
         }
 
-        data(
-            /*
-            01000000 Value is PLUS-INFINITY
-            01000001 Value is MINUS-INFINITY
-            01000010 Value is NOT-A-NUMBER
-            01000011 Value is minus zero
-             */
-            "Special Values",
-            listOf(
+        /*
+        01000000 Value is PLUS-INFINITY
+        01000001 Value is MINUS-INFINITY
+        01000010 Value is NOT-A-NUMBER
+        01000011 Value is minus zero
+         */
+        listOf(
                 0.0 to byteArrayOf(9, 0),
                 -0.0 to byteArrayOf(9, 1, 0x43),
                 Double.NaN to byteArrayOf(9, 1, 0x42),
                 Double.NEGATIVE_INFINITY to byteArrayOf(9, 1, 0x41),
                 Double.POSITIVE_INFINITY to byteArrayOf(9, 1, 0x40),
-            ),
-            nameFn = { _, (value, bytes) -> "($value) -> ${bytes.toHexString()}" },
-        ) test { (double, bytes) ->
+            ).asData(name = "Special Values", nameFn = { (value, bytes) -> "($value) -> ${bytes.toHexString()}" }) test { (double, bytes) ->
             val own = Asn1Real(double)
             own.encodeToDer() shouldBe bytes
             Asn1Real.decodeFromDer(bytes) shouldBe own

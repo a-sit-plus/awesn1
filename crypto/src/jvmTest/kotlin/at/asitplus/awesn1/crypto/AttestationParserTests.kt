@@ -66,7 +66,7 @@ val CustomParserTests by matrixSuite {
         chain.forEach { (_, json) -> json.isNotEmpty() shouldBe true }
     }
 
-    data("chain", chain.toList(), nameFn = { _, (name, _) -> name }) test { (_, json) ->
+    chain.asData(name = "chain", nameFn = { (name, _) -> name }) test { (_, json) ->
         val chain = json.getValue("attestationProof").jsonArray.map {
             Base64.getMimeDecoder().decode(it.jsonPrimitive.content.replace("\n", ""))
         }

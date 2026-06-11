@@ -193,7 +193,7 @@ private val nonMinimal = listOf(
 
 val FocusedINTEGERTests by matrixSuite {
 
-    data("integer", nonMinimal + minimal, nameFn = { _, it -> it.name }) test { (_, hex, shouldAccept, note, expected) ->
+    data("integer", nonMinimal + minimal, nameFn = { it.name }) test { (_, hex, shouldAccept, note, expected) ->
         withClue(note) {
             if (shouldAccept)
                 Asn1Integer.parseFromDerHexString(hex).toDerHexString() shouldBe hex.replace(" ", "")

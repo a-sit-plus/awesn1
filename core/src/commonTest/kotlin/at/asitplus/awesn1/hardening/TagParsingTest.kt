@@ -8,16 +8,12 @@ import io.kotest.matchers.shouldBe
 
 val DERtagparsing by matrixSuite {
     "rejects universal tag zero" - {
-        data(
-            "hex",
-            listOf(
-                "primitive incomplete" to "00",
-                "primitive complete" to "00 00",
-                "constructed incomplete" to "20",
-                "constructed complete" to "20 00",
-            ),
-            nameFn = { _, (name, _) -> name },
-        ) test { (_, hex) ->
+        listOf(
+            "primitive incomplete" to "00",
+            "primitive complete" to "00 00",
+            "constructed incomplete" to "20",
+            "constructed complete" to "20 00",
+        ).asData(name = "hex", nameFn = { (name, _) -> name }) test { (_, hex) ->
             shouldThrow<Asn1Exception> {
                 Asn1Element.parseFromDerHexString(hex)
             }
@@ -25,35 +21,27 @@ val DERtagparsing by matrixSuite {
     }
 
     "accepts complete non-universal tag zero" - {
-        data(
-            "hex",
-            listOf(
-                "application primitive" to "40 00",
-                "application constructed" to "60 00",
-                "context-specific primitive" to "80 00",
-                "context-specific constructed" to "A0 00",
-                "private primitive" to "C0 00",
-                "private constructed" to "E0 00",
-            ),
-            nameFn = { _, (name, _) -> name },
-        ) test { (_, hex) ->
+        listOf(
+            "application primitive" to "40 00",
+            "application constructed" to "60 00",
+            "context-specific primitive" to "80 00",
+            "context-specific constructed" to "A0 00",
+            "private primitive" to "C0 00",
+            "private constructed" to "E0 00",
+        ).asData(name = "hex", nameFn = { (name, _) -> name }) test { (_, hex) ->
             Asn1Element.parseFromDerHexString(hex).toDerHexString() shouldBe hex.replace(" ", "")
         }
     }
 
     "rejects incomplete non-universal tag zero TLVs" - {
-        data(
-            "hex",
-            listOf(
-                "application primitive" to "40",
-                "application constructed" to "60",
-                "context-specific primitive" to "80",
-                "context-specific constructed" to "A0",
-                "private primitive" to "C0",
-                "private constructed" to "E0",
-            ),
-            nameFn = { _, (name, _) -> name },
-        ) test { (_, hex) ->
+        listOf(
+            "application primitive" to "40",
+            "application constructed" to "60",
+            "context-specific primitive" to "80",
+            "context-specific constructed" to "A0",
+            "private primitive" to "C0",
+            "private constructed" to "E0",
+        ).asData(name = "hex", nameFn = { (name, _) -> name }) test { (_, hex) ->
             shouldThrow<Asn1Exception> {
                 Asn1Element.parseFromDerHexString(hex)
             }
