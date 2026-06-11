@@ -1,6 +1,6 @@
 # Changelog
 
-## NEXT
+## 0.4.0
 * **Fixes:**
     * Asn1Real now properly encodes minimally. REAL encoding is an oddball because hardly any library properly supports it (pyasn1 is the rare exception).
     * BIT STRING decoding now rejects empty content
@@ -17,6 +17,9 @@
     * Fix hard limits on UVarInt / tag number parsing
     * Fix minimality constraints for integer decoding
     * Add an optional `lienient: Boolean` flag to integer number parsing to optionally disregard minimality constraints
+* **Dependency Updates:**
+    * Kotlin 2.4.0
+    * kotlinx.coroutines 1.11.0
 * Migrate to matrix testing
 
 ## 0.3.1
