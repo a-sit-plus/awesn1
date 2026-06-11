@@ -2,8 +2,8 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
@@ -14,7 +14,7 @@ import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestFormatCompatibility by matrixSuite(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
+    matrixConfig { execution= ExecutionMode.Sequential }
 ) {
     "Basic ASN.1 scalar serializers support non-ASN.1 formats" {
         val asn1String = Asn1String.UTF8("foo")

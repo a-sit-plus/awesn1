@@ -33,7 +33,7 @@ val ImplicitTaggingTest by matrixSuite {
                 universalPrimitive.tagClass shouldBe TagClass.UNIVERSAL
             }
 
-            data("class", TagClass.entries, nameFn = { _, it -> "$tagNum $it" }) test { tagClass ->
+            data("class", TagClass.entries, nameFn = { "$tagNum $it" }) test { tagClass ->
                 val classy = universalConstructed withClass tagClass
                 classy.tagClass shouldBe tagClass
                 (universalConstructed without CONSTRUCTED).isConstructed shouldBe false
@@ -80,7 +80,7 @@ val ImplicitTaggingTest by matrixSuite {
             }
 
 
-            data("class", TagClass.entries, nameFn = { _, it -> "$tagNum $it" }) test { tagClass ->
+            data("class", TagClass.entries, nameFn = { "$tagNum $it" }) test { tagClass ->
 
                 val newTagValue = tagNum / 2uL;
                 if (newTagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
@@ -133,7 +133,7 @@ val ImplicitTaggingTest by matrixSuite {
                 (set withImplicitTag tagNum).tag.tagClass shouldBe TagClass.CONTEXT_SPECIFIC
             }
 
-            data("class", TagClass.entries, nameFn = { _, it -> "$tagNum $it" }) - { tagClass ->
+            data("class", TagClass.entries, nameFn = { "$tagNum $it" }) - { tagClass ->
                 val newTagValue = tagNum / 2uL
 
                 if (newTagValue == 0uL && tagClass == TagClass.UNIVERSAL) {
@@ -164,7 +164,7 @@ val ImplicitTaggingTest by matrixSuite {
                         primitive.tag.tagValue shouldBe newTagValue
                     }
 
-                    data("constructed", listOf(true, false)) test { constructed ->
+                    listOf(true, false).asData(name = "constructed") test { constructed ->
                         if (newTagValue == 0uL) {
                             shouldThrow<Asn1Exception> {
                                 Asn1Element.Tag(newTagValue, constructed = constructed)

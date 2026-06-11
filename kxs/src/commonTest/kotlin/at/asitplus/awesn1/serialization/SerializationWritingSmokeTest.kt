@@ -1,8 +1,8 @@
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1OctetString
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import kotlinx.serialization.Serializable
@@ -12,7 +12,7 @@ import kotlin.random.Random
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestWritingSmoke by matrixSuite(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
+    matrixConfig { execution= ExecutionMode.Sequential }
 ) {
     "Writing" {
         val descriptor = TypesUmbrella.serializer().descriptor

@@ -14,9 +14,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial12MapAndSet by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial12MapAndSet by matrixSuite {
     "Map and Set default mappings" {
         val value = TutorialMapAndSet(
             map = mapOf(1 to 2),

@@ -15,9 +15,7 @@ import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.serializer
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial01Baseline by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial01Baseline by matrixSuite {
     "Baseline mapping without ASN.1 annotations" {
         val value = TutorialPerson(name = "A", age = 5)
         val der = Buffer().apply { DER.encodeToSink( value, this) }.readByteArray()

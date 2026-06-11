@@ -14,9 +14,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToByteArray
 
-val SerializationTutorial07AmbiguityReject by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial07AmbiguityReject by matrixSuite {
     "Ambiguous nullable layout is rejected" {
         shouldThrow<SerializationException> {
             Buffer().apply { DER.encodeToSink(TutorialAmbiguous(first = null, second = 9), this) }.readByteArray()

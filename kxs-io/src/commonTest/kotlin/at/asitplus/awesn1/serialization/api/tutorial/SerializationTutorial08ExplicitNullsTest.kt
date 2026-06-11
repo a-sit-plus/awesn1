@@ -14,9 +14,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial08ExplicitNulls by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial08ExplicitNulls by matrixSuite {
     "explicitNulls=true encodes null as ASN.1 NULL" {
         val format = DER { explicitNulls = true }
         val value = TutorialNullableInt(value = null)

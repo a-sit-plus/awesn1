@@ -16,9 +16,7 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlin.jvm.JvmInline
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial10OpenPolyByTag by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial10OpenPolyByTag by matrixSuite {
     "Open polymorphism by leading tag" - {
         val derCodec = DER {
             serializersModule = SerializersModule {

@@ -22,7 +22,7 @@ import kotlin.reflect.typeOf
 
 
 val TaggedTest by matrixSuite {
-    data("int", listOf(0, 2, 3, 4, 5, 6, 7, 8, 9)) - { int ->
+    listOf(0, 2, 3, 4, 5, 6, 7, 8, 9).asData(name = "int") - { int ->
         "UntaggedInt" {
             Buffer().apply { DER.encodeToSink(UntaggedInt(int), this) }.readByteArray().toHexString() shouldBe "300302010$int".also {
                 DER.decodeFromSource<UntaggedInt>(Buffer().apply { write(it.hexToByteArray()) }) shouldBe UntaggedInt(

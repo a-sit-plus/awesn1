@@ -29,13 +29,12 @@ val GoX509CryptoFixtureTest by matrixSuite {
         decoded.publicExponent.toString().toLong() shouldBe 3L
     }
 
-    data(
-        "public key",
-        listOf(
-            PublicKeyFixture("pkix-rsa-public-key.pem", rsa = true),
-            PublicKeyFixture("pkix-ed25519-public-key.pem", rsa = false),
-        ),
-        nameFn = { _, it -> it.name },
+    listOf(
+        PublicKeyFixture("pkix-rsa-public-key.pem", rsa = true),
+        PublicKeyFixture("pkix-ed25519-public-key.pem", rsa = false),
+    ).asData(
+        name = "public key",
+        nameFn = { it.name },
     ) test { fixture ->
         val decoded = checkRoundTrip(
             pemPayload(fixture.name),
@@ -47,14 +46,13 @@ val GoX509CryptoFixtureTest by matrixSuite {
         }
     }
 
-    data(
-        "private key",
-        listOf(
-            PrivateKeyFixture("pkcs8-rsa-private-key.hex", NestedPrivateKey.RSA),
-            PrivateKeyFixture("pkcs8-p256-private-key.hex", NestedPrivateKey.EC),
-            PrivateKeyFixture("pkcs8-ed25519-private-key.hex", NestedPrivateKey.NONE),
-        ),
-        nameFn = { _, it -> it.name },
+    listOf(
+        PrivateKeyFixture("pkcs8-rsa-private-key.hex", NestedPrivateKey.RSA),
+        PrivateKeyFixture("pkcs8-p256-private-key.hex", NestedPrivateKey.EC),
+        PrivateKeyFixture("pkcs8-ed25519-private-key.hex", NestedPrivateKey.NONE),
+    ).asData(
+        name = "private key",
+        nameFn = { it.name },
     ) test { fixture ->
         val decoded = checkRoundTrip(
             hexFixture(fixture.name),
@@ -68,13 +66,12 @@ val GoX509CryptoFixtureTest by matrixSuite {
         }
     }
 
-    data(
-        "csr",
-        listOf(
-            "duplicate-attributes.csr.pem",
-            "duplicate-extensions.csr.pem",
-        ),
-        nameFn = { _, it -> it },
+    listOf(
+        "duplicate-attributes.csr.pem",
+        "duplicate-extensions.csr.pem",
+    ).asData(
+        name = "csr",
+        nameFn = { it },
     ) test { name ->
         val decoded = checkRoundTrip(
             pemPayload(name),

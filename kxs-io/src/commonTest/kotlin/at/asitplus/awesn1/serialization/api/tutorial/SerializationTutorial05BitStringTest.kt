@@ -15,9 +15,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial05BitString by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial05BitString by matrixSuite {
     "BIT STRING mapping with @Asn1BitString on ByteArray" {
         val value = TutorialBitStringCarrier(byteArrayOf(0xAA.toByte()))
         val der = Buffer().apply { DER.encodeToSink(value, this) }.readByteArray()

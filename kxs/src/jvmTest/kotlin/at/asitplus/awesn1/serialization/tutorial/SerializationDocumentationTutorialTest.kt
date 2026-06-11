@@ -697,9 +697,7 @@ private fun rawSetPreservationRoundTrip(): Triple<ByteArray, ByteArray, Tutorial
 }
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationDocumentationTutorialTest by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationDocumentationTutorialTest by matrixSuite {
     "Baseline" {
         val (der, decoded) = baselineRoundTrip()
         decoded shouldBe TutorialDocPerson(name = "A", age = 5)

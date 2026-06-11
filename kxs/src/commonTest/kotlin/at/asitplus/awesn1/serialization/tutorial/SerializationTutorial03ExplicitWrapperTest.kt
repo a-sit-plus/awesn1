@@ -8,9 +8,7 @@ import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTutorial03ExplicitWrapper by matrixSuite(
-    testConfig = DefaultConfiguration
-) {
+val SerializationTutorial03ExplicitWrapper by matrixSuite {
     "EXPLICIT modeling with Asn1Explicit + context-specific constructed tag" {
         val value = TutorialExplicitCarrier(
             wrapped = ExplicitlyTagged(5),

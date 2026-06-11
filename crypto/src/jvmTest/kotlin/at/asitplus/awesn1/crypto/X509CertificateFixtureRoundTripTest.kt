@@ -35,9 +35,9 @@ private const val FIXTURE_ROOT = "certificate-fixtures"
 
 val X509CertificateFixtureRoundTripTest by matrixSuite {
 
-    data("fixture kind", listOf(true, false), nameFn = { _, it -> if (it) "OK only" else "Faulty only" }) - { ok ->
+    listOf(true, false).asData(name = "fixture kind", nameFn = { if (it) "OK only" else "Faulty only" }) - { ok ->
         val fixtures = certificateFixtures(ok)
-        data( fixtures, nameFn = { _, it -> it.name }) test { path ->
+        data( fixtures, nameFn = { it.name }) test { path ->
 
             fun parseAndAssert() {
                 when (path.extension) {

@@ -2,8 +2,8 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
@@ -15,7 +15,7 @@ import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestShapeContract by matrixSuite(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
+    matrixConfig { execution= ExecutionMode.Sequential }
 ) {
     "Nullable raw ASN.1 element in the middle is rejected as undecidable" {
         val value = AmbiguousMiddleNullableRawAsn1(

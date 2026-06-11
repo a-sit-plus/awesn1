@@ -28,11 +28,13 @@ val TagEncodingTest by matrixSuite {
         long shouldBe it
     }
 
-    property("length encoding", Arb.positiveInt()) test { length ->
-        ByteArraySink().apply { encodeLength(length.toLong()) }.readByteArray() shouldBe length.encodeLength()
+    compact("length encoding")- {
+        property(Arb.positiveInt()) test { length ->
+            ByteArraySink().apply { encodeLength(length.toLong()) }.readByteArray() shouldBe length.encodeLength()
+        }
     }
 
-    data("Manual", listOf(207692171uL, 128uL, 36uL, 16088548868045964978uL, 15871772363588580035uL)) test { tagValue ->
+    listOf(207692171uL, 128uL, 36uL, 16088548868045964978uL, 15871772363588580035uL).asData(name = "Manual") test { tagValue ->
         tagValue.toAsn1VarInt().decodeAsn1VarULong().first shouldBe tagValue
         val tag = Asn1Element.Tag(tagValue, constructed = tagValue % 2uL == 0uL)
         tag.tagValue shouldBe tagValue
@@ -65,7 +67,7 @@ val TagEncodingTest by matrixSuite {
         }
     }
 
-    data("Manual against BC", listOf(207692171, 1337)) test { tagNumber ->
+    listOf(207692171, 1337).asData(name = "Manual against BC") test { tagNumber ->
         val tag = Asn1Element.Tag(tagNumber.toULong(), constructed = false)
         tag.tagValue shouldBe tagNumber.toULong()
 

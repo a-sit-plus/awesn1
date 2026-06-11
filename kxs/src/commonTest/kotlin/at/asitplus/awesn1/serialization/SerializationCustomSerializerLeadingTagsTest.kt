@@ -2,8 +2,8 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.TagClass
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
@@ -17,7 +17,7 @@ import kotlinx.serialization.encoding.Encoder
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestCustomSerializerLeadingTags by matrixSuite(
-    testConfig = DefaultConfiguration.invocation(TestConfig.Invocation.Sequential)
+    matrixConfig { execution= ExecutionMode.Sequential }
 ) {
     "Custom serializer with unknown leadingTags is rejected in undecidable optional middle position" {
         val derNoDefaults = DER { encodeDefaults = false }

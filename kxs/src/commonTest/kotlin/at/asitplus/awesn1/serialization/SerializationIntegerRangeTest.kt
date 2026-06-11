@@ -1,8 +1,8 @@
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.testballoon.matrix.matrixSuite
-import de.infix.testBalloon.framework.core.TestConfig
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
+import at.asitplus.testballoon.matrix.ExecutionMode
+import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -76,7 +76,7 @@ val SerializationTestIntegerRange by matrixSuite {
         }
     }
 
-    data("integer", listOf(
+    listOf(
         IntegerRangeFixture(
             name = "Long accepts Long.MAX_VALUE",
             source = Long.MAX_VALUE,
@@ -197,7 +197,7 @@ val SerializationTestIntegerRange by matrixSuite {
             serializer = UByte.serializer(),
             expected = Expected.SerializationFailure,
         ),
-    ), nameFn = { _, it -> it.name }) test { fixture ->
+    ).asData(name = "integer", nameFn = { it.name }) test { fixture ->
         val encoded = DER.encodeToByteArray(fixture.source)
 
         when (val expected = fixture.expected) {

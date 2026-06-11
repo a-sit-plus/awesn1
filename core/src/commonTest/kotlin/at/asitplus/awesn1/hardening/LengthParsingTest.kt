@@ -80,36 +80,35 @@ val FocusedDERlengthparsing by matrixSuite {
         }.message shouldBe "Unsupported length >Long.MAX_VALUE: 18446744073709551615"
     }
 
-    data(
-        "rejects non-minimal high-tag-number base128 encodings",
-        listOf(
-            HighTagNumberVector(
-                name = "tag-31-leading-zero-group",
-                hex = "9F 80 1F 00",
-                note = "Tag 31 encoded as 80 1F is non-minimal; canonical is 1F."
-            ),
-            HighTagNumberVector(
-                name = "tag-31-two-leading-zero-groups",
-                hex = "9F 80 80 1F 00",
-                note = "Tag 31 encoded with two redundant leading zero base-128 groups."
-            ),
-            HighTagNumberVector(
-                name = "tag-128-leading-zero-group",
-                hex = "9F 80 81 00 00",
-                note = "Tag 128 encoded as 80 81 00 is non-minimal; canonical is 81 00."
-            ),
-            HighTagNumberVector(
-                name = "tag-16384-leading-zero-group",
-                hex = "9F 80 81 80 00 00",
-                note = "Tag 16384 encoded with redundant leading zero group; canonical is 81 80 00."
-            ),
-            HighTagNumberVector(
-                name = "application-constructed-tag-31-leading-zero-group",
-                hex = "7F 80 1F 00",
-                note = "Same non-minimal tag-number encoding, but with application constructed class."
-            )
+    listOf(
+        HighTagNumberVector(
+            name = "tag-31-leading-zero-group",
+            hex = "9F 80 1F 00",
+            note = "Tag 31 encoded as 80 1F is non-minimal; canonical is 1F."
         ),
-        nameFn = { _, it -> it.name }
+        HighTagNumberVector(
+            name = "tag-31-two-leading-zero-groups",
+            hex = "9F 80 80 1F 00",
+            note = "Tag 31 encoded with two redundant leading zero base-128 groups."
+        ),
+        HighTagNumberVector(
+            name = "tag-128-leading-zero-group",
+            hex = "9F 80 81 00 00",
+            note = "Tag 128 encoded as 80 81 00 is non-minimal; canonical is 81 00."
+        ),
+        HighTagNumberVector(
+            name = "tag-16384-leading-zero-group",
+            hex = "9F 80 81 80 00 00",
+            note = "Tag 16384 encoded with redundant leading zero group; canonical is 81 80 00."
+        ),
+        HighTagNumberVector(
+            name = "application-constructed-tag-31-leading-zero-group",
+            hex = "7F 80 1F 00",
+            note = "Same non-minimal tag-number encoding, but with application constructed class."
+        )
+    ).asData(
+        name = "rejects non-minimal high-tag-number base128 encodings",
+        nameFn = { it.name }
     ) test { (_, hex, note) ->
         withClue(note) {
             shouldThrow<Asn1Exception> { Asn1Element.parseFromDerHexString(hex) }.message.shouldContain(
