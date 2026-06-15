@@ -6,7 +6,6 @@ import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.InternalAwesn1Api
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.catchingUnwrapped
-import at.asitplus.awesn1.createAsn1Sequence
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.serialization.DER
@@ -115,7 +114,7 @@ private fun assertRejectsUnexpectedChildren(decoded: X509Certificate) {
 
 @OptIn(InternalAwesn1Api::class)
 private fun Asn1Sequence.withBogusChild(): Asn1Sequence =
-    createAsn1Sequence(children + Asn1Null)
+    Asn1Sequence(children + Asn1Null)
 
 @OptIn(InternalAwesn1Api::class)
 private fun Asn1Sequence.withBogusChildInTbsCertificate(): Asn1Sequence =
@@ -145,7 +144,7 @@ private fun Asn1Sequence.withBogusChildInValidity(): Asn1Sequence {
 
 @OptIn(InternalAwesn1Api::class)
 private fun Asn1Sequence.copyWithChild(index: Int, child: Asn1Element): Asn1Sequence =
-    createAsn1Sequence(children.toMutableList().also { it[index] = child })
+    Asn1Sequence(children.toMutableList().also { it[index] = child })
 
 private fun certificateFixtures(ok: Boolean): List<Path> {
     val root = object {}.javaClass.classLoader.getResource(FIXTURE_ROOT)

@@ -525,7 +525,7 @@ class DerEncoder internal constructor(
             is Asn1ElementHolder.StructurePlaceholder -> {
                 val childElements = holder.childSerializer.buffer.finalizeElements()
                 val structureElement =
-                    if (holder.descriptor.isSetDescriptor) createAsn1Set(childElements) else createAsn1Sequence(
+                    if (holder.descriptor.isSetDescriptor) Asn1Set(childElements) else Asn1Sequence(
                         childElements
                     )
                 holder.tagTemplate?.let { structureElement.withImplicitTag(it) } ?: structureElement

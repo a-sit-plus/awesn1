@@ -138,11 +138,17 @@ private fun Source<*>.readAsn1Element(
         //fail fast
         limit?.let { require(totalLength <= limit) { "Length of ASN.1 element exceeds limit: $totalLength > $it" } }
 
-        //ASN.1 SEQUENCE
-        (if (tag.isSequence()) Asn1Sequence(doParseExactly(length))
+        //ASN.1 SEQUENCE / SEQUENCE OF
+        (if (tag.isSequence()) {
+            val parsedChildren = doParseExactly(length)
+            Asn1SequenceOf.fromChildrenOrNull(parsedChildren) ?: Asn1Sequence(parsedChildren)
+        }
 
-        //ASN.1 SET
-        else if (tag.isSet()) Asn1Set.fromPresorted(doParseExactly(length))
+        //ASN.1 SET / SET OF
+        else if (tag.isSet()) {
+            val parsedChildren = doParseExactly(length)
+            Asn1SetOf.fromPresortedOrNull(parsedChildren) ?: Asn1Set.fromPresorted(parsedChildren)
+        }
 
         //ASN.1 TAGGED (explicitly)
         else if (tag.isExplicitlyTagged) Asn1ExplicitlyTagged(tag.tagValue, doParseExactly(length))

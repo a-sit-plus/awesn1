@@ -66,6 +66,12 @@ object Asn1SequenceFallbackBase64Serializer : Asn1ElementFallbackBase64Serialize
 )
 
 @OptIn(ExperimentalEncodingApi::class)
+object Asn1SequenceOfFallbackBase64Serializer : Asn1ElementFallbackBase64SerializerBase<Asn1SequenceOf>(
+    decodeElement = { it.asSequenceOf() },
+    encodeElement = { it }
+)
+
+@OptIn(ExperimentalEncodingApi::class)
 object Asn1CustomStructureFallbackBase64Serializer : Asn1ElementFallbackBase64SerializerBase<Asn1CustomStructure>(
     decodeElement = { it.asCustomStructure() },
     encodeElement = { it }
@@ -93,7 +99,7 @@ object Asn1SetFallbackBase64Serializer : Asn1ElementFallbackBase64SerializerBase
 
 @OptIn(ExperimentalEncodingApi::class)
 object Asn1SetOfFallbackBase64Serializer : Asn1ElementFallbackBase64SerializerBase<Asn1SetOf>(
-    decodeElement = { Asn1SetOf(it.asSet().children) },
+    decodeElement = { it.asSetOf() },
     encodeElement = { it }
 )
 

@@ -142,11 +142,25 @@ sealed class Asn1Element(
     fun asSequence() = thisAs<Asn1Sequence>()
 
     /**
+     * Convenience function to cast this element to an [Asn1SequenceOf]
+     * @throws Asn1StructuralException if this element is not a sequence-of
+     */
+    @Throws(Asn1StructuralException::class)
+    fun asSequenceOf() = thisAs<Asn1SequenceOf>()
+
+    /**
      * Convenience function to cast this element to an [Asn1Set]
      * @throws Asn1StructuralException if this element is not a set
      */
     @Throws(Asn1StructuralException::class)
     fun asSet() = thisAs<Asn1Set>()
+
+    /**
+     * Convenience function to cast this element to an [Asn1SetOf]
+     * @throws Asn1StructuralException if this element is not a set-of
+     */
+    @Throws(Asn1StructuralException::class)
+    fun asSetOf() = thisAs<Asn1SetOf>()
 
     /**
      * Convenience function to cast this element to an [Asn1ExplicitlyTagged]
@@ -747,19 +761,57 @@ internal constructor(tag: ULong, children: List<Asn1Element>) :
  * @param children the elements to put into this sequence
  */
 @Serializable(with = Asn1SequenceFallbackBase64Serializer::class)
-class Asn1Sequence internal constructor(children: List<Asn1Element>) :
-    Asn1Structure(Tag.SEQUENCE, children, sortChildren = false, shouldBeSorted = false) {
+open class Asn1Sequence protected constructor(
+    children: List<Asn1Element>
+) : Asn1Structure(Tag.SEQUENCE, children, sortChildren = false, shouldBeSorted = false) {
 
     init {
         if (!tag.isConstructed) throw IllegalArgumentException("An ASN.1 Structure must have a CONSTRUCTED tag")
-
     }
 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "Sequence" + super.prettyPrintHeader(indent)
+
+    companion object {
+        operator fun invoke(children: List<Asn1Element>) = Asn1Sequence(children)
+    }
 }
 
-@InternalAwesn1Api
-fun createAsn1Sequence(children: List<Asn1Element>): Asn1Sequence = Asn1Sequence(children)
+/**
+ * ASN.1 SEQUENCE OF 0x30 ([BERTags.SEQUENCE] OR [BERTags.CONSTRUCTED])
+ * A SEQUENCE whose members all share the same tag (tag-homogeneous).
+ * When parsing DER, the parser will automatically produce an [Asn1SequenceOf] instead of a plain [Asn1Sequence]
+ * if all children share a tag. **Note**: An empty parsed SEQUENCE is also emitted as [Asn1SequenceOf],
+ * since an empty sequence inherently satisfies the tag-homogeneity constraint and [Asn1SequenceOf] is an [Asn1Sequence].
+ *
+ * @param children the elements to put into this sequence
+ * @throws Asn1Exception if non-empty children do not all share the same tag
+ */
+@Serializable(with = Asn1SequenceOfFallbackBase64Serializer::class)
+class Asn1SequenceOf(
+    children: List<Asn1Element>,
+) : Asn1Sequence(children) {
+
+    /**
+     * The tag shared by all children. `null` if this SEQUENCE OF is empty.
+     */
+    val commonTag: Asn1Element.Tag? get() = children.firstOrNull()?.tag
+
+    init {
+        if (children.isNotEmpty() && children.any { it.tag != children.first().tag })
+            throw Asn1Exception("SEQUENCE OF must only contain elements of the same tag")
+    }
+
+    override fun prettyPrintHeader(indent: Int) = (" " * indent) + "SequenceOf" + super.prettyPrintHeader(indent)
+
+    companion object {
+
+        //faster than throwing and catching
+        internal fun fromChildrenOrNull(children: List<Asn1Element>): Asn1SequenceOf? {
+            if (children.isNotEmpty() && children.any { it.tag != children.first().tag }) return null
+            return Asn1SequenceOf(children)
+        }
+    }
+}
 
 /**
  * ASN1 structure (i.e. containing child nodes) with custom tag
@@ -853,7 +905,6 @@ typealias Asn1PrimitiveOctetString = Asn1OctetString
 
 /**
  * ASN.1 OCTET STRING 0x04 ([BERTags.OCTET_STRING]) containing arbitrary bytes
- * @param content the data to hold
  *
  * May be an [Asn1EncapsulatingOctetString] if the contained bytes are valid ASN.1.
  */
@@ -945,13 +996,8 @@ class Asn1EncapsulatingOctetString(
  * ASN.1 SET 0x31 ([BERTags.SET] OR [BERTags.CONSTRUCTED])
  */
 @Serializable(with = Asn1SetFallbackBase64Serializer::class)
-open class Asn1Set private constructor(children: List<Asn1Element>, dontSort: Boolean) :
+open class Asn1Set protected constructor(children: List<Asn1Element>, dontSort: Boolean) :
     Asn1Structure(Tag.SET, children, !dontSort, shouldBeSorted = true) {
-
-    /**
-     * @param children the elements to put into this set. will be automatically sorted by DER-encoded bytes
-     */
-    internal constructor(children: List<Asn1Element>) : this(children, false)
 
     init {
         if (!tag.isConstructed) throw IllegalArgumentException("An ASN.1 Structure must have a CONSTRUCTED tag")
@@ -961,6 +1007,7 @@ open class Asn1Set private constructor(children: List<Asn1Element>, dontSort: Bo
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "Set" + super.prettyPrintHeader(indent)
 
     companion object {
+        operator fun invoke(children: List<Asn1Element>) = Asn1Set(children, dontSort = false)
         /**
          * Explicitly discard DER requirements and DON'T sort children. Useful when parsing Structures which might not
          * conform to DER
@@ -968,20 +1015,51 @@ open class Asn1Set private constructor(children: List<Asn1Element>, dontSort: Bo
         internal fun fromPresorted(children: List<Asn1Element>) = Asn1Set(children, true)
     }
 }
-
-@InternalAwesn1Api
-fun createAsn1Set(children: List<Asn1Element>): Asn1Set = Asn1Set(children)
-
 /**
  * ASN.1 SET OF 0x31 ([BERTags.SET] OR [BERTags.CONSTRUCTED])
+ * A SET whose members all share the same tag (tag-homogeneous).
+ * When parsing DER, the parser will automatically produce an [Asn1SetOf] instead of a plain [Asn1Set]
+ * if all children share a tag. **Note**: An empty parsed SET is also emitted as [Asn1SetOf],
+ * since an empty set inherently satisfies the tag-homogeneity constraint and [Asn1SetOf] is an [Asn1Set].
+ *
  * @param children the elements to put into this set. will be automatically checked to have the same tag and sorted by DER-encoded bytes
- * @throws Asn1Exception if children are using different tags
+ * @throws Asn1Exception if non-empty children do not all share the same tag
  */
 @Serializable(with = Asn1SetOfFallbackBase64Serializer::class)
-class Asn1SetOf @Throws(Asn1Exception::class) internal constructor(children: List<Asn1Element>) :
-    Asn1Set(children.also { it ->
-        if (it.any { elem -> elem.tag != it.first().tag }) throw Asn1Exception("SET OF must only contain elements of the same tag")
-    })
+class Asn1SetOf private constructor(
+    children: List<Asn1Element>,
+    dontSort: Boolean
+) : Asn1Set(children, dontSort) {
+
+    /**
+     * The tag shared by all children. `null` if this SET OF is empty.
+     */
+    val commonTag: Asn1Element.Tag? get() = children.firstOrNull()?.tag
+
+    /**
+     * @param children the elements to put into this set. will be automatically checked to have the same tag and sorted by DER-encoded bytes
+     */
+    constructor(children: List<Asn1Element>) : this(children, false)
+
+    init {
+        if (children.isNotEmpty() && children.any { it.tag != children.first().tag })
+            throw Asn1Exception("SET OF must only contain elements of the same tag")
+    }
+
+    override fun prettyPrintHeader(indent: Int) = (" " * indent) + "SetOf" + super.prettyPrintHeader(indent)
+
+    companion object {
+        /**
+         * Creates an [Asn1SetOf] from already-parsed children, preserving their order.
+         * Returns `null` if the children are non-empty and do not all share the same tag.
+         * **Empty lists always produce an [Asn1SetOf]** (vacuous truth).
+         */
+        internal fun fromPresortedOrNull(children: List<Asn1Element>): Asn1SetOf? {
+            if (children.isNotEmpty() && children.any { it.tag != children.first().tag }) return null
+            return Asn1SetOf(children, true)
+        }
+    }
+}
 
 /**
  * ASN.1 primitive. Holds no children, but [content] under [tag]
