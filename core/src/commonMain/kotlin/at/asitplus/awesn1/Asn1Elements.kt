@@ -761,9 +761,7 @@ internal constructor(tag: ULong, children: List<Asn1Element>) :
  * @param children the elements to put into this sequence
  */
 @Serializable(with = Asn1SequenceFallbackBase64Serializer::class)
-open class Asn1Sequence protected constructor(
-    children: List<Asn1Element>
-) : Asn1Structure(Tag.SEQUENCE, children, sortChildren = false, shouldBeSorted = false) {
+open class Asn1Sequence protected constructor(children: List<Asn1Element>) : Asn1Structure(Tag.SEQUENCE, children, sortChildren = false, shouldBeSorted = false) {
 
     init {
         if (!tag.isConstructed) throw IllegalArgumentException("An ASN.1 Structure must have a CONSTRUCTED tag")
@@ -781,8 +779,7 @@ open class Asn1Sequence protected constructor(
          * @return An instance of [Asn1Sequence] or [Asn1SequenceOf] based on the input.
          */
         operator fun invoke(children: List<Asn1Element>) =
-            if (children.isNotEmpty() && children.any { it.tag != children.first().tag }) Asn1Sequence(children) else Asn1SequenceOf(children)
-                ?: Asn1Sequence(children)
+            Asn1SequenceOf.fromChildrenOrNull(children) ?: Asn1Sequence(children)
     }
 }
 
@@ -794,24 +791,37 @@ open class Asn1Sequence protected constructor(
  * since an empty sequence inherently satisfies the tag-homogeneity constraint and [Asn1SequenceOf] is an [Asn1Sequence].
  *
  * @param children the elements to put into this sequence
- * @throws Asn1Exception if non-empty children do not all share the same tag
+ * @throws Asn1Exception if non-empty and children do not all share the same tag
  */
 @Serializable(with = Asn1SequenceOfFallbackBase64Serializer::class)
-class Asn1SequenceOf(
+class Asn1SequenceOf private constructor(
+    /** The tag shared by all children. `null` if this SEQUENCE OF is empty. */
+    val commonTag: Tag?,
     children: List<Asn1Element>,
 ) : Asn1Sequence(children) {
 
-    /**
-     * The tag shared by all children. `null` if this SEQUENCE OF is empty.
-     */
-    val commonTag: Asn1Element.Tag? = children.firstOrNull()?.tag
-
-    init {
-        if (children.any { it.tag != commonTag })
-            throw Asn1Exception("SEQUENCE OF must only contain elements of the same tag")
-    }
-
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "SequenceOf" + super.prettyPrintHeader(indent)
+
+    companion object {
+        /**
+         * @param children the elements of the sequence. Asserts that these are all of the same tag.
+         */
+        operator fun invoke(children: List<Asn1Element>) = runRethrowing {
+            val commonTag = children.firstOrNull()?.tag
+            children.forEach {
+                require(it.tag == commonTag) {
+                    "SEQUENCE OF must only contain elements of the same tag (has ${it.tag} != $commonTag)"
+                }
+            }
+            Asn1SequenceOf(commonTag, children)
+        }
+
+        internal fun fromChildrenOrNull(children: List<Asn1Element>): Asn1SequenceOf? {
+            val commonTag = children.firstOrNull()?.tag
+            if (children.any { it.tag != commonTag }) return null
+            return Asn1SequenceOf(commonTag, children)
+        }
+    }
 }
 
 /**
@@ -997,8 +1007,8 @@ class Asn1EncapsulatingOctetString(
  * ASN.1 SET 0x31 ([BERTags.SET] OR [BERTags.CONSTRUCTED])
  */
 @Serializable(with = Asn1SetFallbackBase64Serializer::class)
-open class Asn1Set protected constructor(children: List<Asn1Element>, dontSort: Boolean) :
-    Asn1Structure(Tag.SET, children, !dontSort, shouldBeSorted = true) {
+open class Asn1Set protected constructor(children: List<Asn1Element>, sortChildren: Boolean) :
+    Asn1Structure(Tag.SET, children, sortChildren, shouldBeSorted = true) {
 
     init {
         if (!tag.isConstructed) throw IllegalArgumentException("An ASN.1 Structure must have a CONSTRUCTED tag")
@@ -1017,14 +1027,14 @@ open class Asn1Set protected constructor(children: List<Asn1Element>, dontSort: 
          * @return An instance of [Asn1SetOf] or [Asn1Set] based on the input.
          */
         operator fun invoke(children: List<Asn1Element>) =
-            Asn1SetOf.fromChildrenOrNull(children, dontSort = false) ?: Asn1Set(children, dontSort = false)
+            Asn1SetOf.fromChildrenOrNull(children, sortChildren = true) ?: Asn1Set(children, sortChildren = true)
 
         /**
          * Explicitly discard DER requirements and DON'T sort children. Useful when parsing Structures which might not
          * conform to DER. Will produce an [Asn1SetOf] if children are empty or share the same tag.
          */
         internal fun fromPresorted(children: List<Asn1Element>) =
-            Asn1SetOf.fromPresortedOrNull(children) ?: Asn1Set(children, true)
+            Asn1SetOf.fromChildrenOrNull(children, sortChildren = false) ?: Asn1Set(children, sortChildren = false)
     }
 }
 
@@ -1036,44 +1046,37 @@ open class Asn1Set protected constructor(children: List<Asn1Element>, dontSort: 
  * since an empty set inherently satisfies the tag-homogeneity constraint and [Asn1SetOf] is an [Asn1Set].
  *
  * @param children the elements to put into this set. will be automatically checked to have the same tag and sorted by DER-encoded bytes
- * @throws Asn1Exception if non-empty children do not all share the same tag
+ * @throws Asn1Exception if non-empty and children do not all share the same tag
  */
 @Serializable(with = Asn1SetOfFallbackBase64Serializer::class)
-class Asn1SetOf internal constructor(
+class Asn1SetOf private constructor(
+    /** The tag shared by all children. `null` if this SET OF is empty. */
+    val commonTag: Tag?,
     children: List<Asn1Element>,
-    dontSort: Boolean
-) : Asn1Set(children, dontSort) {
-
-    /**
-     * The tag shared by all children. `null` if this SET OF is empty.
-     */
-    val commonTag: Asn1Element.Tag? get() = children.firstOrNull()?.tag
-
-    /**
-     * @param children the elements to put into this set. will be automatically checked to have the same tag and sorted by DER-encoded bytes
-     */
-    constructor(children: List<Asn1Element>) : this(children, dontSort = false)
-
-    init {
-        if (children.isNotEmpty() && children.any { it.tag != children.first().tag })
-            throw Asn1Exception("SET OF must only contain elements of the same tag")
-    }
+    sortChildren: Boolean
+) : Asn1Set(children, sortChildren) {
 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "SetOf" + super.prettyPrintHeader(indent)
 
     companion object {
-        /**
-         * Creates an [Asn1SetOf] from already-parsed children, preserving their order.
-         * Returns `null` if the children are non-empty and do not all share the same tag.
-         * **Empty lists always produce an [Asn1SetOf]** (vacuous truth).
-         */
-        internal fun fromPresortedOrNull(children: List<Asn1Element>): Asn1SetOf? =
-            fromChildrenOrNull(children, dontSort = true)
 
-        //faster than throwing ang catching
-        internal fun fromChildrenOrNull(children: List<Asn1Element>, dontSort: Boolean): Asn1SetOf? {
-            if (children.isNotEmpty() && children.any { it.tag != children.first().tag }) return null
-            return Asn1SetOf(children, dontSort)
+        /**
+         * @param children the elements to put into this set. will be automatically checked to have the same tag and sorted by DER-encoded bytes
+         */
+        operator fun invoke(children: List<Asn1Element>) = runRethrowing {
+            val commonTag = children.firstOrNull()?.tag
+            children.forEach {
+                require(it.tag == commonTag) {
+                    "SET OF must only contain elements of the same tag (has ${it.tag} != $commonTag)"
+                }
+            }
+            Asn1SetOf(commonTag, children, sortChildren = true)
+        }
+
+        internal fun fromChildrenOrNull(children: List<Asn1Element>, sortChildren: Boolean): Asn1SetOf? {
+            val commonTag = children.firstOrNull()?.tag
+            if (children.any { it.tag != commonTag }) return null
+            return Asn1SetOf(commonTag, children, sortChildren)
         }
     }
 }
