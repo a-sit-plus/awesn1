@@ -781,7 +781,8 @@ open class Asn1Sequence protected constructor(
          * @return An instance of [Asn1Sequence] or [Asn1SequenceOf] based on the input.
          */
         operator fun invoke(children: List<Asn1Element>) =
-            Asn1SequenceOf.fromChildrenOrNull(children) ?: Asn1Sequence(children)
+            if (children.isNotEmpty() && children.any { it.tag != children.first().tag }) Asn1Sequence(children) else Asn1SequenceOf(children)
+                ?: Asn1Sequence(children)
     }
 }
 
@@ -811,15 +812,6 @@ class Asn1SequenceOf(
     }
 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "SequenceOf" + super.prettyPrintHeader(indent)
-
-    companion object {
-
-        //faster than throwing and catching
-        internal fun fromChildrenOrNull(children: List<Asn1Element>): Asn1SequenceOf? {
-            if (children.isNotEmpty() && children.any { it.tag != children.first().tag }) return null
-            return Asn1SequenceOf(children)
-        }
-    }
 }
 
 /**
