@@ -772,7 +772,16 @@ open class Asn1Sequence protected constructor(
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "Sequence" + super.prettyPrintHeader(indent)
 
     companion object {
-        operator fun invoke(children: List<Asn1Element>) = Asn1Sequence(children)
+        /**
+         * Creates an instance of an ASN.1 SET structure from the given list of children.
+         * If the `children` can be represented as an instance of [Asn1SequenceOf], that will be returned.
+         * Otherwise, an [Asn1Sequence] is constructed.
+         *
+         * @param children The list of [Asn1Element] to be encapsulated in the SET structure.
+         * @return An instance of [Asn1Sequence] or [Asn1SequenceOf] based on the input.
+         */
+        operator fun invoke(children: List<Asn1Element>) =
+            Asn1SequenceOf.fromChildrenOrNull(children) ?: Asn1Sequence(children)
     }
 }
 
@@ -1007,14 +1016,26 @@ open class Asn1Set protected constructor(children: List<Asn1Element>, dontSort: 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "Set" + super.prettyPrintHeader(indent)
 
     companion object {
-        operator fun invoke(children: List<Asn1Element>) = Asn1Set(children, dontSort = false)
+        /**
+         * Creates an instance of an ASN.1 SET structure from the given list of children.
+         * If the `children` can be represented as an instance of [Asn1SetOf], that will be returned.
+         * Otherwise, an [Asn1Set] is constructed.
+         *
+         * @param children The list of [Asn1Element] to be encapsulated in the SET structure.
+         * @return An instance of [Asn1SetOf] or [Asn1Set] based on the input.
+         */
+        operator fun invoke(children: List<Asn1Element>) =
+            Asn1SetOf.fromChildrenOrNull(children, dontSort = false) ?: Asn1Set(children, dontSort = false)
+
         /**
          * Explicitly discard DER requirements and DON'T sort children. Useful when parsing Structures which might not
-         * conform to DER
+         * conform to DER. Will produce an [Asn1SetOf] if children are empty or share the same tag.
          */
-        internal fun fromPresorted(children: List<Asn1Element>) = Asn1Set(children, true)
+        internal fun fromPresorted(children: List<Asn1Element>) =
+            Asn1SetOf.fromPresortedOrNull(children) ?: Asn1Set(children, true)
     }
 }
+
 /**
  * ASN.1 SET OF 0x31 ([BERTags.SET] OR [BERTags.CONSTRUCTED])
  * A SET whose members all share the same tag (tag-homogeneous).
@@ -1039,7 +1060,7 @@ class Asn1SetOf internal constructor(
     /**
      * @param children the elements to put into this set. will be automatically checked to have the same tag and sorted by DER-encoded bytes
      */
-    constructor(children: List<Asn1Element>) : this(children, false)
+    constructor(children: List<Asn1Element>) : this(children, dontSort = false)
 
     init {
         if (children.isNotEmpty() && children.any { it.tag != children.first().tag })
@@ -1054,9 +1075,13 @@ class Asn1SetOf internal constructor(
          * Returns `null` if the children are non-empty and do not all share the same tag.
          * **Empty lists always produce an [Asn1SetOf]** (vacuous truth).
          */
-        internal fun fromPresortedOrNull(children: List<Asn1Element>): Asn1SetOf? {
+        internal fun fromPresortedOrNull(children: List<Asn1Element>): Asn1SetOf? =
+            fromChildrenOrNull(children, dontSort = true)
+
+        //faster than throwing ang catching
+        internal fun fromChildrenOrNull(children: List<Asn1Element>, dontSort: Boolean): Asn1SetOf? {
             if (children.isNotEmpty() && children.any { it.tag != children.first().tag }) return null
-            return Asn1SetOf(children, true)
+            return Asn1SetOf(children, dontSort)
         }
     }
 }

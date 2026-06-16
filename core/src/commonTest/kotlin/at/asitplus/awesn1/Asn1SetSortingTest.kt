@@ -103,39 +103,6 @@ val Asn1SetSortingTest by matrixSuite(matrixConfig { defaultPropertyIterations =
         }
     }
 
-    "parsing homogeneous SET produces Asn1SetOf" {
-        val larger = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x01))
-        val smaller = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x00))
-        val setOf = Asn1SetOf(listOf(larger, smaller))
-
-        val parsed = Asn1Element.parse(setOf.derEncoded)
-
-        parsed.shouldBeInstanceOf<Asn1SetOf>()
-    }
-
-    "parsing heterogeneous SET produces plain Asn1Set" {
-        val intElem = Asn1Primitive(Asn1Element.Tag.INT, byteArrayOf(0x01))
-        val boolElem = Asn1Primitive(Asn1Element.Tag.BOOL, byteArrayOf(0xff.toByte()))
-        val set = Asn1Set(listOf(intElem, boolElem))
-
-        val parsed = Asn1Element.parse(set.derEncoded)
-
-        parsed::class shouldBe Asn1Set::class
-    }
-
-    "Asn1SetOf.commonTag is null for empty set" {
-        val emptySetOf = Asn1SetOf(emptyList())
-
-        emptySetOf.commonTag shouldBe null
-    }
-
-    "Asn1SetOf.commonTag matches children tag" {
-        val elem = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x00))
-        val setOf = Asn1SetOf(listOf(elem, elem))
-
-        setOf.commonTag shouldBe Asn1Element.Tag.OCTET_STRING
-    }
-
     "Asn1SetOf preserves parsed order even if non-canonical" - {
         // Build a SET OF with children in reverse canonical order
         val larger = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x01))

@@ -141,13 +141,13 @@ private fun Source<*>.readAsn1Element(
         //ASN.1 SEQUENCE / SEQUENCE OF
         (if (tag.isSequence()) {
             val parsedChildren = doParseExactly(length)
-            Asn1SequenceOf.fromChildrenOrNull(parsedChildren) ?: Asn1Sequence(parsedChildren)
+            Asn1Sequence(parsedChildren)
         }
 
         //ASN.1 SET / SET OF
         else if (tag.isSet()) {
             val parsedChildren = doParseExactly(length)
-            Asn1SetOf.fromPresortedOrNull(parsedChildren) ?: Asn1Set.fromPresorted(parsedChildren)
+            Asn1Set.fromPresorted(parsedChildren)
         }
 
         //ASN.1 TAGGED (explicitly)
