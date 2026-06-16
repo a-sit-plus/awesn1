@@ -803,10 +803,10 @@ class Asn1SequenceOf(
     /**
      * The tag shared by all children. `null` if this SEQUENCE OF is empty.
      */
-    val commonTag: Asn1Element.Tag? get() = children.firstOrNull()?.tag
+    val commonTag: Asn1Element.Tag? = children.firstOrNull()?.tag
 
     init {
-        if (children.isNotEmpty() && children.any { it.tag != children.first().tag })
+        if (children.any { it.tag != commonTag })
             throw Asn1Exception("SEQUENCE OF must only contain elements of the same tag")
     }
 
