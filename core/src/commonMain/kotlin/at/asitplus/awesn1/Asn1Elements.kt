@@ -1026,7 +1026,7 @@ open class Asn1Set protected constructor(children: List<Asn1Element>, dontSort: 
  * @throws Asn1Exception if non-empty children do not all share the same tag
  */
 @Serializable(with = Asn1SetOfFallbackBase64Serializer::class)
-class Asn1SetOf private constructor(
+class Asn1SetOf internal constructor(
     children: List<Asn1Element>,
     dontSort: Boolean
 ) : Asn1Set(children, dontSort) {

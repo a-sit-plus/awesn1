@@ -6,6 +6,7 @@ import at.asitplus.testballoon.matrix.matrixConfig
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
@@ -135,20 +136,30 @@ val Asn1SetSortingTest by matrixSuite(matrixConfig { defaultPropertyIterations =
         setOf.commonTag shouldBe Asn1Element.Tag.OCTET_STRING
     }
 
-    "Asn1SetOf preserves parsed order even if non-canonical" {
+    "Asn1SetOf preserves parsed order even if non-canonical" - {
         // Build a SET OF with children in reverse canonical order
         val larger = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x01))
         val smaller = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x00))
-        val reversedOrder = Asn1SetOf(listOf(larger, smaller))
+        val reversedOrder = Asn1SetOf(listOf(larger, smaller), dontSort = true)
+        val sorted = Asn1SetOf(listOf(larger, smaller))
+        "public ctor should sort" {
+            sorted.children[0] shouldBe smaller
+            sorted.children[1] shouldBe larger
+            reversedOrder.children[0] shouldBe larger
+            reversedOrder.children[1] shouldBe smaller
+            sorted shouldNotBe reversedOrder
+        }
 
         // Re-parse through the raw parser
         val parsed = Asn1Element.parse(reversedOrder.derEncoded)
 
         // Parsed back, it should be sorted again (because Asn1SetOf internal constructor sorts)
         // But if we use fromPresortedOrNull, order is preserved
-        val preservedOrder = Asn1SetOf.fromPresortedOrNull(listOf(larger, smaller))!!
-        preservedOrder.children[0] shouldBe larger
-        preservedOrder.children[1] shouldBe smaller
+        "parsing works as intended" {
+            val preservedOrder = Asn1SetOf.fromPresortedOrNull(listOf(larger, smaller))!!
+            preservedOrder.children[0] shouldBe larger
+            preservedOrder.children[1] shouldBe smaller
+        }
     }
 }
 
