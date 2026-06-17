@@ -1,10 +1,14 @@
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
+import at.asitplus.awesn1.encoding.parse
 import at.asitplus.testballoon.matrix.matrixConfig
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.arbitrary
 import kotlin.random.Random
@@ -97,6 +101,32 @@ val Asn1SetSortingTest by matrixSuite(matrixConfig { defaultPropertyIterations =
                     (compareUnsignedLexicographically(predecessor, successor) < 0) shouldBe true
                 }
             }
+        }
+    }
+
+    "Asn1SetOf preserves parsed order even if non-canonical" - {
+        // Build a SET OF with children in reverse canonical order
+        val larger = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x01))
+        val smaller = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, byteArrayOf(0x00))
+        val sorted = Asn1SetOf(listOf(larger, smaller))
+        "public ctor should sort" {
+            sorted.children[0] shouldBe smaller
+            sorted.children[1] shouldBe larger
+        }
+
+        val reversedOrder = Asn1SetOf.fromChildrenOrNull(listOf(larger, smaller), sortChildren = false)
+        "internal ctor should not sort" {
+            reversedOrder.shouldNotBeNull()
+            reversedOrder.children[0] shouldBe larger
+            reversedOrder.children[1] shouldBe smaller
+        }
+
+        // it should not be sort after parsing
+        "parsing should not auto-sort" {
+            // Re-parse through the raw parser
+            val preservedOrder = Asn1Element.parse(reversedOrder!!.derEncoded).asSetOf()
+            preservedOrder.children[0] shouldBe larger
+            preservedOrder.children[1] shouldBe smaller
         }
     }
 }

@@ -114,6 +114,37 @@ object Asn1 {
 
 
     /**
+     * Creates a new SEQUENCE OF as [Asn1SequenceOf]. Tags of all added elements need to be the same.
+     * Use as follows:
+     *
+     * ```kotlin
+     * SequenceOf {
+     *   +PrintableString("World")
+     *   +PrintableString("!!!")
+     *   +PrintableString("Hello")
+     * }
+     *  ```
+     *
+     *  @throws Asn1Exception if children of different tags are added
+     */
+    @Throws(Asn1Exception::class)
+    fun SequenceOf(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
+        val seq = Asn1TreeBuilder()
+        seq.root()
+        return Asn1SequenceOf(seq.elements)
+    }
+
+    /**
+     * Exception-free version of [SequenceOf]
+     */
+    fun SequenceOfOrNull(root: Asn1TreeBuilder.() -> Unit) = catchingUnwrapped { SequenceOf(root) }.getOrNull()
+
+    /**
+     * Safe version of [SequenceOf], wrapping the result into a [Result]
+     */
+    fun SequenceOfSafe(root: Asn1TreeBuilder.() -> Unit) = catchingUnwrapped { SequenceOf(root) }
+
+    /**
      * Creates a new  SET as [Asn1Set]. Elements are sorted by tag.
      * Use as follows:
      *
