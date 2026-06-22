@@ -135,13 +135,25 @@ class Der internal constructor(
  * exactly as originally decoded.
  * @property maxInputLength maximum allowed total number of encoded DER bytes to consume before refusing to parse and
  * throwing. This limit is enforced before reading or peeking from the underlying source.
- * Defaults to [UInt.MAX_VALUE].
+ * Defaults to [Int.MAX_VALUE] so that all element lengths produced under the default fit in `Int` and parsing /
+ * re-encoding stay fully `Int`-based; raise it only if you deliberately handle multi-gigabyte input (which also
+ * requires a `Source`, since a `ByteArray` cannot exceed [Int.MAX_VALUE] bytes anyway).
+ * @property maxNestingDepth maximum structural nesting depth the **typed** encoder/decoder will descend before
+ * throwing a [kotlinx.serialization.SerializationException]. The raw parser/encoder are iterative and stack-safe, but
+ * kotlinx.serialization's encode/decode contract is recursive descent (`deserialize` -> `decodeSerializableElement` ->
+ * `deserialize` -> ...; and the mirror on encode), so a *self-referential* `@Serializable` type that is deeply nested
+ * (decoded from deeply nested input, or serialized from a deeply nested in-memory value) would otherwise overflow the
+ * call stack with an unrecoverable [StackOverflowError]. This guard converts that into a clean, catchable exception.
+ * The default (128) is far above any realistic ASN.1/PKI structure (typically < ~40 levels) and below the depth at
+ * which the JVM call stack overflows. Lower it on very small thread stacks; raise it only if you knowingly process
+ * deeply nested recursive models.
  * @property serializersModule serializers used for contextual/open-polymorphic resolution.
  */
 data class DerConfiguration(
     val encodeDefaults: Boolean = true,
     val explicitNulls: Boolean = false,
-    val maxInputLength: Long = UInt.MAX_VALUE.toLong(),
+    val maxInputLength: Long = Int.MAX_VALUE.toLong(),
+    val maxNestingDepth: Int = 128,
     val serializersModule: SerializersModule = EmptySerializersModule(),
 )
 
@@ -152,7 +164,7 @@ data class DerConfiguration(
  * - [explicitNulls]: encode `null` as ASN.1 `NULL` or omit nullable values.
  * - [serializersModule]: module used for contextual/open-polymorphic serializers.
  * - [maxInputLength] maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
- *   This limit is enforced before reading or peeking from the underlying source. Defaults to [UInt.MAX_VALUE].
+ *   This limit is enforced before reading or peeking from the underlying source. Defaults to [Int.MAX_VALUE].
  */
 class DerBuilder internal constructor() {
     var encodeDefaults: Boolean = true
@@ -161,15 +173,24 @@ class DerBuilder internal constructor() {
     /**
      * Maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
      *
-     * This limit is enforced before reading or peeking from the underlying source.
+     * This limit is enforced before reading or peeking from the underlying source. Defaults to [Int.MAX_VALUE] so
+     * that parsing and re-encoding stay fully `Int`-based; raise it only to deliberately handle multi-gigabyte input.
      */
-    var maxInputLength: Long = UInt.MAX_VALUE.toLong()
+    var maxInputLength: Long = Int.MAX_VALUE.toLong()
+
+    /**
+     * Maximum structural nesting depth the typed encoder/decoder will descend before throwing a
+     * [kotlinx.serialization.SerializationException], instead of overflowing the call stack on a deeply nested
+     * recursive `@Serializable` type. Defaults to 128. See [DerConfiguration.maxNestingDepth].
+     */
+    var maxNestingDepth: Int = 128
     var serializersModule: SerializersModule = EmptySerializersModule()
 
     internal fun build() = DerConfiguration(
         encodeDefaults = encodeDefaults,
         explicitNulls = explicitNulls,
         maxInputLength = maxInputLength,
+        maxNestingDepth = maxNestingDepth,
         serializersModule = serializersModule,
     )
 }
@@ -250,9 +271,9 @@ object DefaultDer {
     /**
      * Maximum allowed total number of encoded DER bytes to consume for the default [DER] instance.
      *
-     * This limit is enforced before reading or peeking from the underlying source.
+     * This limit is enforced before reading or peeking from the underlying source. Defaults to [Int.MAX_VALUE].
      */
-    var maxInputLength: Long = UInt.MAX_VALUE.toLong()
+    var maxInputLength: Long = Int.MAX_VALUE.toLong()
         set(value) {
             check(!consumed) {
                 "Default DER limit has already been set during default DER initialization"

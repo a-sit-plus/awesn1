@@ -6,6 +6,40 @@
     * Added `Asn1SetOf.commonTag` property for convenient access to the shared tag.
     * `Asn1SequenceOf` is now persistent across DER round-trips. The raw DER parser automatically emits `Asn1SequenceOf` when a SEQUENCE's children all share the same tag; otherwise it falls back to plain `Asn1Sequence`.
     * Added `Asn1SequenceOf.commonTag` property for convenient access to the shared tag.
+    * `Asn1Integer` negative INTEGER decode/encode no longer detours through quadratic decimal-string round-trips; two's-complement conversion now stays in byte arithmetic.
+    * Large ASN.1 varint / OID arc decoding no longer grows work quadratically through repeated `shl`/`or` chains; big unsigned varints are now unpacked in one pass.
+    * `BitSet(nBits)` now rejects the exact preallocation overflow boundary instead of wrapping during the final `+ 1` byte-count adjustment.
+    * `kxs` now encodes Kotlin unsigned primitive serializers as unsigned ASN.1 INTEGER values instead of falling through to their signed inline backing values.
+    * `Byte`/`Short`/`Int`/`Long` and `UByte`/`UShort`/`UInt`/`ULong` DER decoding bounds are now regression-tested in `kxs`, including negative-input rejection for unsigned targets and upper-bound rejection for signed targets.
+    * `kxs` enum decoding now rejects negative or too-large ASN.1 ENUM ordinals with `SerializationException` instead of silently narrowing attacker-controlled values to `Int`.
+    * `ByteArrayBuffer.readByteArray` now performs Long-safe bounds checks and no longer risks state corruption from `Int` overflow at large indices.
+    * `BitSet`:
+        * Fix public byte views leaking preallocated or trailing zero backing bytes
+        * Fix `Asn1BitString(BitSet)` encoding of preallocated and sparse bit sets
+        * Fix `equals` so comparisons are symmetric and based on logical compact content
+        * Add `hashCode` consistent with compact byte equality
+        * Fix `BitSet(nBits) { ... }` creating a bogus final bit when the initializer returned `false` for the last index
+        * Make `nextSetBit` search compact logical bytes instead of raw backing buffer
+    * Deserializing from ByteArray must now consume all bytes; trailing garbage no longer passes silently.
+    * Preserve malformed X.509 certificate unique IDs during DER decoding and re-encoding, while exposing strict semantic BIT STRING accessors that still fail lazily on invalid padding.
+    * Fix large negative `Asn1Integer` two's-complement encoding dropping leading sign-extension bytes (the byte-arithmetic negation no longer routes through a self-trimming `VarUInt`).
+    * Fix one-pass base-128 varint decoding leaving a leading zero byte that violated the `VarUInt` minimality invariant (corrupted large unsigned varint / OID arc decoding).
+    * Fix `VarUInt` subtraction returning a non-minimal value when a borrow zeroed the high byte.
+* **Hardening:**
+    * Remove reliance on the runtime throwing on out-of-bounds indexed access (Kotlin/Wasm traps instead of raising a catchable exception): `BitSet.getBit`, `kxs` enum-ordinal mapping, and `DerDecoder` element access now bounds-check explicitly and surface catchable `Asn1Exception`/`SerializationException` on every platform.
+    * Rework DER element parsing and encoding toward iterative implementations, reducing stack growth on deeply nested inputs.
+    * Enforce stricter length accounting and overflow checks across raw DER parsing, including malformed-length rejection, parent/child length consistency, and `Long`/`Int` conversion guards.
+    * Add deep-structure and deep-octet-string regression tests, plus additional edge-case coverage for parser limits, octet-string decapsulation, and length overflows.
+    * Tighten INTEGER minimality handling and two's-complement conversions, including large negative values and large varint-backed magnitudes.
+    * Tighten `kxs` integer decoding range checks for primitive Kotlin integer targets and add explicit regressions for enum ordinals outside Kotlin's `Int` domain.
+    * Keep `Source`-based parsing bounded by explicit caller limits and strengthen buffer growth / cap behavior around large inputs.
+* **Features:**
+    * Add a `benchmarks` module with certificate, length, raw-TLV, rendering, resource-corpus, and SET-sorting benchmarks.
+    * Add `io` helpers and tests around sink-based rendering / streaming interop.
+    * Extend public docs for low-level parsing and `kxs` behavior, including newer hardening and limit semantics.
+* **Other Changes:**
+    * Refactor large parts of low-level DER parsing, IO buffering, and encoder/decoder internals for clearer ownership boundaries and better reuse of checked integer helpers.
+    * Add more regression coverage across `core`, `io`, and `kxs` for parser edge cases, nested inputs, integer limits, and rendering/streaming scenarios.
 
 ## 0.4.0
 * **Fixes:**

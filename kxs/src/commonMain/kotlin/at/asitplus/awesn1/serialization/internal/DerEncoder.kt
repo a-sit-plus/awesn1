@@ -44,6 +44,11 @@ private sealed class Asn1ElementHolder {
 class DerEncoder internal constructor(
     override val der: Der,
     private val layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
+    // Shared across the whole encode so structural recursion is bounded (mirror of DerDecoder). Serializing a deeply
+    // nested recursive @Serializable type recurses per level (serialize -> encodeSerializableElement -> serialize ->
+    // ...), which the iterative core encoder cannot flatten; this turns a would-be StackOverflowError into a clean
+    // SerializationException. Every child encoder MUST receive this same instance.
+    private val depthGuard: DerDepthGuard = DerDepthGuard(),
 ) : AbstractEncoder(), at.asitplus.awesn1.serialization.DerEncoder {
 
     override val serializersModule: SerializersModule
@@ -229,6 +234,10 @@ class DerEncoder internal constructor(
      */
     @Throws(SerializationException::class)
     override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
+        if (value != null && serializer.descriptor.isKotlinUnsignedIntegerDescriptor()) {
+            encodeValue(value)
+            return
+        }
         if (value != null && serializer.descriptor.isInline) {
             super<AbstractEncoder>.encodeSerializableValue(serializer, value)
             return
@@ -433,6 +442,7 @@ class DerEncoder internal constructor(
         val childSerializer = DerEncoder(
             der = der,
             layoutPlan = layoutPlan,
+            depthGuard = depthGuard,
         )
         childSerializer.encodeSerializableValue(selectedSerializer as SerializationStrategy<Any?>, value as Any?)
         val elements = childSerializer.encodeToTLV()
@@ -451,6 +461,10 @@ class DerEncoder internal constructor(
      * @throws SerializationException if optional layout is ambiguous for class/object descriptors
      */
     override fun beginStructure(descriptor: SerialDescriptor): DerEncoder {
+        // Bound structural recursion before descending another level (see [DerDepthGuard]). Balanced by the
+        // matching endStructure() decrement.
+        depthGuard.enter(der.configuration.maxNestingDepth, descriptor.serialName)
+
         if (descriptor.kind is StructureKind.CLASS ||
             descriptor.kind is StructureKind.OBJECT
         ) {
@@ -476,6 +490,7 @@ class DerEncoder internal constructor(
         val childSerializer = DerEncoder(
             der = der,
             layoutPlan = layoutPlan,
+            depthGuard = depthGuard,
         )
 
         prependOid?.let { elem ->
@@ -491,6 +506,11 @@ class DerEncoder internal constructor(
         )
         buffer += placeholder
         return childSerializer
+    }
+
+    /** Balances the [beginStructure] depth increment. */
+    override fun endStructure(descriptor: SerialDescriptor) {
+        depthGuard.exit()
     }
 
     private fun consumePropertyContextOrNull(): DerPropertyContext? =

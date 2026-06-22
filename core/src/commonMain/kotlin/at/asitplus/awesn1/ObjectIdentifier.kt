@@ -18,6 +18,7 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlin.concurrent.Volatile
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -75,17 +76,28 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
         }
     }
 
+    // Sentinel-cached instead of `orLazy` delegates (no per-OID Lazy/closure objects — OIDs are numerous in real
+    // input). For a parsed OID, `bytesCache` is set eagerly and `nodesCache` is decoded lazily from the bytes; for a
+    // programmatic OID built from nodes, `bytesCache` is encoded lazily, so `nodesForBytes` retains the source nodes
+    // only in that case. Benign idempotent race, same @Volatile posture as cachedContentLength/cachedHash.
+    private val nodesForBytes: List<VarUInt>? = if (bytes == null) nodes else null
+    @Volatile
+    private var bytesCache: ByteArray? = bytes
+    @Volatile
+    private var nodesCache: List<String>? = nodes?.map { it.toString() }
+
     /**
      * Efficient, but cursed encoding of OID nodes, see [Microsoft's KB entry on OIDs](https://learn.microsoft.com/en-us/windows/win32/seccertenroll/about-object-identifier)
      * for details.
      * Lazily evaluated.
      */
-    val bytes: ByteArray by bytes orLazy { nodes!!.toOidBytes() }
+    val bytes: ByteArray get() = bytesCache ?: nodesForBytes!!.toOidBytes().also { bytesCache = it }
 
     /**
      * Lazily evaluated list of OID nodes (e.g. `[1, 2, 35, 4654]`)
      */
-    val nodes: List<String> by nodes?.map { it.toString() } orLazy {
+    val nodes: List<String> get() {
+        nodesCache?.let { return it }
         val firstSubidentifierEndExclusive = this.bytes.indexOfFirst { it >= 0 } + 1
         val (firstSubidentifier, firstTailIndex) =
             this.bytes.decodeAsn1VarBigUIntValue(0, firstSubidentifierEndExclusive)
@@ -107,7 +119,7 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
                 index = nextIndex
             }
         }
-        collected.map { it.toString() }
+        return collected.map { it.toString() }.also { nodesCache = it }
     }
 
     /**
@@ -242,35 +254,6 @@ private fun VarUInt.toOidRootArcs(): Pair<VarUInt, VarUInt> =
         this < 80u -> VarUInt(1u) to this - 40u
         else -> VarUInt(2u) to this - 80u
     }
-
-//schoolbook addition
-private operator fun VarUInt.plus(summand: UByte): VarUInt {
-    val result = bytes
-    var carry = summand.toInt()
-    for (i in result.lastIndex downTo 0) {
-        val sum = result[i].toInt() + carry
-        result[i] = sum.toUByte()
-        carry = sum ushr 8
-        if (carry == 0) return VarUInt(result)
-    }
-    return VarUInt(ubyteArrayOf(carry.toUByte(), *result))
-}
-
-//schoolbook subtraction,
-private operator fun VarUInt.minus(subtrahend: UByte): VarUInt {
-    val result = bytes
-    var borrow = subtrahend.toInt()
-    for (i in result.lastIndex downTo 0) {
-        val diff = result[i].toInt() - borrow
-        if (diff >= 0) {
-            result[i] = diff.toUByte()
-            return VarUInt(result)
-        }
-        result[i] = (diff + 256).toUByte()
-        borrow = 1
-    }
-    throw IllegalArgumentException("Result would be negative")
-}
 
 /**
  * Adds [oid] to the implementing class

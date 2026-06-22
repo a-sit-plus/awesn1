@@ -26,7 +26,7 @@ More often than not, awesn1's [first-class kotlinx-serialization integration](kx
 ### Base Model
 
 - `Asn1Element`:
-  Base type for all ASN.1 nodes (has `tag`, `contentLength`, `derEncoded`, pretty-print support).
+  Base type for all ASN.1 nodes (has `tag`, `contentLength`/`contentLengthLong`, `derEncoded`, pretty-print support).
 - `Asn1Element.Tag`:
   Encodes tag number, tag class, and `CONSTRUCTED` bit.
 - `Asn1Primitive`:
@@ -191,6 +191,10 @@ Encoding/decoding APIs:
 - `Asn1Element.parseFirst(source: ByteArray): Pair<Asn1Element, ByteArray>`
 - `Asn1Element.parseFromDerHexString(derEncoded: String): Asn1Element`
 
+The `ByteArray` entry points are bounded by the array's size; the streaming `Source` overloads require an explicit byte
+`limit`. For untrusted input, read [Hardening, Fuzzing & Robustness](hardening.md) first.
+Parsing empty input throws `Asn1Exception` (these never return `null`).
+
 Tag assertion helpers:
 
 - `Asn1Element.assertTag(tag: Asn1Element.Tag)`
@@ -336,9 +340,111 @@ Main DSL constructors under `Asn1`:
     1. {{ asn1js_iframe('lowlevel-hook-dsl-tagging') -}}
    Explore on <a href="{{ asn1js_url('lowlevel-hook-dsl-tagging') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
+## Robustness, Limits, and Hostile Input
+
+awesn1's raw parser, encoder, and renderers are designed to fail predictably on adversarial input: a malformed or
+deliberately oversized/deeply-nested DER blob yields a bounded `Asn1Exception` or a bounded result — never a
+`StackOverflowError`, runaway recursion, or silent corruption.
+
+The full robustness model (iterative parsing/encoding/rendering, `Int`/`Long` length guards, bounded
+depth and collection counts, catchable-errors-only, the fuzzing/audit coverage behind it, the caller's
+input-bounding responsibility, and the residual `kotlinx.serialization` footguns) is presented in [Hardening, Fuzzing & Robustness](hardening.md).
+
+## Performance
+
+awesn1's raw TLV layer aims for predictable, allocation-light parsing and encoding while staying fully iterative and
+multiplatform. The JMH microbenchmarks below pit the raw `Asn1Element` layer against Bouncy Castle's `ASN1Primitive`,
+and measure the cost of the length walk, string rendering, and SET sorting.
+
+!!! note "Benchmark environment"
+
+    JMH 1.37, average-time mode (**lower is better**), 1 thread, 3×10 s warmup + 5×10 s measurement, single fork, JDK 17
+    (Corretto 17.0.10). MacBook Pro (Apple **M3**, 12 cores: 6 performance + 6 efficiency), macOS 26.5.1, on AC power.
+    These are microbenchmark figures — indicative, not contractual; re-run `./gradlew :benchmarks:jmh` on your own
+    hardware. Bouncy Castle is a mature, hand-tuned baseline; awesn1 trades a little raw throughput for a fully
+    iterative, hardened, multiplatform implementation.
+
+Fixtures: **cert** = a real self-signed X.509 v3 certificate; **integers** = a `SEQUENCE` of 50 `INTEGER`s;
+**mixed** = a small `SEQUENCE { INTEGER, OCTET STRING(32), BOOLEAN }`.
+
+### Raw TLV Decode / Encode vs Bouncy Castle
+
+| Operation (µs/op)                          |        cert |    integers |       mixed |
+|--------------------------------------------|------------:|------------:|------------:|
+| awesn1 decode                              | 3.513 ±0.04 | 4.884 ±0.34 | 1.172 ±0.01 |
+| Bouncy Castle decode                       | 2.016 ±0.02 | 1.072 ±0.03 | 0.085 ±0.00 |
+| awesn1 encode (warm, recomputes each call) | 0.830 ±0.00 | 1.065 ±0.01 | 0.103 ±0.00 |
+| Bouncy Castle encode                       | 1.283 ±0.05 | 0.498 ±0.05 | 0.056 ±0.00 |
+| awesn1 round-trip (cold: parse + encode)   | 6.393 ±0.09 | 5.339 ±0.04 | 1.339 ±0.01 |
+| awesn1 `derEncoded` access (recomputes)    | 0.800 ±0.00 | 0.819 ±0.00 | 0.064 ±0.00 |
+
+The raw parser decodes in the low-single-digit-microsecond range — roughly 1.5–2× Bouncy Castle on the realistic
+certificate fixture (more on the tiny integer/mixed fixtures, where fixed per-element overhead dominates a sub-microsecond
+absolute cost). Warm stream-encoding is competitive with, and on the certificate faster than, BC. Note that, by design,
+structures do **not** retain their encoding ([Re-encoding is deliberate](hardening.md)): repeated `derEncoded` access
+recomputes `O(size)` each time, which the `derEncoded access` row quantifies as the accepted cost of stack-safe,
+copy-free structures.
+
+### Length Walk, Rendering, SET Sorting
+
+| Operation (µs/op)                                |         cert |    integers |       mixed |
+|--------------------------------------------------|-------------:|------------:|------------:|
+| `parse` only                                     |  3.723 ±0.36 | 5.562 ±0.14 | 1.209 ±0.02 |
+| `parse` + `overallLengthLong` (cold length walk) |  4.602 ±0.08 | 4.263 ±0.06 | 1.223 ±0.01 |
+| `toString()` (compact)                           | 18.028 ±0.12 | 8.673 ±0.21 | 0.593 ±0.01 |
+| `prettyPrint()`                                  | 20.320 ±0.18 | 8.576 ±0.10 | 0.657 ±0.01 |
+
+The content-length walk is a stack-safe post-order pass; `parseThenLength − parseOnly` puts it well under a microsecond
+on the cert and mixed fixtures (the two integer figures overlap within run-to-run noise). Rendering is uncached and
+bounded (see [Hardening → bounded rendering](hardening.md)).
+
+
+### Real-World Corpus Sweep vs Bouncy Castle
+
+One invocation sweeps the entire real-world DER/PEM corpus shipped in `crypto/src/jvmTest/resources` (certificate
+fixtures, attestation chains, real TLS certificates) once; both libraries pay an identical `runCatching` wrapper so the
+comparison stays fair.
+
+| Operation (µs/op, full sweep) |            Score |
+|-------------------------------|-----------------:|
+| awesn1 decode                 | 4745.460 ± 31.26 |
+| Bouncy Castle decode          | 2824.754 ± 25.46 |
+| awesn1 encode                 | 1437.397 ± 20.11 |
+| Bouncy Castle encode          | 1227.419 ± 18.30 |
+
+## Memory
+
+A parsed ASN.1 value is an in-memory object graph, so it occupies several times the DER bytes it was decoded from. That
+**amplification factor** — not the wire size — is what to keep in mind when sizing untrusted input
+(see [Hardening → input bounding](hardening.md#input-bounding-as-the-callers-responsibility)). The figures below hold
+the parsed representation of the whole real-world certificate/attestation corpus
+(`crypto/src/jvmTest/resources`, **690 DER blobs ≈ 0.63 MiB**) and compare the retained heap across three forms.
+
+| Held representation                       | parsed | retained heap | vs raw DER |
+|-------------------------------------------|-------:|--------------:|-----------:|
+| awesn1 raw `Asn1Element` tree             |    690 |    ~15.0 MiB  |    ~23.8×  |
+| awesn1 typed `X509Certificate` (`kxs`)    |    664 |     ~5.9 MiB  |     ~9.6×  |
+| Bouncy Castle `X509Certificate` (JCA)     |    652 |     ~3.3 MiB  |     ~5.6×  |
+
+The generic `Asn1Element` tree is the heaviest representation — it keeps a node wrapper, a tag, and a child container
+per TLV element, which is the most flexible but least compact form. awesn1's typed [`kxs`](kxs.md) model collapses that
+into purpose-built data classes (~2.5× leaner than the raw tree) and lands within ~2× of Bouncy Castle's hand-written
+X.509 model. Note that the peak memory consumption while parsing will be the sum of the raw tree's memory consumption
+and the typed `X509Certificate` model's.
+Once the final certificate is constructed, the raw tree is free for garbage collection.
+
+!!! note "Method & caveats"
+
+    Each form is the **retained heap** (used heap after `System.gc()`,
+    cross-checked with VisualVM heap dumps) holding only the parsed objects — the raw input bytes are dropped before
+    measuring. awesn1's typed model and Bouncy Castle accept slightly different cert subsets (664 vs 652), so each ratio
+    uses its own parsed-byte denominator. Figures are indicative (GC/JIT/JVM-version sensitive). Reproduce with the
+    `NestingMemory` probe under `core/src/jvmTest`.
+
 ## Debugging and Inspection
 
-- `Asn1Element.prettyPrint()` and `Asn1Encodable.prettyPrintAsn1()` provide verbose human-readable trees.
+- `Asn1Element.prettyPrint()` and `Asn1Encodable.prettyPrintAsn1()` provide verbose human-readable trees. Output is
+  length-bounded and truncated for very large/deep trees (see [above](#string-rendering-is-bounded)).
 - `Asn1Element.toDerHexString()` renders DER as hex.
 - OID pretty printing can include names from `KnownOIDs` mappings.
 

@@ -128,6 +128,21 @@ internal fun SerialDescriptor.isByteArrayLikeDescriptor(): Boolean {
 internal tailrec fun SerialDescriptor.unwrapInlineDescriptorForAsn1(): SerialDescriptor =
     if (isInline && elementsCount == 1) getElementDescriptor(0).unwrapInlineDescriptorForAsn1() else this
 
+internal fun SerialDescriptor.isKotlinUByteDescriptor(): Boolean =
+    serialName.removeSuffix("?") == "kotlin.UByte"
+
+internal fun SerialDescriptor.isKotlinUShortDescriptor(): Boolean =
+    serialName.removeSuffix("?") == "kotlin.UShort"
+
+internal fun SerialDescriptor.isKotlinUIntDescriptor(): Boolean =
+    serialName.removeSuffix("?") == "kotlin.UInt"
+
+internal fun SerialDescriptor.isKotlinULongDescriptor(): Boolean =
+    serialName.removeSuffix("?") == "kotlin.ULong"
+
+internal fun SerialDescriptor.isKotlinUnsignedIntegerDescriptor(): Boolean =
+    isKotlinUByteDescriptor() || isKotlinUShortDescriptor() || isKotlinUIntDescriptor() || isKotlinULongDescriptor()
+
 internal fun SerialDescriptor.requireNoAsn1TagOnInlineBackingProperty() {
     if (isInline && elementsCount == 1 && asn1Tag(0) != null) {
         throw SerializationException(

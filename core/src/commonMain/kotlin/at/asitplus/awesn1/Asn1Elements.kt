@@ -10,10 +10,45 @@ import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.Sink
 import at.asitplus.awesn1.encoding.internal.Source
-import at.asitplus.awesn1.encoding.internal.doParseExactly
+import at.asitplus.awesn1.encoding.internal.decapsulateOrSelf
 import kotlinx.serialization.Serializable
+import kotlin.concurrent.Volatile
 import kotlin.experimental.ExperimentalObjCName
 import kotlin.native.ObjCName
+
+/** A node (element + indentation) for the [DeepRecursiveFunction] string renderer (see [Asn1Element.renderTo]). */
+private class RenderNode(val element: Asn1Element, val indent: Int)
+
+/**
+ * Shared, stateless [DeepRecursiveFunction] backing [Asn1Structure.contentLengthLong]: a child-first post-order
+ * that populates each visited structure's `cachedContentLength` (summing children's `overallLengthLong` with
+ * [plusExact]). Stack-safe (heap-allocated recursion) and safe to share — each invocation gets its own stack.
+ *
+ */
+// Here, DeepRevursiveFunction was faster than hand-rolled. But should be re-evaluated at some point, since we now got rid of tzhe lazies
+private val computeContentLength: DeepRecursiveFunction<Asn1Structure, Unit> = DeepRecursiveFunction { n ->
+    if (n.cachedContentLength < 0) {
+        var sum = 0L
+        for (c in n.children) {
+            when (c) {
+                is Asn1Structure if c.cachedContentLength < 0 -> callRecursive(c)
+                is Asn1EncapsulatingOctetString if c._sequence.cachedContentLength < 0 -> callRecursive(c._sequence)
+                else -> {/*fall through*/}
+            }
+            sum = sum.plusExact(c.overallLengthLong)
+        }
+        n.cachedContentLength = sum
+    }
+}
+
+/**
+ * Default character cap for `toString`/`prettyPrint`; output beyond this is truncated with [RENDER_TRUNCATION_MARKER].
+ * Exists because in-memory `String`/`StringBuilder` are `Int`-bounded on the JVM. Callers streaming to a sink (see the
+ * `kxs-io` `toString`/`prettyPrint` extensions) may pass a larger limit.
+ */
+@InternalAwesn1Api
+const val MAX_RENDER_CHARS: Long = (1 shl 20).toLong()
+private const val RENDER_TRUNCATION_MARKER = " … (output truncated)"
 
 /**
  * Base ASN.1 data class. Can either be a primitive (holding a value), or a structure (holding other ASN.1 elements)
@@ -23,15 +58,13 @@ sealed class Asn1Element(
     val tag: Tag
 ) {
 
-    override fun equals(other: Any?): Boolean {
+    // equals/hashCode compare the (canonical) DER encoding — equivalent to the former per-type structural
+    // comparison, but stack-safe (derEncoded is iterative) and uniform. `final` so subtypes don't reintroduce
+    // recursive overrides.
+    final override fun equals(other: Any?): Boolean {
         if (this === other) return true
-        if (other == null) return false
         if (other !is Asn1Element) return false
-        if (tag != other.tag) return false
-        if (this is Asn1Structure && other !is Asn1Structure) return false
-        if (this is Asn1Primitive && other !is Asn1Primitive) return false
-        return true
-
+        return derEncoded.contentEquals(other.derEncoded)
     }
 
     companion object {
@@ -45,8 +78,19 @@ sealed class Asn1Element(
          */
         @Throws(Throwable::class)
         fun parseFromDerHexString(derEncoded: String, limit: Long? = null): Asn1Element {
-            val byteArray = derEncoded.filterNot { it == ':' }.replace(Regex("\\s"), "").uppercase()
-                .hexToByteArray(HexFormat.UpperCase)
+            // Single-pass strip (':' and whitespace) + uppercase, enforcing `limit` *while* cleaning so the
+            // decoded ByteArray can never exceed it. Old one causd quadratic memory growth
+            val cleaned = StringBuilder(
+                if (limit != null) minOf(derEncoded.length.toLong(), limit * 2 + 2).toInt() else derEncoded.length
+            )
+            for (c in derEncoded) {
+                if (c == ':' || c.isWhitespace()) continue
+                cleaned.append(c.uppercaseChar())
+                // two hex chars per byte: abort as soon as the decoded size would exceed the limit
+                if (limit != null && cleaned.length.toLong() > limit * 2)
+                    throw Asn1Exception("Hex input decodes to more than the $limit-byte limit")
+            }
+            val byteArray = cleaned.toString().hexToByteArray(HexFormat.UpperCase)
             return Asn1Element.parse(byteArray, limit)
         }
     }
@@ -57,58 +101,167 @@ sealed class Asn1Element(
      * For a primitive, this is just the size of the held bytes.
      * For a structure, it is the sum of the number of bytes needed to encode all held child nodes.
      */
-    val encodedLength by lazy { contentLength.encodeLength() }
+    // Sentinel-cached instead of `by lazy`: avoids a per-element SynchronizedLazyImpl (+ its retained initializer
+    // closure) for a value derived from the already-cached length. Benign idempotent race, same @Volatile posture
+    // as cachedContentLength/cachedHash.
+    @Volatile
+    private var encodedLengthCache: ByteArray? = null
+    val encodedLength: ByteArray
+        get() = encodedLengthCache ?: contentLengthLong.encodeLength().also { encodedLengthCache = it }
 
     /**
-     * Length (as a plain `Int` to work with it in code) of the contained data.
-     * For a primitive, this is just the size of the held bytes.
-     * For a structure, it is the sum of the number of bytes needed to encode all held child nodes.
+     * Length of the contained data as a [Long]. This is the overflow-safe source of truth; for a primitive it
+     * is the size of the held bytes, for a structure the sum of the encoded sizes of all child nodes.
      */
-    abstract val contentLength: Int
+    abstract val contentLengthLong: Long
 
     /**
-     * Total number of bytes required to represent the ths element, when encoding to ASN.1.
+     * Length (as a plain `Int` to work with it in code) of the contained data. Guarded: throws [Asn1Exception]
+     * if [contentLengthLong] exceeds [Int.MAX_VALUE] (a >2 GiB aggregate) rather than silently overflowing.
+     * For such elements use [contentLengthLong].
      */
-    val overallLength by lazy { contentLength + tag.encodedTagLength + encodedLength.size }
-
-
-    private val derEncodedLazy = lazy { throughBuffer { doEncode(it) } } //TODO performance hog?
+    val contentLength: Int get() = contentLengthLong.toIntChecked("content length")
 
     /**
-     * Lazily-evaluated DER-encoded representation of this ASN.1 element
+     * Total number of bytes required to represent this element when encoding to ASN.1, as a [Long]. Computed
+     * arithmetically from the (sentinel-cached) [contentLengthLong] — no `lazy`, no materialized length array — so
+     * the length post-order ([Asn1Structure.contentLengthLong]) can sum children without per-node lock/allocation.
      */
-    val derEncoded: ByteArray by derEncodedLazy
+    val overallLengthLong: Long
+        get() = contentLengthLong.plusExact(tag.encodedTagLength.toLong())
+            .plusExact(lengthEncodedSize(contentLengthLong).toLong())
+
+    /**
+     * Total number of bytes required to represent this element when encoding to ASN.1. Guarded: throws
+     * [Asn1Exception] if [overallLengthLong] exceeds [Int.MAX_VALUE]. For such elements use [overallLengthLong].
+     */
+    val overallLength: Int get() = overallLengthLong.toIntChecked("overall length")
+
+
+    /**
+     * DER-encoded representation of this ASN.1 element.
+     *
+     * NOT retained on structures: this base getter RE-ENCODES on every access (stack-safe — [encodeTreeTo] is an
+     * iterative walk that terminates at the cached leaf primitives). Only [Asn1Primitive] (true leaves, incl. raw
+     * OCTET STRINGs) overrides this to cache. This keeps retained memory ~O(input) and avoids the O(input²) blowup
+     * of deeply nested structures/OCTET STRINGs. Callers who want a stable buffer should hold onto the result
+     * themselves (the bytes are immutable).
+     */
+    open val derEncoded: ByteArray get() = throughBuffer { encodeTreeTo(it) }
 
 
     protected abstract fun doEncode(sink: Sink)
 
     @InternalAwesn1Api
-    fun encodeTo(sink: Sink) {
-        if (derEncodedLazy.isInitialized()) {
-            sink.write(derEncoded)
-            return
+    fun encodeTo(sink: Sink) = encodeTreeTo(sink)
+
+    /**
+     * Stack-safe DER encoder: an iterative explicit-stack pre-order walk streaming into [sink], so a deeply nested
+     * element cannot overflow the call stack. Structures (and encapsulating OCTET STRINGs) write their header then
+     * push their children; primitive leaves write tag/length/content directly. `protected` so [Asn1Primitive] can
+     * reuse it for its cached [derEncoded].
+     */
+    protected fun encodeTreeTo(sink: Sink) {
+        val stack = ArrayDeque<Asn1Element>().apply { addLast(this@Asn1Element) }
+        while (stack.isNotEmpty()) when (val e = stack.removeLast()) {
+            is Asn1Structure -> {
+                sink.write(e.tag.encodedTag)
+                sink.encodeLength(e.contentLengthLong) // direct length write — no per-node array allocation
+                for (i in e.children.indices.reversed()) stack.addLast(e.children[i])
+            }
+
+            // an encapsulating OCTET STRING is byte-identical to `04 || len || <children encoded>`; encode it
+            // STRUCTURALLY (header + push children) — never via its `content` provider — so deep encapsulation
+            // stays iterative AND never materializes a per-layer content copy (this is the O(input²) fix).
+            is Asn1EncapsulatingOctetString -> {
+                sink.write(e.tag.encodedTag)
+                sink.encodeLength(e.contentLengthLong)
+                for (i in e.children.indices.reversed()) stack.addLast(e.children[i])
+            }
+
+            is Asn1Primitive -> e.doEncode(sink)
         }
-        doEncode(sink)
     }
 
-    override fun toString(): String = prettyPrintHeader(0) +
-            (if (this is Asn1Primitive) " " else "") +
-            contentToString() +
-            prettyPrintTrailer(0)
+    override fun toString(): String = toString(MAX_RENDER_CHARS)
+
+    /** Compact single-line rendering, truncated at [limit] characters with a marker (see [renderTo]). */
+    fun toString(limit: Long): String = throughBuffer { renderTo(it, pretty = false, limit = limit) }.decodeToString()
+
+    /** Verbose, indented human-readable tree, truncated at [limit] characters with a marker (see [renderTo]). */
+    fun prettyPrint(limit: Long = MAX_RENDER_CHARS): String =
+        throughBuffer { renderTo(it, pretty = true, limit = limit) }.decodeToString()
+
+    /**
+     * Stack-safe renderer that writes this element's compact ([pretty] = `false`) or indented ([pretty] = `true`)
+     * string form as UTF-8 into [out], stopping after [limit] characters (appending a truncation marker).
+     * Expressed with [DeepRecursiveFunction] so deep nesting cannot overflow the call stack; reuses the per-node
+     * [prettyPrintHeader]/[prettyPrintTrailer]/[contentToString] so output is unchanged for ordinary elements.
+     *
+     * The character [limit] is required because in-memory `String`/`StringBuilder` are `Int`-bounded: the in-memory
+     * [toString]/[prettyPrint] pass [MAX_RENDER_CHARS], while streaming to a `kotlinx.io.Sink` (the `kxs-io`
+     * extensions) can pass a larger value. Per-leaf content is rendered bounded (and clamped to `Int`) so a single
+     * huge primitive never materializes a giant transient. The limit also bounds the descent, since each header
+     * carries its own indentation and output therefore grows with depth.
+     */
+    @InternalAwesn1Api
+    fun renderTo(out: Sink, pretty: Boolean, limit: Long) {
+        var emitted = 0L
+        fun emit(text: String) {
+            if (emitted >= limit) return
+            val room = limit - emitted
+            if (text.length <= room) {
+                out.write(text.encodeToByteArray()); emitted += text.length
+            } else {
+                val take = room.toInt() // room < text.length <= Int.MAX_VALUE, so it fits
+                if (take > 0) out.write(text.substring(0, take).encodeToByteArray())
+                out.write(RENDER_TRUNCATION_MARKER.encodeToByteArray())
+                emitted = limit
+            }
+        }
+        DeepRecursiveFunction<RenderNode, Unit> { node ->
+            if (emitted < limit) {
+                val e = node.element
+                val ind = node.indent
+                when (e) {
+                    is Asn1Structure -> if (pretty) {
+                        emit(e.prettyPrintHeader(ind))
+                        emit("\n" + (" " * ind) + "{\n")
+                        e.children.forEachIndexed { i, c -> if (i != 0) emit("\n"); callRecursive(RenderNode(c, ind + 2)) }
+                        emit("\n" + (" " * ind) + "}")
+                        emit(e.prettyPrintTrailer(ind))
+                    } else {
+                        if (e is Asn1CustomStructure) emit("${e.tag.tagClass}")
+                        emit(e.prettyPrintHeader(0)); emit(e.toStringPrefix()); emit(", children=[")
+                        e.children.forEachIndexed { i, c -> if (i != 0) emit(", "); callRecursive(RenderNode(c, 0)) }
+                        emit("]" + e.prettyPrintTrailer(0))
+                    }
+
+                    is Asn1Primitive -> {
+                        emit(e.prettyPrintHeader(if (pretty) ind else 0))
+                        emit(" ")
+                        // render content bounded to the remaining budget so a huge primitive never builds a giant String;
+                        // clamp the build budget to Int (a String is Int-bounded) and reserve headroom for the suffix
+                        val content = e.content
+                        val buildRoom = (limit - emitted).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+                        emit(
+                            if (content.size.toLong() * 2 <= buildRoom.toLong()) e.contentToString() // small: full (semantic) render
+                            else content.copyOf(((buildRoom - 64) / 2).coerceIn(0, content.size))
+                                .toHexString(HexFormat.UpperCase) + "…(${content.size} bytes)"
+                        )
+                        emit(e.prettyPrintTrailer(if (pretty) ind else 0))
+                    }
+                }
+            }
+        }(RenderNode(this, 0))
+    }
 
     protected abstract fun contentToString(): String
 
-    fun prettyPrint() = prettyPrint(0)
-
     protected open fun prettyPrintHeader(indent: Int) =
-        "(tag=${tag}" + ", length=${contentLength}" + ", overallLength=${overallLength})"
+        "(tag=${tag}" + ", length=${contentLengthLong}" + ", overallLength=${overallLengthLong})"
 
     protected open fun prettyPrintTrailer(indent: Int) = ""
-    protected abstract fun prettyPrintContents(indent: Int): String
-
-    internal open fun prettyPrint(indent: Int): String =
-        prettyPrintHeader(indent) + prettyPrintContents(indent) + prettyPrintTrailer(indent)
-
 
     protected operator fun String.times(op: Int): String = repeat(op)
 
@@ -246,7 +399,20 @@ sealed class Asn1Element(
         )
     }
 
-    override fun hashCode(): Int = tag.hashCode()
+    // Cache only the 4-byte hash, not the bytes — structures still retain no encoded bytes, but hashCode stays
+    // O(1) after first use (so structures used as hash-map keys don't re-encode per lookup). Benign idempotent
+    // race, same @Volatile posture as cachedContentLength. equals still recomputes (it needs the actual bytes).
+    @Volatile
+    private var cachedHash: Int = 0 // 0 = unset sentinel
+    final override fun hashCode(): Int {
+        var h = cachedHash
+        if (h == 0) {
+            h = derEncoded.contentHashCode()
+            if (h == 0) h = 1 // don't re-derive when the real hash legitimately is 0
+            cachedHash = h
+        }
+        return h
+    }
 
 
     @ConsistentCopyVisibility
@@ -269,10 +435,12 @@ sealed class Asn1Element(
             tagValue, encode(tagClass, constructed, tagValue)
         )
 
-        val tagClass: TagClass by lazy {
-            checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
-                "An Illegal Tag class has been found. This should be impossible!"
-            }
+        // Eager (not `by lazy`): deriving the class is one byte read + enum lookup, and the init below reads it
+        // anyway, so laziness only bought a per-Tag SynchronizedLazyImpl + retained closure. Real-world inputs carry
+        // many distinct Tags, so that scaffolding dominated; `TagClass` is an interned enum, so this field is just a
+        // shared reference.
+        val tagClass: TagClass = checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
+            "An Illegal Tag class has been found. This should be impossible!"
         }
 
         init {
@@ -496,7 +664,7 @@ inline fun <reified T : Asn1Element> T.assertTag(tagNumber: ULong): T = assertTa
 val Asn1Null = Asn1Primitive(Asn1Element.Tag.NULL, byteArrayOf())
 
 /**
- * ASN.1 structure. Contains no data itself, but holds zero or more [children]
+ * ASN.1 structure. Contains no data itself, but holds zero or more [mutableChildren]
  */
 @Serializable(with = Asn1StructureFallbackBase64Serializer::class)
 sealed class Asn1Structure(
@@ -508,7 +676,7 @@ sealed class Asn1Structure(
     /**
      * This structure's child elements
      */
-    children: List<Asn1Element>,
+    mutableChildren: MutableList<Asn1Element>,
     /**
      * Whether this structure sorts child nodes or keeps them as-is.
      * This **should** be true for SET and SET OF, but is set to false for SET and SET OF elements parsed
@@ -527,39 +695,28 @@ sealed class Asn1Structure(
     Asn1Element(tag), Iterable<Asn1Element> {
 
     private object DerEncodedElementComparator : Comparator<Asn1Element> {
+        // DER orders by the lexicographic order of the full encoding (tag||length||content). That equals: compare
+        // the (prefix-free) tag bytes, then — for canonical DER, where numeric length order matches the length
+        // encoding's byte order — the content length, then the content. Tag bytes and contentLengthLong are
+        // cheap/cached, so for the common case (a heterogeneous SET whose members differ in tag or length) this
+        // decides WITHOUT materializing the members' full encodings; only an exact tag+length tie falls back to the
+        // full derEncoded compare (where the content bytes must be examined anyway).
         override fun compare(a: Asn1Element, b: Asn1Element): Int {
-            val tagCompare = compareUnsignedLexicographically(a.tag.encodedTag, b.tag.encodedTag)
-            if (tagCompare != 0) return tagCompare
-
-            val lengthCompare = compareUnsignedLexicographically(a.encodedLength, b.encodedLength)
-            if (lengthCompare != 0) return lengthCompare
-
-            return compareContent(a, b)
-        }
-
-        private fun compareUnsignedLexicographically(a: ByteArray, b: ByteArray): Int {
-            val minLength = minOf(a.size, b.size)
-            for (index in 0 until minLength) {
-                val byteCompare = a[index].toUByte().compareTo(b[index].toUByte())
-                if (byteCompare != 0) return byteCompare
+            val ta = a.tag.encodedTag; val tb = b.tag.encodedTag
+            for (i in 0 until minOf(ta.size, tb.size)) {
+                val c = ta[i].toUByte().compareTo(tb[i].toUByte())
+                if (c != 0) return c
             }
-            return a.size.compareTo(b.size)
-        }
-
-        private fun compareContent(a: Asn1Element, b: Asn1Element): Int = when {
-            a is Asn1Primitive && b is Asn1Primitive ->
-                compareUnsignedLexicographically(a.content, b.content)
-
-            a is Asn1Structure && b is Asn1Structure -> {
-                val minSize = minOf(a.children.size, b.children.size)
-                for (index in 0 until minSize) {
-                    val childCompare = compare(a.children[index], b.children[index])
-                    if (childCompare != 0) return childCompare
-                }
-                a.children.size.compareTo(b.children.size)
+            if (ta.size != tb.size) return ta.size.compareTo(tb.size) // prefix-free tags: rarely reached
+            val lc = a.contentLengthLong.compareTo(b.contentLengthLong)
+            if (lc != 0) return lc
+            // identical tag and content length → the content decides; compare the full encodings
+            val x = a.derEncoded; val y = b.derEncoded
+            for (i in 0 until minOf(x.size, y.size)) {
+                val c = x[i].toUByte().compareTo(y[i].toUByte())
+                if (c != 0) return c
             }
-
-            else -> compareUnsignedLexicographically(a.derEncoded, b.derEncoded)
+            return x.size.compareTo(y.size)
         }
     }
 
@@ -567,15 +724,39 @@ sealed class Asn1Structure(
     /**
      * This structure's child elements
      */
-    val children: List<Asn1Element> = if (!sortChildren) children else children.sortedWith(DerEncodedElementComparator)
+    val children: List<Asn1Element>
+        field: MutableList<Asn1Element> = mutableChildren.apply { if (sortChildren) sortWith(DerEncodedElementComparator) }
+
+    /**
+     * Replaces the child at [index] in place. Internal-only: used by the parser to swap a raw OCTET STRING for
+     * its [Asn1EncapsulatingOctetString] counterpart while decoding, before the tree is handed out. The
+     * replacement is byte-identical and same-tag, so it does not alter this structure's encoding. Callers must
+     * not have called `equals`/`hashCode` (directly or via hash collections) on this subtree before teh octet string iteration is through.
+     */
+    @Suppress("NOTHING_TO_INLINE")
+    internal inline fun replaceChild(index: Int, node: Asn1Element) {
+        @Suppress("UNCHECKED_CAST")
+        children[index] = node
+    }
 
     /**
      * indicated whether the structure's children are actually sorted.
      * This could be false for parsing non-compliant SETs, for example.
      */
-    val isActuallySorted: Boolean by if (sortChildren) lazyOf(true) else lazy {
-        children.sortedWith(DerEncodedElementComparator) == children
-    }
+    // Tri-state cache with `null` = "not yet computed", seeded at construction: when we sorted the children ourselves
+    // (sortChildren), the answer is known to be `true` with zero computation. Otherwise it is computed on first read
+    // — only prettyPrint of a SET reads it — and cached. The field is just a reference to the interned `true`/`false`
+    // (no per-node allocation), no Lazy/closure; benign idempotent race, same @Volatile posture as
+    // cachedContentLength/cachedHash. (replaceChild swaps are byte-identical/same-tag, so a cached result never goes stale.)
+    @Volatile
+    private var isActuallySortedCache: Boolean? = if (sortChildren) true else null
+    val isActuallySorted: Boolean
+        get() {
+            isActuallySortedCache?.let { return it }
+            val sorted = children.sortedWith(DerEncodedElementComparator) == children
+            isActuallySortedCache = sorted
+            return sorted
+        }
 
     override operator fun iterator() = Iterator(isForward = true)
     fun reverseIterator() = Iterator(isForward = false)
@@ -662,7 +843,20 @@ sealed class Asn1Structure(
     }
 
 
-    override val contentLength: Int by lazy { children.fold(0) { acc, child -> acc + child.overallLength } }
+    // sentinel-cached, computed child-before-parent by [computeContentLength] (a stack-safe DeepRecursiveFunction
+    // post-order) so that forcing a deeply nested structure's length cannot overflow the call stack (the plain
+    // recursive fold did); folded with plusExact so the Long sum cannot silently wrap on a >2 GiB aggregate.
+    // @Volatile: the cache is a plain mutable Long, so concurrent first-time `contentLengthLong` calls on the same
+    // element would otherwise race — a 64-bit write is not guaranteed atomic by the JMM (and is a data race on
+    // Kotlin/Native), risking a torn, bogus length being cached. Volatile gives atomic, visible access; the
+    // remaining race (two threads both running the idempotent walk) is harmless — both write the same value.
+    @Volatile
+    internal var cachedContentLength: Long = -1
+    override val contentLengthLong: Long
+        get() {
+            if (cachedContentLength < 0) computeContentLength(this)
+            return cachedContentLength
+        }
 
     override fun doEncode(sink: Sink) {
         children.let { childElems ->
@@ -672,36 +866,14 @@ sealed class Asn1Structure(
         }
     }
 
-    override fun prettyPrintContents(indent: Int): String =
-        children.joinToString(
-            prefix = "\n" + (" " * indent) + "{\n",
-            separator = "\n",
-            postfix = "\n" + (" " * indent) + "}"
-        ) { it.prettyPrint(indent + 2) }
-
-    override fun contentToString(): String {
-        val prefix = when {
-            shouldBeSorted && isActuallySorted -> "SORTED"
-            shouldBeSorted && !isActuallySorted -> "NON-COMPLIANT (UNSORTED)"
-            else -> ""
-        }
-        return "$prefix, children=$children"
+    /** The `SORTED`/`NON-COMPLIANT`/empty prefix used in [toString] (extracted so the renderer needn't recurse). */
+    internal fun toStringPrefix(): String = when {
+        shouldBeSorted && isActuallySorted -> "SORTED"
+        shouldBeSorted && !isActuallySorted -> "NON-COMPLIANT (UNSORTED)"
+        else -> ""
     }
 
-    override fun hashCode() = 31 * super.hashCode() + children.hashCode()
-
-    /**
-     * the [shouldBeSorted] flag has no bearing on equals!
-     */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Asn1Structure) return false
-        if (!super.equals(other)) return false
-
-        if (children != other.children) return false
-
-        return true
-    }
+    override fun contentToString(): String = "${toStringPrefix()}, children=$children"
 }
 
 /**
@@ -715,7 +887,7 @@ class Asn1ExplicitlyTagged
  * @param children the child nodes to be contained in this tag
  *
  */
-internal constructor(tag: ULong, children: List<Asn1Element>) :
+internal constructor(tag: ULong, children: MutableList<Asn1Element>) :
     Asn1Structure(
         Tag(tag, constructed = true, tagClass = TagClass.CONTEXT_SPECIFIC),
         children,
@@ -761,7 +933,9 @@ internal constructor(tag: ULong, children: List<Asn1Element>) :
  * @param children the elements to put into this sequence
  */
 @Serializable(with = Asn1SequenceFallbackBase64Serializer::class)
-open class Asn1Sequence protected constructor(children: List<Asn1Element>) : Asn1Structure(Tag.SEQUENCE, children, sortChildren = false, shouldBeSorted = false) {
+open class Asn1Sequence protected constructor(
+    mutableChildren: MutableList<Asn1Element>
+) : Asn1Structure(Tag.SEQUENCE, mutableChildren, sortChildren = false, shouldBeSorted = false) {
 
     init {
         if (!tag.isConstructed) throw IllegalArgumentException("An ASN.1 Structure must have a CONSTRUCTED tag")
@@ -778,8 +952,12 @@ open class Asn1Sequence protected constructor(children: List<Asn1Element>) : Asn
          * @param children The list of [Asn1Element] to be encapsulated in the SET structure.
          * @return An instance of [Asn1Sequence] or [Asn1SequenceOf] based on the input.
          */
-        operator fun invoke(children: List<Asn1Element>) =
-            Asn1SequenceOf.fromChildrenOrNull(children) ?: Asn1Sequence(children)
+        operator fun invoke(children: List<Asn1Element>) = adopting(children.toMutableList())
+
+        /** Parser-only: an [Asn1Sequence]/[Asn1SequenceOf] backed directly by [children] (aliased, not copied). */
+        internal fun adopting(children: MutableList<Asn1Element>): Asn1Sequence =
+            if (children.isNotEmpty() && children.any { it.tag != children.first().tag }) Asn1Sequence(children)
+            else Asn1SequenceOf.adopting(children)
     }
 }
 
@@ -797,7 +975,7 @@ open class Asn1Sequence protected constructor(children: List<Asn1Element>) : Asn
 class Asn1SequenceOf private constructor(
     /** The tag shared by all children. `null` if this SEQUENCE OF is empty. */
     val commonTag: Tag?,
-    children: List<Asn1Element>,
+    children: MutableList<Asn1Element>,
 ) : Asn1Sequence(children) {
 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "SequenceOf" + super.prettyPrintHeader(indent)
@@ -806,7 +984,10 @@ class Asn1SequenceOf private constructor(
         /**
          * @param children the elements of the sequence. Asserts that these are all of the same tag.
          */
-        operator fun invoke(children: List<Asn1Element>) = runRethrowing {
+        operator fun invoke(children: List<Asn1Element>) = adopting(children.toMutableList())
+
+        /** Parser-only: an [Asn1SequenceOf] backed directly by [children] (aliased, not copied). */
+        internal fun adopting(children: MutableList<Asn1Element>) = runRethrowing {
             val commonTag = children.firstOrNull()?.tag
             children.forEach {
                 require(it.tag == commonTag) {
@@ -816,11 +997,6 @@ class Asn1SequenceOf private constructor(
             Asn1SequenceOf(commonTag, children)
         }
 
-        internal fun fromChildrenOrNull(children: List<Asn1Element>): Asn1SequenceOf? {
-            val commonTag = children.firstOrNull()?.tag
-            if (children.any { it.tag != commonTag }) return null
-            return Asn1SequenceOf(commonTag, children)
-        }
     }
 }
 
@@ -828,10 +1004,9 @@ class Asn1SequenceOf private constructor(
  * ASN1 structure (i.e. containing child nodes) with custom tag
  */
 @Serializable(with = Asn1CustomStructureFallbackBase64Serializer::class)
-class Asn1CustomStructure private constructor(
-    tag: Tag, children: List<Asn1Element>, sortChildren: Boolean, shouldBeSorted: Boolean
-) :
-    Asn1Structure(tag, children, sortChildren, shouldBeSorted) {
+class Asn1CustomStructure internal constructor(
+    tag: Tag, children: MutableList<Asn1Element>, sortChildren: Boolean, shouldBeSorted: Boolean
+) : Asn1Structure(tag, children, sortChildren, shouldBeSorted) {
     /**
      * ASN.1 CONSTRUCTED with custom tag
      * @param children the elements to put into this sequence
@@ -847,7 +1022,7 @@ class Asn1CustomStructure private constructor(
         tagClass: TagClass = TagClass.UNIVERSAL,
         sortChildren: Boolean = false,
         shouldBeSorted: Boolean = false
-    ) : this(Tag(tag, constructed = true, tagClass), children, sortChildren, shouldBeSorted)
+    ) : this(Tag(tag, constructed = true, tagClass), children.toMutableList(), sortChildren, shouldBeSorted)
 
     /**
      * ASN.1 CONSTRUCTED with custom tag
@@ -866,24 +1041,24 @@ class Asn1CustomStructure private constructor(
         shouldBeSorted: Boolean = false
     ) : this(children, tag.toULong(), tagClass, sortChildren, shouldBeSorted)
 
-    override fun toString() = "${tag.tagClass}" + super.toString()
+    // toString's leading tag-class prefix is emitted per-node by the iterative renderer (see Asn1Element.toString)
 
     /**
      * Raw byte DER-encoded representation of this custom structure's children.
-     * This property is `null` **unless** the `CONSTRUCTED` flag of this structure's tag is overridden to `false`
+     * This property is `null` **unless** the `CONSTRUCTED` flag of this structure's tag is overridden to `false`.
+     *
+     * Recomputed on each access (not retained) — like every other structure, this node keeps no encoded bytes; the
+     * result is immutable, so hold onto it yourself if you need a stable buffer.
      */
-    val content: ByteArray? by lazy {
-        if (!tag.isConstructed)
-            throughBuffer { sink -> children.forEach { it.encodeTo(sink) } }
-        else null
-    }
+    val content: ByteArray?
+        get() = if (!tag.isConstructed) throughBuffer { sink -> children.forEach { it.encodeTo(sink) } } else null
 
     override fun prettyPrintHeader(indent: Int) =
         (" " * indent) + tag.tagClass +
                 " ${tag.tagValue}" +
                 (if (!tag.isConstructed) " PRIMITIVE" else "") +
-                " (=${tag.encodedTag.toHexString(HexFormat.UpperCase)}), length=${contentLength}" +
-                ", overallLength=${overallLength}" +
+                " (=${tag.encodedTag.toHexString(HexFormat.UpperCase)}), length=${contentLengthLong}" +
+                ", overallLength=${overallLengthLong}" +
                 (content?.let { " ${it.toHexString(HexFormat.UpperCase)}" } ?: "")
 
     companion object {
@@ -903,7 +1078,7 @@ class Asn1CustomStructure private constructor(
         ) =
             Asn1CustomStructure(
                 Tag(tag, constructed = false, tagClass),
-                children,
+                children.toMutableList(),
                 sortChildren,
                 shouldBeSorted = shouldBeSorted
             )
@@ -932,24 +1107,24 @@ sealed class Asn1OctetString : Asn1Primitive {
 
     companion object {
         /**
+         * Constructs a raw (non-encapsulating) OCTET STRING from [content] without attempting to decode it.
+         * Used by the parser, which decodes encapsulated content separately and iteratively.
+         */
+        internal fun nonEncapsulating(content: ByteArray): Asn1OctetString = NotEncapsulating(content)
+
+        /**
          * Constructs an [Asn1OctetString].
          * Consumes exactly [length] bytes from [source].
          * Will construct an [Asn1EncapsulatingOctetString] if the contained bytes are valid ASN.1.
          */
-        operator fun invoke(source: Source<*>, length: Long): Asn1OctetString =
-            catchingUnwrapped {
-                //try to decode recursively
-                val decoded = source.peek().doParseExactly(length).also { require(it.isNotEmpty()) }
-                source.skip(length)
-                Asn1EncapsulatingOctetString(decoded)
-            }.getOrElse {
-                //recursive decoding failed, so we interpret is as primitive
-                require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
-                Asn1OctetString.NotEncapsulating(source.readByteArray(length.toInt()))
-            }
+        operator fun invoke(source: Source<*>, length: Long): Asn1OctetString {
+            require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
+            return invoke(source.readByteArray(length.toInt()))
+        }
 
-        operator fun invoke(content: ByteArray) =
-            this(wrapInUnsafeSource(content), content.size.toLong())
+        operator fun invoke(content: ByteArray): Asn1OctetString =
+            //start raw, then iteratively peel any encapsulated ASN.1; per-layer fallback to raw
+            NotEncapsulating(content).decapsulateOrSelf()
     }
 }
 
@@ -958,19 +1133,37 @@ sealed class Asn1OctetString : Asn1Primitive {
  * @param children the elements to put into this sequence
  */
 @Serializable(with = Asn1EncapsulatingOctetStringFallbackBase64Serializer::class)
-class Asn1EncapsulatingOctetString(
+class Asn1EncapsulatingOctetString private constructor(
+    //the backing sequence is the single source of truth for children; reused for `isActuallySorted`,
+    //`iterator`, and `decodeAs`. A raw and an encapsulating OCTET STRING encode to identical bytes, so a
+    //decoding-time child replacement never changes this element's encoding.
+    @PublishedApi
+    internal val _sequence: Asn1Sequence,
+) : Asn1OctetString(
+    // `content` (the inner DER) is derived from the children and is NEVER forced on the parse/encode/equals path
+    // (see the overrides below); it is realized lazily only on an explicit `content`/`prettyPrint` access.
+    { throughBuffer { sink -> _sequence.children.forEach { it.encodeTo(sink) } } }
+), Iterable<Asn1Element> {
+
+    constructor(children: List<Asn1Element>) : this(Asn1Sequence(children))
+
     /**
      * This structure's child elements
      */
-    val children: List<Asn1Element>
-) :
-    Asn1OctetString(
-        { throughBuffer { sink -> children.forEach { it.encodeTo(sink) } } }
-    ), Iterable<Asn1Element> {
+    val children: List<Asn1Element> get() = _sequence.children
 
-    //this is nice to have for `isActuallySorted`, `iterator`, and `decodeAs`
-    @PublishedApi
-    internal val _sequence = Asn1Sequence(children)
+    // Behaves as a STRUCTURE, not a primitive: it never retains its encoded bytes. The length is taken from the
+    // children (so it does NOT force the `content` provider), and derEncoded re-encodes on each access (stack-safe
+    // via the dedicated branch in encodeTreeTo). This is what keeps deeply nested encapsulation O(input), not
+    // O(input²) — there is no per-layer `rawContent` copy any more.
+    override val contentLengthLong: Long get() = _sequence.contentLengthLong
+    override val derEncoded: ByteArray get() = throughBuffer { encodeTreeTo(it) }
+
+    /**
+     * Replaces the child at [index] in place. Internal-only; see [Asn1Structure.replaceChild] for the
+     * decoding-time contract and constraints.
+     */
+    internal fun replaceChild(index: Int, node: Asn1Element) = _sequence.replaceChild(index, node)
 
     /**
      * indicated whether the structure's children are actually sorted.
@@ -989,17 +1182,19 @@ class Asn1EncapsulatingOctetString(
 
     override fun iterator(): Asn1Structure.Iterator = _sequence.iterator()
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other is Asn1EncapsulatingOctetString) return this.children == other.children
-        return super.equals(other)
-    }
-
-    override fun hashCode() = this.children.hashCode()
-
     override fun prettyPrintHeader(indent: Int) =
         (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent) + " " +
                 content.toHexString(HexFormat.UpperCase)
+
+    companion object {
+        /**
+         * Parser-only: an encapsulating OCTET STRING whose children [adopt][Asn1Sequence.adopting] the given list
+         * without copying. Retains no encoded bytes — encoding is recomputed structurally on demand (stack-safe,
+         * depth-independent) via the dedicated branch in [encodeTreeTo].
+         */
+        internal fun decapsulated(children: MutableList<Asn1Element>): Asn1EncapsulatingOctetString =
+            Asn1EncapsulatingOctetString(Asn1Sequence.adopting(children))
+    }
 }
 
 
@@ -1007,7 +1202,7 @@ class Asn1EncapsulatingOctetString(
  * ASN.1 SET 0x31 ([BERTags.SET] OR [BERTags.CONSTRUCTED])
  */
 @Serializable(with = Asn1SetFallbackBase64Serializer::class)
-open class Asn1Set protected constructor(children: List<Asn1Element>, sortChildren: Boolean) :
+open class Asn1Set protected constructor(children: MutableList<Asn1Element>, sortChildren: Boolean) :
     Asn1Structure(Tag.SET, children, sortChildren, shouldBeSorted = true) {
 
     init {
@@ -1027,13 +1222,14 @@ open class Asn1Set protected constructor(children: List<Asn1Element>, sortChildr
          * @return An instance of [Asn1SetOf] or [Asn1Set] based on the input.
          */
         operator fun invoke(children: List<Asn1Element>) =
-            Asn1SetOf.fromChildrenOrNull(children, sortChildren = true) ?: Asn1Set(children, sortChildren = true)
+            Asn1SetOf.fromChildrenOrNull(children.toMutableList(), sortChildren = true)
+                ?: Asn1Set(children.toMutableList(), sortChildren = true)
 
         /**
          * Explicitly discard DER requirements and DON'T sort children. Useful when parsing Structures which might not
          * conform to DER. Will produce an [Asn1SetOf] if children are empty or share the same tag.
          */
-        internal fun fromPresorted(children: List<Asn1Element>) =
+        internal fun fromPresorted(children: MutableList<Asn1Element>) =
             Asn1SetOf.fromChildrenOrNull(children, sortChildren = false) ?: Asn1Set(children, sortChildren = false)
     }
 }
@@ -1052,7 +1248,7 @@ open class Asn1Set protected constructor(children: List<Asn1Element>, sortChildr
 class Asn1SetOf private constructor(
     /** The tag shared by all children. `null` if this SET OF is empty. */
     val commonTag: Tag?,
-    children: List<Asn1Element>,
+    children: MutableList<Asn1Element>,
     sortChildren: Boolean
 ) : Asn1Set(children, sortChildren) {
 
@@ -1070,10 +1266,10 @@ class Asn1SetOf private constructor(
                     "SET OF must only contain elements of the same tag (has ${it.tag} != $commonTag)"
                 }
             }
-            Asn1SetOf(commonTag, children, sortChildren = true)
+            Asn1SetOf(commonTag, children.toMutableList(), sortChildren = true)
         }
 
-        internal fun fromChildrenOrNull(children: List<Asn1Element>, sortChildren: Boolean): Asn1SetOf? {
+        internal fun fromChildrenOrNull(children: MutableList<Asn1Element>, sortChildren: Boolean): Asn1SetOf? {
             val commonTag = children.firstOrNull()?.tag
             if (children.any { it.tag != commonTag }) return null
             return Asn1SetOf(commonTag, children, sortChildren)
@@ -1098,12 +1294,29 @@ open class Asn1Primitive private constructor(
         if (tag.isConstructed) throw IllegalArgumentException("A primitive cannot have a CONSTRUCTED tag")
     }
 
-    val content: ByteArray by content.orLazy(contentProvider)
+    // Sentinel-cached instead of an `orLazy` delegate (no per-primitive Lazy/closure object).
+    // hold then null-out to free lambda once inited. ugly mess but these tricks cut memory cost SIGNIFICANTLY
+    private var contentProviderOrNull: (() -> ByteArray)? = if (content == null) contentProvider else null
+    // props with explicit backing fields cannot have accessors, so we're left with this mess
+    @Volatile
+    private var contentCache: ByteArray? = content /*<- this is the ctor param, not the prop below*/
+    val content: ByteArray
+        get() = contentCache ?: contentProviderOrNull!!().also { /*order is important here!*/contentCache = it; contentProviderOrNull = null }
 
-    override val contentLength: Int get() = content.size
+    override val contentLengthLong: Long get() = content.size.toLong()
+
+    // leaves cache their encoding (and `content` above is already lazy-cached) — retention is bounded by leaf size.
+    // Sentinel-cached instead of `by lazy` (no SynchronizedLazyImpl + closure per primitive); benign idempotent race,
+    // Asn1EncapsulatingOctetString overrides `derEncoded` back to a non-caching recompute (it behaves as a structure).
+    // cannot use explicit field because non-final, so we need this ecplicit ugly mess
+    @Volatile
+    private var derEncodedCache: ByteArray? = null
+    override val derEncoded: ByteArray
+        get() = derEncodedCache ?: throughBuffer { encodeTreeTo(it) }.also { derEncodedCache = it }
+
     override fun doEncode(sink: Sink) {
         sink.write(tag.encodedTag)
-        sink.write(encodedLength)
+        sink.encodeLength(contentLengthLong) // direct length write — no per-node array allocation
         sink.write(content)
     }
 
@@ -1141,19 +1354,6 @@ open class Asn1Primitive private constructor(
     }.getOrElse { "Non-compliant content: 0x" + content.toHexString(HexFormat.UpperCase) }
 
 
-    override fun prettyPrintContents(indent: Int) = " " + contentToString()
-
-
-    override fun hashCode() = 31 * super.hashCode() + content.contentHashCode()
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Asn1Primitive) return false
-        if (!super.equals(other)) return false
-
-        if (!content.contentEquals(other.content)) return false
-
-        return true
-    }
 
     companion object {
         val initImplError: () -> ByteArray = { throw ImplementationError("ASN.1 Element construction") }
@@ -1161,7 +1361,17 @@ open class Asn1Primitive private constructor(
 }
 
 @Throws(IllegalArgumentException::class)
-internal fun Int.encodeLength(): ByteArray {
+/**
+ * Number of bytes the DER length field occupies for a content length of [len], computed arithmetically without
+ * materializing the length encoding. Mirrors the byte count produced by [Long.encodeLength]/[Sink.encodeLength].
+ */
+private inline fun lengthEncodedSize(len: Long): Int =
+    if (len < 0x80) 1 else 1 + (Long.SIZE_BITS - len.countLeadingZeroBits() + Byte.SIZE_BITS - 1) / Byte.SIZE_BITS
+
+internal fun Int.encodeLength(): ByteArray = toLong().encodeLength()
+
+@Throws(IllegalArgumentException::class)
+internal fun Long.encodeLength(): ByteArray {
     require(this >= 0)
     return when {
         (this < 0x80) -> byteArrayOf(this.toByte()) /* short form */
@@ -1174,9 +1384,29 @@ internal fun Int.encodeLength(): ByteArray {
     }
 }
 
+/** Checked addition for non-negative ASN.1 lengths; throws [Asn1Exception] on [Long] overflow. */
+@Suppress("NOTHING_TO_INLINE")
+internal inline fun Long.plusExact(other: Long): Long {
+    if(other<0L) throw ImplementationError("Long addition")
+    val result = this + other
+    if (result < this) throw Asn1Exception("ASN.1 length overflow: $this + $other")
+    return result
+}
+
+/**
+ * Narrows this [Long] (e.g. an ASN.1 [contentLength][Asn1Element.contentLengthLong]) to an [Int], throwing
+ * [Asn1Exception] if it does not fit in `0..Int.MAX_VALUE`. Convenience for call sites that need an `Int`
+ * (array sizing/indexing) but hold a [Long] length.
+ */
+@Suppress("NOTHING_TO_INLINE")
+inline fun Long.toIntChecked(what: String = "value"): Int {
+    if (this < 0 || this > Int.MAX_VALUE.toLong()) throw Asn1Exception("$what ($this) exceeds Int.MAX_VALUE")
+    return toInt()
+}
+
 @Throws(IllegalArgumentException::class)
 internal fun Sink.encodeLength(len: Long): Int {
-    require(len >= 0)
+    if(len<0) throw ImplementationError("Negative number of bytes to encode: $len")
     return when {
         (len < 0x80) -> writeByte(len.toByte()).run { 1 } /* short form */
         else -> { /* long form */

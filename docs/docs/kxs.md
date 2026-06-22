@@ -451,6 +451,8 @@ DER format behaviour can be tuned with the DER builder:
 
 - `explicitNulls = true`: encode nullable `null` as ASN.1 `NULL`
 - `encodeDefaults = false`: omit default-valued properties
+- `maxInputLength = …`: maximum number of encoded DER bytes to consume before refusing to parse (enforced before
+  reading from the source)
 
 These switches are important when you need to align with profile-specific encoding expectations or with legacy systems
 that depend on a specific wire form.
@@ -473,6 +475,19 @@ For strict canonicality expectations in certificate ecosystems, see
    Explore on <a href="{{ asn1js_url('kxs-format-options-explicit-nulls') }}" target="_blank" rel="noopener">asn1js.eu</a>
 2. {{ asn1js_iframe('kxs-format-options-encode-defaults') -}}
    Explore on <a href="{{ asn1js_url('kxs-format-options-encode-defaults') }}" target="_blank" rel="noopener">asn1js.eu</a>
+
+!!! danger "Bound untrusted input with `maxInputLength`"
+    
+    `maxInputLength` defaults to `Int.MAX_VALUE` (~2 GiB). This keeps every decoded element's lengths `Int`-sized (so
+    parsing and re-encoding stay fully `Int`-based), but it is **not** a small safety cap: decoding parses into an
+    in-memory tree, so input size bounds memory. When decoding untrusted data — especially from a `Source` —
+    **lower `maxInputLength`** to a value appropriate to your payload. Raise it past `Int.MAX_VALUE` only to deliberately
+    handle multi-gigabyte input (which requires a `Source`, since a `ByteArray` cannot exceed `Int.MAX_VALUE` bytes). See
+    [Hardening, Fuzzing & Robustness](hardening.md) for the full picture.
+    
+    When decoding from a `Source` (`kxs-io`), `decodeFromSource(..., limit = …)` accepts a per-call byte `limit`. It
+    defaults to `maxInputLength` and is **clamped** to it — a per-call `limit` can only *tighten* the bound, never raise
+    it above the configured maximum (just as a shorter `ByteArray` lowers the effective bound when decoding from bytes).
 
 ## `Asn1Serializer` with Low-Level Types
 
@@ -642,6 +657,42 @@ well in cryptographic contexts.
 If you encounter a situation where this is needed, something is probably fishy and double-checking is recommended.
 Should this **really** be needed, resort to [low-level ASN.1 decoding](lowlevel.md) and/or model data differently.
 
+## Performance
+
+The `kxs` layer builds a **typed object graph** on top of the raw TLV layer, so it pays the
+`kotlinx.serialization` decode/encode machinery in addition to the parse/encode cost. The benchmark below decodes and
+re-encodes a real self-signed X.509 v3 certificate through `DER.decodeFromByteArray`/`encodeToByteArray` (into a
+`@Serializable` certificate model) and compares against Bouncy Castle's hand-written, typed `x509.Certificate` model.
+
+??? note "Benchmark environment"
+
+    JMH 1.37, average-time mode (**lower is better**), 1 thread, 3×10 s warmup + 5×10 s measurement, single fork, JDK 17
+    (Corretto 17.0.10). MacBook Pro (Apple **M3**, 12 cores: 6 performance + 6 efficiency), macOS 26.5.1, on AC power.
+    These are microbenchmark figures - indicative, not contractual; re-run `./gradlew :benchmarks:jmh` on your own
+    hardware. Bouncy Castle is a mature, hand-tuned baseline; `kxs` trades some speed for declarative,
+    `kotlinx.serialization`-native modelling. For the raw-layer numbers underneath this, see
+    [Low-Level → Performance](lowlevel.md#performance).
+
+| Operation (X.509 certificate)      | Score (µs/op) |
+|------------------------------------|--------------:|
+| awesn1 `kxs` decode → typed model  | 12.071 ±0.079 |
+| Bouncy Castle decode → typed model |  2.105 ±0.017 |
+| awesn1 `kxs` encode ← typed model  |  6.483 ±0.119 |
+| Bouncy Castle encode ← typed model |  1.292 ±0.010 |
+
+Reading the numbers: the declarative `kxs` model decodes a certificate in ~12 µs and re-encodes it in ~6.5 µs – single-
+digit-to-low-double-digit microseconds, i.e. tens of thousands of certificates per second per core, while letting you
+work with plain `@Serializable` Kotlin types instead of a bespoke ASN.1 model. The hand-written Bouncy Castle model is
+significantly faster in absolute terms, but lacks the convenience and multiplatform support.
+
+### Memory
+
+In memory, the typed `kxs` `X509Certificate` model is markedly more compact than the raw `Asn1Element` tree (it collapses
+generic TLV wrappers into purpose-built data classes) and lands within ~2× of Bouncy Castle's hand-written X.509 model
+on the real-world certificate corpus. See the full three-way comparison vs. raw DER bytes in
+[Low-Level → Memory](lowlevel.md#memory).
+
 ## See Also
 
 - [Low-Level ASN.1 API](lowlevel.md): raw TLV/DER parse and decode utilities.
+- [Hardening, Fuzzing & Robustness](hardening.md): robustness model and `kxs` residual footguns.

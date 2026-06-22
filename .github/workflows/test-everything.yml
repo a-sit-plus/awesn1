@@ -22,7 +22,8 @@ on:
 
 jobs:
   test-everything:
-    uses: a-sit-plus/internal-workflows/.github/workflows/test-everything.yml@xcode-26
+    uses: a-sit-plus/internal-workflows/.github/workflows/test-everything.yml@feature/tokenize
+    secrets: inherit   # forwards `token` (PAT for the private awesome-fuzzer submodule) down the chain
     with:
       override-cache: ${{ github.ref_name == 'development' || github.ref_name == 'main' }}
       matrix-file-name: ".github/config/test-strategy-matrix.json"

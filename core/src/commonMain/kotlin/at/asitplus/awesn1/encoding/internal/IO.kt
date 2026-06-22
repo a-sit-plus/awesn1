@@ -3,12 +3,28 @@
 
 @file:Suppress("NOTHING_TO_INLINE")
 
-// SPDX-FileCopyrightText: Copyright (c) A-SIT Plus GmbH
-// SPDX-License-Identifier: Apache-2.0
-
 package at.asitplus.awesn1.encoding.internal
 
+import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.ImplementationError
 import at.asitplus.awesn1.InternalAwesn1Api
+
+// Conservative max ByteArray length (mirrors the Int.MAX_VALUE - 8 cap used elsewhere); the exact JVM array
+// limit is implementation-specific and slightly below Int.MAX_VALUE.
+internal const val MAX_BYTE_ARRAY_SIZE: Long = (Int.MAX_VALUE - 8).toLong()
+
+/**
+ * Smallest power-of-two capacity >= [required], floored at 32, clamped at MAX_BYTE_ARRAY_SIZE. Pure, no allocation.
+ * Throw [Asn1Exception] when [required] exceeds the cap, [IllegalArgumentException] when negative.
+ */
+@Suppress("NOTHING_TO_INLINE")
+internal inline fun nextCapacity(required: Long): Int {
+    if(required < 0) throw ImplementationError( "required capacity must be non-negative" )
+    if (required > MAX_BYTE_ARRAY_SIZE)
+        throw Asn1Exception("ByteArray cannot grow to $required bytes (max $MAX_BYTE_ARRAY_SIZE)")
+    if (required <= 32L) return 32
+    return (required.takeHighestOneBit() shl 1).coerceAtMost(MAX_BYTE_ARRAY_SIZE).toInt()
+}
 
 @InternalAwesn1Api
 interface Source<S : Sink> {
@@ -32,10 +48,11 @@ interface Source<S : Sink> {
 @InternalAwesn1Api
 internal class BoundedSource<S : Sink>(
     private val source: Source<S>,
-    private val limit: Long?,
+    val limit: Long?,
 ) : Source<S> {
 
-    private var bytesRead = 0L
+    var bytesRead = 0L
+    private set
 
     init {
         limit?.let { require(it >= 0) { "Limit must be non-negative" } }
@@ -114,71 +131,26 @@ inline fun Source<*>.readUByte() = readByte().toUByte()
 
 
 @InternalAwesn1Api
-class ByteArraySource(
-    private val data: ByteArray,
-    private var index: Int = 0,
-    private val size: Int = data.size
-) : Source<ByteArraySink> {
-
-    override fun readByte(): Byte = data[index].also { index++ }
-
-    override fun exhausted(): Boolean = index >= size
-
-    override fun readByteArray(nBytes: Int): ByteArray =
-        data.sliceArray(index until index + nBytes).also { index += nBytes }
-
-
-    override fun skip(nBytes: Long) {
-        require(nBytes >= 0) { "Cannot skip non-positive bytes" }
-        require(nBytes < Int.MAX_VALUE) { "Cannot skip non-positive bytes" }
-        require((nBytes + index.toLong()) <= size.toLong()) { "Cannot skip beyond size of underlying data" }
-        index += nBytes.toInt()
-    }
-
-    override fun peek(): ByteArraySource = ByteArraySource(data.sliceArray(index until size))
-    override fun transferTo(sink: ByteArraySink): Long {
-        if (exhausted()) return 0
-        sink.write(data, index, size)
-        return ((size - index).also { index = size }).toLong()
-    }
-
-}
-
-@InternalAwesn1Api
-interface Sink {
-    fun writeByte(byte: Byte)
-    fun write(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size)
-
-    /**
-     * Directly appends [bytes] to this Sink's internal Buffer without copying. Thus, it keeps bytes managed by a Buffer accessible.
-     * The bytes may be overwritten through the Buffer or even recycled to be used by another buffer.
-     * Therefore, operating on these bytes after wrapping leads to undefined behaviour.
-     * [startIndex] is inclusive, [endIndex] is exclusive.
-     *
-     * @return [endIndex] - [startIndex]
-     */
-    fun appendUnsafe(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size): Int
-}
-
-@InternalAwesn1Api
-interface Buffer : Source<Buffer>, Sink {
-    fun toByteArray(): ByteArray
-    fun clear()
-    fun size(): Int
-    fun remaining(): Int
-}
-
-@InternalAwesn1Api
 class ByteArraySink : Sink {
-    private var buffer: ByteArray = ByteArray(32)
-    private var index: Int = 0
+    // ponytail: storage owner for both ByteArraySink and composing ByteArrayBuffer; grow math is in nextCapacity()
+    internal var buffer: ByteArray = ByteArray(32)
+        private set
+    internal var index: Int = 0
+        private set
+
+    internal constructor(array: ByteArray, index: Int) {
+        require(index in 0..array.size) { "StartIndex must be between 0 and ${array.size}" }
+        this.buffer = array
+        this.index = index
+    }
+
+    constructor() : this(ByteArray(32), 0)
+
     private fun grow(toAppend: Int) {
-        if (index + toAppend <= buffer.size) {
-            return
-        }
-        buffer = ByteArray((index + toAppend).takeHighestOneBit() shl 1).let {
-            buffer.copyInto(it)
-        }
+        // Compute in Long, fail cleanly past the array limit, and cap the capacity so it can't overflow.
+        val required = index.toLong() + toAppend.toLong()
+        if (required <= buffer.size) return
+        buffer = ByteArray(nextCapacity(required)).also { buffer.copyInto(it, endIndex = index) }
     }
 
     override fun writeByte(byte: Byte) {
@@ -216,16 +188,41 @@ class ByteArraySink : Sink {
         buffer.copyInto(it, startIndex = 0, endIndex = index)
     }
 
+    internal fun reset() { index = 0 }
+}
+
+@InternalAwesn1Api
+interface Sink {
+    fun writeByte(byte: Byte)
+    fun write(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size)
+
+    /**
+     * Directly appends [bytes] to this Sink's internal Buffer without copying. Thus, it keeps bytes managed by a Buffer accessible.
+     * The bytes may be overwritten through the Buffer or even recycled to be used by another buffer.
+     * Therefore, operating on these bytes after wrapping leads to undefined behaviour.
+     * [startIndex] is inclusive, [endIndex] is exclusive.
+     *
+     * @return [endIndex] - [startIndex]
+     */
+    fun appendUnsafe(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size): Int
+}
+
+@InternalAwesn1Api
+interface Buffer : Source<Buffer>, Sink {
+    fun toByteArray(): ByteArray
+    fun clear()
+    fun size(): Int
+    fun remaining(): Int
 }
 
 @InternalAwesn1Api
 inline fun Sink.writeUByte(uByte: UByte) = writeByte(uByte.toByte())
 
+//turns out, we never used ByteArraySource. it was just dead code.
 @InternalAwesn1Api
 class ByteArrayBuffer private constructor(
-    private var buffer: ByteArray,
+    private val sink: ByteArraySink,
     private var readIndex: Int,
-    private var writeIndex: Int,
     private var limit: Int,
     private val owner: ByteArrayBuffer?,
     private val ownerGeneration: Int
@@ -234,10 +231,11 @@ class ByteArrayBuffer private constructor(
     private var generation: Int = 0
     private var hasActivePeek: Boolean = false
 
+    private val readArray: ByteArray get() = root.sink.buffer
+
     constructor(initialCapacity: Int = 32) : this(
-        buffer = ByteArray(initialCapacity),
+        sink = ByteArraySink(ByteArray(initialCapacity), 0),
         readIndex = 0,
-        writeIndex = 0,
         limit = 0,
         owner = null,
         ownerGeneration = 0
@@ -249,9 +247,8 @@ class ByteArrayBuffer private constructor(
             require(startIndex in 0..endIndex) { "Invalid source bounds: [$startIndex, $endIndex)" }
             require(endIndex <= bytes.size) { "End index $endIndex out of bounds for size ${bytes.size}" }
             return ByteArrayBuffer(
-                buffer = bytes,
+                sink = ByteArraySink(bytes, endIndex),
                 readIndex = startIndex,
-                writeIndex = endIndex,
                 limit = endIndex,
                 owner = null,
                 ownerGeneration = 0
@@ -279,19 +276,11 @@ class ByteArrayBuffer private constructor(
         check(!hasActivePeek) { "Cannot write while a peek view is active" }
     }
 
-    private fun ensureCapacity(toAppend: Int) {
-        val needed = writeIndex + toAppend
-        if (needed <= buffer.size) return
-        val newSize = (needed.takeHighestOneBit() shl 1).coerceAtLeast(32)
-        buffer = ByteArray(newSize).also { buffer.copyInto(it, endIndex = writeIndex) }
-        limit = writeIndex
-    }
-
     override fun readByte(): Byte {
         ensureValidPeek()
         if (owner == null) invalidatePeeks()
         check(!exhausted()) { "Source exhausted" }
-        return buffer[readIndex++]
+        return readArray[readIndex++]
     }
 
     override fun exhausted(): Boolean {
@@ -303,8 +292,9 @@ class ByteArrayBuffer private constructor(
         ensureValidPeek()
         require(nBytes >= 0) { "nBytes must be non-negative" }
         if (owner == null) invalidatePeeks()
-        require(readIndex + nBytes <= limit) { "Cannot read beyond available bytes" }
-        return buffer.sliceArray(readIndex until readIndex + nBytes).also { readIndex += nBytes }
+        val endIndexExclusive = readIndex.toLong() + nBytes.toLong()
+        require(endIndexExclusive <= limit.toLong()) { "Cannot read beyond available bytes" }
+        return readArray.sliceArray(readIndex until endIndexExclusive.toInt()).also { readIndex = endIndexExclusive.toInt() }
     }
 
     override fun skip(nBytes: Long) {
@@ -316,15 +306,14 @@ class ByteArrayBuffer private constructor(
         readIndex += nBytes.toInt()
     }
 
-    override fun peek(): Buffer {
+    override fun peek(): Source<Buffer> {
         ensureValidPeek()
         val ownerBuffer = root
         ownerBuffer.hasActivePeek = true
         val generationAtCreation = ownerBuffer.generation
         return ByteArrayBuffer(
-            buffer = ownerBuffer.buffer,
+            sink = ownerBuffer.sink,
             readIndex = this.readIndex,
-            writeIndex = ownerBuffer.writeIndex,
             limit = this.limit,
             owner = ownerBuffer,
             ownerGeneration = generationAtCreation
@@ -336,37 +325,21 @@ class ByteArrayBuffer private constructor(
         if (owner == null) invalidatePeeks()
         if (exhausted()) return 0
         val remaining = limit - readIndex
-        sink.write(buffer, readIndex, limit)
+        sink.write(readArray, readIndex, limit)
         readIndex = limit
         return remaining.toLong()
     }
 
     override fun writeByte(byte: Byte) {
         ensureWritable()
-        ensureCapacity(1)
-        buffer[writeIndex++] = byte
-        limit = writeIndex
+        sink.writeByte(byte)
+        limit = sink.index
     }
 
     override fun write(bytes: ByteArray, startIndex: Int, endIndex: Int) {
         ensureWritable()
-        if (startIndex == endIndex) return
-        require(startIndex in 0..endIndex) { "StartIndex must be between 0 and $endIndex" }
-        val length = endIndex - startIndex
-        if (startIndex < 0 || startIndex > bytes.size || length < 0
-            || length > bytes.size - startIndex
-        ) {
-            throw IndexOutOfBoundsException()
-        }
-        ensureCapacity(length)
-        bytes.copyInto(
-            destination = buffer,
-            destinationOffset = writeIndex,
-            startIndex = startIndex,
-            endIndex = endIndex
-        )
-        writeIndex += length
-        limit = writeIndex
+        sink.write(bytes, startIndex, endIndex)
+        limit = sink.index
     }
 
     override fun appendUnsafe(bytes: ByteArray, startIndex: Int, endIndex: Int): Int {
@@ -374,20 +347,20 @@ class ByteArrayBuffer private constructor(
         return endIndex - startIndex
     }
 
-    override fun toByteArray(): ByteArray = ByteArray(writeIndex).also {
-        buffer.copyInto(it, endIndex = writeIndex)
+    override fun toByteArray(): ByteArray = ByteArray(sink.index).also {
+        sink.buffer.copyInto(it, endIndex = sink.index)
     }
 
     override fun clear() {
         ensureValidPeek()
         check(owner == null) { "Cannot clear a peek view" }
         invalidatePeeks()
+        sink.reset()
         readIndex = 0
-        writeIndex = 0
         limit = 0
     }
 
-    override fun size(): Int = writeIndex
+    override fun size(): Int = sink.index
 
     override fun remaining(): Int {
         ensureValidPeek()

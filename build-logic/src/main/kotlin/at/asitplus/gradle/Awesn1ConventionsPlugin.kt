@@ -252,6 +252,7 @@ private fun Project.silence() {
             }
         kmp.compilerOptions {
             freeCompilerArgs.add("-Xcontext-parameters")
+            freeCompilerArgs.add("-Xexplicit-backing-fields")
         }
 
         //TODO: cleanup, it's hackish

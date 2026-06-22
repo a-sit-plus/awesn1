@@ -19,7 +19,7 @@ sealed interface RsaParams
  * This is just NULL, but we need a common interface for RSA
  */
 @Serializable
-@Asn1Tag( tagNumber = 5uL, tagClass = Asn1Tag.Class.UNIVERSAL, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+@Asn1Tag(tagNumber = 5uL, tagClass = Asn1Tag.Class.UNIVERSAL, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
 object RsaPkcs1PaddingParams : RsaParams
 
 /**
@@ -51,7 +51,7 @@ data class RsaSsaPssParams internal constructor(
     private val taggedSaltLength: ExplicitlyTagged<Asn1Integer>? = null,
     @Asn1Tag(tagNumber = 3u)
     private val taggedTrailerField: ExplicitlyTagged<Asn1Integer>? = null,
-): RsaParams {
+) : RsaParams {
     constructor(
         hashAlgorithm: X509AlgorithmIdentifier = SHA1_IDENTIFIER,
         maskGenAlgorithm: X509AlgorithmIdentifier = MGF1_SHA1_IDENTIFIER,

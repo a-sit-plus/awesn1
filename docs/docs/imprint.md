@@ -23,6 +23,12 @@ Firmenbuchnummer: FN&nbsp;436920&nbsp;f
 UID-Nummer: ATU69743824
 {:.imprint-mono}
 
+
+## Attribution Guidelines
+When referring to A-SIT Plus libraries and components, please use the official names as published and keep logos unchanged.  
+For full details refer to the [A-SIT Plus Brand and Attribution Guidelines](https://plus.a-sit.at/brand.html).
+{:.imprint-mono}
+
 ---
 
 Icons for GitHub, globe, search, and envelope used from [Pixel Icon Library](https://pixeliconlibrary.com/) by [HackerNoon](https://hackernoon.com/)
@@ -31,7 +37,7 @@ Icons for GitHub, globe, search, and envelope used from [Pixel Icon Library](htt
 ---
 
 Embedded ASN.1 visualizer powered by [asn1js](https://asn1js.eu/) by [Lapo Luchini](https://lapo.it/), licensed under ISC.
-Local copy and modifications are shipped in [`docs/docs/assets/asn1js`](https://github.com/a-sit-plus/awesn1/tree/main/docs/docs/assets/asn1js), including the original license notice.
+Local copy and modifications are shipped in [docs/docs/assets/asn1js](https://github.com/a-sit-plus/awesn1/tree/main/docs/docs/assets/asn1js), including the original license notice.
 {:.imprint-mono}
 
 `OBJECT IDENTIFIER` recognition data is based on Peter Gutmann's [dumpasn1](https://www.cs.auckland.ac.nz/~pgut001/#standards).

@@ -79,7 +79,8 @@ markdown_extensions:
 nav:
   - Overview: core.md
   - Serialization : kxs.md
-  - Low-Level ASN.1: lowlevel.md
+  - Low-Level: lowlevel.md
+  - Hardening: hardening.md
   - Crypto: crypto.md
   - Addons: addons.md
   - SBOM:
@@ -90,5 +91,6 @@ nav:
       - KXS: sbom/modules/kxs.md
       - KXS-IO: sbom/modules/kxs-io.md
       - OIDs: sbom/modules/oids.md
+      - Internal Utils: sbom/modules/internal-utils.md
   - CHANGELOG.md
   - API Docs: dokka/index.html

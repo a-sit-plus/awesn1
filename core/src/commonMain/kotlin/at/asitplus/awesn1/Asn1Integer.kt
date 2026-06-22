@@ -6,7 +6,6 @@
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.Asn1Integer.Companion.fromTwosComplement
-import at.asitplus.awesn1.VarUInt.Companion.decimalPlus
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.*
 import at.asitplus.awesn1.serialization.Asn1Serializer
@@ -95,15 +94,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
 
         override fun twosComplement(): ByteArray {
             if (uint == VarUInt(1u)) return byteArrayOf(-1)
-
-            return VarUInt(
-                uint.inv().toString().toMutableList().decimalPlus(listOf('1')).joinToString(separator = "")
-            ).bytes.let {
-                val diff = uint.bytes.size - it.size
-                val list = if (diff == 0) it else (MutableList<UByte>(diff) { 0.toUByte() }) + it
-                if (list.first().toByte() >= 0) listOf((-1).toUByte()) + list
-                else it
-            }.toUByteArray().asByteArray()
+            return uint.bytes.twosComplementNegativeBytes().asByteArray()
         }
     }
 
@@ -156,12 +147,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
             return when {
                 input.isEmpty() -> Positive(VarUInt())
                 (input.first() < 0) ->
-                    Negative(
-                        VarUInt(
-                            VarUInt(input).inv().toString().toMutableList().decimalPlus(listOf('1'))
-                                .joinToString(separator = "")
-                        )
-                    )
+                    Negative(VarUInt(input.asUByteArray().decodeNegativeMagnitude()))
 
                 else -> Positive(VarUInt(input))
             }
@@ -170,6 +156,28 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
         private fun ByteArray.validateDerConstraints() =
             runRethrowing { throughBuffer { it.validateDerIntConstraints() } }
     }
+}
+
+private fun UByteArray.twosComplementNegativeBytes(): UByteArray {
+    // Negate at the magnitude's own byte width. Routing through VarUInt.inv()+1 (as decodeNegativeMagnitude
+    // does) trims any high bytes that invert to 0x00 — i.e. magnitude bytes equal to 0xFF — which drops the
+    // leading sign-extension bytes and corrupts the encoding of large negative values.
+    val result = UByteArray(size)
+    var carry = 1u
+    for (i in size - 1 downTo 0) {
+        val sum = (this[i].inv()) + carry.toUByte()
+        result[i] = (sum).toUByte()
+        carry = sum shr 8
+    }
+    // A leading byte whose top bit is clear would be misread as a positive INTEGER; prepend 0xFF.
+    if (result.first().toByte() < 0) return result
+    return UByteArray(size + 1) { index ->
+        if (index == 0) 0xFFu else result[index - 1]
+    }
+}
+
+private fun UByteArray.decodeNegativeMagnitude(): UByteArray {
+    return (VarUInt(this).inv() + 1.toUByte()).bytes
 }
 
 /**
@@ -241,6 +249,38 @@ internal value class VarUInt private constructor(val words: UByteArray) {
             else longer.words[it]
         }, isOwned = true)
     }
+
+    operator fun plus(summand: UByte): VarUInt {
+        val result = bytes
+        var carry = summand.toInt()
+        for (i in result.lastIndex downTo 0) {
+            val sum = result[i].toInt() + carry
+            result[i] = sum.toUByte()
+            carry = sum ushr 8
+            if (carry == 0) return VarUInt(result)
+        }
+        return VarUInt(ubyteArrayOf(carry.toUByte(), *result))
+    }
+
+    /**
+     * @throws IllegalArgumentException if the result would be negative
+     */
+    operator fun minus(subtrahend: UByte): VarUInt {
+        val result = bytes
+        var borrow = subtrahend.toInt()
+        for (i in result.lastIndex downTo 0) {
+            val diff = result[i].toInt() - borrow
+            if (diff >= 0) {
+                result[i] = diff.toUByte()
+                // The subtraction may have zeroed the high byte(s); trim so the no-leading-zero invariant holds.
+                return constructUnsafe(result)
+            }
+            result[i] = (diff + 256).toUByte()
+            borrow = 1
+        }
+        throw IllegalArgumentException("Result would be negative")
+    }
+
 
     infix fun shl(offset: Int): VarUInt {
         require(offset >= 0) { "offset must be non-negative: $offset" }
@@ -435,38 +475,57 @@ internal value class VarUInt private constructor(val words: UByteArray) {
             require(startIndex in 0..endIndex) { "Invalid bounds [$startIndex, $endIndex)" }
             require(endIndex <= size) { "End index $endIndex out of bounds for size $size" }
             var index = startIndex
-            var result = VarUInt()
-            val mask = 0x7Fu.toUByte()
             while (index < endIndex) {
                 val current = this[index++].toUByte()
-                result = VarUInt(current and mask) or (result shl 7)
                 if (current < 0x80.toUByte()) break
             }
-            return result to index
+            return decodeBase128Unsigned(startIndex, index) to index
         }
 
         internal fun Source<*>.decodeAsn1VarBigUIntValue(): VarUInt {
-            var result = VarUInt()
-            val mask = 0x7Fu.toUByte()
+            val accumulator = ByteArrayBuffer()
             while (!exhausted()) {
                 val current = readUByte()
-                result = VarUInt(current and mask) or (result shl 7)
+                accumulator.writeUByte(current)
                 if (current < 0x80.toUByte()) break
             }
-            return result
+            val encoded = accumulator.toByteArray()
+            return encoded.decodeAsn1VarBigUIntValue(0, encoded.size).first
         }
 
         internal fun Source<*>.decodeAsn1VarBigUInt(): Pair<VarUInt, ByteArray> {
             val accumulator = ByteArrayBuffer()//TODO hog
-            var result = VarUInt()
-            val mask = 0x7Fu.toUByte()
             while (!exhausted()) {
                 val current = readUByte()
                 accumulator.writeUByte(current)
-                result = VarUInt(current and mask) or (result shl 7)
                 if (current < 0x80.toUByte()) break
             }
-            return result to accumulator.toByteArray()
+            val encoded = accumulator.toByteArray()
+            return encoded.decodeAsn1VarBigUIntValue(0, encoded.size).first to encoded
+        }
+
+        //resurrect old hand-rolled variant from 2022 for efficiency
+        private fun ByteArray.decodeBase128Unsigned(startIndex: Int, endIndex: Int): VarUInt {
+            if (startIndex == endIndex) return ZERO
+
+            val result = UByteArray(((endIndex - startIndex) * 7 + 7) / 8)
+            var outIndex = result.lastIndex
+            var accumulator = 0
+            var bitsInAccumulator = 0
+
+            for (index in endIndex - 1 downTo startIndex) {
+                accumulator = accumulator or ((this[index].toInt() and 0x7F) shl bitsInAccumulator)
+                bitsInAccumulator += 7
+                if (bitsInAccumulator >= 8) {
+                    result[outIndex--] = accumulator.toUByte()
+                    accumulator = accumulator ushr 8
+                    bitsInAccumulator -= 8
+                }
+            }
+
+            if (bitsInAccumulator > 0) result[outIndex] = accumulator.toUByte()
+            // constructUnsafe trims leading zeroes.
+            return constructUnsafe(result)
         }
     }
 }

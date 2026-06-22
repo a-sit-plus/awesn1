@@ -114,7 +114,7 @@ val Asn1SetSortingTest by matrixSuite(matrixConfig { defaultPropertyIterations =
             sorted.children[1] shouldBe larger
         }
 
-        val reversedOrder = Asn1SetOf.fromChildrenOrNull(listOf(larger, smaller), sortChildren = false)
+        val reversedOrder = Asn1SetOf.fromChildrenOrNull(mutableListOf(larger, smaller), sortChildren = false)
         "internal ctor should not sort" {
             reversedOrder.shouldNotBeNull()
             reversedOrder.children[0] shouldBe larger
@@ -149,7 +149,7 @@ private fun randomAsn1Element(random: Random, depth: Int): Asn1Element {
     if (forcePrimitive) return randomPrimitiveElement(random)
 
     val childCount = random.nextInt(0, 8)
-    val children = List(childCount) { randomAsn1Element(random, depth - 1) }
+    val children = MutableList(childCount) { randomAsn1Element(random, depth - 1) }
     return when (random.nextInt(3)) {
         0 -> Asn1Sequence(children)
         1 -> Asn1Set(children)

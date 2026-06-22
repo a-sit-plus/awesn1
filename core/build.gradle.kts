@@ -2,6 +2,7 @@ import at.asitplus.gradle.*
 import org.gradle.api.GradleException
 import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 
 plugins {
@@ -42,6 +43,11 @@ kotlin {
             dependencies {
                 implementation(project(":kxs"))
                 implementation(serialization("json"))
+                // for the interactive memory probe (NestingMemory.kt): compare raw awesn1 parsing, awesn1's typed
+                // X509Certificate model, and Bouncy-Castle-as-JCA-provider parsing of the same cert corpus.
+                // A test-only dependency on :crypto is cycle-free (crypto's main depends on core's main, not core's test).
+                implementation(project(":crypto"))
+                implementation(libs.bouncycastle.prov) // BouncyCastle JCA provider
             }
         }
     }

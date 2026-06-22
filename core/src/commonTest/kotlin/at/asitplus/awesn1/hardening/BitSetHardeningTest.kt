@@ -1,13 +1,26 @@
 package at.asitplus.awesn1.hardening
 
 import at.asitplus.awesn1.Asn1BitString
+import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.BitSet
 import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
 val BitSetCompactionHardeningTest by matrixSuite {
+
+    // L-3 regression: a bit count whose byte index exceeds Int.MAX_VALUE must be rejected loudly (via toIntChecked),
+    // not silently truncated to a bogus/negative byte index. (nBits/8 > Int.MAX_VALUE => throws; no allocation.)
+    "BitSet(nBits) rejects a byte index beyond Int range instead of truncating" {
+        val overflowingNBits = (Int.MAX_VALUE.toLong() + 1) * 8 // /8 == Int.MAX_VALUE + 1 -> not Int-representable
+        shouldThrow<Asn1Exception> { BitSet(overflowingNBits) }
+    }
+
+    "BitSet(nBits) rejects the exact preallocate overflow boundary" {
+        shouldThrow<Asn1Exception> { BitSet(Int.MAX_VALUE.toLong() * 8) }
+    }
 
     "preallocated all-zero BitSet has empty semantic representation" {
         val bits = BitSet(128)
