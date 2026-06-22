@@ -384,6 +384,9 @@ absolute cost). Warm stream-encoding is competitive with, and on the certificate
 structures do **not** retain their encoding ([Re-encoding is deliberate](hardening.md)): repeated `derEncoded` access
 recomputes `O(size)` each time, which the `derEncoded access` row quantifies as the accepted cost of stack-safe,
 copy-free structures.
+In addition, awesn1 always decodes any OCTET STRING's content bytes that are valid DER-encoded ASN.1 data, as this pattern
+is so common in practice. This incurs overhead, but allows for asserting encapsulating OCTET STRINGs containing valid
+ASN.1 data during parsing.
 
 ### Length Walk, Rendering, SET Sorting
 
