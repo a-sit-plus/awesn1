@@ -3,6 +3,7 @@ package at.asitplus.awesn1.serialization
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.decodeFromByteArray
@@ -197,6 +198,7 @@ private sealed interface Expected {
     data object SerializationFailure : Expected
 }
 
+@Serializable
 private enum class TestEnum {
     ZERO,
     ONE,

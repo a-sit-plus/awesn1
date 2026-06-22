@@ -4,6 +4,7 @@
 package at.asitplus.awesn1.encoding.internal
 
 import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.ImplementationError
 import at.asitplus.awesn1.InternalAwesn1Api
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
@@ -19,7 +20,7 @@ val IOTest by matrixSuite {
         nextCapacity((1L shl 30)) shouldBe MAX_BYTE_ARRAY_SIZE.toInt()
         nextCapacity(MAX_BYTE_ARRAY_SIZE) shouldBe MAX_BYTE_ARRAY_SIZE.toInt()
         shouldThrow<Asn1Exception> { nextCapacity(MAX_BYTE_ARRAY_SIZE + 1L) }
-        shouldThrow<IllegalArgumentException> { nextCapacity(-1L) }
+        shouldThrow<ImplementationError> { nextCapacity(-1L) }
     }
 
     "ByteArraySink write parity: bad bounds throw IndexOutOfBoundsException" {
