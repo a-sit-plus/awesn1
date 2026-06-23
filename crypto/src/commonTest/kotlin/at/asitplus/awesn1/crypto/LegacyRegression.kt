@@ -1,4 +1,5 @@
 package at.asitplus.awesn1.crypto
+import at.asitplus.awesn1.Asn1Time
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
@@ -176,8 +177,8 @@ private fun LegacyTbsCertificate.toCurrent() =
         serialNumber = Asn1Integer.fromByteArray(serialNumber, Sign.POSITIVE),
         signatureAlgorithm = signatureAlgorithm.toCurrent(),
         issuerName = issuerName.map { it.toCurrent() },
-        validFrom = validFrom,
-        validUntil = validUntil,
+        validFrom = Asn1Time(validFrom.instant),
+        validUntil = Asn1Time(validUntil.instant),
         subjectName = subjectName.map { it.toCurrent() },
         subjectPublicKeyInfo = subjectPublicKeyInfo.toCurrent(),
         issuerUniqueID = issuerUniqueID,
