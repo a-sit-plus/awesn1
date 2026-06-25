@@ -775,11 +775,11 @@ class DerDecoder internal constructor(
 }
 
 /**
- * Mutable, single-threaded live structural-nesting counter shared by a [DerDecoder]/[DerEncoder] and all of its
+ * Guards against deep structural nesting [DerDecoder]/[DerEncoder] and all of its
  * child encoders/decoders. [enter] is called once per `beginStructure` (a descent into a nested structure) and
  * balanced by [exit] in `endStructure`, so [depth] reflects the current live nesting depth. When it would exceed the
- * configured `maxNestingDepth`, [enter] throws — converting a would-be [StackOverflowError] (an unrecoverable JVM
- * `Error`) into a catchable [SerializationException]. A guard is needed because kotlinx.serialization's encode/decode
+ * configured `maxNestingDepth`, [enter] throws — converting a would-be `StackOverflowError` into a catchable
+ * [SerializationException]. A guard is needed because kotlinx.serialization's encode/decode
  * contract is recursive descent through `serialize`/`deserialize` frames the format cannot flatten or trampoline.
  */
 internal class DerDepthGuard(private var depth: Int = 0) {
