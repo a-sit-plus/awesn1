@@ -43,6 +43,12 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
         override val format: Format = formatOverride ?: pickFormat(this.instant)
     }
 
+
+    /**
+     * Returns a fresh instance of a [SecondsCapped] version of this [Asn1Time].
+     */
+    fun secondsCapped(): SecondsCapped = SecondsCapped(instant)
+
     /**
      * A GENERALIZED TIME carrying an exact fractional second. Produced **only** by decoding or from a
      * sub-second [Instant]; a whole-second value is always a [SecondsCapped] instead.
