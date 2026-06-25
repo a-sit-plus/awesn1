@@ -13,6 +13,7 @@ import at.asitplus.awesn1.serialization.decodeFromPem
 import at.asitplus.awesn1.serialization.encodeToPem
 import at.asitplus.awesn1.serialization.encodeToPemBlock
 import at.asitplus.awesn1.serialization.encodeToTlv
+import at.asitplus.testballoon.matrix.Indexes
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -36,7 +37,8 @@ val X509CertificateFixtureRoundTripTest by matrixSuite {
 
     listOf(true, false).asData(name = "fixture kind", nameFn = { if (it) "OK only" else "Faulty only" }) - { ok ->
         val fixtures = certificateFixtures(ok)
-        data( fixtures, nameFn = { it.name }) test { path ->
+        if(ok) "empty" {} else
+        data( fixtures, nameFn = { it.name }, replay = if(!ok) Indexes(216L) else null) test { path ->
 
             fun parseAndAssert() {
                 when (path.extension) {

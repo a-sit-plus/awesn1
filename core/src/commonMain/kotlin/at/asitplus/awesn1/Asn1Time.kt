@@ -210,3 +210,8 @@ internal object Asn1TimeSerializer : KSerializer<Asn1Time> {
         return Asn1Time(Instant.parse(decoder.decodeString()))
     }
 }
+
+/**
+ * Returns a [Instant] with the same epoch seconds, but nanosecond precision capped
+ */
+fun Instant.secondsCapped() =Instant.fromEpochSeconds(this.epochSeconds)
