@@ -66,7 +66,7 @@ fun Asn1Element.Companion.parseFirst(source: Source<*>, limit: Long?): Pair<Asn1
 
 
 /**
- * "Stack" Frame for iterative decoding ont eh heap.
+ * "Stack" Frame for iterative decoding on the heap.
  */
 @InternalAwesn1Api
 private class Frame(

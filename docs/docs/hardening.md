@@ -5,7 +5,7 @@ hide:
 
 # Hardening, Fuzzing & Robustness
 
-awesn1 has a parser at its core. Parsers pars data from untrusted (attacker-controlled) input. Hence, the awesn1 raw parser, encoder, and
+awesn1 has a parser at its core. Parsers parse data from untrusted (attacker-controlled) input. Hence, the awesn1 raw parser, encoder, and
 renderers are designed to **fail predictably** on adversarial input: a malformed, oversized, or deeply-nested blob
 yields a bounded `Asn1Exception`/`SerializationException` or a bounded result — never a `StackOverflowError`, runaway
 recursion, an uncatchable crash, or silent corruption.
@@ -158,14 +158,16 @@ These guarantees concern *parsing untrusted input*. If you build an `Asn1Element
 exceeds `Int.MAX_VALUE`, that is under your control: read the `…Long` accessors and encode via `encodeTo(sink)` to a
 streaming sink instead of materializing `derEncoded` (a single `ByteArray`, itself capped at ~2 GiB).
 
-## Residual Risks (Cannot be Hardened due to `kotlinx.serialization` Intrinsics)
+## Residual Risks
+
+What cannot be hardened due to `kotlinx.serialization` intrinsics: 
 
 The `kxs` module implements a `kotlinx.serialization` format. Some sharp edges are inherent to that framework's
 contract and **cannot** be closed from inside awesn1. Be aware of them when using `kxs`:
 
 - **Recursive `@Serializable` types and open polymorphism recurse on the call stack.** `kotlinx.serialization` drives
   decoding by invoking each type's generated `deserialize`, so a self-referential type (`data class Rec(val child: Rec?
-  = null)`) or a deeply nested open-polymorphic hierarchy recurses on the stack - even though awesn1's own raw parser is iterative and never overflows.
+  = null)`) or a deeply nested open-polymorphic hierarchy recurses on the stack – even though awesn1's own raw parser is iterative and never overflows.
   This is why `kxs` bounds this framework recursion with `DerConfiguration.maxNestingDepth` (default **128**), throwing a catchable
   `SerializationException` long before the stack is exhausted. But the recursion lives in framework-generated code that
   awesn1 cannot influence, so the guard is your only protection: **raising `maxNestingDepth` toward the thousands
