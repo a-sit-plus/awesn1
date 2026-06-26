@@ -67,7 +67,7 @@ decoded with the defaults produces only `Int`-sized lengths and never trips the 
 
 ### Catchable Errors Only
 
-Every failure on hostile input surfaces as a catchable `Asn1Exception` (core), `SerializationException` (kxs), `NumberFormatException`, `IllegalArgumentException`,
+Every failure on hostile input surfaces as a catchable `Asn1Exception` (core), `SerializationException` (kxs), `NumberFormatException`, `IllegalArgumentException`, etc.
 but never a fatal VM error, *unless you forgt to bound your inputs*, in which case you can still run out of memory.
 Decode/parse paths run inside `runRethrowing`/`runWrappingAs`, which catch non-fatal `Throwable`s and wrap them; only VM-fatal errors are rethrown.
 
@@ -162,39 +162,28 @@ streaming sink instead of materializing `derEncoded` (a single `ByteArray`, itse
 
 What cannot be hardened due to `kotlinx.serialization` intrinsics: 
 
-The `kxs` module implements a `kotlinx.serialization` format. Some sharp edges are inherent to that framework's
-contract and **cannot** be closed from inside awesn1. Be aware of them when using `kxs`:
-
-- **Recursive `@Serializable` types and open polymorphism recurse on the call stack.** `kotlinx.serialization` drives
-  decoding by invoking each type's generated `deserialize`, so a self-referential type (`data class Rec(val child: Rec?
-  = null)`) or a deeply nested open-polymorphic hierarchy recurses on the stack – even though awesn1's own raw parser is iterative and never overflows.
-  This is why `kxs` bounds this framework recursion with `DerConfiguration.maxNestingDepth` (default **128**), throwing a catchable
-  `SerializationException` long before the stack is exhausted. But the recursion lives in framework-generated code that
-  awesn1 cannot influence, so the guard is your only protection: **raising `maxNestingDepth` toward the thousands
-  re-opens the `StackOverflowError`.** Keep it as low as your schema genuinely requires, and never raise it to
-  accommodate attacker-influenced depth.
+The `kxs` module implements a `kotlinx.serialization` format, which means that some rather intricate details
+cannot be fully controlled by awesn1 during deserialization:
 
 - **Pre-parsed `Asn1Element` trees bypass `maxInputLength`.** `maxInputLength` and the streaming byte `limit` bound the
-  *parse* step. If you parse a tree yourself (or via the low-level API) and hand the already-materialized
-  `Asn1Element` to `DER`/`decodeFromTlv`, the allocation already happened — the cap can no longer protect you. Bound
-  the bytes *before* you build the tree.
-
+  *parse* step. If you parse a tree beforahand and feed the already-materialized
+  `Asn1Element` into `DER.decodeFromTlv`, the allocation already happened — the cap can no longer protect you. Bound
+  the bytes *before* you build the tree. What will still take is  `DerConfiguration.maxNestingDepth`.
 - **Custom `KSerializer`s drive the codec directly.** A hand-written serializer has full control over the sequence of
   `encode*`/`decode*`/`beginStructure` calls. `kxs` detects and rejects *recognizable* ambiguity at encode time, but it
   cannot stop a custom serializer from emitting structurally valid yet semantically wrong (or non-canonical) DER, or
   from driving the decoder in an order its descriptor does not describe. Custom serializers are trusted code — review
   them as such. See [Custom Serializers Re-Introducing Ambiguity](kxs.md#custom-serializers-re-introducing-ambiguity).
-
+- Consequently, **custom `KSerializer`s can exhibit recursive descent behaviour and inflate memore beyond reasonable limits.
+  Neither awesn1 nor the `kotlinx.serialization` framework can prevent this!
 - **The `@Serializable` descriptor is the only schema source.** `kotlinx.serialization` exposes a structural descriptor,
   not your runtime invariants. `kxs` cannot enforce constraints the descriptor cannot express — value ranges beyond the
   Kotlin type, cross-field relationships, or "this `Int` is really a constrained enumerated" — so validate those in
-  your own code after decoding, or implement custom serializers on top.
-
+  your own code after decoding (preferably inside the `init` block of the serializable type), or implement custom serializers on top.
 - **Inline value classes are flattened by the framework.** `kotlinx.serialization` erases single-field inline
   (`value`) classes to their backing value before `kxs` sees them. Placing an ASN.1 tag on an inline class's backing
   property is therefore ambiguous; `kxs` fails fast with a `SerializationException` rather than guessing, but it cannot
-  make that combination *work*. See [Inline/Value Classes](kxs.md#inlinevalue-classes).
-
+  make that combination *work*. Instead, annotate the inline class directly and not the backing property. See [Inline/Value Classes](kxs.md#inlinevalue-classes).
 - **Absent vs. null vs. default is not always expressible.** The framework's `decodeElementIndex` protocol cannot, on
   its own, distinguish an omitted optional field from an explicit null or a default for adjacent fields that share a
   leading tag. `kxs` makes this decidable by rejecting undecidable layouts at encode time and requiring explicit
