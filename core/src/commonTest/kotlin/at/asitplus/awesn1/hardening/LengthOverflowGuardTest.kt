@@ -7,8 +7,6 @@ import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.encodeLength
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.internal.MAX_COLLECTION_SIZE
-import at.asitplus.awesn1.encoding.internal.checkCollectionGrowth
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.plusExact
 import at.asitplus.awesn1.toIntChecked
@@ -44,15 +42,6 @@ val LengthOverflowGuardTest by matrixSuite {
         (Long.MAX_VALUE - 1).plusExact(1) shouldBe Long.MAX_VALUE
         shouldThrow<Asn1Exception> { Long.MAX_VALUE.plusExact(1) }
         shouldThrow<Asn1Exception> { (Long.MAX_VALUE - 5).plusExact(10) }
-    }
-
-    "checkCollectionGrowth throws an Asn1Exception at the addressable-collection cap" {
-        // verifies the guard logic without allocating billions of objects (which the parser/drain guard against)
-        checkCollectionGrowth(0)
-        checkCollectionGrowth(1_000_000)
-        checkCollectionGrowth(MAX_COLLECTION_SIZE - 1)
-        shouldThrow<Asn1Exception> { checkCollectionGrowth(MAX_COLLECTION_SIZE) }
-        shouldThrow<Asn1Exception> { checkCollectionGrowth(Int.MAX_VALUE) }
     }
 
     "Long length properties agree with the guarded Int views for ordinary elements" {

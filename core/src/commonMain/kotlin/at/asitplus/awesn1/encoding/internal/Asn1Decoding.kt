@@ -12,20 +12,10 @@ import kotlin.experimental.and
 /** Conservative maximum collection size — the largest array length addressable on the JVM. */
 internal const val MAX_COLLECTION_SIZE = Int.MAX_VALUE - 8
 
-/**
- * Throws [Asn1Exception] when a parser collection currently of [currentSize] would grow past [MAX_COLLECTION_SIZE].
- * This turns the otherwise-raw `OutOfMemoryError`/`IllegalStateException` from an over-full `ArrayList`/`ArrayDeque`
- * (a structure with billions of elements/frames) into a clean, catchable parse error.
- */
-@Suppress("NOTHING_TO_INLINE")
-internal inline fun checkCollectionGrowth(currentSize: Int) {
-    if (currentSize >= MAX_COLLECTION_SIZE)
-        throw Asn1Exception("ASN.1 input exceeds the maximum addressable element/nesting count ($MAX_COLLECTION_SIZE)")
-}
-
 @Suppress("NOTHING_TO_INLINE")
 private inline fun <E> MutableList<E>.addGuarded(element: E) {
-    checkCollectionGrowth(size)
+    if (size >= MAX_COLLECTION_SIZE)
+        throw Asn1Exception("ASN.1 input exceeds the maximum addressable element/nesting count ($MAX_COLLECTION_SIZE)")
     add(element)
 }
 
