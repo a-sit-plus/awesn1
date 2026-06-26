@@ -631,12 +631,13 @@ internal fun decodeGeneralizedTimeToAsn1Time(content: ByteArray): Asn1Time = run
         require(sep == 14) { "Fractional separator must immediately follow the seconds field: $s" }
         val digits = s.substring(sep + 1, s.length - 1) // between the period and trailing 'Z'
         require(digits.isNotEmpty() && digits.all { it.isDigit() }) { "Malformed fractional seconds: $s" }
-        // Strip trailing zeros for DER minimum encoding (leading zeros are significant and kept).
-        // Conformant DER carries no trailing zeros; an all-zero fraction degrades to a whole-second time.
-        val canonical = digits.trimEnd('0')
-        if (canonical.isEmpty()) Asn1Time.SecondsCapped(Instant.parse("${base}Z"), Asn1Time.Format.GENERALIZED)
-        // Instant resolves to nanoseconds; the exact arbitrary-precision fraction is kept in fractionalSeconds.
-        else Asn1Time.Fractional(Instant.parse("$base.${digits.take(9)}Z"), canonical)
+        // Lenient: keep the fractional digits verbatim — including leading, trailing, and even all-zero
+        // fractions — so re-encoding reproduces non-minimal-but-valid DER input byte-for-byte. This matters
+        // for signature verification: a certificate signed over e.g. "...02.000Z" must round-trip unchanged,
+        // otherwise the recomputed TBS bytes would not match the signature. (Encoding *from an Instant* still
+        // strips trailing zeros for DER minimum encoding; see Asn1Time.Fractional.)
+        // Instant resolves to nanoseconds; the exact arbitrary-precision fraction is kept verbatim in fractionalSeconds.
+        Asn1Time.Fractional(Instant.parse("$base.${digits.take(9)}Z"), digits)
     }
 }
 /**

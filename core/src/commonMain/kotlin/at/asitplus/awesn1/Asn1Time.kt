@@ -18,14 +18,29 @@ import kotlin.time.Instant
 
 /**
  * ASN.1 TIME (required since GENERALIZED TIME and UTC TIME exist).
+ *
+ * The concrete subtype — [SecondsCapped] vs [Fractional] — is the **single source of truth** for whether an
+ * encoded fractional second is present:
+ *  - [SecondsCapped]: no fractional second (UTC TIME, or GENERALIZED TIME with no `.` fraction).
+ *  - [Fractional]: an explicitly encoded fractional second, held verbatim in [Fractional.fractionalSeconds]
+ *  (may even be `"0"`; see [Fractional.fractionalSeconds]).
+ *
+ * Do **not** infer the presence or absence of a fraction from [instant] (or `instant.nanosecondsOfSecond`).
+ * [instant] is truncated to nanosecond resolution, so a [Fractional] carrying a sub-nanosecond or all-zero
+ * fraction (e.g. `.0000000000001` or `.000`) can report `nanosecondsOfSecond == 0` while still encoding a
+ * fraction. Branch on the subtype, never on the instant — using the instant may misclassify cases.
  */
 @Serializable(with = Asn1Time.Companion::class)
 sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
 
     /**
-     * The timestamp. For [SecondsCapped] this is whole-second; for [Fractional] it carries the decoded
-     * fractional second up to [Instant]'s nanosecond resolution. The exact, arbitrary-precision fraction
-     * (which may exceed nanoseconds) is always available via [Fractional.fractionalSeconds].
+     * The timestamp **value only**, truncated to [Instant]'s nanosecond resolution. For [SecondsCapped] this
+     * is whole-second; for [Fractional] it reflects the decoded fraction only up to nanoseconds.
+     *
+     * This is lossy with respect to the encoding: the exact, arbitrary-precision fraction (which may exceed
+     * nanoseconds, or be all zeroes) lives in [Fractional.fractionalSeconds], and whether a fraction is encoded
+     * at all is determined by the subtype. Never use [instant] or `instant.nanosecondsOfSecond` to decide
+     * whole-second vs fractional — see the class-level note.
      */
     abstract val instant: Instant
 
@@ -33,7 +48,13 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
     abstract val format: Format
 
     /**
-     * An [Asn1Time] capped to whole seconds — the only way to construct a time from Kotlin.
+     * An [Asn1Time] with **no encoded fractional second** (whole-second) — the canonical DER-minimal form, and
+     * the only way to construct a time from Kotlin.
+     *
+     * A value being whole-second is *equivalent to* being a [SecondsCapped]. The converse is **not** true for
+     * [Fractional]: a [Fractional] whose value happens to land on a whole second (e.g. an all-zero fraction
+     * `.000`) is still a [Fractional], because it encodes differently. Detect "no fraction" via `is SecondsCapped`,
+     * never via [instant].
      *
      * @param instant the timestamp to encode; any sub-second part is dropped
      * @param formatOverride force either GENERALIZED TIME or UTC TIME
@@ -56,17 +77,21 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
     class Fractional internal constructor(
         override val instant: Instant,
         /**
-         * Canonical fractional-second digits — the part after the decimal point — as the ground truth.
-         * Matches [FRACTIONAL_SECONDS]: digits only, non-empty, **no trailing zeros** (DER minimum
-         * encoding). Leading zeros are significant: `"05"` (0.05 s) ≠ `"5"` (0.5 s). May carry more
-         * precision than [instant]'s nanosecond resolution.
+         * Fractional-second digits.
+         * Matches [FRACTIONAL_SECONDS] regex: one or more digits. Every digit is significant and preserved,
+         * including leading and trailing zeros and an all-zero fraction: `"05"` (0.05 s) ≠ `"5"` (0.5 s),
+         * `"120"` is kept verbatim rather than normalized to `"12"`, and `"000"` is kept rather than dropped to ensure
+         * even faulty encodings are round-tripped. Although cursed, certificates with such time encodings exists in practice.
+         *
+         * When derived from an [Instant], trailing zeros are stripped (DER minimum encoding).
+         * May carry more precision than [instant]'s nanosecond resolution.
          */
         val fractionalSeconds: String,
     ) : Asn1Time() {
 
         init {
             require(FRACTIONAL_SECONDS.matches(fractionalSeconds)) {
-                "fractionalSeconds must match /${FRACTIONAL_SECONDS.pattern}/ (digits, no trailing zero): '$fractionalSeconds'"
+                "fractionalSeconds must match /${FRACTIONAL_SECONDS.pattern}/ (one or more digits): '$fractionalSeconds'"
             }
         }
 
@@ -88,8 +113,8 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
         override fun toString(): String = "Asn1Time(instant=$instant, format=$format, fraction=.$fractionalSeconds)"
 
         companion object {
-            /** Canonical fractional-second digits: ≥1 digit, last digit non-zero (leading zeros allowed, trailing forbidden). */
-            val FRACTIONAL_SECONDS = Regex("[0-9]*[1-9]")
+            /** Fractional-second digits: one or more digits; every digit (incl. leading/trailing/all zeros) is significant. */
+            val FRACTIONAL_SECONDS = Regex("[0-9]+")
         }
     }
 
@@ -112,6 +137,9 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Asn1Time) return false
+        // A SecondsCapped and a Fractional never encode to the same bytes (the latter carries an explicit
+        // fraction, even an all-zero one), so they must not compare equal even when their instants coincide.
+        if ((this is Fractional) != (other is Fractional)) return false
         return instant == other.instant &&
                 format == other.format
 
