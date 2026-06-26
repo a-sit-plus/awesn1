@@ -33,8 +33,7 @@ import kotlin.uuid.Uuid
 class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
     bytes: ByteArray?,
     nodes: List<VarUInt>?
-) :
-    Asn1Encodable<Asn1Primitive> {
+) : Asn1Encodable<Asn1Primitive>, Comparable<ObjectIdentifier> {
     init {
         if ((bytes == null) && (nodes == null)) {
             //we're not even declaring this, since this is an implementation error on our end
@@ -168,6 +167,22 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
 
     override fun hashCode(): Int {
         return bytes.contentHashCode()
+    }
+
+    /**
+     * Orders OIDs by their DER encoding ([bytes]) using unsigned lexicographic byte comparison — i.e. the
+     * canonical "sorted by encoding" order (e.g. RFC 4514 §2.3 multi-valued RDN ordering). Consistent with
+     * [equals]: `compareTo(other) == 0` iff `equals(other)`.
+     */
+    override fun compareTo(other: ObjectIdentifier): Int {
+        val a = bytes
+        val b = other.bytes
+        val n = minOf(a.size, b.size)
+        for (i in 0 until n) {
+            val c = (a[i].toInt() and 0xff) - (b[i].toInt() and 0xff)
+            if (c != 0) return c
+        }
+        return a.size - b.size
     }
 
     /**
