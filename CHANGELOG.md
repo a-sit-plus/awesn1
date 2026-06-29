@@ -30,7 +30,7 @@
     * `BitSet(nBits)` now rejects the exact preallocation overflow boundary instead of wrapping during the final `+ 1` byte-count adjustment.
 * **Features:**
     * ASN.1 GENERALIZED TIME now supports arbitrary precision fractional second representation. **This is a breaking change**
-        * Asn1Time is now a `sealed` class consisting of
+        * `Asn1Time` is now a `sealed` class consisting of
             * `SecondsCapped`, trimming fractional seconds (old behaviour)
             * `Fractional`, keeping arbitrary precision fractional seconds (full DER-compliance)
         * `X509TbsCertificate` now takes `SecondsCapped` time as constructor parameters, but still parses `Fractional` time for leniency.
