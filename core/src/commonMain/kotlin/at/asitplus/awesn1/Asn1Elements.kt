@@ -25,7 +25,7 @@ private class RenderNode(val element: Asn1Element, val indent: Int)
  * [plusExact]). Stack-safe (heap-allocated recursion) and safe to share — each invocation gets its own stack.
  *
  */
-// Here, DeepRevursiveFunction was faster than hand-rolled. But should be re-evaluated at some point, since we now got rid of tzhe lazies
+// Here, DeepRevursiveFunction was faster than hand-rolled. But should be re-evaluated at some point, since we now got rid of the lazies
 private val computeContentLength: DeepRecursiveFunction<Asn1Structure, Unit> = DeepRecursiveFunction { n ->
     if (n.cachedContentLength < 0) {
         var sum = 0L
