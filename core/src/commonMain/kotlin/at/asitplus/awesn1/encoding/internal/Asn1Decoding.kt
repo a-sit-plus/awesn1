@@ -6,7 +6,27 @@ package at.asitplus.awesn1.encoding.internal
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.toAsn1VarInt
 import kotlin.experimental.and
-import kotlin.jvm.JvmName
+
+//start defence in depth helpers; if any of these is ever reached, hardware is either beefy or sensible limits were omitted.
+
+/** Conservative maximum collection size — the largest array length addressable on the JVM. */
+internal const val MAX_COLLECTION_SIZE = Int.MAX_VALUE - 8
+
+@Suppress("NOTHING_TO_INLINE")
+private inline fun <E> MutableList<E>.addGuarded(element: E) {
+    if (size >= MAX_COLLECTION_SIZE)
+        throw Asn1Exception("ASN.1 input exceeds the maximum addressable element/nesting count ($MAX_COLLECTION_SIZE)")
+    add(element)
+}
+
+@Suppress("NOTHING_TO_INLINE")
+private inline fun <E> MutableList<E>.addAllGuarded(elements: Collection<E>) {
+    if (size.toLong() + elements.size > MAX_COLLECTION_SIZE)
+        throw Asn1Exception("ASN.1 input exceeds the maximum addressable element/nesting count ($MAX_COLLECTION_SIZE)")
+    addAll(elements)
+}
+
+//end defence in depth helpers
 
 /**
  * Parses the provided [source] into a single [Asn1Element].
@@ -45,37 +65,180 @@ fun Asn1Element.Companion.parseFirst(source: Source<*>, limit: Long?): Pair<Asn1
     source.readAsn1Element(limit)
 
 
+/**
+ * "Stack" Frame for iterative decoding on the heap.
+ */
 @InternalAwesn1Api
-@Suppress("NOTHING_TO_INLINE")
-internal inline fun Source<*>.doParseExactly(nBytes: Long): List<Asn1Element> = doParseExactly(nBytes.toULong())
+private class Frame(
+    val tag: Asn1Element.Tag,
+    val contentLength: Long,
+    val numHeaderBytes: Int,
+) {
+    var bytesConsumed: Long = 0
+    val children = mutableListOf<Asn1Element>()
+    val octetIndices = mutableListOf<Int>()
 
-@InternalAwesn1Api
-@JvmName("doParseExactlyULong")
-private fun Source<*>.doParseExactly(nBytes: ULong): List<Asn1Element> = mutableListOf<Asn1Element>().also { list ->
-    require(nBytes <= Long.MAX_VALUE.toULong()) { "Max number of bytes to read exceeds ${Long.MAX_VALUE}: $nBytes" }
-    val boundedSource = BoundedSource(this, nBytes.toLong())
-    var nBytesRead: ULong = 0u
-    while (nBytesRead < nBytes) {
-        val peekTagAndLen = boundedSource.peekTagAndLen()
-        require(peekTagAndLen.tagAndLength.length <= (nBytes.toLong() - peekTagAndLen.bytesRead)) {
-            "ASN.1 element length for tag ${peekTagAndLen.first.tag} exceeds parent length: ${peekTagAndLen.tagAndLength.length} > ${(nBytes.toLong() - peekTagAndLen.bytesRead)}"
-        }
-        val numberOfNextBytesRead = peekTagAndLen.second.toULong() + peekTagAndLen.first.length.toULong()
-        require(numberOfNextBytesRead <= Long.MAX_VALUE.toULong()) { "Length overflow: $numberOfNextBytesRead" }
-        if (nBytesRead + numberOfNextBytesRead > nBytes) break
-        boundedSource.skip(peekTagAndLen.second.toLong()) // we only peeked before, so now we need to skip,
-        // since we want to recycle the result below
-        val (elem, read) = boundedSource.readAsn1Element(
-            peekTagAndLen.first,
-            peekTagAndLen.second,
-            (nBytes - nBytesRead).toLong()
-        )
-        list.add(elem)
-        nBytesRead += read.toULong()
-        require(nBytesRead <= Long.MAX_VALUE.toULong()) { "Length overflow: $nBytesRead" }
+    // plusExact: a crafted contentLength near Long.MAX_VALUE must not silently wrap (it would corrupt the
+    // bytesConsumed/topBytesRead accounting that enforces the byte limit). Overflow -> Asn1Exception.
+    val totalLength: Long get() = contentLength.plusExact(numHeaderBytes.toLong())
+
+    /* Mirrors the constructed-element classification of the former recursive parser. */
+    fun buildStructure(): Asn1Structure = when {
+        tag.isSequence() -> Asn1Sequence.adopting(children)
+        tag.isSet() -> Asn1Set.fromPresorted(children)
+        tag.isExplicitlyTagged -> Asn1ExplicitlyTagged(tag.tagValue, children)
+        else -> Asn1CustomStructure(tag, children, sortChildren = false, shouldBeSorted = false)
     }
-    require(nBytesRead == nBytes) { "Indicated length ($nBytes) does not correspond to an ASN.1 element boundary ($nBytesRead)" }
 }
+
+/**
+ * A raw OCTET STRING discovered during parsing, together with the means to replace it in place with its
+ * encapsulating counterpart once (and if) its content is decoded. [raw] is the node to peel; [replaceWith] swaps
+ * the node in its containing structure / encapsulating octet string / root list.
+ */
+@InternalAwesn1Api
+private class OctetSlot(val raw: Asn1OctetString, val replaceWith: (Asn1EncapsulatingOctetString) -> Unit)
+
+/**
+ * Result of one structural parse pass: the parsed [roots], the number of bytes consumed ([bytesRead]), and every
+ * raw OCTET STRING found along the way as a ready-to-use [OctetSlot]. Requires one pass to decapsulate octet strings.
+ */
+@InternalAwesn1Api
+private class ParseResult(
+    val roots: MutableList<Asn1Element>,
+    val bytesRead: Long,
+    val octets: MutableList<OctetSlot>,
+)
+
+/**
+ * Iteratively parses DER TLV input, using an explicit stack ([ArrayDeque] of [Frame]s in place of the former
+ * `readAsn1Element`/`doParseExactly` recursion, s.t structural nesting depth no longer grows the call
+ * stack. This is important because realistic expectations wrt. stack size differ per target.
+ * This was realistically irrelevant for well-formed data, but an easy DoS entry point using deliberately crafted, deeply nested data.
+ * Now it's safe anyhow.
+ *
+ * OCTET STRING content is left raw here; encapsulated content is decoded iteratively afterwards by
+ * [parseOctetStrings]. The raw OCTET STRINGs found are reported via [ParseResult] so that decoding does not have
+ * to re-walk the tree.
+ *
+ * @param limit the maximum total number of encoded DER bytes to consume.
+ * @param single if `true`, stops after the first top-level element (used by [readAsn1Element]).
+ */
+/*
+ * NOTE on why this stays hand-rolled: a single conflated rewrite using [kotlin.DeepRecursiveFunction] (both the
+ * structural walk and inline OCTET STRING decapsulation, soft-failing via try/catch) was benchmarked ~28–36% slower on real-world certificate data.
+ */
+//called only in three other functions with no other body, so we inline here
+@Suppress("NOTHING_TO_INLINE")
+@InternalAwesn1Api
+private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult =
+    runRethrowing {
+        val rootSrc = BoundedSource(this, limit)
+        val roots = mutableListOf<Asn1Element>()
+        val stack = ArrayDeque<Frame>()
+        var topBytesRead = 0L
+        val octets = mutableListOf<OctetSlot>()
+
+        while (true) {
+            // close every frame whose declared content has been fully consumed, crediting it to its parent
+            while (stack.isNotEmpty() && stack.last().bytesConsumed == stack.last().contentLength) {
+                val frame = stack.removeLast()
+                val built = frame.buildStructure()
+                val frameLength= frame.totalLength
+                val octetIndices = frame.octetIndices //frame now free for GC
+
+                // a structure copies its children, so translate this frame's discovery-time octet markers into
+                // stable slots against the built structure (order is preserved, so recorded indices line up)
+                octetIndices.forEach { i ->
+                    octets.addGuarded(OctetSlot(built.children[i] as Asn1OctetString) { built.replaceChild(i, it) })
+                }
+                val parent = stack.lastOrNull()
+                if (parent == null) {
+                    roots.addGuarded(built)
+                    topBytesRead += frameLength
+                } else {
+                    parent.children.addGuarded(built)
+                    // credit the parent for the whole child element (header + content), now that it is complete
+                    parent.bytesConsumed += frameLength
+                }
+            }
+
+            stack.lastOrNull()?.also { parent ->
+                // bound only the header peek to the parent's remaining content, so a malformed header cannot read
+                // past the boundary; this wraps the single root source (constant depth), not the parent frame
+                val remaining = parent.contentLength - parent.bytesConsumed
+                val (tagAndLength, headerBytes) = BoundedSource(rootSrc, remaining).peek().readTagAndLength()
+                val (tag, length) = tagAndLength
+                require(length <= parent.contentLength - headerBytes) {
+                    "ASN.1 element length for tag $tag exceeds parent length: $length > ${parent.contentLength - headerBytes}"
+                }
+                val childTotal = length.plusExact(headerBytes.toLong())
+                if (parent.bytesConsumed + childTotal > parent.contentLength) {
+                    throw Asn1StructuralException(
+                        "Indicated length (${parent.contentLength}) does not correspond to an ASN.1 element boundary (${parent.bytesConsumed})"
+                    )
+                }
+                rootSrc.skip(headerBytes.toLong())
+                stack.pushOrPrimitive(tag, length, rootSrc, headerBytes)?.let {
+                    parent.children.addGuarded(it)
+                    // a leaf consumes header + content immediately; constructed children are credited on close above
+                    parent.bytesConsumed += childTotal
+                    if (it is Asn1OctetString) parent.octetIndices.addGuarded(parent.children.lastIndex)
+                }
+            } ?: run {
+                if (single && roots.isNotEmpty()) break //can only ever land here after parsing a single element
+                if (rootSrc.exhausted()) break //done anywys
+
+                val (tagAndLength, headerBytes) = rootSrc.readTagAndLength()
+                val (tag, length) = tagAndLength
+                val totalLength = length.plusExact(headerBytes.toLong())
+                limit?.let {
+                    require(totalLength <= it - topBytesRead) {
+                        "Length of ASN.1 element exceeds limit: $totalLength > ${it - topBytesRead}"
+                    }
+                }
+                stack.pushOrPrimitive(tag, length, rootSrc, headerBytes)?.let {
+                    roots.addGuarded(it)
+                    topBytesRead += totalLength
+                    // root octets are homed directly to the roots list; the node that later wraps roots adopts it
+                    if (it is Asn1OctetString) {
+                        val index = roots.lastIndex
+                        octets.addGuarded(OctetSlot(it) { node -> roots[index] = node })
+                    }
+                }
+            }
+        }
+
+        ParseResult(roots, topBytesRead, octets)
+    }
+
+// Builds a leaf element from an already-decoded tag/length (reading its content from [src]), or pushes
+// a frame for a constructed element and returns `null`. This is where we previously recursed.
+@OptIn(InternalAwesn1Api::class)
+private fun ArrayDeque<Frame>.pushOrPrimitive(
+    tag: Asn1Element.Tag,
+    length: Long,
+    src: Source<*>,
+    numHeaderBytes: Int
+): Asn1Element? = when {
+    //SET, SEQUENCE, EXPLICITLY-TAGGED, Asn1CustomStructure
+    tag.isConstructed -> {
+        this.addGuarded(Frame(tag, length, numHeaderBytes)) // ArrayDeque is a MutableList; appends to the end
+        null
+    }
+
+    tag == Asn1Element.Tag.OCTET_STRING -> {
+        require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
+        //leave OCTET STRING content raw here; encapsulated content is decoded iteratively afterwards (see drainEncapsulatedOctetStrings)
+        Asn1OctetString.nonEncapsulating(src.readByteArray(length.toInt()))
+    }
+
+    else -> {
+        require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into a primitive" }
+        Asn1Primitive(tag, src.readByteArray(length.toInt()))
+    }
+}
+
 
 /**
  * Reads all parsable ASN.1 elements from this source.
@@ -87,24 +250,7 @@ private fun Source<*>.doParseExactly(nBytes: ULong): List<Asn1Element> = mutable
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
 fun Source<*>.readFullyToAsn1Elements(limit: Long?): Pair<List<Asn1Element>, Long> =
-    BoundedSource(this, limit).let { boundedSource ->
-        var bytesRead = 0L
-        buildList<Asn1Element> {
-            while (!boundedSource.exhausted()) {
-                val remainingLimit = limit?.let { it - bytesRead }
-                boundedSource.readAsn1Element(remainingLimit).also { (elem, nBytes) ->
-                    bytesRead += nBytes
-                    this.add(elem)
-                }
-            }
-        } to bytesRead
-    }
-
-/**
- * Reads a [TagAndLength] and the number of consumed bytes from the source without consuming it
- */
-@InternalAwesn1Api
-private fun BoundedSource<*>.peekTagAndLen() = peek().readTagAndLength()
+    doParse(limit, single = false).let { ArrayDeque(it.octets).parseOctetStrings(); it.roots to it.bytesRead }
 
 /**
  * Decodes a single [Asn1Element] from this source.
@@ -115,50 +261,45 @@ private fun BoundedSource<*>.peekTagAndLen() = peek().readTagAndLength()
  */
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
-fun Source<*>.readAsn1Element(limit: Long?): Pair<Asn1Element, Long> = runRethrowing {
-    BoundedSource(this, limit).let { boundedSource ->
-        val (readTagAndLength, bytesRead) = boundedSource.readTagAndLength()
-        boundedSource.readAsn1Element(readTagAndLength, bytesRead, limit)
+fun Source<*>.readAsn1Element(limit: Long?): Pair<Asn1Element, Long> =
+    doParse(limit, single = true).let {
+        // a single element was requested; empty input cannot satisfy that, so fail with an Asn1Exception
+        // (rather than letting roots.first() throw a raw NoSuchElementException)
+        if (it.roots.isEmpty()) throw Asn1Exception("Cannot decode an ASN.1 element from empty input")
+        ArrayDeque(it.octets).parseOctetStrings()
+        it.roots.first() to it.bytesRead
     }
+
+/**
+ * Decodes a standalone [Asn1OctetString] (e.g. constructed from raw bytes): iteratively peels it and any
+ * OCTET STRINGs its content reveals, returning the encapsulating node on success or the raw octet string itself.
+ */
+@InternalAwesn1Api
+internal fun Asn1OctetString.decapsulateOrSelf(): Asn1OctetString {
+    var holder = this
+    ArrayDeque<OctetSlot>().apply { addLast(OctetSlot(this@decapsulateOrSelf) { holder = it }) }.parseOctetStrings()
+    return holder
 }
 
 /**
- * RAW decoding of an ASN.1 element after tag and length have already been decoded and consumed from the source
+ * In-place, iterative counterpart to the former recursive OCTET STRING decoding. Drains a work-list of raw
+ * OCTET STRINGs ([OctetSlot]s) (discovered during parsing — see [doParse]), replacing each whose content is
+ * valid DER with an [Asn1EncapsulatingOctetString] and leaving the rest raw. Each peel decodes exactly one layer
+ * via the iterative [doParse]. Must run before the tree escapes. See `equals`/`hashCode` caveat in [Asn1Structure.replaceChild].
  */
-@Throws(Asn1Exception::class)
 @InternalAwesn1Api
-private fun Source<*>.readAsn1Element(
-    tagAndLength: TagAndLength,
-    tagAndLengthBytes: Int,
-    limit: Long?
-): Pair<Asn1Element, Long> =
-    runRethrowing {
-        val (tag, length) = tagAndLength
-        val totalLength = tagAndLengthBytes.toLong() + length
-        //fail fast
-        limit?.let { require(totalLength <= limit) { "Length of ASN.1 element exceeds limit: $totalLength > $it" } }
-
-        //ASN.1 SEQUENCE / SEQUENCE OF
-        (if (tag.isSequence()) Asn1Sequence(doParseExactly(length))
-
-        //ASN.1 SET / SET OF
-        else if (tag.isSet()) Asn1Set.fromPresorted(doParseExactly(length))
-
-        //ASN.1 TAGGED (explicitly)
-        else if (tag.isExplicitlyTagged) Asn1ExplicitlyTagged(tag.tagValue, doParseExactly(length))
-
-        //ASN.1 OCTET STRING
-        else if (tag == Asn1Element.Tag.OCTET_STRING) Asn1OctetString(this, length)
-
-        //IMPLICIT-ly TAGGED ASN.1 CONSTRUCTED; we don't know if it is a SET OF, SET, SEQUENCE,… so we default to sequence semantics
-        else if (tag.isConstructed) Asn1CustomStructure(doParseExactly(length), tag.tagValue, tag.tagClass)
-
-        //IMPLICIT-ly TAGGED ASN.1 PRIMITIVE
-        else {
-            require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into a primitive" }
-            Asn1Primitive(tag, readByteArray(length.toInt())) as Asn1Element
-        }) to totalLength
+private fun ArrayDeque<OctetSlot>.parseOctetStrings() {
+    while (isNotEmpty()) {
+        val slot = removeFirst()
+        val content = slot.raw.content
+        catchingUnwrapped {
+            val layer = content.wrapInUnsafeSource().doParse(content.size.toLong(), single = false)
+            require(layer.roots.isNotEmpty())
+            addAllGuarded(layer.octets)
+            Asn1EncapsulatingOctetString.decapsulated(layer.roots)
+        }.getOrNull()?.let { slot.replaceWith(it) }
     }
+}
 
 private fun Asn1Element.Tag.isSet() = this == Asn1Element.Tag.SET
 private fun Asn1Element.Tag.isSequence() = (this == Asn1Element.Tag.SEQUENCE)
@@ -168,9 +309,6 @@ private fun Asn1Element.Tag.isSequence() = (this == Asn1Element.Tag.SEQUENCE)
  * [Asn1Element.Tag] to the decoded length
  */
 private typealias TagAndLength = Pair<Asn1Element.Tag, Long>
-
-private val TagAndLength.tag: Asn1Element.Tag get() = first
-private val TagAndLength.length: Long get() = second
 
 /**
  * Reads [TagAndLength] and the number of consumed bytes from the source
@@ -184,9 +322,6 @@ private fun Source<*>.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowin
     require(length.first >= 0L) { "Illegal length: $length" }
     return Pair((tag to length.first), (length.second + tag.encodedTagLength))
 }
-
-val Pair<TagAndLength, Int>.tagAndLength: TagAndLength get() = first
-val Pair<TagAndLength, Int>.bytesRead: Int get() = second
 
 /**
  * Decodes the `length` of an ASN.1 element (which is preceded by its tag) from the source.

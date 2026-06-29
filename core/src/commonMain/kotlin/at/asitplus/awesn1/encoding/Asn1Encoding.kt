@@ -96,7 +96,7 @@ object Asn1 {
     fun Sequence(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
         val seq = Asn1TreeBuilder()
         seq.root()
-        return Asn1Sequence(seq.elements)
+        return Asn1Sequence.adopting(seq.elements)
     }
 
 
@@ -131,7 +131,7 @@ object Asn1 {
     fun SequenceOf(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
         val seq = Asn1TreeBuilder()
         seq.root()
-        return Asn1SequenceOf(seq.elements)
+        return Asn1SequenceOf.adopting(seq.elements)
     }
 
     /**

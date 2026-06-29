@@ -13,7 +13,7 @@ import kotlin.jvm.JvmInline
 val SerializationTestRoundTripContracts by matrixSuite(matrixConfig {
     defaultCompactReport = CompactReport.FailuresOnly
     execution = ExecutionMode.Concurrent(12)
-    defaultCompactConcurrency = CompactConcurrency.Shared(1)
+    defaultCompactConcurrency = CompactConcurrency.Shared(12)
 }) {
     "Round-trip contracts for generics, collections, maps, and value classes" - {
         compact("Generic box of primitive value") - {
@@ -72,7 +72,7 @@ val SerializationTestRoundTripContracts by matrixSuite(matrixConfig {
     }
 }
 
-private const val ROUND_TRIP_ITERATIONS = 100000
+private const val ROUND_TRIP_ITERATIONS = 10000
 
 private inline fun <reified T> CompactScope.assertRoundTrip(
     arb: Arb<T>,

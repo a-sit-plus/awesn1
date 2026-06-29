@@ -8,6 +8,7 @@ import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.catchingUnwrapped
+import at.asitplus.awesn1.runRethrowing
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.decodeToAsn1Integer
 import at.asitplus.awesn1.encoding.parse
@@ -47,12 +48,15 @@ value class X509SignatureValue(val rawBitString: Asn1BitString) {
 
     val rawBytes: ByteArray get() = rawBitString.bitCarryingBytes
 
+    // runRethrowing: a malformed ECDSA-Sig-Value (fewer than two children, or non-positive integers) would
+    // otherwise leak NoSuchElementException/ClassCastException instead of a catchable Asn1Exception.
     @Throws(Asn1Exception::class)
-    fun decodeRS(): Pair<Asn1Integer.Positive, Asn1Integer.Positive> =
+    fun decodeRS(): Pair<Asn1Integer.Positive, Asn1Integer.Positive> = runRethrowing {
         Asn1Element.parse(rawBytes).asSequence().decodeAs {
             next().asPrimitive().decodeToAsn1Integer() as Asn1Integer.Positive to
                 next().asPrimitive().decodeToAsn1Integer() as Asn1Integer.Positive
         }
+    }
 
     companion object {
         fun fromRS(r: Asn1Integer.Positive, s: Asn1Integer.Positive) =

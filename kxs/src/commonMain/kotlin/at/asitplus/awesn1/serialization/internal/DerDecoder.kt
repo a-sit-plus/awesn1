@@ -43,13 +43,12 @@ class DerDecoder internal constructor(
     private val elements: List<Asn1Element>,
     override val der: Der,
     private val layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
+    // Shared across the whole decode so structural recursion is bounded. kotlinx.serialization's decode contract is
+    // recursive descent (deserialize -> decodeSerializableElement -> deserialize -> ...), which the iterative raw
+    // parser cannot flatten; this counter turns an unrecoverable StackOverflowError on a deeply nested recursive
+    // type into a clean SerializationException. Every child decoder MUST receive this same instance.
+    private val depthGuard: DerDepthGuard = DerDepthGuard(),
 ) : AbstractDecoder(), at.asitplus.awesn1.serialization.DerDecoder {
-
-    internal constructor(
-        source: Source<*>,
-        der: Der,
-        layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
-    ) : this(source.readFullyToAsn1Elements(der.configuration.maxInputLength).first, der, layoutPlan)
 
     override val serializersModule get() = der.serializersModule
 
@@ -72,6 +71,18 @@ class DerDecoder internal constructor(
 
     internal fun peekCurrentElementTagOrNull(): Asn1Element.Tag? = elements.getOrNull(elementIndex)?.tag
     internal fun peekCurrentElementOrNull(): Asn1Element? = elements.getOrNull(elementIndex)
+
+    /**
+     * Returns the element at [elementIndex] with an explicit bounds check.
+     *
+     * The decode protocol (decodeElementIndex + the `elementIndex == elements.size` null guard) keeps this index
+     * in range, but indexing directly relied on the runtime throwing on overrun — which Kotlin/Wasm does not do as
+     * a catchable exception. This surfaces any future invariant breach as a catchable [SerializationException]
+     * on every platform instead of a Wasm trap.
+     */
+    private fun currentElement(): Asn1Element =
+        elements.getOrNull(elementIndex)
+            ?: throw SerializationException("No ASN.1 element at index $elementIndex (have ${elements.size})")
 
     @Suppress("UNCHECKED_CAST")
     private fun <T> castDecoded(value: Any?): T = value as T
@@ -116,6 +127,7 @@ class DerDecoder internal constructor(
             elements = listOf(current),
             der = der,
             layoutPlan = layoutPlan,
+            depthGuard = depthGuard,
         )
         isolated.initializeStandalonePropertyState(deserializer.descriptor)
         isolated.currentOwnerSerialName = deserializer.descriptor.serialName
@@ -144,8 +156,12 @@ class DerDecoder internal constructor(
      */
     override fun beginStructure(descriptor: SerialDescriptor): CompositeDecoder {
 
+        // Bound structural recursion before descending another level (see [DerDepthGuard]). Balanced by the
+        // matching endStructure() decrement.
+        depthGuard.enter(der.configuration.maxNestingDepth, descriptor.serialName)
+
         // 1. Pick the element that belongs to *this* level
-        val element = elements[elementIndex]
+        val element = currentElement()
 
         // 2. hand over decoding of the children to a *new* decoder
         elementIndex++
@@ -172,6 +188,7 @@ class DerDecoder internal constructor(
                         effectiveChildren,
                         der = der,
                         layoutPlan = layoutPlan,
+                        depthGuard = depthGuard,
                     )
                 } else {
                     throw SerializationException(
@@ -193,6 +210,7 @@ class DerDecoder internal constructor(
                     effectiveChildren,
                     der = der,
                     layoutPlan = layoutPlan,
+                    depthGuard = depthGuard,
                 )
             }
 
@@ -200,6 +218,11 @@ class DerDecoder internal constructor(
             else -> this
 
         }
+    }
+
+    /** Balances the [beginStructure] depth increment. */
+    override fun endStructure(descriptor: SerialDescriptor) {
+        depthGuard.exit()
     }
 
     /**
@@ -273,7 +296,7 @@ class DerDecoder internal constructor(
     override fun decodeValue(): Any {
         val inlineAnnotation = inlineHintState.consume().tag
 
-        val currentAnnotatedElement = elements[elementIndex]
+        val currentAnnotatedElement = currentElement()
         val processedElement = currentAnnotatedElement
 
         val effectiveDescriptor =
@@ -378,7 +401,7 @@ class DerDecoder internal constructor(
                 inlineAsBitString = pendingInlineHints.asBitString,
             )) {
                 is Asn1LeadingTagsResolution.Exact -> {
-                    val actualTag = elements[elementIndex].tag
+                    val actualTag = currentElement().tag
                     if (actualTag !in expectedLeadingTags.tags) {
                         return nullDecoded()
                     }
@@ -400,7 +423,7 @@ class DerDecoder internal constructor(
                 }
             }
         }
-        val currentAnnotatedElement = elements[elementIndex]
+        val currentAnnotatedElement = currentElement()
         if (currentAnnotatedElement.isAsn1NullElement()) {
             val propertyDescriptorEncodesNull = ::propertyDescriptor.isInitialized &&
                     layoutPlan.analyzeNullable(
@@ -430,7 +453,7 @@ class DerDecoder internal constructor(
             // Let the framework do its inline-class magic **before consuming pending inline hints.**
             return deserializer.deserialize(this)
         }
-        val currentAnnotatedElement = elements[elementIndex]
+        val currentAnnotatedElement = currentElement()
         val inlineHints = inlineHintState.consume()
         val effectiveTagTemplate = resolveAsn1TagTemplate(
             inlineAsn1Tag = inlineHints.tag,
@@ -628,7 +651,11 @@ class DerDecoder internal constructor(
         if (deserializer.descriptor.kind == SerialKind.ENUM) {
             val ordinal = processedElement.asPrimitive()
                 .decodeToEnumOrdinal(expectedTag ?: Asn1Element.Tag.ENUM)
-                .toInt()
+                .let {
+                    if (it < 0) throw SerializationException("Negative ordinal $it cannot be auto-mapped to an enum value")
+                    if (it > Int.MAX_VALUE.toLong()) throw SerializationException("Ordinal $it too large!")
+                    it.toInt()
+                }
             val enumDecoder = object : AbstractDecoder() {
                 override val serializersModule: SerializersModule = this@DerDecoder.serializersModule
                 override fun decodeEnum(enumDescriptor: SerialDescriptor): Int = ordinal
@@ -656,6 +683,7 @@ class DerDecoder internal constructor(
             elements = mutableListOf(processedElement),
             der = der,
             layoutPlan = layoutPlan,
+            depthGuard = depthGuard,
         )
         if (dropFirstChildInNextStructure) {
             childDecoder.dropFirstChildInNextStructure = dropFirstChildInNextStructure
@@ -744,6 +772,32 @@ class DerDecoder internal constructor(
         return decodeCurrentElementWith(selected as DeserializationStrategy<T>)
     }
 
+}
+
+/**
+ * Guards against deep structural nesting [DerDecoder]/[DerEncoder] and all of its
+ * child encoders/decoders. [enter] is called once per `beginStructure` (a descent into a nested structure) and
+ * balanced by [exit] in `endStructure`, so [depth] reflects the current live nesting depth. When it would exceed the
+ * configured `maxNestingDepth`, [enter] throws — converting a would-be `StackOverflowError` into a catchable
+ * [SerializationException]. A guard is needed because kotlinx.serialization's encode/decode
+ * contract is recursive descent through `serialize`/`deserialize` frames the format cannot flatten or trampoline.
+ */
+internal class DerDepthGuard(private var depth: Int = 0) {
+    fun enter(maxNestingDepth: Int, serialName: String) {
+        depth++
+        if (depth > maxNestingDepth) {
+            throw SerializationException(
+                "ASN.1 nesting depth exceeded the configured maxNestingDepth=$maxNestingDepth while " +
+                        "processing '$serialName'. This usually means a recursive @Serializable type is being " +
+                        "encoded/decoded at extreme depth; raise DerConfiguration.maxNestingDepth only if this " +
+                        "nesting is expected."
+            )
+        }
+    }
+
+    fun exit() {
+        depth--
+    }
 }
 
 private class Asn1ChoiceNoMatchingAlternativeException(message: String) : SerializationException(message)
@@ -845,15 +899,3 @@ private fun Int.toStrictUByteBacking(): Byte =
 private fun Int.toStrictUShortBacking(): Short =
     if (this in 0..UShort.MAX_VALUE.toInt()) toShort()
     else throw SerializationException("ASN.1 INTEGER value $this is out of range for UShort")
-
-private fun SerialDescriptor.isKotlinUByteDescriptor(): Boolean =
-    serialName.removeSuffix("?") == "kotlin.UByte"
-
-private fun SerialDescriptor.isKotlinUShortDescriptor(): Boolean =
-    serialName.removeSuffix("?") == "kotlin.UShort"
-
-private fun SerialDescriptor.isKotlinUIntDescriptor(): Boolean =
-    serialName.removeSuffix("?") == "kotlin.UInt"
-
-private fun SerialDescriptor.isKotlinULongDescriptor(): Boolean =
-    serialName.removeSuffix("?") == "kotlin.ULong"

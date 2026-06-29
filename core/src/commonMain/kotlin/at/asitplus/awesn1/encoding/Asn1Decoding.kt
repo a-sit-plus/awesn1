@@ -32,7 +32,8 @@ import kotlin.time.Instant
  * This limit is enforced before reading or peeking from the underlying source.
  * @return the parsed [Asn1Element]
  *
- * @throws Asn1Exception on invalid input or if more than a single root structure was contained in the [source]
+ * @throws Asn1Exception on invalid input, if [source] is empty (no element to parse), or if more than a single
+ * root structure was contained in the [source]
  */
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Element {
@@ -59,6 +60,7 @@ fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long? = null): List
  * @param limit the maximum allowed total number of encoded DER bytes to consume.
  * This limit is enforced before reading or peeking from the underlying source.
  * @return a pair of the first parsed [Asn1Element] mapped to the remaining bytes
+ * @throws Asn1Exception on invalid input or if [source] is empty (no element to parse)
  * @see at.asitplus.awesn1.encoding.internal.readAsn1Element
  */
 @Throws(Asn1Exception::class)
@@ -131,7 +133,11 @@ inline fun <reified E : Enum<E>> Asn1Primitive.decodeToEnum(
         val ordinal = decodeToEnumOrdinal(assertTag, lenient)
         require(ordinal >= 0) { "Negative ordinal $ordinal cannot be auto-mapped to an enum value" }
         require(ordinal <= Int.MAX_VALUE.toLong()) { "Ordinal $ordinal too large!" }
-        enumEntries<E>().get(ordinal.toInt())
+        val entries = enumEntries<E>()
+        // Explicit bounds check: do not rely on the runtime throwing on out-of-bounds indexed access (Kotlin/Wasm
+        // does not raise a catchable exception there). An ordinal beyond the declared entries is invalid input.
+        require(ordinal < entries.size.toLong()) { "Ordinal $ordinal is out of range for enum with ${entries.size} entries" }
+        entries[ordinal.toInt()]
     }
 
 /** Exception-free version of [decodeToEnum]

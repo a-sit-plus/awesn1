@@ -92,3 +92,4 @@ External contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for w
 <p align="center">
 The Apache License does not apply to the logos, including the A-SIT logo, or the project and module names. These remain the property of A-SIT/A-SIT Plus GmbH and may not be used in derivative works without explicit permission.
 </p>
+

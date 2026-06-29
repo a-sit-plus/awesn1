@@ -1,3 +1,6 @@
 [submodule "fuzz-corpora"]
 	path = fuzz-corpora
 	url = https://github.com/openssl/fuzz-corpora.git
+[submodule "core/src/jvmTest/kotlin/at/asitplus/awesn1/fuzzed"]
+	path = core/src/jvmTest/kotlin/at/asitplus/awesn1/fuzzed
+	url = git@github.com:a-sit-plus/awesome-fuzzer.git

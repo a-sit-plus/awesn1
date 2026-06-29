@@ -6,6 +6,7 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.Sign
 import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
+import com.ionspin.kotlin.bignum.integer.util.fromTwosComplementByteArray
 import com.ionspin.kotlin.bignum.integer.util.toTwosComplementByteArray
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
@@ -96,6 +97,15 @@ val Asn1IntegerRepresentationTest by matrixSuite {
                 Asn1Integer.fromTwosComplement(ownPos.twosComplement()) shouldBe ownPos
                 Asn1Integer.fromTwosComplement(ownNeg.twosComplement()) shouldBe ownNeg
             }
+        }
+
+        "large negative round-trip" {
+            val bytes = ByteArray(4096) { index -> ((index * 37) and 0xFF).toByte() }.also { it[0] = 0x80.toByte() }
+            val neg = BigInteger.fromTwosComplementByteArray(bytes)
+            val ownNeg = Asn1Integer.fromTwosComplement(bytes)
+
+            ownNeg.toString() shouldBe neg.toString()
+            ownNeg.twosComplement() shouldBe bytes
         }
     }
 }

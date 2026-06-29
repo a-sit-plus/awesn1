@@ -11,6 +11,7 @@ import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
+import at.asitplus.awesn1.runRethrowing
 import at.asitplus.awesn1.runWrappingAs
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.decodeFromTlv
@@ -59,12 +60,18 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
                 if (c.size != 4 && c.size != 16) throw Asn1StructuralException("Invalid ipAddress Alternative Name found: ${c.toHexString()}")
             }}
 
-    val directoryNames: List<List<X500RelativeDistinguishedName>> get() =
+    // runRethrowing: this getter parses attacker-controlled bytes; an empty or multi-child [4] wrapper would
+    // otherwise leak NoSuchElementException/IllegalArgumentException instead of a catchable Asn1Exception.
+    val directoryNames: List<List<X500RelativeDistinguishedName>> get() = runRethrowing {
         entries.filter { it.tag == GeneralNameTags.directoryName }
             .map { e ->
-                e.asStructure().children.single().asSequence().children
+                val wrapper = e.asStructure().children
+                if (wrapper.size != 1)
+                    throw Asn1StructuralException("Invalid directoryName: expected a single child, got ${wrapper.size}")
+                wrapper.single().asSequence().children
                     .map { DER.decodeFromTlv<X500RelativeDistinguishedName>(it) }
             }
+    }
 
     val otherNames: List<Asn1Sequence> get() =
         entries.filter { it.tag == GeneralNameTags.otherName }.map { e ->

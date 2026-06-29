@@ -8,6 +8,7 @@ package at.asitplus.awesn1.io
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Encodable
 import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.MAX_RENDER_CHARS
 import at.asitplus.awesn1.encoding.KxIoSink
 import at.asitplus.awesn1.encoding.KxIoSource
 import at.asitplus.awesn1.encoding.internal.*
@@ -92,6 +93,24 @@ fun Asn1Encodable<*>.encodeToDer(sink: kotlinx.io.Sink) {
 
 fun Asn1Element.encodeToDer(sink: kotlinx.io.Sink) {
     encodeTo(KxIoSink(sink) as Sink)
+}
+
+/**
+ * Writes the compact (`toString`) rendering of this element as UTF-8 into [sink], truncating after [limit] characters
+ * (with a marker). Streaming to a sink lets you produce renderings larger than the in-memory [Asn1Element.toString];
+ * pass a larger [limit] to render more.
+ */
+fun Asn1Element.toString(sink: kotlinx.io.Sink, limit: Long = MAX_RENDER_CHARS) {
+    renderTo(KxIoSink(sink) as Sink, pretty = false, limit = limit)
+}
+
+/**
+ * Writes the verbose, indented ([prettyPrint]) rendering of this element as UTF-8 into [sink], truncating after [limit]
+ * characters (with a marker). Streaming to a sink lets you produce renderings larger than the in-memory
+ * [Asn1Element.prettyPrint]; pass a larger [limit] to render more.
+ */
+fun Asn1Element.prettyPrint(sink: kotlinx.io.Sink, limit: Long = MAX_RENDER_CHARS) {
+    renderTo(KxIoSink(sink) as Sink, pretty = true, limit = limit)
 }
 
 /**

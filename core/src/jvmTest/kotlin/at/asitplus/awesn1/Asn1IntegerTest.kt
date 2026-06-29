@@ -73,6 +73,19 @@ val Asn1IntegerTest by matrixSuite {
             "Right Shift producing a zero high byte" {
                 VarUInt(ubyteArrayOf(0x05u, 0xFCu)).shr(3).words shouldBe ubyteArrayOf(0xBFu)
             }
+            "Large base128 decode round-trips without shl/or growth" {
+                val magnitude = ByteArray(2048) { index -> ((index * 37) and 0xFF).toByte() }.stripLeadingZeros()
+                val expected = VarUInt(magnitude)
+                val encoded = expected.toAsn1VarInt()
+                val withTrailing = encoded + byteArrayOf(0x12, 0x34)
+
+                with(VarUInt) {
+                    val (decoded, nextIndex) = withTrailing.decodeAsn1VarBigUIntValue(0, withTrailing.size)
+                    // VarUInt is a value class over UByteArray (identity equality), so compare content.
+                    decoded.words shouldBe expected.words
+                    nextIndex shouldBe encoded.size
+                }
+            }
         }
         compact("Random values") - {
             property("bytes", Arb.byteArray(Arb.int(100, 200), Arb.byte()), iterations = 100) - { bytes ->

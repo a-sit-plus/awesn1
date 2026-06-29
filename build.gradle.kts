@@ -11,9 +11,11 @@ plugins {
     alias(libs.plugins.sbombastic)
     alias(libs.plugins.spotless)
     kotlin("multiplatform") version kotlinVer apply false
+    kotlin("jvm") version kotlinVer apply false
     kotlin("plugin.serialization") version kotlinVer apply false
     id("com.android.kotlin.multiplatform.library") version libs.versions.agp.get() apply (false)
     id("de.infix.testBalloon") version testballoonVer apply false
+    alias(libs.plugins.jmh) apply false
     base
 }
 group = "at.asitplus.awesn1"
@@ -42,10 +44,12 @@ dokka {
     }
 }
 subprojects {
+    if(name=="benchmarks") return@subprojects
     rootProject.dependencies.add("dokka", this)
 }
 
 allprojects {
+    if(name=="benchmarks") return@allprojects
     repositories {mavenLocal()}
     apply(plugin = "org.jetbrains.dokka")
     group = rootProject.group
@@ -79,7 +83,7 @@ spotless {
 }
 
 tasks.named("spotlessCheck") {
-    dependsOn(subprojects.map { "${it.path}:cyclonedxPublishedBom" })
+    dependsOn(subprojects.filterNot { it.name=="benchmarks" }.map { "${it.path}:cyclonedxPublishedBom" })
 }
 
 val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
@@ -94,7 +98,7 @@ val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
     val sbomIndexFile = rootProject.layout.projectDirectory.file("docs/docs/sbom/index.json")
     val sbomTemplateFile = rootProject.layout.projectDirectory.file("docs/templates/sbom-module.template.md")
     val sbomRendererFile = rootProject.layout.projectDirectory.file("docs/tools/render_sbom_pages.py")
-    val sortedProjects = subprojects.sortedBy { it.name }
+    val sortedProjects = subprojects.filterNot { it.name=="benchmarks" }.sortedBy { it.name }
 
     dependsOn(sortedProjects.map { "${it.path}:cyclonedxPublishedBom" })
 

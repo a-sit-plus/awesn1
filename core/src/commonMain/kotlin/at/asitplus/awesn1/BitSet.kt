@@ -15,14 +15,23 @@ import kotlin.experimental.and
 import kotlin.experimental.inv
 import kotlin.experimental.or
 
-private fun getByteIndex(i: Long) = (i / 8).toInt()
+// toIntChecked (not a silent .toInt()): a bit index whose byte index exceeds Int.MAX_VALUE cannot address an
+// array/list, so reject it loudly instead of truncating to a bogus (possibly negative) index. Used for
+// writes/preallocation, where overflow must throw. Reads (getBit) bounds-check explicitly and read out-of-range
+// bits as false without relying on the runtime to throw.
+private fun getByteIndex(i: Long) = (i / 8).toIntChecked("BitSet byte index")
 private fun getBitIndex(i: Long) = (i % 8).toInt()
 
-private fun List<Byte>.getBit(index: Long): Boolean =
+private fun List<Byte>.getBit(index: Long): Boolean {
     if (index < 0) throw IndexOutOfBoundsException("index = $index")
-    else catchingUnwrapped {
-        this[getByteIndex(index)].getBit(getBitIndex(index))
-    }.getOrElse { false }
+    // Explicit bounds check instead of relying on the runtime to throw on out-of-bounds indexed access:
+    // Kotlin/Wasm does not raise a catchable exception there, so a caught-and-defaulted access glitches.
+    // A bit beyond the backing bytes reads as false. byteIndex is computed in Long to avoid Int overflow;
+    // any in-range byteIndex is < size <= Int.MAX, so the narrowing toInt() below is safe.
+    val byteIndex = index / 8
+    if (byteIndex >= size) return false
+    return this[byteIndex.toInt()].getBit(getBitIndex(index))
+}
 
 private fun Byte.getBit(index: Int): Boolean =
     if (index !in 0..7) throw IndexOutOfBoundsException("bit index $index out of bounds.")
@@ -71,7 +80,7 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
      */
     constructor(nBits: Long = 0) : this(
         if (nBits < 0) throw IllegalArgumentException("a bit set of size $nBits makes no sense")
-        else MutableList(getByteIndex(nBits) + 1) { 0.toByte() })
+        else MutableList((getByteIndex(nBits).toLong() + 1).toIntChecked("BitSet preallocate size")) { 0.toByte() })
 
     /**
      * Returns the bit at [index]. Never throws an exception when [index]>=0, as getting a bit outside the underlying

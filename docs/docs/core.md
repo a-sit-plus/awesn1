@@ -33,6 +33,14 @@ universe. It gives you:
 - Rich ASN.1 domain types (`ObjectIdentifier`, `Asn1Integer`, `Asn1Real`, `Asn1Time`, `Asn1String`, `BitSet`)
 - Addons for integrating with [kotlinx-io](https://github.com/Kotlin/kotlinx-io) (see [io addons](addons.md#kxs-io))
 - Optional known OID registry (see [OID addons](addons.md#oids))
+- A hardened, fully **iterative** parser/encoder that fails predictably on hostile input (see [Hardening](hardening.md))
+
+!!! note "New in 0.5.0: iterative parsing"
+
+    As of **0.5.0**, raw DER parsing, encoding, pretty-printing, `equals`/`hashCode`, and SET ordering are
+    **iterative** (explicit work-stacks) rather than recursive. Arbitrarily deeply nested input can therefore no longer
+    exhaust the call stack — it fails with a bounded `Asn1Exception` instead of a `StackOverflowError`. See
+    [Hardening](hardening.md) for the full robustness model and the fuzzing/audit work behind it.
 
 ## Maven Coordinates
 
