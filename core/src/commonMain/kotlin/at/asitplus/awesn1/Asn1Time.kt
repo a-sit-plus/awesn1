@@ -5,6 +5,8 @@
 
 package at.asitplus.awesn1
 
+import at.asitplus.awesn1.Asn1Time.Companion.invoke
+import at.asitplus.awesn1.Asn1Time.Fractional.Companion.FRACTIONAL_SECONDS
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.serialization.Asn1Serializer
 import kotlinx.serialization.KSerializer
@@ -81,7 +83,8 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
          * Matches [FRACTIONAL_SECONDS] regex: one or more digits. Every digit is significant and preserved,
          * including leading and trailing zeros and an all-zero fraction: `"05"` (0.05 s) ≠ `"5"` (0.5 s),
          * `"120"` is kept verbatim rather than normalized to `"12"`, and `"000"` is kept rather than dropped to ensure
-         * even faulty encodings are round-tripped. Although cursed, certificates with such time encodings exists in practice.
+         * even faulty encodings are round-tripped.
+         * Although cursed, certificates with such time encodings exist in practice.
          *
          * When derived from an [Instant], trailing zeros are stripped (DER minimum encoding).
          * May carry more precision than [instant]'s nanosecond resolution.
@@ -103,8 +106,6 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
 
         override val format: Format get() = Format.GENERALIZED
 
-        val fractionDigits: String get() = fractionalSeconds
-
         override fun hashCode(): Int = super.hashCode() * 31 + fractionalSeconds.hashCode()
 
         override fun equals(other: Any?): Boolean =
@@ -113,7 +114,10 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
         override fun toString(): String = "Asn1Time(instant=$instant, format=$format, fraction=.$fractionalSeconds)"
 
         companion object {
-            /** Fractional-second digits: one or more digits; every digit (incl. leading/trailing/all zeros) is significant. */
+            /**
+             * Fractional-second digits: one or more digits; every digit
+             * (incl. leading/trailing/all zeros) is significant.
+             */
             val FRACTIONAL_SECONDS = Regex("[0-9]+")
         }
     }
@@ -121,7 +125,7 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
     override fun encodeToTlv(): Asn1Primitive =
         when (this) {
             is Fractional -> {
-                val fraction = fractionDigits
+                val fraction = fractionalSeconds
                 val whole = instant.encodeToAsn1Time().dropLast(1) // strip trailing 'Z' -> "YYYYMMDDHHMMSS"
                 val body = if (fraction.isEmpty()) whole else "$whole.${fraction}"
                 Asn1Primitive(Asn1Element.Tag.TIME_GENERALIZED, "${body}Z".encodeToByteArray())
@@ -158,7 +162,8 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
         decodable = object : Asn1Decodable<Asn1Primitive, Asn1Time> {
             @Throws(Asn1Exception::class)
             override fun doDecode(src: Asn1Primitive): Asn1Time =
-                if (src.tag == Asn1Element.Tag.TIME_UTC) fromUtc(src.content) else decodeGeneralizedTimeToAsn1Time(src.content)
+                if (src.tag == Asn1Element.Tag.TIME_UTC) fromUtc(src.content)
+                else decodeGeneralizedTimeToAsn1Time(src.content)
         },
         fallbackSerializer = Asn1TimeSerializer,
     ) {
@@ -212,7 +217,8 @@ private val THRESHOLD_GENERALIZED_TIME = Instant.parse("2050-01-01T00:00:00Z")
 
 /** RFC 5280 §4.1.2.5 cut-over: times in `[1950,2050)` use UTC TIME, everything else GENERALIZED TIME. */
 private fun pickFormat(instant: Instant): Asn1Time.Format =
-    if (instant !in THRESHOLD_UTC_TIME..<THRESHOLD_GENERALIZED_TIME) Asn1Time.Format.GENERALIZED else Asn1Time.Format.UTC
+    if (instant !in THRESHOLD_UTC_TIME..<THRESHOLD_GENERALIZED_TIME) Asn1Time.Format.GENERALIZED
+    else Asn1Time.Format.UTC
 
 private fun fromUtc(content: ByteArray): Asn1Time =
     Asn1Time.SecondsCapped(Instant.decodeUtcTimeFromAsn1ContentBytes(content), Asn1Time.Format.UTC)
@@ -242,4 +248,4 @@ internal object Asn1TimeSerializer : KSerializer<Asn1Time> {
 /**
  * Returns a [Instant] with the same epoch seconds, but nanosecond precision capped
  */
-fun Instant.secondsCapped() =Instant.fromEpochSeconds(this.epochSeconds)
+fun Instant.secondsCapped() = Instant.fromEpochSeconds(this.epochSeconds)
