@@ -31,10 +31,14 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
     override val leadingTags: Set<Asn1Element.Tag>
         get() = dispatch.leadingTags
 
-    override fun serializerForEncode(encoder: DerEncoder, value: T): KSerializer<out T> =
-        dispatch.registrationForEncode(value).also {
-            encoder.prependOidToNextStructure(value.oid)
-        }.serializer
+    override fun serializerForEncode(encoder: DerEncoder, value: T): KSerializer<out T> {
+        val reg = dispatch.registrationForEncode(value)
+        // Exact subtypes carry no OID of their own → inject the discriminator as the leading element.
+        // The catch-all (fallback) carries its OID as its own first field, so injecting would write it
+        // twice; emit it exactly once and let the fallback round-trip it into that property.
+        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) encoder.prependOidToNextStructure(value.oid)
+        return reg.serializer
+    }
 
     /**
      * Selects decode serializer by extracting discriminator OID from current ASN.1 element.
@@ -49,10 +53,12 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
             ?: throw SerializationException(
                 "Could not extract discriminator OID from current ASN.1 element while decoding ${descriptor.serialName}"
             )
-        val selected = dispatch.registrationForDecode(oid).serializer
-        decoder.dropOidFromNextStructure()
+        val reg = dispatch.registrationForDecode(oid)
+        // Mirror of encode: drop the injected discriminator only for exact subtypes. For the catch-all
+        // the leading OID IS the fallback's own `oid` field — keep it so the fallback reads it back.
+        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) decoder.dropOidFromNextStructure()
         @Suppress("UNCHECKED_CAST")
-        return selected as DeserializationStrategy<T>
+        return reg.serializer as DeserializationStrategy<T>
     }
 
     /**
@@ -66,7 +72,9 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
             ?: throw SerializationException("Expected DerEncoder while encoding ${descriptor.serialName}")
 
         val reg = dispatch.registrationForEncode(value)
-        derEncoder.prependOidToNextStructure(value.oid)
+        // See serializerForEncode: inject the discriminator only for exact (sans-OID) subtypes; the
+        // catch-all already carries its OID as its first field, so it is encoded exactly once.
+        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) derEncoder.prependOidToNextStructure(value.oid)
 
         @Suppress("UNCHECKED_CAST")
         val ser = reg.serializer as KSerializer<T>

@@ -2,6 +2,7 @@
 
 ## NEXT
 * **Fixes:**
+    * OID-based open-polymorphism catch-all fallback no longer encodes the discriminator OID twice.
     * `Asn1SetOf` is now persistent across DER round-trips. The raw DER parser automatically emits `Asn1SetOf` when a SET's children all share the same tag; otherwise it falls back to plain `Asn1Set`.
     * Added `Asn1SetOf.commonTag` property for convenient access to the shared tag.
     * `Asn1SequenceOf` is now persistent across DER round-trips. The raw DER parser automatically emits `Asn1SequenceOf` when a SEQUENCE's children all share the same tag; otherwise it falls back to plain `Asn1Sequence`.

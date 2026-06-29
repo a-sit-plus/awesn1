@@ -555,9 +555,9 @@ private fun openPolyByOidRoundTrip(value: TutorialDocOpenByOid): Pair<ByteArray,
     val der = codec.encodeToByteArray(value)
     when (value) {
         is TutorialDocOpenByOidInt ->
-            check(der.toHexString() == /* (1)! */"30190614698192b2e2c8dbfcf294f58cc9b5f2ac87948247020109")
+            der.toHexString() shouldBe /* (1)! */"30190614698192b2e2c8dbfcf294f58cc9b5f2ac87948247020109"
         is TutorialDocOpenByOidOther ->
-            check(der.toHexString() == /* (2)! */"302206082a0304050607080906082a030405060708090c0c756e72656769737465726564")
+            der.toHexString() shouldBe /* (2)! */"301806082a030405060708090c0c756e72656769737465726564"
     }
     // --8<-- [end:kxs-open-poly-oid-roundtrip]
     return der to codec.decodeFromByteArray(der)

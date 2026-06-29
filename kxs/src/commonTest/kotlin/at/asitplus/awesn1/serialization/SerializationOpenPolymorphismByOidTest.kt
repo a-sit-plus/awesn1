@@ -1,7 +1,11 @@
 package at.asitplus.awesn1.serialization
 
+import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.encoding.parse
+import at.asitplus.awesn1.readOid
 import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
@@ -85,6 +89,19 @@ val SerializationTestOpenPolymorphismByOid by matrixSuite(
         )
 
         der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(value)) shouldBe value
+    }
+
+    "catchAll encodes its discriminator OID exactly once (no injected duplicate)" {
+        // Regression: the catch-all carries its OID as its own first field, so the framework must NOT
+        // also inject a discriminator OID — otherwise the OID appears twice and the bytes are not the
+        // canonical single-OID structure (which would, e.g., break standard X.509 extension DER).
+        val der = derWithOpenByOid(includeBool = false, includeCatchAll = true)
+        val value: OpenByOid = OpenByOidRaw(oid = ObjectIdentifier("1.2.840.113549.1.9.7"), value = "challenge")
+
+        val encoded = der.encodeToByteArray(value)
+        val children = Asn1Element.parse(encoded).asSequence().children
+        children.count { it.tag == Asn1Element.Tag.OID } shouldBe 1
+        (children.first() as Asn1Primitive).readOid() shouldBe ObjectIdentifier("1.2.840.113549.1.9.7")
     }
 }
 
