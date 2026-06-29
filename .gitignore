@@ -20,3 +20,4 @@ metrics/
 /pyasn1/*/*/__pycache__/
 /core/src/jvmTest/pyasn1/
 repo
+/core/collected.txt

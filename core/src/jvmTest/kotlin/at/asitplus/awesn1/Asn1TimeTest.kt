@@ -1,12 +1,21 @@
 package at.asitplus.awesn1
 
+import at.asitplus.awesn1.encoding.decodeGeneralizedTimeFromAsn1ContentBytes
+import at.asitplus.awesn1.encoding.decodeToInstant
+import at.asitplus.awesn1.encoding.decodeUtcTimeFromAsn1ContentBytes
+import at.asitplus.awesn1.encoding.encodeToAsn1GeneralizedTimePrimitive
+import at.asitplus.awesn1.encoding.encodeToAsn1UtcTimePrimitive
+import at.asitplus.awesn1.encoding.parse
 import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.javaInstant
 import java.time.Instant
 import kotlin.time.toKotlinInstant
+import kotlin.time.Instant as KotlinInstant
 
 val Asn1TimeTest by matrixSuite {
 
@@ -23,7 +32,7 @@ val Asn1TimeTest by matrixSuite {
 
             val asn1Time = Asn1Time(now.toKotlinInstant())
             val asn1Time1 = Asn1Time(then.toKotlinInstant())
-            val asn1Time2 = Asn1Time(then.toKotlinInstant(), Asn1Time.Format.UTC)
+            val asn1Time2 = Asn1Time(then.toKotlinInstant().secondsCapped(), Asn1Time.Format.UTC)
             val asn1Time3 = Asn1Time(later.toKotlinInstant(), Asn1Time.Format.GENERALIZED)
 
             asn1Time shouldBe asn1Time
@@ -54,3 +63,138 @@ val Asn1TimeTest by matrixSuite {
         }
     }
 }
+
+    /** Wraps [body] (ASCII) as a DER GENERALIZED TIME primitive (tag 0x18, single-byte length). */
+    private fun time(body: String): ByteArray {
+        val b = body.encodeToByteArray()
+        require(b.size < 128)
+        return byteArrayOf(0x18, b.size.toByte()) + b
+    }
+
+    private fun decode(der: ByteArray) = Asn1Time.decodeFromTlv(Asn1Element.parse(der).asPrimitive())
+
+    /**
+     * Builds an [Asn1Time] from the canonical GENERALIZED TIME value [body] (e.g. `"20240102030405.05Z"`)
+     * through every construction path and asserts they are all equal and round-trip to the same DER bytes:
+     *  - DER:    [Asn1Time.decodeFromTlv] of the encoded primitive
+     *  - String: the `Asn1Time(String)` faux-constructor (arbitrary fractional precision)
+     *  - Instant: `Asn1Time(kotlin.time.Instant)` — only when the fraction fits nanosecond precision ([iso] non-null)
+     *
+     * Expected subtype/fraction are derived from [body] itself. Pass [iso] = `null` for fractions beyond
+     * nanosecond precision, where the Instant path cannot represent the value.
+     */
+    private fun assertAllPaths(body: String, iso: String?) {
+        val der = time(body)
+        val expectedFraction = body.substringAfter('.', "").removeSuffix("Z").ifEmpty { null }
+
+        val viaDer = decode(der)
+        val viaString = Asn1Time(body)
+        val viaInstant = iso?.let { Asn1Time(kotlin.time.Instant.parse(it)) }
+
+        for (t in listOfNotNull(viaDer, viaString, viaInstant)) {
+            t shouldBe viaDer
+            t.hashCode() shouldBe viaDer.hashCode()
+            t.encodeToTlv().derEncoded shouldBe der
+            if (expectedFraction == null) t.shouldBeInstanceOf<Asn1Time.SecondsCapped>()
+            else t.shouldBeInstanceOf<Asn1Time.Fractional>().fractionalSeconds shouldBe expectedFraction
+        }
+    }
+
+    val Asn1TimeFocusedTest by matrixSuite {
+
+        // Each case is constructed via DER + String + (when fraction <= nanosecond) Kotlin Instant, and the
+        // results are asserted equal and byte-identical on re-encode.
+
+        "whole-second GENERALIZED (>= 2050 so format matches across paths)" {
+            assertAllPaths("20520101000000Z", iso = "2052-01-01T00:00:00Z")
+        }
+
+        "fraction .5" {
+            assertAllPaths("20240102030405.5Z", iso = "2024-01-02T03:04:05.5Z")
+        }
+
+        "fraction .05 (leading zero preserved)" {
+            assertAllPaths("20240102030405.05Z", iso = "2024-01-02T03:04:05.05Z")
+        }
+
+        "fraction .123456789 (max nanosecond precision)" {
+            assertAllPaths("20240102030405.123456789Z", iso = "2024-01-02T03:04:05.123456789Z")
+        }
+
+        "fraction .1234567890123 (beyond nanosecond; DER + String only)" {
+            assertAllPaths("20240102030405.1234567890123Z", iso = null)
+        }
+
+        "fraction .0123456789012 (beyond nanosecond, leading zero; DER + String only)" {
+            assertAllPaths("20240102030405.0123456789012Z", iso = null)
+        }
+
+        // ---- trailing zeros: stripped when encoding from a Kotlin Instant (DER minimum encoding),
+        //      but preserved verbatim when present in DER input, so the parser stays lenient and does
+        //      not mangle. The Instant path trims, so these go through DER + String only (iso = null). ----
+
+        "fraction .120 — trailing zero preserved on DER/String parse, re-encoded verbatim" {
+            assertAllPaths("20520517130102.120Z", iso = null)
+        }
+
+        "fraction .1200 — multiple trailing zeros preserved" {
+            assertAllPaths("20520517130102.1200Z", iso = null)
+        }
+
+        "fraction .0120 — leading and trailing zeros both preserved" {
+            assertAllPaths("20520517130102.0120Z", iso = null)
+        }
+
+        "encoding from a sub-second Instant strips trailing zeros (DER minimum encoding)" {
+            val t = Asn1Time(kotlin.time.Instant.parse("2052-05-17T13:01:02.120Z"))
+            t.shouldBeInstanceOf<Asn1Time.Fractional>().fractionalSeconds shouldBe "12"
+            t.encodeToTlv().derEncoded shouldBe time("20520517130102.12Z")
+        }
+
+        "the same value parsed from DER keeps the trailing zero and round-trips byte-identically" {
+            val der = time("20520517130102.120Z")
+            val t = decode(der)
+            t.shouldBeInstanceOf<Asn1Time.Fractional>().fractionalSeconds shouldBe "120"
+            // .120 and .12 denote the same instant — only the encoded form differs
+            t.instant shouldBe kotlin.time.Instant.parse("2052-05-17T13:01:02.12Z")
+            t.encodeToTlv().derEncoded shouldBe der // NOT mangled down to ".12Z"
+        }
+
+        "all-zero fraction is preserved verbatim (non-minimal but valid; must round-trip for signatures)" {
+            // .000Z denotes a whole second, but stripping it would change derEncoded and break signature
+            // verification over the original TBS bytes. So keep it as a Fractional and re-encode identically.
+            val der = time("20520517130102.000Z")
+            val t = decode(der)
+            t.shouldBeInstanceOf<Asn1Time.Fractional>().fractionalSeconds shouldBe "000"
+            t.instant shouldBe kotlin.time.Instant.parse("2052-05-17T13:01:02Z") // whole-second value
+            t.encodeToTlv().derEncoded shouldBe der                              // NOT stripped to "...Z"
+        }
+
+        "long all-zero fraction beyond nanosecond precision still round-trips byte-for-byte" {
+            assertAllPaths("20520517130102.000000000000000000000Z", iso = null)
+        }
+
+        "a SecondsCapped and a whole-second Fractional (.000) are not equal (they encode differently)" {
+            val capped = decode(time("20520517130102Z"))
+            val fractional = decode(time("20520517130102.000Z"))
+            capped.shouldBeInstanceOf<Asn1Time.SecondsCapped>()
+            fractional.shouldBeInstanceOf<Asn1Time.Fractional>()
+            capped.instant shouldBe fractional.instant   // same instant
+            capped shouldNotBe fractional                // but not equal, and symmetrically so
+            fractional shouldNotBe capped
+        }
+
+        // ---- path-specific cases without a clean three-way equivalence ----
+
+        "UTC parses to SecondsCapped UTC (String/Instant paths are GeneralizedTime-only)" {
+            val t = decode(byteArrayOf(0x17, 13) + "240102030405Z".encodeToByteArray())
+            t.shouldBeInstanceOf<Asn1Time.SecondsCapped>()
+            t.format shouldBe Asn1Time.Format.UTC
+        }
+
+        "sub-second Instant + UTC override is rejected" {
+            shouldThrow<IllegalArgumentException> {
+                Asn1Time(kotlin.time.Instant.parse("2024-01-02T03:04:05.050Z"), Asn1Time.Format.UTC)
+            }
+        }
+    }

@@ -448,7 +448,7 @@ fun Instant.encodeToAsn1UtcTimePrimitive() =
 fun Instant.encodeToAsn1GeneralizedTimePrimitive() =
     Asn1Primitive(Asn1Element.Tag.TIME_GENERALIZED, encodeToAsn1Time().encodeToByteArray())
 
-private fun Instant.encodeToAsn1Time(): String {
+internal fun Instant.encodeToAsn1Time(): String {
     val value = this.toString()
     if (value.isEmpty())
         throw IllegalArgumentException("Instant serialization failed: no value")

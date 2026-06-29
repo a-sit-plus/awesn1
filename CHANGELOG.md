@@ -28,6 +28,13 @@
     * `Asn1Integer` negative INTEGER decode/encode no longer detours through quadratic decimal-string round-trips; two's-complement conversion now stays in byte arithmetic.
     * Large ASN.1 varint / OID arc decoding no longer grows work quadratically through repeated `shl`/`or` chains; big unsigned varints are now unpacked in one pass.
     * `BitSet(nBits)` now rejects the exact preallocation overflow boundary instead of wrapping during the final `+ 1` byte-count adjustment.
+* **Features:**
+    * ASN.1 GENERALIZED TIME now supports arbitrary precision fractional second representation. **This is a breaking change**
+        * `Asn1Time` is now a `sealed` class consisting of
+            * `SecondsCapped`, trimming fractional seconds (old behaviour)
+            * `Fractional`, keeping arbitrary precision fractional seconds (full DER-compliance)
+        * `X509TbsCertificate` now takes `SecondsCapped` time as constructor parameters, but still parses `Fractional` time for leniency.
+    * `ObjectIdentifier` is now `Comparable<ObjectIdentifier>`
 * **Other Changes:**
     * Add a `benchmarks` module with certificate, length, raw-TLV, rendering, resource-corpus, and SET-sorting benchmarks.
     * Extend public docs for low-level parsing and `kxs` behavior, including newer hardening and limit semantics.

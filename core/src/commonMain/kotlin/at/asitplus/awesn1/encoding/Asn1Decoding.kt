@@ -6,7 +6,6 @@
 
 package at.asitplus.awesn1.encoding
 
-
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.BERTags.BMP_STRING
 import at.asitplus.awesn1.BERTags.IA5_STRING
@@ -607,19 +606,40 @@ fun Instant.Companion.decodeUtcTimeFromAsn1ContentBytes(input: ByteArray): Insta
  * @throws Asn1Exception if the input does not parse
  */
 @Throws(Asn1Exception::class)
-fun Instant.Companion.decodeGeneralizedTimeFromAsn1ContentBytes(bytes: ByteArray): Instant = runRethrowing {
-    val s = bytes.decodeToString()
-    if (s.length != 15) throw IllegalArgumentException("Input too short: $bytes")
-    val isoString = "${s[0]}${s[1]}${s[2]}${s[3]}" + // year
-            "-${s[4]}${s[5]}" + // month
-            "-${s[6]}${s[7]}" + // day
-            "T${s[8]}${s[9]}" + // hour
-            ":${s[10]}${s[11]}" + // minute
-            ":${s[12]}${s[13]}" + // seconds
-            "${s[14]}" // time offset
-    return parse(isoString)
-}
+fun Instant.Companion.decodeGeneralizedTimeFromAsn1ContentBytes(bytes: ByteArray): Instant =
+    // The full-precision ground truth is Asn1Time; this just caps to the Instant's nanosecond resolution.
+    decodeGeneralizedTimeToAsn1Time(bytes).instant
 
+/**
+ * DER (X.690 §11.7): mandatory `YYYYMMDDHHMMSS`, `.` decimal separator, `Z` terminator.
+ */
+internal fun decodeGeneralizedTimeToAsn1Time(content: ByteArray): Asn1Time = runRethrowing {
+    val s = content.decodeToString()
+    require(s.length >= 15) { "GENERALIZED TIME too short: $s" }
+    require(s.endsWith("Z")) { "GENERALIZED TIME must end with 'Z': $s" }
+    val base = "${s[0]}${s[1]}${s[2]}${s[3]}" + // year
+            "-${s[4]}${s[5]}" +                 // month
+            "-${s[6]}${s[7]}" +                 // day
+            "T${s[8]}${s[9]}" +                 // hour
+            ":${s[10]}${s[11]}" +               // minute
+            ":${s[12]}${s[13]}"                 // seconds
+    val sep = s.indexOf('.')
+    if (sep < 0) {
+        require(s.length == 15) { "Unexpected trailing data in GENERALIZED TIME: $s" }
+        Asn1Time.SecondsCapped(Instant.parse("${base}Z"), Asn1Time.Format.GENERALIZED)
+    } else {
+        require(sep == 14) { "Fractional separator must immediately follow the seconds field: $s" }
+        val digits = s.substring(sep + 1, s.length - 1) // between the period and trailing 'Z'
+        require(digits.isNotEmpty() && digits.all { it.isDigit() }) { "Malformed fractional seconds: $s" }
+        // Lenient: keep the fractional digits verbatim — including leading, trailing, and even all-zero
+        // fractions — so re-encoding reproduces non-minimal-but-valid DER input byte-for-byte. This matters
+        // for signature verification: a certificate signed over e.g. "...02.000Z" must round-trip unchanged,
+        // otherwise the recomputed TBS bytes would not match the signature. (Encoding *from an Instant* still
+        // strips trailing zeros for DER minimum encoding; see Asn1Time.Fractional.)
+        // Instant resolves to nanoseconds; the exact arbitrary-precision fraction is kept verbatim in fractionalSeconds.
+        Asn1Time.Fractional(Instant.parse("$base.${digits.take(9)}Z"), digits)
+    }
+}
 /**
  * Decodes a signed [Int] from [bytes] assuming the same encoding as the [Asn1Primitive.content] property of an [Asn1Primitive] containing an ASN.1 INTEGER
  *

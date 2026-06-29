@@ -1,4 +1,5 @@
 package at.asitplus.awesn1.crypto
+import at.asitplus.awesn1.Asn1Time
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
@@ -31,7 +32,9 @@ import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.runWrappingAs
+import at.asitplus.awesn1.serialization.DER
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.decodeFromByteArray
 
 internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     val element = Asn1Element.parse(encoded)
@@ -166,24 +169,7 @@ private fun LegacyX509CertificateExtension.toCurrent() =
     )
 
 private fun LegacyTbsCertificate.toCurrent() =
-    X509TbsCertificate(
-        version = version?.let { when(it) {
-            0-> X509TbsCertificate.Version.V1
-            1-> X509TbsCertificate.Version.V2
-            2-> X509TbsCertificate.Version.V3
-            else -> error("Unknown version $it")
-        } },
-        serialNumber = Asn1Integer.fromByteArray(serialNumber, Sign.POSITIVE),
-        signatureAlgorithm = signatureAlgorithm.toCurrent(),
-        issuerName = issuerName.map { it.toCurrent() },
-        validFrom = validFrom,
-        validUntil = validUntil,
-        subjectName = subjectName.map { it.toCurrent() },
-        subjectPublicKeyInfo = subjectPublicKeyInfo.toCurrent(),
-        issuerUniqueID = issuerUniqueID,
-        subjectUniqueID = subjectUniqueID,
-        extensions = extensions?.map { it.toCurrent() },
-    )
+    DER.decodeFromByteArray<X509TbsCertificate>(encodeToTlv().derEncoded)
 
 private fun LegacyX509Certificate.toCurrent() =
     X509Certificate(
