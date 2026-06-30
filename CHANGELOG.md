@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## 0.5.0
 * **Fixes:**
     * OID-based open-polymorphism catch-all fallback no longer encodes the discriminator OID twice.
