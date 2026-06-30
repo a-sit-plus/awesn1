@@ -1,6 +1,6 @@
 # Changelog
 
-## NEXT
+## 0.5.0
 * **Fixes:**
     * OID-based open-polymorphism catch-all fallback no longer encodes the discriminator OID twice.
     * `Asn1SetOf` is now persistent across DER round-trips. The raw DER parser automatically emits `Asn1SetOf` when a SET's children all share the same tag; otherwise it falls back to plain `Asn1Set`.
