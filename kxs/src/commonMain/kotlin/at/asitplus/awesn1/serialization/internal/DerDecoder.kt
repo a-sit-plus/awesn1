@@ -64,6 +64,7 @@ class DerDecoder internal constructor(
     private var currentPropertyIndex: Int? = null
     private var currentPropertyIsTrailing = true
     private var dropFirstChildInNextStructure: Boolean = false
+    private var inheritedOpenPolymorphicTag: Asn1Tag? = null
     internal fun dropOidFromNextStructure() {
         dropFirstChildInNextStructure = true
     }
@@ -134,6 +135,7 @@ class DerDecoder internal constructor(
         isolated.currentPropertyName = deserializer.descriptor.serialName
         isolated.currentPropertyIndex = 0
         isolated.dropFirstChildInNextStructure = this.dropFirstChildInNextStructure
+        isolated.inheritedOpenPolymorphicTag = this.inheritedOpenPolymorphicTag
         this.dropFirstChildInNextStructure = false
         val decoded = isolated.decodeSerializableValue(deserializer)
         elementIndex++
@@ -455,9 +457,10 @@ class DerDecoder internal constructor(
         }
         val currentAnnotatedElement = currentElement()
         val inlineHints = inlineHintState.consume()
+        val effectivePropertyAsn1Tag = inheritedOpenPolymorphicTag ?: propertyAsn1Tag
         val effectiveTagTemplate = resolveAsn1TagTemplate(
             inlineAsn1Tag = inlineHints.tag,
-            propertyAsn1Tag = propertyAsn1Tag,
+            propertyAsn1Tag = effectivePropertyAsn1Tag,
             classAsn1Tag = deserializer.descriptor.asn1Tag,
         )
         // Asn1OctetString has a concrete wire representation despite sharing the opaque element descriptor.
@@ -465,7 +468,7 @@ class DerDecoder internal constructor(
             requireNoAsn1TagOnRawElement(
                 descriptor = deserializer.descriptor,
                 inlineAsn1Tag = inlineHints.tag,
-                propertyAsn1Tag = propertyAsn1Tag,
+                propertyAsn1Tag = effectivePropertyAsn1Tag,
                 classAsn1Tag = deserializer.descriptor.asn1Tag,
                 ownerSerialName = currentOwnerSerialName ?: deserializer.descriptor.serialName,
                 propertyName = currentPropertyName,
@@ -476,7 +479,7 @@ class DerDecoder internal constructor(
             isGenericAsn1StringSerializer = deserializer == Asn1String.Companion,
             descriptor = deserializer.descriptor,
             inlineAsn1Tag = inlineHints.tag,
-            propertyAsn1Tag = propertyAsn1Tag,
+            propertyAsn1Tag = effectivePropertyAsn1Tag,
             classAsn1Tag = deserializer.descriptor.asn1Tag,
             ownerSerialName = currentOwnerSerialName ?: deserializer.descriptor.serialName,
             propertyName = currentPropertyName,
@@ -503,7 +506,7 @@ class DerDecoder internal constructor(
         val propertyNullEncodingAnalysis = if (::propertyDescriptor.isInitialized) {
             layoutPlan.analyzeNullable(
                 descriptor = propertyDescriptor,
-                propertyAsn1Tag = propertyAsn1Tag,
+                propertyAsn1Tag = effectivePropertyAsn1Tag,
                 inlineAsn1Tag = inlineHints.tag,
                 propertyAsBitString = propertyAsBitString,
                 inlineAsBitString = inlineHints.asBitString,
@@ -530,6 +533,9 @@ class DerDecoder internal constructor(
                             "Register a concrete ASN.1 open-polymorphic serializer in DER { serializersModule = ... }."
                 )
             }
+            inheritedOpenPolymorphicTag = inheritedOpenPolymorphicTag
+                ?: inlineHints.tag
+                ?: propertyAsn1Tag
             @Suppress("UNCHECKED_CAST")
             return decodeCurrentElementWith(openSerializer as DeserializationStrategy<T>)
         }
@@ -552,7 +558,7 @@ class DerDecoder internal constructor(
         val expectedTag = validateAndResolveImplicitTagOverride(
             actualTag = processedElement.tag,
             inlineAsn1Tag = inlineHints.tag,
-            propertyAsn1Tag = propertyAsn1Tag,
+            propertyAsn1Tag = effectivePropertyAsn1Tag,
             classAsn1Tag = deserializer.descriptor.asn1Tag,
         )
         val hasTagOverride = expectedTag != null

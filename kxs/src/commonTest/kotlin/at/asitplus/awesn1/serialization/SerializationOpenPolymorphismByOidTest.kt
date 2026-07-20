@@ -2,6 +2,7 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Primitive
+import at.asitplus.awesn1.Asn1Structure
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.parse
@@ -91,6 +92,41 @@ val SerializationTestOpenPolymorphismByOid by matrixSuite(
         der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(value)) shouldBe value
     }
 
+    "catchAll can be the only OID registration" {
+        val der = DER {
+            serializersModule = SerializersModule {
+                polymorphicByOid(OpenByOid::class, serialName = "CatchAllOnly") {
+                    catchAll<OpenByOidRaw>()
+                }
+            }
+        }
+        val value: OpenByOid = OpenByOidRaw(
+            oid = ObjectIdentifier("1.2.840.113549.1.9.7"),
+            value = "challenge",
+        )
+
+        der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(value)) shouldBe value
+    }
+
+    "open subtype inherits its wrapper tag without affecting subtype field tags" {
+        val der = DER {
+            serializersModule = SerializersModule {
+                polymorphicByOid(OpenByOid::class, serialName = "TaggedOpenByOid") {
+                    subtype<OpenByOidWithTaggedValue>(OpenByOidWithTaggedValue)
+                }
+            }
+        }
+        val value: TaggedOpenByOidChoice = TaggedOpenByOidChoice.Open(
+            OpenByOidWithTaggedValue(ExplicitlyTagged(7))
+        )
+
+        val encoded = der.encodeToByteArray(value)
+        val outer = Asn1Element.parse(encoded).shouldBeInstanceOf<Asn1Structure>()
+        outer.tag.tagValue shouldBe 9uL
+        outer.children.last().tag.tagValue shouldBe 0uL
+        der.decodeFromByteArray<TaggedOpenByOidChoice>(encoded) shouldBe value
+    }
+
     "catchAll encodes its discriminator OID exactly once (no injected duplicate)" {
         // Regression: the catch-all carries its OID as its own first field, so the framework must NOT
         // also inject a discriminator OID — otherwise the OID appears twice and the bytes are not the
@@ -143,6 +179,24 @@ data class OpenByOidRaw(
     override val oid: ObjectIdentifier,
     val value: String,
 ) : OpenByOid
+
+@Serializable
+data class OpenByOidWithTaggedValue(
+    @Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    val taggedValue: ExplicitlyTagged<Int>,
+) : OpenByOid, Identifiable by Companion {
+    companion object : OidProvider<OpenByOidWithTaggedValue> {
+        override val oid: ObjectIdentifier = ObjectIdentifier("1.3.6.1.4.1.55555.1")
+    }
+}
+
+@Serializable
+sealed interface TaggedOpenByOidChoice {
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 9u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    value class Open(val value: OpenByOid) : TaggedOpenByOidChoice
+}
 
 @Serializable
 data class NoOidEnvelope(

@@ -342,8 +342,26 @@ class DerEncoder internal constructor(
                             "Register an ASN.1 open-polymorphic serializer in DER { serializersModule = ... }."
                 )
             }
+            // Only a tag supplied by the enclosing property/inline wrapper crosses an open-polymorphic dispatch.
+            // A tag on the open base descriptor belongs to that descriptor, not to every registered subtype.
+            val inheritedTagTemplate = resolveAsn1TagTemplate(
+                inlineAsn1Tag = inlineHints.tag,
+                propertyAsn1Tag = propertyAnnotation,
+                classAsn1Tag = null,
+            )
             @Suppress("UNCHECKED_CAST")
-            return encodeSerializableValue(openSerializer as SerializationStrategy<T>, value)
+            if (inheritedTagTemplate != null && !hasPendingBeginStructureTagTemplate) {
+                pendingBeginStructureTagTemplate = inheritedTagTemplate
+                hasPendingBeginStructureTagTemplate = true
+            }
+            try {
+                return encodeSerializableValue(openSerializer as SerializationStrategy<T>, value)
+            } finally {
+                if (hasPendingBeginStructureTagTemplate) {
+                    hasPendingBeginStructureTagTemplate = false
+                    pendingBeginStructureTagTemplate = null
+                }
+            }
         }
 
         if (serializer.descriptor.kind is PolymorphicKind.OPEN && serializer is AbstractPolymorphicSerializer<*>) {
@@ -391,7 +409,7 @@ class DerEncoder internal constructor(
                         serializer.descriptor.kind is StructureKind.LIST ||
                         serializer.descriptor.kind is StructureKind.MAP
 
-            if (forwardsToBeginStructure) {
+            if (forwardsToBeginStructure && !hasPendingBeginStructureTagTemplate) {
                 pendingBeginStructureTagTemplate = effectiveTagTemplate
                 hasPendingBeginStructureTagTemplate = true
             }

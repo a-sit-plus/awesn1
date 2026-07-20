@@ -197,8 +197,8 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
         serialName: String,
         oidSelector: (Asn1Element) -> ObjectIdentifier?,
     ): KSerializer<T> {
-        if (registrations.isEmpty()) {
-            throw SerializationException("At least one subtype registration is required for $serialName")
+        if (registrations.isEmpty() && catchAllRegistration == null) {
+            throw SerializationException("At least one subtype or catchAll registration is required for $serialName")
         }
         return Asn1OidDiscriminatedOpenPolymorphicSerializer(
             serialName = serialName,
