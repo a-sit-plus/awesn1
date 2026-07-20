@@ -561,7 +561,7 @@ object Asn1Ia5StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.IA5>
             assertTag,
             Asn1Element.Tag.STRING_IA5,
             decodeWithSemanticTag = { it.decodeToIa5String() },
-            decodeImplicitContent = { Asn1String.IA5(String.decodeFromAsn1ContentBytes(it)) },
+            decodeImplicitContent = { Asn1String.IA5(it) },
         )
 
     override fun doDecode(src: Asn1Primitive): Asn1String.IA5 = src.decodeToIa5String()

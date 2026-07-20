@@ -260,15 +260,18 @@ class DerEncoder internal constructor(
             propertyAsn1Tag = propertyAnnotation,
             classAsn1Tag = serializer.descriptor.asn1Tag,
         )
-        requireNoAsn1TagOnRawElement(
-            descriptor = serializer.descriptor,
-            inlineAsn1Tag = inlineHints.tag,
-            propertyAsn1Tag = propertyAnnotation,
-            classAsn1Tag = serializer.descriptor.asn1Tag,
-            ownerSerialName = propertyContext?.ownerSerialName ?: serializer.descriptor.serialName,
-            propertyName = propertyContext?.propertyName,
-            propertyIndex = propertyContext?.index,
-        )
+        // Asn1OctetString has a concrete wire representation despite sharing the opaque element descriptor.
+        if (serializer != Asn1OctetStringFallbackBase64Serializer) {
+            requireNoAsn1TagOnRawElement(
+                descriptor = serializer.descriptor,
+                inlineAsn1Tag = inlineHints.tag,
+                propertyAsn1Tag = propertyAnnotation,
+                classAsn1Tag = serializer.descriptor.asn1Tag,
+                ownerSerialName = propertyContext?.ownerSerialName ?: serializer.descriptor.serialName,
+                propertyName = propertyContext?.propertyName,
+                propertyIndex = propertyContext?.index,
+            )
+        }
         requireNoAsn1TagOnGenericAsn1String(
             isGenericAsn1StringSerializer = serializer == Asn1String.Companion,
             descriptor = serializer.descriptor,

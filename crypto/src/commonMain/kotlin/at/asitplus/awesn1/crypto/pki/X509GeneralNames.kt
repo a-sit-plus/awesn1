@@ -3,23 +3,21 @@
 
 package at.asitplus.awesn1.crypto.pki
 
-import at.asitplus.awesn1.Asn1Decodable
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Encodable
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1Sequence
-import at.asitplus.awesn1.Asn1String
-import at.asitplus.awesn1.Asn1Structure
-import at.asitplus.awesn1.Asn1StructuralException
-import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
-import at.asitplus.awesn1.runWrappingAs
-import at.asitplus.awesn1.serialization.Asn1Serializer
+import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.serialization.asn1OpenPolymorphicByTagSerializer
 import at.asitplus.awesn1.serialization.decodeFromTlv
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.modules.SerializersModule
 import kotlin.jvm.JvmInline
 
 @Deprecated("Use X509GeneralNames instead", ReplaceWith("X509GeneralNames"))
@@ -28,96 +26,139 @@ typealias GeneralNames = X509GeneralNames
 /**
  * The RFC 5280 `GeneralName` CHOICE.
  *
- * Decoding validates only the outer CHOICE tag and preserves its complete ASN.1 representation. Typed payload
- * accessors decode lazily and may therefore throw for malformed payloads. This permits lossless round-tripping of
- * certificates whose general names are structurally recognizable but whose payloads are broken.
+ * Every alternative retains its rawValue ASN.1 payload. Semantic accessors decode that payload only when requested and
+ * may therefore throw, allowing structurally recognizable but malformed names to round-trip losslessly.
  */
-@Serializable(with = X509GeneralName.Companion::class)
-sealed class X509GeneralName private constructor(
-    val asn1Representation: Asn1Element,
-) : Asn1Encodable<Asn1Element> {
+@Serializable
+sealed interface X509GeneralName<T> {
 
+    val value: T
 
-    final override fun encodeToTlv(): Asn1Element = asn1Representation
+    @Serializable(with = X509OtherNameRawSerializer::class)
+    @Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    open class Other<T> private constructor(
+        internal val fallbackOid: ObjectIdentifier?,
+        internal val fallbackValue: Asn1Element?,
+        @Suppress("UNUSED_PARAMETER") marker: Unit,
+    ) :
+        X509GeneralName<T>, Identifiable {
+        protected constructor() : this(null, null, Unit)
 
-    final override fun equals(other: Any?): Boolean =
-        this === other || (other is X509GeneralName && asn1Representation == other.asn1Representation)
+        override open val oid: ObjectIdentifier
+            get() = checkNotNull(fallbackOid) { "A specialized otherName must override oid" }
+        val typeId: ObjectIdentifier get() = oid
 
-    final override fun hashCode(): Int = 31 * asn1Representation.hashCode()
+        @Suppress("UNCHECKED_CAST")
+        override open val value: T
+            get() = checkNotNull(fallbackValue) { "A specialized otherName must override value" } as T
 
-    final override fun toString(): String = "X509GeneralName($asn1Representation)"
+        constructor(typeId: ObjectIdentifier, value: T) : this(
+            typeId,
+            value as? Asn1Element
+                ?: throw IllegalArgumentException("The generic otherName fallback requires an Asn1Element value"),
+            Unit,
+        )
 
-    class OtherName internal constructor(private val raw: Asn1Structure) : X509GeneralName(raw) {
-
-        private val parsed: Pair<ObjectIdentifier, Asn1Element> by lazy {
-            if (raw.children.size != 2)
-                throw Asn1StructuralException("Invalid otherName: expected two children, got ${raw.children.size}")
-            val typeId = ObjectIdentifier.decodeFromAsn1ContentBytes(raw.children[0].asPrimitive().content)
-            val valueWrapper = raw.children[1]
-            if (valueWrapper.tag != Tags.otherNameValue)
-                throw Asn1StructuralException("Invalid otherName: expected an explicitly tagged [0] value")
-            val values = valueWrapper.asStructure().children
-            if (values.size != 1)
-                throw Asn1StructuralException("Invalid otherName value: expected one child, got ${values.size}")
-            typeId to values.single()
+        companion object {
+            internal fun <T> fromRaw(oid: ObjectIdentifier, value: Asn1Element) = Other<T>(oid, value, Unit)
         }
 
-        val typeId: ObjectIdentifier get() = parsed.first
-        val value: Asn1Element get() = parsed.second
+        override fun equals(other: Any?): Boolean =
+            this === other || this::class == Other::class && other is Other<*> &&
+                    fallbackOid == other.fallbackOid && fallbackValue == other.fallbackValue
 
-        constructor(typeId: ObjectIdentifier, value: Asn1Element) : this(
-            (Asn1.Sequence {
-                +typeId.encodeToTlv()
-                +Asn1.ExplicitlyTagged(0u) { +value }
-            } withImplicitTag Tags.otherName).asStructure()
-        )
+        override fun hashCode(): Int = fallbackOid?.let { 31 * it.hashCode() + fallbackValue.hashCode() } ?: super.hashCode()
+
+        override fun toString(): String = fallbackOid?.let { "OtherName(oid=$it, value=$fallbackValue)" } ?: super.toString()
     }
 
-    class Rfc822Name internal constructor(private val raw: Asn1Primitive) : X509GeneralName(raw) {
-        val value: String by lazy { decodeIa5(raw, Tags.rfc822Name) }
-        constructor(value: String) : this(encodeIa5(value, Tags.rfc822Name))
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 1u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class Rfc822 private constructor(val rawValue: Asn1String.IA5) : X509GeneralName<String> {
+        override val value: String get() = rawValue.checkedValue()
+
+        constructor(value: String) : this(Asn1String.IA5(value))
     }
 
-    class DnsName internal constructor(private val raw: Asn1Primitive) : X509GeneralName(raw) {
-        val value: String by lazy { decodeIa5(raw, Tags.dnsName) }
-        constructor(value: String) : this(encodeIa5(value, Tags.dnsName))
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 2u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class Dns private constructor(val rawValue: Asn1String.IA5) : X509GeneralName<String> {
+        override val value: String get() = rawValue.checkedValue()
+
+        constructor(value: String) : this(Asn1String.IA5(value))
     }
 
-    class X400Address internal constructor(private val raw: Asn1Structure) : X509GeneralName(raw) {
-        val value: Asn1Sequence by lazy { raw.asImplicitSequence() }
-        constructor(value: Asn1Sequence) : this((value withImplicitTag Tags.x400Address).asStructure())
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 3u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    value class X400Address private constructor(private val rawChildren: List<Asn1Element>) :
+        X509GeneralName<Asn1Sequence> {
+        override val value: Asn1Sequence get() = Asn1.Sequence { rawChildren.forEach { +it } }
+
+        constructor(value: Asn1Sequence) : this(value.children)
     }
 
-    class DirectoryName internal constructor(private val raw: Asn1Structure) : X509GeneralName(raw) {
-        val value: X500Name by lazy {
-            if (raw.children.size != 1)
-                throw Asn1StructuralException("Invalid directoryName: expected one child, got ${raw.children.size}")
-            DER.decodeFromTlv(raw.children.single())
+    /**
+     * `directoryName` is the one explicitly tagged GeneralName alternative. Keeping the wrapper children rawValue here
+     * is wire-equivalent to `ExplicitlyTagged<X500Name>`, but postpones validation of the wrapped `Name`.
+     */
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 4u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    value class Directory private constructor(private val rawValueChildren: List<Asn1Element>) :
+        X509GeneralName<X500Name> {
+        override val value: X500Name
+            get() {
+                if (rawValueChildren.size != 1)
+                    throw Asn1StructuralException("Invalid directoryName: expected one child, got ${rawValueChildren.size}")
+                return DER.decodeFromTlv(rawValueChildren.single())
+            }
+
+        companion object {
+            operator fun invoke(value: X500Name) =
+                Directory(listOf(DER.encodeToTlv(X500Name.serializer(), value)))
         }
-
-        constructor(value: X500Name) : this(
-            Asn1.ExplicitlyTagged(4u) { +DER.encodeToTlv(X500Name.serializer(), value) }
-        )
     }
 
-    class EdiPartyName internal constructor(private val raw: Asn1Structure) : X509GeneralName(raw) {
-        val value: Asn1Sequence by lazy { raw.asImplicitSequence() }
-        constructor(value: Asn1Sequence) : this((value withImplicitTag Tags.ediPartyName).asStructure())
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 5u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    value class EdiParty private constructor(private val rawValueChildren: List<Asn1Element>) :
+        X509GeneralName<Asn1Sequence> {
+        override val value: Asn1Sequence get() = Asn1.Sequence { rawValueChildren.forEach { +it } }
+
+        constructor(value: Asn1Sequence) : this(value.children)
     }
 
-    class UniformResourceIdentifier internal constructor(private val raw: Asn1Primitive) : X509GeneralName(raw) {
-        val value: String by lazy { decodeIa5(raw, Tags.uniformResourceIdentifier) }
-        constructor(value: String) : this(encodeIa5(value, Tags.uniformResourceIdentifier))
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 6u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class UniformResourceIdentifier private constructor(val rawValue: Asn1String.IA5) :
+        X509GeneralName<String> {
+        override val value: String get() = rawValue.checkedValue()
+
+        constructor(value: String) : this(Asn1String.IA5(value))
     }
 
-    class IpAddress internal constructor(private val raw: Asn1Primitive) : X509GeneralName(raw) {
-        val value: ByteArray get() = raw.content
-        constructor(value: ByteArray) : this(Asn1Primitive(Tags.ipAddress, value))
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 7u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class IpAddress private constructor(val rawValue: Asn1OctetString) : X509GeneralName<ByteArray> {
+        override val value: ByteArray get() = rawValue.content
+
+        constructor(value: ByteArray) : this(Asn1OctetString(value))
     }
 
-    class RegisteredId internal constructor(private val raw: Asn1Primitive) : X509GeneralName(raw) {
-        val value: ObjectIdentifier by lazy { ObjectIdentifier.decodeFromAsn1ContentBytes(raw.content) }
-        constructor(value: ObjectIdentifier) : this(Asn1Primitive(Tags.registeredID, value.bytes))
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 8u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class RegisteredId private constructor(val rawValue: Asn1OctetString) :
+        X509GeneralName<ObjectIdentifier> {
+        override val value: ObjectIdentifier get() = ObjectIdentifier.decodeFromAsn1ContentBytes(rawValue.content)
+
+        constructor(value: ObjectIdentifier) : this(Asn1OctetString(value.bytes))
     }
 
     /** Context-specific tags for RFC 5280 `GeneralName` alternatives. */
@@ -132,57 +173,130 @@ sealed class X509GeneralName private constructor(
         val ipAddress = Asn1.ImplicitTag(7u)
         val registeredID = Asn1.ImplicitTag(8u)
         val otherNameValue = Asn1.ExplicitTag(0u)
-
-        internal val all = setOf(
-            otherName, rfc822Name, dnsName, x400Address, directoryName,
-            ediPartyName, uniformResourceIdentifier, ipAddress, registeredID,
-        )
     }
 
-    //Tagging is a real mess, so we need thi
-    companion object : Asn1Serializer<Asn1Element, X509GeneralName>(
-        leadingTags = Tags.all,
-        decodable = object : Asn1Decodable<Asn1Element, X509GeneralName> {
-            override fun doDecode(src: Asn1Element): X509GeneralName = when (src.tag) {
-                Tags.otherName -> OtherName(src.asStructure())
-                Tags.rfc822Name -> Rfc822Name(src.asPrimitive())
-                Tags.dnsName -> DnsName(src.asPrimitive())
-                Tags.x400Address -> X400Address(src.asStructure())
-                Tags.directoryName -> DirectoryName(src.asStructure())
-                Tags.ediPartyName -> EdiPartyName(src.asStructure())
-                Tags.uniformResourceIdentifier -> UniformResourceIdentifier(src.asPrimitive())
-                Tags.ipAddress -> IpAddress(src.asPrimitive())
-                Tags.registeredID -> RegisteredId(src.asPrimitive())
-                else -> throw Asn1StructuralException("Unknown GeneralName tag: ${src.tag}")
-            }
-        },
-    )
+    companion object {
+        private fun Asn1String.IA5.checkedValue(): String {
+            if (!isValid) throw Asn1Exception("Malformed IA5String payload")
+            return value
+        }
+    }
 }
 
-private fun decodeIa5(raw: Asn1Primitive, tag: Asn1Element.Tag): String =
-    at.asitplus.awesn1.Asn1Ia5StringSerializer.decodeFromTlv(raw, tag).value
+@Serializable
+@Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+private data class RawX509OtherName(
+    val oid: ObjectIdentifier,
+    @Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    val value: ExplicitlyTagged<Asn1Element>,
+)
 
-private fun encodeIa5(value: String, tag: Asn1Element.Tag): Asn1Primitive =
-    (Asn1String.IA5(value).encodeToTlv() withImplicitTag tag).asPrimitive()
+/** Raw, lossless fallback serializer for an unrecognized `otherName` OID. */
+class X509OtherNameRawSerializer<T>(@Suppress("UNUSED_PARAMETER") typeSerializer: KSerializer<T>) :
+    KSerializer<X509GeneralName.Other<T>> {
+    private val fallback = RawX509OtherName.serializer()
 
-private fun Asn1Structure.asImplicitSequence(): Asn1Sequence = Asn1.Sequence { children.forEach { +it } }
+    override val descriptor = fallback.descriptor
+
+    override fun serialize(encoder: Encoder, value: X509GeneralName.Other<T>) {
+        val oid = value.fallbackOid
+            ?: throw SerializationException("The raw otherName serializer cannot encode ${value::class.simpleName}")
+        val rawValue = value.fallbackValue
+            ?: throw SerializationException("The raw otherName serializer cannot encode ${value::class.simpleName}")
+        encoder.encodeSerializableValue(fallback, RawX509OtherName(oid, ExplicitlyTagged(rawValue)))
+    }
+
+    override fun deserialize(decoder: Decoder): X509GeneralName.Other<T> {
+        val decoded = decoder.decodeSerializableValue(fallback)
+        return X509GeneralName.Other.fromRaw(decoded.oid, decoded.value.value)
+    }
+}
+
+/** Selects configured OID semantics, or the raw fallback when no OID module is installed. */
+private class X509OtherNameDispatchSerializer<T>(private val typeSerializer: KSerializer<T>) :
+    KSerializer<X509GeneralName.Other<T>> {
+    private val fallback = X509OtherNameRawSerializer(typeSerializer)
+
+    override val descriptor = fallback.descriptor
+
+    @Suppress("UNCHECKED_CAST")
+    private fun SerializersModule.configuredSerializer(): KSerializer<X509GeneralName.Other<T>>? =
+        getContextual(X509GeneralName.Other::class, listOf(typeSerializer))
+                as KSerializer<X509GeneralName.Other<T>>?
+
+    override fun serialize(encoder: Encoder, value: X509GeneralName.Other<T>) =
+        encoder.encodeSerializableValue(encoder.serializersModule.configuredSerializer() ?: fallback, value)
+
+    override fun deserialize(decoder: Decoder): X509GeneralName.Other<T> =
+        decoder.decodeSerializableValue(decoder.serializersModule.configuredSerializer() ?: fallback)
+}
+
+@Suppress("UNCHECKED_CAST")
+private val X509GeneralNameSerializer: KSerializer<X509GeneralName<*>> =
+    asn1OpenPolymorphicByTagSerializer(serialName = "X509GeneralName") {
+        subtype(
+            serializer = X509OtherNameDispatchSerializer(Asn1Element.serializer()) as KSerializer<X509GeneralName<*>>,
+            leadingTags = setOf(X509GeneralName.Tags.otherName),
+            matches = { it is X509GeneralName.Other<*> },
+        )
+        subtype(X509GeneralName.Rfc822.serializer(), setOf(X509GeneralName.Tags.rfc822Name)) {
+            it is X509GeneralName.Rfc822
+        }
+        subtype(X509GeneralName.Dns.serializer(), setOf(X509GeneralName.Tags.dnsName)) {
+            it is X509GeneralName.Dns
+        }
+        subtype(X509GeneralName.X400Address.serializer(), setOf(X509GeneralName.Tags.x400Address)) {
+            it is X509GeneralName.X400Address
+        }
+        subtype(X509GeneralName.Directory.serializer(), setOf(X509GeneralName.Tags.directoryName)) {
+            it is X509GeneralName.Directory
+        }
+        subtype(X509GeneralName.EdiParty.serializer(), setOf(X509GeneralName.Tags.ediPartyName)) {
+            it is X509GeneralName.EdiParty
+        }
+        subtype(
+            X509GeneralName.UniformResourceIdentifier.serializer(),
+            setOf(X509GeneralName.Tags.uniformResourceIdentifier),
+        ) { it is X509GeneralName.UniformResourceIdentifier }
+        subtype(X509GeneralName.IpAddress.serializer(), setOf(X509GeneralName.Tags.ipAddress)) {
+            it is X509GeneralName.IpAddress
+        }
+        subtype(X509GeneralName.RegisteredId.serializer(), setOf(X509GeneralName.Tags.registeredID)) {
+            it is X509GeneralName.RegisteredId
+        }
+    }
+
+/** Adapts the heterogeneous collection through tag-polymorphic CHOICE dispatch. */
+internal object X509GeneralNamesSerializer : KSerializer<X509GeneralNames> {
+    private val delegate = ListSerializer(X509GeneralNameSerializer)
+
+    override val descriptor = delegate.descriptor
+
+    override fun serialize(encoder: Encoder, value: X509GeneralNames) = delegate.serialize(encoder, value.entries)
+
+    override fun deserialize(decoder: Decoder) = X509GeneralNames(delegate.deserialize(decoder))
+}
 
 /** `GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName`. */
 @JvmInline
-@Serializable
+@Serializable(with = X509GeneralNamesSerializer::class)
 value class X509GeneralNames @Throws(Throwable::class) constructor(
-    val entries: List<X509GeneralName>
+    val entries: List<X509GeneralName<*>>
 ) {
-    val dnsNames: List<String> get() = entries.filterIsInstance<X509GeneralName.DnsName>().map { it.value }
-    val rfc822Names: List<String> get() = entries.filterIsInstance<X509GeneralName.Rfc822Name>().map { it.value }
-    val uris: List<String> get() = entries.filterIsInstance<X509GeneralName.UniformResourceIdentifier>().map { it.value }
+    val dnsNames: List<String> get() = entries.filterIsInstance<X509GeneralName.Dns>().map { it.value }
+    val rfc822Names: List<String> get() = entries.filterIsInstance<X509GeneralName.Rfc822>().map { it.value }
+    val uris: List<String>
+        get() = entries.filterIsInstance<X509GeneralName.UniformResourceIdentifier>().map { it.value }
     val ipAddresses: List<ByteArray> get() = entries.filterIsInstance<X509GeneralName.IpAddress>().map { it.value }
-    val directoryNames: List<X500Name> get() = entries.filterIsInstance<X509GeneralName.DirectoryName>().map { it.value }
-    val otherNames: List<X509GeneralName.OtherName> get() = entries.filterIsInstance<X509GeneralName.OtherName>()
+    val directoryNames: List<X500Name>
+        get() = entries.filterIsInstance<X509GeneralName.Directory>().map { it.value }
+    val otherNames: List<X509GeneralName.Other<*>>
+        get() = entries.filterIsInstance<X509GeneralName.Other<*>>()
 
     companion object {
         @Throws(Asn1Exception::class)
         fun X509Certificate.findSubjectAltNames() = tbsCertificate.findSubjectAltNames()
+
         @Throws(Asn1Exception::class)
         fun X509TbsCertificate.findSubjectAltNames() = extensions?.findSubjectAltNames()
 
@@ -192,6 +306,7 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
 
         @Throws(Asn1Exception::class)
         fun X509Certificate.findIssuerAltNames() = tbsCertificate.findIssuerAltNames()
+
         @Throws(Asn1Exception::class)
         fun X509TbsCertificate.findIssuerAltNames() = extensions?.findIssuerAltNames()
 
@@ -199,11 +314,13 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
         fun List<X509CertificateExtension>.findIssuerAltNames() =
             runWrappingAs(a = ::Asn1Exception) { find(ObjectIdentifier("2.5.29.18"))?.let(::X509GeneralNames) }
 
-        private fun List<X509CertificateExtension>.find(oid: ObjectIdentifier): List<X509GeneralName>? {
+        private fun List<X509CertificateExtension>.find(oid: ObjectIdentifier): List<X509GeneralName<*>>? {
             val matches = filter { it.oid == oid }
             if (matches.size > 1) throw Asn1StructuralException("More than one extension with oid $oid found")
             return matches.singleOrNull()?.let { extension ->
-                Asn1Element.parse(extension.value).asSequence().children.map { DER.decodeFromTlv(it) }
+                Asn1Element.parse(extension.value).asSequence().children.map {
+                    DER.decodeFromTlv(X509GeneralNameSerializer, it)
+                }
             }
         }
     }

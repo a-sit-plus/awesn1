@@ -460,15 +460,18 @@ class DerDecoder internal constructor(
             propertyAsn1Tag = propertyAsn1Tag,
             classAsn1Tag = deserializer.descriptor.asn1Tag,
         )
-        requireNoAsn1TagOnRawElement(
-            descriptor = deserializer.descriptor,
-            inlineAsn1Tag = inlineHints.tag,
-            propertyAsn1Tag = propertyAsn1Tag,
-            classAsn1Tag = deserializer.descriptor.asn1Tag,
-            ownerSerialName = currentOwnerSerialName ?: deserializer.descriptor.serialName,
-            propertyName = currentPropertyName,
-            propertyIndex = currentPropertyIndex,
-        )
+        // Asn1OctetString has a concrete wire representation despite sharing the opaque element descriptor.
+        if (deserializer != Asn1OctetStringFallbackBase64Serializer) {
+            requireNoAsn1TagOnRawElement(
+                descriptor = deserializer.descriptor,
+                inlineAsn1Tag = inlineHints.tag,
+                propertyAsn1Tag = propertyAsn1Tag,
+                classAsn1Tag = deserializer.descriptor.asn1Tag,
+                ownerSerialName = currentOwnerSerialName ?: deserializer.descriptor.serialName,
+                propertyName = currentPropertyName,
+                propertyIndex = currentPropertyIndex,
+            )
+        }
         requireNoAsn1TagOnGenericAsn1String(
             isGenericAsn1StringSerializer = deserializer == Asn1String.Companion,
             descriptor = deserializer.descriptor,
@@ -582,6 +585,9 @@ class DerDecoder internal constructor(
                     }
                 }
                 elementIndex++
+                if (deserializer == Asn1OctetStringFallbackBase64Serializer) {
+                    return castDecoded(Asn1OctetString(processedElement.asPrimitive().content))
+                }
                 require(deserializer is Asn1ElementFallbackBase64SerializerBase<*>) {
                     "Reserved SerialName for Asn1ElementFallbackBase64SerializerBase reused by: ${deserializer::class.simpleName}"}
                 return castDecoded(deserializer.decodeFromAsn1Element(processedElement))

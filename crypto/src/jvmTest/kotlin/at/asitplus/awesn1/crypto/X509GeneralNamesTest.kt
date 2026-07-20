@@ -8,7 +8,6 @@ import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.crypto.pki.X509GeneralName.Tags
-import at.asitplus.awesn1.crypto.pki.NameType
 import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
 import at.asitplus.awesn1.crypto.pki.X500Name
 import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
@@ -65,18 +64,31 @@ val X509GeneralNamesTest by matrixSuite {
         shouldThrow<Asn1Exception> { decoded.dnsNames }
     }
 
+    "malformed lazy payloads are preserved until accessed" {
+        val encoded = at.asitplus.awesn1.encoding.Asn1.Sequence {
+            +at.asitplus.awesn1.encoding.Asn1.ExplicitlyTagged(4u) { }
+            +at.asitplus.awesn1.Asn1Primitive(Tags.registeredID, byteArrayOf(0x80.toByte()))
+        }.derEncoded
+
+        val decoded = DER.decodeFromByteArray(X509GeneralNames.serializer(), encoded)
+
+        DER.encodeToByteArray(X509GeneralNames.serializer(), decoded) shouldBe encoded
+        shouldThrow<Asn1Exception> { (decoded.entries[0] as X509GeneralName.Directory).value }
+        shouldThrow<Asn1Exception> { (decoded.entries[1] as X509GeneralName.RegisteredId).value }
+    }
+
     "typed constructors encode and decode their CHOICE alternatives" {
         val opaqueSequence = at.asitplus.awesn1.encoding.Asn1.Sequence { }
         val names = X509GeneralNames(
             listOf(
-                X509GeneralName.OtherName(ObjectIdentifier("1.2.3.4"), Asn1String.UTF8("other").encodeToTlv()),
-                X509GeneralName.Rfc822Name("someone@example.com"),
-                X509GeneralName.DnsName("example.com"),
+                X509GeneralName.Other(ObjectIdentifier("1.2.3.4"), Asn1String.UTF8("other").encodeToTlv()),
+                X509GeneralName.Rfc822("someone@example.com"),
+                X509GeneralName.Dns("example.com"),
                 X509GeneralName.X400Address(opaqueSequence),
-                X509GeneralName.DirectoryName(
+                X509GeneralName.Directory(
                     X500Name(listOf(X500RelativeDistinguishedName(X500AttributeTypeAndValue.CommonName("subject"))))
                 ),
-                X509GeneralName.EdiPartyName(opaqueSequence),
+                X509GeneralName.EdiParty(opaqueSequence),
                 X509GeneralName.UniformResourceIdentifier("https://example.com"),
                 X509GeneralName.IpAddress(byteArrayOf(127, 0, 0, 1)),
                 X509GeneralName.RegisteredId(ObjectIdentifier("1.2.3.4")),
@@ -89,7 +101,7 @@ val X509GeneralNamesTest by matrixSuite {
         )
 
         decoded shouldBe names
-        decoded.entries.map { it.type } shouldBe NameType.entries
+        decoded.entries.map { it::class } shouldBe names.entries.map { it::class }
         decoded.dnsNames shouldBe listOf("example.com")
     }
 }
@@ -123,7 +135,7 @@ private fun X509GeneralNames.assertExpectedFixtureNames() {
 
 private fun X509GeneralNames.assertOtherNameContent() {
     val otherName = otherNames.single()
-    val value = otherName.value
+    val value = (otherName.value as Asn1Element)
         .asPrimitive()
         .content
         .decodeToString()
@@ -155,6 +167,11 @@ private fun X509GeneralNames.assertShape() {
         .single()
         .tag shouldBe Asn1Element.Tag.SEQUENCE
 }
+
+
+val X509GeneralName<*>.asn1Representation: Asn1Element
+    get() = DER.encodeToTlv(X509GeneralNames.serializer(), X509GeneralNames(listOf(this)))
+        .asSequence().children.single()
 
 private fun X509GeneralNames.assertRoundTripsWithExtension(extension: X509CertificateExtension) {
     val decoded = DER.decodeFromByteArray(X509GeneralNames.serializer(), extension.value)
