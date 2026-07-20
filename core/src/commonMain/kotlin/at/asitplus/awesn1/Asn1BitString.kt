@@ -42,9 +42,6 @@ data class Asn1BitString private constructor(
 
     ) : Asn1Encodable<Asn1Primitive> {
 
-    @Deprecated("Use bitCarryingBytes instead", ReplaceWith("bitCarryingBytes"))
-    val rawBytes: ByteArray get() = bitCarryingBytes
-
     /**
      * The total length of the bit string content octets, including the padding-bit-count byte.
      */

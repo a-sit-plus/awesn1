@@ -1,7 +1,6 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1String
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.ObjectIdentifier
@@ -9,7 +8,6 @@ import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.crypto.pki.X509GeneralName.Tags
 import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
-import at.asitplus.awesn1.crypto.pki.X500Name
 import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.X509GeneralName
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames
@@ -21,6 +19,7 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import kotlinx.serialization.SerializationException
 import java.nio.file.Path
 import kotlin.io.path.readText
 
@@ -53,28 +52,19 @@ val X509GeneralNamesTest by matrixSuite {
         cert.findIssuerAltNames() shouldBe null
     }
 
-    "malformed typed payload is preserved until accessed" {
-        val encoded = at.asitplus.awesn1.encoding.Asn1.Sequence {
-            +at.asitplus.awesn1.Asn1Primitive(X509GeneralName.Tags.dnsName, byteArrayOf(0xff.toByte()))
-        }.derEncoded
-
-        val decoded = DER.decodeFromByteArray(X509GeneralNames.serializer(), encoded)
-
-        DER.encodeToByteArray(X509GeneralNames.serializer(), decoded) shouldBe encoded
-        shouldThrow<Asn1Exception> { decoded.dnsNames }
-    }
-
-    "malformed lazy payloads are preserved until accessed" {
-        val encoded = at.asitplus.awesn1.encoding.Asn1.Sequence {
-            +at.asitplus.awesn1.encoding.Asn1.ExplicitlyTagged(4u) { }
-            +at.asitplus.awesn1.Asn1Primitive(Tags.registeredID, byteArrayOf(0x80.toByte()))
-        }.derEncoded
-
-        val decoded = DER.decodeFromByteArray(X509GeneralNames.serializer(), encoded)
-
-        DER.encodeToByteArray(X509GeneralNames.serializer(), decoded) shouldBe encoded
-        shouldThrow<Asn1Exception> { (decoded.entries[0] as X509GeneralName.Directory).value }
-        shouldThrow<Asn1Exception> { (decoded.entries[1] as X509GeneralName.RegisteredId).value }
+    "malformed GeneralName payloads fail typed extension decoding" - {
+        listOf(
+            at.asitplus.awesn1.encoding.Asn1.Sequence {
+                +at.asitplus.awesn1.encoding.Asn1.ExplicitlyTagged(4u) { }
+            },
+            at.asitplus.awesn1.encoding.Asn1.Sequence {
+                +at.asitplus.awesn1.Asn1Primitive(Tags.registeredID, byteArrayOf(0x80.toByte()))
+            },
+        ).asData(nameFn = {i,it-> "$i: "+ it.toDerHexString()}) test { malformed ->
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray(X509GeneralNames.serializer(), malformed.derEncoded)
+            }
+        }
     }
 
     "typed constructors encode and decode their CHOICE alternatives" {
@@ -91,7 +81,7 @@ val X509GeneralNamesTest by matrixSuite {
                 X509GeneralName.Dns("example.com"),
                 X509GeneralName.X400Address(opaqueSequence),
                 X509GeneralName.Directory(
-                    X500Name(listOf(X500RelativeDistinguishedName(X500AttributeTypeAndValue.CommonName("subject"))))
+                    listOf(X500RelativeDistinguishedName(X500AttributeTypeAndValue.CommonName("subject")))
                 ),
                 X509GeneralName.EdiParty(opaqueSequence),
                 X509GeneralName.UniformResourceIdentifier("https://example.com"),

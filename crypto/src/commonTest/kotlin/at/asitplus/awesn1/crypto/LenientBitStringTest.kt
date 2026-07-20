@@ -7,7 +7,6 @@ import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.BitSet
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
-import at.asitplus.awesn1.crypto.pki.X500Name
 import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
 import at.asitplus.awesn1.serialization.DER
@@ -63,10 +62,10 @@ private fun minimalTbsCertificate(
 ) = X509TbsCertificate(
     serialNumber = Asn1Integer(1u),
     signatureAlgorithm = X509AlgorithmIdentifier(ObjectIdentifier("1.2.840.113549.1.1.11"), emptyList()),
-    issuerName = X500Name(listOf(X500RelativeDistinguishedName(setOf(X500AttributeTypeAndValue.CommonName("issuer"))))),
+    issuerName = listOf(X500RelativeDistinguishedName(setOf(X500AttributeTypeAndValue.CommonName("issuer")))),
     validFrom = Asn1Time.SecondsCapped(Instant.fromEpochSeconds(1_700_000_000L)),
     validUntil = Asn1Time.SecondsCapped(Instant.fromEpochSeconds(1_700_086_400L)),
-    subjectName = X500Name(listOf(X500RelativeDistinguishedName(setOf(X500AttributeTypeAndValue.CommonName("subject"))))),
+    subjectName = listOf(X500RelativeDistinguishedName(setOf(X500AttributeTypeAndValue.CommonName("subject")))),
     subjectPublicKeyInfo = SubjectPublicKeyInfo.ec(ObjectIdentifier("1.2.840.10045.3.1.7"), ByteArray(65) { it.toByte() }),
     issuerUniqueID = issuerUniqueID,
     subjectUniqueID = subjectUniqueID,

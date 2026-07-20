@@ -45,13 +45,6 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
         NaN -> Double.NaN
     }
 
-    @Deprecated(
-        "Use Asn1Real.PositiveZero instead",
-        ReplaceWith("Asn1Real.PositiveZero", "at.asitplus.awesn1.Asn1Real"),
-        level = DeprecationLevel.ERROR,
-    )
-    typealias Zero = PositiveZero
-
     @Serializable(with = Asn1RealStringSerializer::class)
     object NegativeZero : Asn1Real
 
