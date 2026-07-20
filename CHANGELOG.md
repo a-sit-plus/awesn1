@@ -11,6 +11,7 @@
     * Preserve an enclosing property or inline-wrapper tag when dispatching to an open-polymorphic subtype, without conflating it with tags belonging to the selected subtype's own fields.
 * **Other Changes:**
     * Document provided-fallback open-polymorphism fallbacks and extending X.509 `OtherName`, including default-`DER` startup registration with test-backed source snippets.
+    * Remove Deprecations
 
 ## 0.5.0
 * **Fixes:**
