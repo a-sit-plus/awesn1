@@ -7,9 +7,11 @@ import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.serialization.Asn1Tag
+import at.asitplus.awesn1.serialization.Asn1OpenPolymorphicWithDefaultSerializer
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.serialization.asn1OpenPolymorphicByOidSerializer
 import at.asitplus.awesn1.serialization.decodeFromTlv
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
@@ -21,31 +23,40 @@ typealias GeneralNames = X509GeneralNames
  * The RFC 5280 `GeneralName` CHOICE.
  *
  * Closed alternatives retain their ASN.1 payload and expose semantic accessors where useful. The open `otherName` arm
- * delegates its payload to an OID-selected [X509GeneralName.OtherName] implementation.
+ * delegates its payload to an OID-selected [X509GeneralName.Other.SemanticValue] implementation.
  */
 @Serializable
 sealed interface X509GeneralName {
 
-    /** Open, OID-discriminated `otherName` value. */
-    interface OtherName : Identifiable
 
-    /** The `[0]` GeneralName arm containing an open [OtherName] value. */
+    /** The `[0]` GeneralName arm containing an open [SemanticValue] value. */
     @Serializable
     @JvmInline
     @Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
-    value class Other(val value: OtherName) : X509GeneralName
+    value class Other(val value: SemanticValue) : X509GeneralName {
+        /** Open, OID-discriminated `otherName` value. */
+        @Serializable(with = SemanticValue.Serializer::class)
+        interface SemanticValue : Identifiable {
+            /** Structural fallback for an `otherName` OID without a registered semantic subtype. */
+            @Serializable
+            data class Generic(
+                override val oid: ObjectIdentifier,
+                @Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+                private val taggedValue: ExplicitlyTagged<Asn1Element>,
+            ) : SemanticValue {
+                val typeId: ObjectIdentifier get() = oid
+                val value: Asn1Element get() = taggedValue.value
 
-    /** Structural fallback for an `otherName` OID without a registered semantic subtype. */
-    @Serializable
-    data class GenericOther(
-        override val oid: ObjectIdentifier,
-        @Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
-        private val taggedValue: ExplicitlyTagged<Asn1Element>,
-    ) : OtherName {
-        val typeId: ObjectIdentifier get() = oid
-        val value: Asn1Element get() = taggedValue.value
+                constructor(typeId: ObjectIdentifier, value: Asn1Element) : this(typeId, ExplicitlyTagged(value))
+            }
 
-        constructor(typeId: ObjectIdentifier, value: Asn1Element) : this(typeId, ExplicitlyTagged(value))
+            object Serializer : Asn1OpenPolymorphicWithDefaultSerializer<SemanticValue>(
+                baseClass = SemanticValue::class,
+                defaultSerializer = asn1OpenPolymorphicByOidSerializer("X509OtherName") {
+                    catchAll<Generic>()
+                },
+            )
+        }
     }
 
     @Serializable
@@ -167,7 +178,7 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
     val ipAddresses: List<ByteArray> get() = entries.filterIsInstance<X509GeneralName.IpAddress>().map { it.value }
     val directoryNames: List<X500Name>
         get() = entries.filterIsInstance<X509GeneralName.Directory>().map { it.value }
-    val otherNames: List<X509GeneralName.OtherName>
+    val otherNames: List<X509GeneralName.Other.SemanticValue>
         get() = entries.filterIsInstance<X509GeneralName.Other>().map { it.value }
 
     companion object {

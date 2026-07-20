@@ -28,5 +28,10 @@ kotlin {
                 implementation(serialization("json"))
             }
         }
+        jvmTest {
+            dependencies {
+                implementation(libs.bouncycastle.pkix)
+            }
+        }
     }
 }

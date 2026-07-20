@@ -2,6 +2,16 @@
 
 ## NEXT
 
+* **Features:**
+    * Add a closed, serializable `X509GeneralName` hierarchy covering every RFC 5280 `GeneralName` alternative.
+    * Make X.509 `otherName` extensible through OID-based open polymorphism. Unknown OIDs use a structural fallback by default, while applications can register semantic subtypes on a custom `Der` instance or through the startup-only `DefaultDer` registry.
+    * Add `Asn1OpenPolymorphicWithDefaultSerializer`, allowing extensible models to provide a structural serializer that is automatically replaced by contextual open-polymorphism registrations when available.
+    * Allow OID-based open-polymorphism configurations containing only a `catchAll` registration.
+* **Fixes:**
+    * Preserve an enclosing property or inline-wrapper tag when dispatching to an open-polymorphic subtype, without conflating it with tags belonging to the selected subtype's own fields.
+* **Other Changes:**
+    * Document provided-fallback open-polymorphism fallbacks and extending X.509 `OtherName`, including default-`DER` startup registration with test-backed source snippets.
+
 ## 0.5.0
 * **Fixes:**
     * OID-based open-polymorphism catch-all fallback no longer encodes the discriminator OID twice.

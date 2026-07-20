@@ -9,7 +9,6 @@ import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.readOid
 import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.matrixConfig
-import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -20,6 +19,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.modules.SerializersModule
+import kotlin.jvm.JvmInline
 
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -108,6 +108,32 @@ val SerializationTestOpenPolymorphismByOid by matrixSuite(
         der.decodeFromByteArray<OpenByOid>(der.encodeToByteArray(value)) shouldBe value
     }
 
+    "model-provided open-polymorphic fallback is used unless a DER instance overrides it" {
+        // --8<-- [start:kxs-open-poly-default-usage]
+        val raw: DefaultedOpenByOid = DefaultedOpenByOidRaw(
+            oid = ObjectIdentifier("1.2.3.4"),
+            value = "opaque",
+        )
+        val unconfiguredDer = DER { }
+        unconfiguredDer.decodeFromByteArray<DefaultedOpenByOid>(
+            unconfiguredDer.encodeToByteArray(raw)
+        ) shouldBe raw
+
+        val extendedDer = DER {
+            serializersModule = SerializersModule {
+                polymorphicByOid(DefaultedOpenByOid::class) {
+                    subtype<DefaultedOpenByOidInt>(DefaultedOpenByOidInt)
+                    catchAll<DefaultedOpenByOidRaw>()
+                }
+            }
+        }
+        val typed: DefaultedOpenByOid = DefaultedOpenByOidInt(7)
+        extendedDer.decodeFromByteArray<DefaultedOpenByOid>(
+            extendedDer.encodeToByteArray(typed)
+        ) shouldBe typed
+        // --8<-- [end:kxs-open-poly-default-usage]
+    }
+
     "open subtype inherits its wrapper tag without affecting subtype field tags" {
         val der = DER {
             serializersModule = SerializersModule {
@@ -142,6 +168,33 @@ val SerializationTestOpenPolymorphismByOid by matrixSuite(
 }
 
 interface OpenByOid : Identifiable
+
+// --8<-- [start:kxs-open-poly-default-definitions]
+@Serializable(with = DefaultedOpenByOid.Serializer::class)
+interface DefaultedOpenByOid : Identifiable {
+    object Serializer : Asn1OpenPolymorphicWithDefaultSerializer<DefaultedOpenByOid>(
+        baseClass = DefaultedOpenByOid::class,
+        defaultSerializer = asn1OpenPolymorphicByOidSerializer("DefaultedOpenByOid") {
+            catchAll<DefaultedOpenByOidRaw>()
+        },
+    )
+}
+
+@Serializable
+data class DefaultedOpenByOidRaw(
+    override val oid: ObjectIdentifier,
+    val value: String,
+) : DefaultedOpenByOid
+
+@Serializable
+data class DefaultedOpenByOidInt(
+    val value: Int,
+) : DefaultedOpenByOid, Identifiable by Companion {
+    companion object : OidProvider<DefaultedOpenByOidInt> {
+        override val oid: ObjectIdentifier = ObjectIdentifier("1.2.840.113549.1.1.1")
+    }
+}
+// --8<-- [end:kxs-open-poly-default-definitions]
 
 @Serializable
 data class OpenByOidInt(

@@ -17,28 +17,18 @@ import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findIssuerAltNam
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findSubjectAltNames
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.serialization.polymorphicByOid
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import kotlinx.serialization.modules.SerializersModule
 import java.nio.file.Path
 import kotlin.io.path.readText
-
-private val generalNamesDer = DER {
-    serializersModule = SerializersModule {
-        polymorphicByOid(X509GeneralName.OtherName::class, serialName = "X509OtherName") {
-            catchAll<X509GeneralName.GenericOther>()
-        }
-    }
-}
 
 val X509GeneralNamesTest by matrixSuite {
 
     "subjectAltName extension extraction and serialization round-trips" {
         val cert = decodeCertificateFixture("ok-ext-subject-altname2.pem")
-        val subjectAltNames = cert.findSubjectAltNames(generalNamesDer)
+        val subjectAltNames = cert.findSubjectAltNames()
 
         subjectAltNames shouldNotBe null
         subjectAltNames!!.assertExpectedFixtureNames()
@@ -48,7 +38,7 @@ val X509GeneralNamesTest by matrixSuite {
 
     "issuerAltName extension extraction and serialization round-trips" {
         val cert = decodeCertificateFixture("ok-ext-issuer-altname.pem")
-        val issuerAltNames = cert.findIssuerAltNames(generalNamesDer)
+        val issuerAltNames = cert.findIssuerAltNames()
 
         issuerAltNames shouldNotBe null
         issuerAltNames!!.assertExpectedFixtureNames()
@@ -59,8 +49,8 @@ val X509GeneralNamesTest by matrixSuite {
     "missing subjectAltName and issuerAltName extensions decode as null" {
         val cert = decodeCertificateFixture("ok-v1.pem")
 
-        cert.findSubjectAltNames(generalNamesDer) shouldBe null
-        cert.findIssuerAltNames(generalNamesDer) shouldBe null
+        cert.findSubjectAltNames() shouldBe null
+        cert.findIssuerAltNames() shouldBe null
     }
 
     "malformed typed payload is preserved until accessed" {
@@ -68,9 +58,9 @@ val X509GeneralNamesTest by matrixSuite {
             +at.asitplus.awesn1.Asn1Primitive(X509GeneralName.Tags.dnsName, byteArrayOf(0xff.toByte()))
         }.derEncoded
 
-        val decoded = generalNamesDer.decodeFromByteArray(X509GeneralNames.serializer(), encoded)
+        val decoded = DER.decodeFromByteArray(X509GeneralNames.serializer(), encoded)
 
-        generalNamesDer.encodeToByteArray(X509GeneralNames.serializer(), decoded) shouldBe encoded
+        DER.encodeToByteArray(X509GeneralNames.serializer(), decoded) shouldBe encoded
         shouldThrow<Asn1Exception> { decoded.dnsNames }
     }
 
@@ -80,9 +70,9 @@ val X509GeneralNamesTest by matrixSuite {
             +at.asitplus.awesn1.Asn1Primitive(Tags.registeredID, byteArrayOf(0x80.toByte()))
         }.derEncoded
 
-        val decoded = generalNamesDer.decodeFromByteArray(X509GeneralNames.serializer(), encoded)
+        val decoded = DER.decodeFromByteArray(X509GeneralNames.serializer(), encoded)
 
-        generalNamesDer.encodeToByteArray(X509GeneralNames.serializer(), decoded) shouldBe encoded
+        DER.encodeToByteArray(X509GeneralNames.serializer(), decoded) shouldBe encoded
         shouldThrow<Asn1Exception> { (decoded.entries[0] as X509GeneralName.Directory).value }
         shouldThrow<Asn1Exception> { (decoded.entries[1] as X509GeneralName.RegisteredId).value }
     }
@@ -92,7 +82,7 @@ val X509GeneralNamesTest by matrixSuite {
         val names = X509GeneralNames(
             listOf(
                 X509GeneralName.Other(
-                    X509GeneralName.GenericOther(
+                    X509GeneralName.Other.SemanticValue.Generic(
                         ObjectIdentifier("1.2.3.4"),
                         Asn1String.UTF8("other").encodeToTlv(),
                     )
@@ -110,9 +100,9 @@ val X509GeneralNamesTest by matrixSuite {
             )
         )
 
-        val decoded = generalNamesDer.decodeFromByteArray(
+        val decoded = DER.decodeFromByteArray(
             X509GeneralNames.serializer(),
-            generalNamesDer.encodeToByteArray(X509GeneralNames.serializer(), names),
+            DER.encodeToByteArray(X509GeneralNames.serializer(), names),
         )
 
         decoded shouldBe names
@@ -149,7 +139,7 @@ private fun X509GeneralNames.assertExpectedFixtureNames() {
 }
 
 private fun X509GeneralNames.assertOtherNameContent() {
-    val otherName = otherNames.single() as X509GeneralName.GenericOther
+    val otherName = otherNames.single() as X509GeneralName.Other.SemanticValue.Generic
     val value = otherName.value
         .asPrimitive()
         .content
@@ -185,14 +175,14 @@ private fun X509GeneralNames.assertShape() {
 
 
 val X509GeneralName.asn1Representation: Asn1Element
-    get() = generalNamesDer.encodeToTlv(X509GeneralNames.serializer(), X509GeneralNames(listOf(this)))
+    get() = DER.encodeToTlv(X509GeneralNames.serializer(), X509GeneralNames(listOf(this)))
         .asSequence().children.single()
 
 private fun X509GeneralNames.assertRoundTripsWithExtension(extension: X509CertificateExtension) {
-    val decoded = generalNamesDer.decodeFromByteArray(X509GeneralNames.serializer(), extension.value)
+    val decoded = DER.decodeFromByteArray(X509GeneralNames.serializer(), extension.value)
 
     decoded.derEncodedEntries() shouldBe derEncodedEntries()
-    generalNamesDer.encodeToByteArray(X509GeneralNames.serializer(), this) shouldBe extension.value
+    DER.encodeToByteArray(X509GeneralNames.serializer(), this) shouldBe extension.value
 }
 
 private fun X509GeneralNames.derEncodedEntries(): List<List<Byte>> =

@@ -50,6 +50,7 @@ val RealWorldCertificateTest by matrixSuite {
                     }
                     .payload))
         assertEquals(cert, jvmCert as java.security.cert.X509Certificate)
+        assertGeneralNamesAgreeWithBouncyCastle(cert, jvmCert.encoded)
 
 
         cert.findSubjectAltNames()!!.dnsNames shouldContainAll listOf(tld, "*.$tld")
