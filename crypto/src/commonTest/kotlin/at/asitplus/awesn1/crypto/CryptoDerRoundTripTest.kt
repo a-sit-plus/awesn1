@@ -179,7 +179,7 @@ private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
     }
 
 private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10CertificationRequestInfo(
-    subjectName = List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) },
+    subjectName = X500Name(List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) }),
     publicKey = randomSubjectPublicKeyInfo(random),
     attributes = List(random.nextInt(0, 3)) { randomAttribute(random) },
 )
@@ -196,10 +196,10 @@ private fun randomTbsCertificate(random: Random): X509TbsCertificate {
     return X509TbsCertificate(
         serialNumber = Asn1Integer.fromByteArray(randomBytes(random, 12), Asn1Integer.Sign.POSITIVE),
         signatureAlgorithm = randomSignatureAlgorithmIdentifier(random),
-        issuerName = List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) },
+        issuerName = X500Name(List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) }),
         validFrom = Asn1Time.SecondsCapped(validFrom),
         validUntil = Asn1Time.SecondsCapped(validUntil),
-        subjectName = List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) },
+        subjectName = X500Name(List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) }),
         subjectPublicKeyInfo = randomSubjectPublicKeyInfo(random),
         issuerUniqueID = Asn1BitString(randomBytes(random, 8)).takeIf { random.nextBoolean() },
         subjectUniqueID = Asn1BitString(randomBytes(random, 8)).takeIf { random.nextBoolean() },
