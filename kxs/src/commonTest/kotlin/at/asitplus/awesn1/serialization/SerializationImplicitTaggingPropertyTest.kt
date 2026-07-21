@@ -3,11 +3,13 @@ package at.asitplus.awesn1.serialization
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.Asn1Real
 import at.asitplus.awesn1.Asn1String
 import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.TagClass
+import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.testballoon.matrix.MatrixSuiteScope
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -204,6 +206,21 @@ val SerializationTestImplicitTaggingProperty by matrixSuite(
             shouldThrow<SerializationException> {
                 DER.encodeToByteArray(serializer, TaggedValue(raw))
             }
+        }
+
+        "Strongly typed Asn1OctetString supports implicit tagging" {
+            val serializer = SingleFieldBoxSerializer(
+                valueSerializer = Asn1OctetString.serializer(),
+                tagNumber = 7u,
+            )
+            val raw = Asn1OctetString(byteArrayOf(0xff.toByte(), 0x00, 0x01))
+
+            val encoded = DER.encodeToByteArray(serializer, TaggedValue(raw))
+            val child = Asn1Element.parse(encoded).asSequence().children.single()
+            val decoded = DER.decodeFromByteArray(serializer, encoded).value
+
+            child.tag shouldBe Asn1.ImplicitTag(7u)
+            decoded shouldBe raw
         }
     }
 }

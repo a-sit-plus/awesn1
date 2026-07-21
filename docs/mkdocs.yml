@@ -69,6 +69,7 @@ markdown_extensions:
         - ../kxs/src/jvmTest/kotlin/
         - ../kxs/src/commonTest/kotlin/
         - ../kxs/src/commonTest/kotlin/
+        - ../crypto/src/commonTest/kotlin/
   - pymdownx.superfences
   - admonition
   - pymdownx.details

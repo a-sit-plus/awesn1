@@ -29,7 +29,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Pkcs10CertificationRequestInfo(
     val version: Version = Version.V1,
-    val subjectName: List<X500RelativeDistinguishedName>,
+    val subjectName: X500Name,
     val publicKey: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 0u)
     val attributes: List<Pkcs10CsrAttribute> = emptyList(),

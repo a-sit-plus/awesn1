@@ -1,19 +1,26 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.Asn1String
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
-import at.asitplus.awesn1.crypto.pki.GeneralNameTags
+import at.asitplus.awesn1.crypto.pki.X509GeneralName.Tags
+import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
+import at.asitplus.awesn1.crypto.pki.X500Name
+import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
+import at.asitplus.awesn1.crypto.pki.X509GeneralName
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findIssuerAltNames
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findSubjectAltNames
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import kotlinx.serialization.SerializationException
 import java.nio.file.Path
 import kotlin.io.path.readText
 
@@ -45,6 +52,54 @@ val X509GeneralNamesTest by matrixSuite {
         cert.findSubjectAltNames() shouldBe null
         cert.findIssuerAltNames() shouldBe null
     }
+
+    "malformed GeneralName payloads fail typed extension decoding" - {
+        listOf(
+            at.asitplus.awesn1.encoding.Asn1.Sequence {
+                +at.asitplus.awesn1.encoding.Asn1.ExplicitlyTagged(4u) { }
+            },
+            at.asitplus.awesn1.encoding.Asn1.Sequence {
+                +at.asitplus.awesn1.Asn1Primitive(Tags.registeredID, byteArrayOf(0x80.toByte()))
+            },
+        ).asData(nameFn = {i,it-> "$i: "+ it.toDerHexString()}) test { malformed ->
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray(X509GeneralNames.serializer(), malformed.derEncoded)
+            }
+        }
+    }
+
+    "typed constructors encode and decode their CHOICE alternatives" {
+        val opaqueSequence = at.asitplus.awesn1.encoding.Asn1.Sequence { }
+        val names = X509GeneralNames(
+            listOf(
+                X509GeneralName.Other(
+                    X509GeneralName.Other.SemanticValue.Generic(
+                        ObjectIdentifier("1.2.3.4"),
+                        Asn1String.UTF8("other").encodeToTlv(),
+                    )
+                ),
+                X509GeneralName.Rfc822("someone@example.com"),
+                X509GeneralName.Dns("example.com"),
+                X509GeneralName.X400Address(opaqueSequence),
+                X509GeneralName.Directory(
+                    X500Name(X500RelativeDistinguishedName(X500AttributeTypeAndValue.CommonName("subject")))
+                ),
+                X509GeneralName.EdiParty(opaqueSequence),
+                X509GeneralName.UniformResourceIdentifier("https://example.com"),
+                X509GeneralName.IpAddress(byteArrayOf(127, 0, 0, 1)),
+                X509GeneralName.RegisteredId(ObjectIdentifier("1.2.3.4")),
+            )
+        )
+
+        val decoded = DER.decodeFromByteArray(
+            X509GeneralNames.serializer(),
+            DER.encodeToByteArray(X509GeneralNames.serializer(), names),
+        )
+
+        decoded shouldBe names
+        decoded.entries.map { it::class } shouldBe names.entries.map { it::class }
+        decoded.dnsNames shouldBe listOf("example.com")
+    }
 }
 
 private fun decodeCertificateFixture(name: String): X509Certificate {
@@ -75,42 +130,44 @@ private fun X509GeneralNames.assertExpectedFixtureNames() {
 }
 
 private fun X509GeneralNames.assertOtherNameContent() {
-    val otherName = otherNames.single()
-    val typeId = ObjectIdentifier.decodeFromAsn1ContentBytes(otherName.children[0].asPrimitive().content)
-    val value = otherName.children[1]
-        .also { it.tag shouldBe GeneralNameTags.otherNameValue }
-        .asStructure()
-        .children
-        .single()
+    val otherName = otherNames.single() as X509GeneralName.Other.SemanticValue.Generic
+    val value = otherName.value
         .asPrimitive()
         .content
         .decodeToString()
 
-    typeId shouldBe ObjectIdentifier("1.2.3.4")
+    otherName.typeId shouldBe ObjectIdentifier("1.2.3.4")
     value shouldBe "some other identifier"
 }
 
 private fun X509GeneralNames.assertShape() {
-    entries.single { it.tag == GeneralNameTags.otherName }
+    entries.single { it.asn1Representation.tag == Tags.otherName }
+        .asn1Representation
         .asStructure()
         .children
         .let { children ->
             children.size shouldBe 2
-            children[1].tag shouldBe GeneralNameTags.otherNameValue
+            children[1].tag shouldBe Tags.otherNameValue
         }
 
-    entries.single { it.tag == GeneralNameTags.rfc822Name }.asPrimitive().tag shouldBe GeneralNameTags.rfc822Name
-    entries.single { it.tag == GeneralNameTags.dnsName }.asPrimitive().tag shouldBe GeneralNameTags.dnsName
-    entries.single { it.tag == GeneralNameTags.uniformResourceIdentifier }.asPrimitive().tag shouldBe GeneralNameTags.uniformResourceIdentifier
-    entries.single { it.tag == GeneralNameTags.ipAddress }.asPrimitive().tag shouldBe GeneralNameTags.ipAddress
-    entries.single { it.tag == GeneralNameTags.registeredID }.asPrimitive().tag shouldBe GeneralNameTags.registeredID
+    entries.single { it.asn1Representation.tag == Tags.rfc822Name }.asn1Representation.asPrimitive().tag shouldBe Tags.rfc822Name
+    entries.single { it.asn1Representation.tag == Tags.dnsName }.asn1Representation.asPrimitive().tag shouldBe Tags.dnsName
+    entries.single { it.asn1Representation.tag == Tags.uniformResourceIdentifier }.asn1Representation.asPrimitive().tag shouldBe Tags.uniformResourceIdentifier
+    entries.single { it.asn1Representation.tag == Tags.ipAddress }.asn1Representation.asPrimitive().tag shouldBe Tags.ipAddress
+    entries.single { it.asn1Representation.tag == Tags.registeredID }.asn1Representation.asPrimitive().tag shouldBe Tags.registeredID
 
-    entries.single { it.tag == GeneralNameTags.directoryName }
+    entries.single { it.asn1Representation.tag == Tags.directoryName }
+        .asn1Representation
         .asStructure()
         .children
         .single()
         .tag shouldBe Asn1Element.Tag.SEQUENCE
 }
+
+
+val X509GeneralName.asn1Representation: Asn1Element
+    get() = DER.encodeToTlv(X509GeneralNames.serializer(), X509GeneralNames(listOf(this)))
+        .asSequence().children.single()
 
 private fun X509GeneralNames.assertRoundTripsWithExtension(extension: X509CertificateExtension) {
     val decoded = DER.decodeFromByteArray(X509GeneralNames.serializer(), extension.value)
@@ -120,4 +177,4 @@ private fun X509GeneralNames.assertRoundTripsWithExtension(extension: X509Certif
 }
 
 private fun X509GeneralNames.derEncodedEntries(): List<List<Byte>> =
-    entries.map { it.derEncoded.toList() }
+    entries.map { it.asn1Representation.derEncoded.toList() }

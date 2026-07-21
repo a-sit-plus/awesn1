@@ -260,15 +260,18 @@ class DerEncoder internal constructor(
             propertyAsn1Tag = propertyAnnotation,
             classAsn1Tag = serializer.descriptor.asn1Tag,
         )
-        requireNoAsn1TagOnRawElement(
-            descriptor = serializer.descriptor,
-            inlineAsn1Tag = inlineHints.tag,
-            propertyAsn1Tag = propertyAnnotation,
-            classAsn1Tag = serializer.descriptor.asn1Tag,
-            ownerSerialName = propertyContext?.ownerSerialName ?: serializer.descriptor.serialName,
-            propertyName = propertyContext?.propertyName,
-            propertyIndex = propertyContext?.index,
-        )
+        // Asn1OctetString has a concrete wire representation despite sharing the opaque element descriptor.
+        if (serializer != Asn1OctetStringFallbackBase64Serializer) {
+            requireNoAsn1TagOnRawElement(
+                descriptor = serializer.descriptor,
+                inlineAsn1Tag = inlineHints.tag,
+                propertyAsn1Tag = propertyAnnotation,
+                classAsn1Tag = serializer.descriptor.asn1Tag,
+                ownerSerialName = propertyContext?.ownerSerialName ?: serializer.descriptor.serialName,
+                propertyName = propertyContext?.propertyName,
+                propertyIndex = propertyContext?.index,
+            )
+        }
         requireNoAsn1TagOnGenericAsn1String(
             isGenericAsn1StringSerializer = serializer == Asn1String.Companion,
             descriptor = serializer.descriptor,
@@ -339,8 +342,26 @@ class DerEncoder internal constructor(
                             "Register an ASN.1 open-polymorphic serializer in DER { serializersModule = ... }."
                 )
             }
+            // Only a tag supplied by the enclosing property/inline wrapper crosses an open-polymorphic dispatch.
+            // A tag on the open base descriptor belongs to that descriptor, not to every registered subtype.
+            val inheritedTagTemplate = resolveAsn1TagTemplate(
+                inlineAsn1Tag = inlineHints.tag,
+                propertyAsn1Tag = propertyAnnotation,
+                classAsn1Tag = null,
+            )
             @Suppress("UNCHECKED_CAST")
-            return encodeSerializableValue(openSerializer as SerializationStrategy<T>, value)
+            if (inheritedTagTemplate != null && !hasPendingBeginStructureTagTemplate) {
+                pendingBeginStructureTagTemplate = inheritedTagTemplate
+                hasPendingBeginStructureTagTemplate = true
+            }
+            try {
+                return encodeSerializableValue(openSerializer as SerializationStrategy<T>, value)
+            } finally {
+                if (hasPendingBeginStructureTagTemplate) {
+                    hasPendingBeginStructureTagTemplate = false
+                    pendingBeginStructureTagTemplate = null
+                }
+            }
         }
 
         if (serializer.descriptor.kind is PolymorphicKind.OPEN && serializer is AbstractPolymorphicSerializer<*>) {
@@ -388,7 +409,7 @@ class DerEncoder internal constructor(
                         serializer.descriptor.kind is StructureKind.LIST ||
                         serializer.descriptor.kind is StructureKind.MAP
 
-            if (forwardsToBeginStructure) {
+            if (forwardsToBeginStructure && !hasPendingBeginStructureTagTemplate) {
                 pendingBeginStructureTagTemplate = effectiveTagTemplate
                 hasPendingBeginStructureTagTemplate = true
             }

@@ -101,3 +101,35 @@ The `crypto` already handles the most common cryptographic data structures out o
 - Handle PKCS#10 certificate signing requests
 - Preserve, round-trip, or transform cryptographic ASN.1 data in Kotlin Multiplatform code
 - Use these models as strongly typed payloads in ASN.1/DER serialization workflows
+
+## Extending X.509 `OtherName`
+
+`X509GeneralName.Other` is extensible by OID. By default, X.509 `OtherName` is (de)serialized as
+`X509GeneralName.Other.SemanticValue.Generic`, preserving the OID and ASN.1 payload for a
+lossless round trip. Applications can add semantic representations for known OIDs by implementing
+`X509GeneralName.Other.SemanticValue` and providing the OID through `OidProvider`.
+
+The following example implements Microsoft's `User Principal Name` form. The `0` tag annotation shown here belongs to that
+specific `OtherName` payload schema.
+
+```kotlin
+--8<-- "at/asitplus/awesn1/crypto/X509OtherNameOpenPolymorphismTest.kt:crypto-x509-other-name-subtype"
+```
+
+To use the subtype with the default `DER` instance, register it during startup using the
+[Default `DER` Registry](kxs.md#default-der-registry). Registration must happen before the first access to `DER`
+. Keep the generic
+`catchAll` in the registration if certificates containing unknown `otherName` OIDs must remain decodable.
+
+```kotlin
+--8<-- "Test.kt:crypto-x509-other-name-default-der-registration"
+```
+
+After startup registration, ordinary calls through the default `DER` instance resolve the custom semantic subtype:
+
+```kotlin
+--8<-- "at/asitplus/awesn1/crypto/X509OtherNameOpenPolymorphismTest.kt:crypto-x509-other-name-default-der-usage"
+```
+
+If global startup registration is unsuitable, configure the same `polymorphicByOid` block on a dedicated `Der`
+instance and pass that instance to the relevant encoding, decoding, or certificate-extension helper calls.

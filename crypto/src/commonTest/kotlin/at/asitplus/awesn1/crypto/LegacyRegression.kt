@@ -26,6 +26,7 @@ import at.asitplus.awesn1.crypto.pki.Pkcs10CsrAttribute
 import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
+import at.asitplus.awesn1.crypto.pki.X500Name
 import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
 import at.asitplus.awesn1.crypto.pki.X509Certificate
@@ -149,7 +150,7 @@ private fun LegacyRelativeDistinguishedName.toCurrent() =
 private fun LegacyPkcs10CertificationRequestInfo.toCurrent() =
     Pkcs10CertificationRequestInfo(
         version = Pkcs10CertificationRequestInfo.Version.V1,
-        subjectName = subjectName.map { it.toCurrent() },
+        subjectName = X500Name(subjectName.map { it.toCurrent() }),
         publicKey = publicKey.toCurrent(),
         attributes = attributes.map { it.toCurrent() },
     )

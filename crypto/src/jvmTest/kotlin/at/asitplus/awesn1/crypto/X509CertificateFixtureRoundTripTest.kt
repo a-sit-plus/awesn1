@@ -7,6 +7,10 @@ import at.asitplus.awesn1.InternalAwesn1Api
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.catchingUnwrapped
 import at.asitplus.awesn1.crypto.pki.X509Certificate
+import at.asitplus.awesn1.crypto.pki.X509GeneralName
+import at.asitplus.awesn1.crypto.pki.X509GeneralNames
+import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findIssuerAltNames
+import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findSubjectAltNames
 import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.decodeFromPem
@@ -21,6 +25,11 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
+import org.bouncycastle.asn1.x509.Extension
+import org.bouncycastle.asn1.x509.GeneralName as BouncyCastleGeneralName
+import org.bouncycastle.asn1.x509.GeneralNames
+import org.bouncycastle.asn1.x509.OtherName
+import org.bouncycastle.cert.X509CertificateHolder
 import org.opentest4j.AssertionFailedError
 import java.io.ByteArrayInputStream
 import java.nio.file.Files
@@ -37,8 +46,7 @@ val X509CertificateFixtureRoundTripTest by matrixSuite {
 
     listOf(true, false).asData(name = "fixture kind", nameFn = { if (it) "OK only" else "Faulty only" }) - { ok ->
         val fixtures = certificateFixtures(ok)
-        if(ok) "empty" {} else
-        data( fixtures, nameFn = { it.name }, replay = if(!ok) Indexes(216L) else null) test { path ->
+        data(fixtures, nameFn = { it.name }, replay = if (!ok) Indexes(216L) else null) test { path ->
 
             fun parseAndAssert() {
                 when (path.extension) {
@@ -48,6 +56,7 @@ val X509CertificateFixtureRoundTripTest by matrixSuite {
                             catchingUnwrapped { certificateFactory.generateCertificate(ByteArrayInputStream(encoded)) }.getOrNull()
                         val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), encoded)
                         jvmCert?.let { assertEquals(decoded, it as java.security.cert.X509Certificate) }
+                        if (ok) assertGeneralNamesAgreeWithBouncyCastle(decoded, encoded)
                         DER.encodeToByteArray(X509Certificate.serializer(), decoded) shouldBe encoded
                         assertRejectsTrailingBytes(encoded)
                         assertRejectsUnexpectedChildren(decoded)
@@ -59,6 +68,7 @@ val X509CertificateFixtureRoundTripTest by matrixSuite {
                         val blocks = PemBlock.decodeAllFromPem(path.readText()).filter { it.pemLabel == "CERTIFICATE" }
                         blocks.shouldNotBeEmpty().forEach { block ->
                             val decoded = DER.decodeFromByteArray(X509Certificate.serializer(), block.payload)
+                            if (ok) assertGeneralNamesAgreeWithBouncyCastle(decoded, block.payload)
                             val pemDecoded: X509Certificate = X509Certificate.decodeFromPem(block)
                             pemDecoded shouldBe decoded
                             pemDecoded.encodeToPemBlock() shouldBe block
@@ -81,6 +91,57 @@ val X509CertificateFixtureRoundTripTest by matrixSuite {
                 //here we can't parse
                 else it.shouldBeInstanceOf<SerializationException>()
             } else parseAndAssert()
+        }
+    }
+}
+
+private val structuralGeneralNamesDer = DER { }
+
+internal fun assertGeneralNamesAgreeWithBouncyCastle(
+    certificate: X509Certificate,
+    encodedCertificate: ByteArray,
+) {
+    val bouncyCastle = X509CertificateHolder(encodedCertificate)
+    assertGeneralNamesExtension(
+        awesn1 = certificate.findSubjectAltNames(structuralGeneralNamesDer),
+        bouncyCastle = bouncyCastle.getExtension(Extension.subjectAlternativeName),
+    )
+    assertGeneralNamesExtension(
+        awesn1 = certificate.findIssuerAltNames(structuralGeneralNamesDer),
+        bouncyCastle = bouncyCastle.getExtension(Extension.issuerAlternativeName),
+    )
+}
+
+private fun assertGeneralNamesExtension(
+    awesn1: X509GeneralNames?,
+    bouncyCastle: Extension?,
+) {
+    (awesn1 == null) shouldBe (bouncyCastle == null)
+    if (awesn1 == null || bouncyCastle == null) return
+
+    val expected = GeneralNames.getInstance(bouncyCastle.parsedValue)
+    structuralGeneralNamesDer.encodeToByteArray(X509GeneralNames.serializer(), awesn1) shouldBe expected.encoded
+    awesn1.entries.size shouldBe expected.names.size
+
+    awesn1.entries.zip(expected.names).forEach { (actual, reference) ->
+        when (reference.tagNo) {
+            BouncyCastleGeneralName.otherName -> {
+                val actualOther = actual.shouldBeInstanceOf<X509GeneralName.Other>()
+                    .value.shouldBeInstanceOf<X509GeneralName.Other.SemanticValue.Generic>()
+                val referenceOther = OtherName.getInstance(reference.name)
+                actualOther.oid.toString() shouldBe referenceOther.typeID.id
+                actualOther.value.derEncoded shouldBe referenceOther.value.toASN1Primitive().encoded
+            }
+            BouncyCastleGeneralName.rfc822Name -> actual.shouldBeInstanceOf<X509GeneralName.Rfc822>()
+            BouncyCastleGeneralName.dNSName -> actual.shouldBeInstanceOf<X509GeneralName.Dns>()
+            BouncyCastleGeneralName.x400Address -> actual.shouldBeInstanceOf<X509GeneralName.X400Address>()
+            BouncyCastleGeneralName.directoryName -> actual.shouldBeInstanceOf<X509GeneralName.Directory>()
+            BouncyCastleGeneralName.ediPartyName -> actual.shouldBeInstanceOf<X509GeneralName.EdiParty>()
+            BouncyCastleGeneralName.uniformResourceIdentifier ->
+                actual.shouldBeInstanceOf<X509GeneralName.UniformResourceIdentifier>()
+            BouncyCastleGeneralName.iPAddress -> actual.shouldBeInstanceOf<X509GeneralName.IpAddress>()
+            BouncyCastleGeneralName.registeredID -> actual.shouldBeInstanceOf<X509GeneralName.RegisteredId>()
+            else -> error("Bouncy Castle returned unknown GeneralName tag ${reference.tagNo}")
         }
     }
 }

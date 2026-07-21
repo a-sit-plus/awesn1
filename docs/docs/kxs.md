@@ -349,6 +349,29 @@ Real-world references include [PKCS #10 (RFC 2986)](https://www.rfc-editor.org/r
 2. {{ asn1js_iframe('kxs-open-poly-oid-catchall') -}}
    Explore on <a href="{{ asn1js_url('kxs-open-poly-oid-catchall') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
+### Provided-Fallback Types
+
+An extensible model can provide a structural serializer for use when the active `Der` instance has no contextual
+open-polymorphism registration. Subclass `Asn1OpenPolymorphicWithDefaultSerializer` from the serializer object named
+by `@Serializable(with = ...)`. Its default serializer commonly uses an OID `catchAll` that retains the discriminator
+and raw or otherwise generic payload.
+
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/SerializationOpenPolymorphismByOidTest.kt:kxs-open-poly-default-definitions"
+```
+
+With an unconfigured `Der`, the provided-fallback serializer handles the value. A contextual `polymorphicByOid`
+registration on a custom `Der` takes precedence and enables custom subtypes. Include the structural `catchAll` in
+that contextual registration as well if the configured instance must continue accepting unknown OIDs.
+
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/SerializationOpenPolymorphismByOidTest.kt:kxs-open-poly-default-usage"
+```
+
+The same override works with the default `DER` instance through the [Default `DER` Registry](#default-der-registry).
+Call `DefaultDer.register(...)` during application or library startup, before the first access to the lazily initialized
+`DER` value. If nothing is registered, the provided-fallback type is used automatically.
+
 ## Collections: `Map` and `Set`
 
 Default mappings for `Map` and `Set` are supported, so idiomatic Kotlin collection models can be encoded without

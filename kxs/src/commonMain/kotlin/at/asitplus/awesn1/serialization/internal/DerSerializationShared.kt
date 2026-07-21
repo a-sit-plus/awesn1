@@ -11,6 +11,7 @@ import at.asitplus.awesn1.Asn1TagMismatchException
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_ELEMENT_TREE
 import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.serialization.Asn1Tag
+import at.asitplus.awesn1.serialization.Asn1OpenPolymorphicWithDefaultSerializer
 import at.asitplus.awesn1.serialization.asn1Tag
 import at.asitplus.awesn1.serialization.isAsn1BitString
 import at.asitplus.awesn1.serialization.isAsn1ExplicitWrapperDescriptor
@@ -178,8 +179,13 @@ internal fun <T> resolveOpenPolymorphicAsn1SerializerOrNull(
     serializersModule: SerializersModule,
 ): SerializationStrategy<*>? {
     if (serializer.descriptor.kind !is PolymorphicKind.OPEN) return null
-    val polymorphicSerializer = serializer as? AbstractPolymorphicSerializer<*> ?: return null
-    return serializersModule.getContextual(polymorphicSerializer.baseClass, emptyList())
+    return when (serializer) {
+        is AbstractPolymorphicSerializer<*> ->
+            serializersModule.getContextual(serializer.baseClass, emptyList())
+        is Asn1OpenPolymorphicWithDefaultSerializer<*> ->
+            serializersModule.getContextual(serializer.baseClass, emptyList()) ?: serializer.defaultSerializer
+        else -> null
+    }
 }
 
 @OptIn(InternalSerializationApi::class)
@@ -188,8 +194,13 @@ internal fun <T> resolveOpenPolymorphicAsn1SerializerOrNull(
     serializersModule: SerializersModule,
 ): DeserializationStrategy<*>? {
     if (deserializer.descriptor.kind !is PolymorphicKind.OPEN) return null
-    val polymorphicSerializer = deserializer as? AbstractPolymorphicSerializer<*> ?: return null
-    return serializersModule.getContextual(polymorphicSerializer.baseClass, emptyList())
+    return when (deserializer) {
+        is AbstractPolymorphicSerializer<*> ->
+            serializersModule.getContextual(deserializer.baseClass, emptyList())
+        is Asn1OpenPolymorphicWithDefaultSerializer<*> ->
+            serializersModule.getContextual(deserializer.baseClass, emptyList()) ?: deserializer.defaultSerializer
+        else -> null
+    }
 }
 
 /**

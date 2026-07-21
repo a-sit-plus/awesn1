@@ -3,144 +3,244 @@
 
 package at.asitplus.awesn1.crypto.pki
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Sequence
-import at.asitplus.awesn1.Asn1StructuralException
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.TagClass
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
-import at.asitplus.awesn1.runRethrowing
-import at.asitplus.awesn1.runWrappingAs
-import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.serialization.decodeFromTlv
+import at.asitplus.awesn1.serialization.*
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
-@Deprecated("Use X509GeneralNames instead", ReplaceWith("X509GeneralNames"))
-typealias GeneralNames = X509GeneralNames
-
 /**
+ * The RFC 5280 `GeneralName` CHOICE.
  *
- * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.2.1.6):
- * ```
- * SubjectAltName ::= GeneralNames
+ * Closed alternatives are decoded as strict typed values. The open `otherName` arm delegates its payload to an
+ * OID-selected [X509GeneralName.Other.SemanticValue] implementation.
  *
- * GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
- *
- * GeneralName ::= CHOICE {
- *   otherName                       [0]     OtherName,
- *   rfc822Name                      [1]     IA5String,
- *   dNSName                         [2]     IA5String,
- *   x400Address                     [3]     ORAddress,
- *   directoryName                   [4]     Name,
- *   ediPartyName                    [5]     EDIPartyName,
- *   uniformResourceIdentifier       [6]     IA5String,
- *   iPAddress                       [7]     OCTET STRING,
- *   registeredID                    [8]     OBJECT IDENTIFIER
- * }
- * ```
+ * In general, if the tag matches and the ASN1 element type is correct, it will leniently decode where this makes sense,
+ * such as [X509GeneralName.Rfc822], or other string-based ones.
  */
+@Serializable
+sealed interface X509GeneralName {
+
+
+    /** The `[0]` GeneralName arm containing an open [SemanticValue] value.
+     * Trying to parse a structurally malformed input will fail.
+     **/
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    value class Other(val value: SemanticValue) : X509GeneralName {
+        /** Open, OID-discriminated `otherName` value. */
+        @Serializable(with = SemanticValue.Serializer::class)
+        interface SemanticValue : Identifiable {
+            /** Structural fallback for an `otherName` OID without a registered semantic subtype. */
+            @Serializable
+            data class Generic(
+                override val oid: ObjectIdentifier,
+                @Asn1Tag(tagNumber = 0u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+                private val taggedValue: ExplicitlyTagged<Asn1Element>,
+            ) : SemanticValue {
+                val typeId: ObjectIdentifier get() = oid
+                val value: Asn1Element get() = taggedValue.value
+
+                constructor(typeId: ObjectIdentifier, value: Asn1Element) : this(typeId, ExplicitlyTagged(value))
+            }
+
+            object Serializer : Asn1OpenPolymorphicWithDefaultSerializer<SemanticValue>(
+                baseClass = SemanticValue::class,
+                defaultSerializer = asn1OpenPolymorphicByOidSerializer("X509OtherName") {
+                    catchAll<Generic>()
+                },
+            )
+        }
+    }
+
+    /**Will be parsed leniently: Any valid ASN.1 String type will initially decode; validation is deferred to the getter of [value].*/
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 1u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class Rfc822 private constructor(val rawValue: Asn1String.IA5) : X509GeneralName {
+
+        val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed RFC822Name IA5String payload") else rawValue.value
+
+        /**
+         * @throws Asn1Exception if the string contain characters that are not a legal [Asn1String.IA5]
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(Asn1String.IA5(value))
+    }
+
+    /**Will be parsed leniently: Any valid ASN.1 String type will initially decode; validation is deferred to the getter of [value].*/
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 2u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class Dns private constructor(val rawValue: Asn1String.IA5) : X509GeneralName {
+
+        val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed dNSName IA5String payload") else rawValue.value
+
+        /**
+         * @throws Asn1Exception if the string contain characters that are not a legal [Asn1String.IA5]
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(Asn1String.IA5(value))
+    }
+
+
+    /**
+     *  Trying to parse a structurally malformed input will fail.
+     **/
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 3u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    value class X400Address(val elements: List<Asn1Element>) : X509GeneralName {
+
+        /**
+         * Convenience constructor
+         */
+        constructor(value: Asn1Sequence) : this(value.children)
+    }
+
+    /** The explicitly tagged `directoryName` GeneralName alternative.
+     * Trying to parse a structurally malformed input will fail.
+     **/
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 4u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    value class Directory private constructor(
+        val taggedValue: ExplicitlyTagged<X500Name>,
+    ) : X509GeneralName {
+        val value: X500Name get() = taggedValue.value
+
+        companion object {
+            operator fun invoke(value: X500Name) =
+                Directory(ExplicitlyTagged(value))
+        }
+    }
+
+    /**
+     * Trying to parse a structurally malformed input will fail.
+     **/
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 5u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
+    value class EdiParty(private val elements: List<Asn1Element>) : X509GeneralName {
+
+        /**
+         * convenience constructor
+         */
+        constructor(value: Asn1Sequence) : this(value.children)
+    }
+
+    /**Will be parsed leniently: Any valid ASN.1 String type will initially decode; validation is deferred to the getter of [value].*/
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 6u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class UniformResourceIdentifier private constructor(val rawValue: Asn1String.IA5) : X509GeneralName {
+
+        val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed uniformResourceIdentifier IA5String payload") else rawValue.value
+
+        /**
+         * @throws Asn1Exception if the string contain characters that are not a legal [Asn1String.IA5]
+         */
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(Asn1String.IA5(value))
+    }
+
+    /**Will parse leniently*/
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 7u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class IpAddress private constructor(
+        /**
+         * This contains a raw octet string in case someone was "creative" and encoded an IP address in some cursed, structural manner
+         * or as a string inside an OCTET STRING and someone else wants to salvage it
+         */
+        val rawValue: Asn1OctetString
+    ) : X509GeneralName {
+
+        /**
+         * Validates the length of the passed IP address to be either 4 (IPv4) or 16 (IPv6).
+         */
+        constructor(ipAddress: ByteArray) : this(Asn1OctetString(ipAddress.validateNumberOfOctets()))
+
+        val value: ByteArray
+            get() = rawValue.content.validateNumberOfOctets()
+
+        companion object {
+            private fun ByteArray.validateNumberOfOctets() = if (size != 4 && size != 16)
+                throw Asn1StructuralException("Invalid IP address value: expected 4 or 16 octets, got $size") else this
+        }
+    }
+
+    /**
+     * Trying to parse a structurally malformed input will fail.
+     */
+    @Serializable
+    @JvmInline
+    @Asn1Tag(tagNumber = 8u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
+    value class RegisteredId(val oid: ObjectIdentifier) : X509GeneralName
+
+    /** Context-specific tags for RFC 5280 `GeneralName` alternatives. Handy for manually sifting through an X509GeneralName structure. */
+    object Tags {
+        val otherName = Asn1.ExplicitTag(0u)
+        val rfc822Name = Asn1.ImplicitTag(1u)
+        val dnsName = Asn1.ImplicitTag(2u)
+        val x400Address = Asn1.ExplicitTag(3u)
+        val directoryName = Asn1.ExplicitTag(4u)
+        val ediPartyName = Asn1.ExplicitTag(5u)
+        val uniformResourceIdentifier = Asn1.ImplicitTag(6u)
+        val ipAddress = Asn1.ImplicitTag(7u)
+        val registeredID = Asn1.ImplicitTag(8u)
+        val otherNameValue = Asn1.ExplicitTag(0u)
+    }
+
+}
+
+/** `GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName`. */
 @JvmInline
 @Serializable
 value class X509GeneralNames @Throws(Throwable::class) constructor(
-    val entries: List<Asn1Element>
+    val entries: List<X509GeneralName>
 ) {
-
-    private fun parseStringSANs(implicitTag: Asn1Element.Tag) =
-        entries.filter { it.tag == implicitTag }.map { it.asPrimitive().content.decodeToString() }
-    val dnsNames: List<String> get() = parseStringSANs(GeneralNameTags.dnsName)
-    val rfc822Names: List<String> get() = parseStringSANs(GeneralNameTags.rfc822Name)
-    val uris: List<String> get() = parseStringSANs(GeneralNameTags.uniformResourceIdentifier)
-
-    val ipAddresses: List<ByteArray> get() =
-        entries.filter { it.tag == GeneralNameTags.ipAddress }
-            .map { it.asPrimitive().content.also { c ->
-                if (c.size != 4 && c.size != 16) throw Asn1StructuralException("Invalid ipAddress Alternative Name found: ${c.toHexString()}")
-            }}
-
-    // runRethrowing: this getter parses attacker-controlled bytes; an empty or multi-child [4] wrapper would
-    // otherwise leak NoSuchElementException/IllegalArgumentException instead of a catchable Asn1Exception.
-    val directoryNames: List<List<X500RelativeDistinguishedName>> get() = runRethrowing {
-        entries.filter { it.tag == GeneralNameTags.directoryName }
-            .map { e ->
-                val wrapper = e.asStructure().children
-                if (wrapper.size != 1)
-                    throw Asn1StructuralException("Invalid directoryName: expected a single child, got ${wrapper.size}")
-                wrapper.single().asSequence().children
-                    .map { DER.decodeFromTlv<X500RelativeDistinguishedName>(it) }
-            }
-    }
-
-    val otherNames: List<Asn1Sequence> get() =
-        entries.filter { it.tag == GeneralNameTags.otherName }.map { e ->
-            e.asStructure().let {
-                if (it.children.size != 2) throw Asn1StructuralException("Invalid otherName Alternative Name found (!=2 children): ${it.toDerHexString()}")
-                if (it.children.last().tag != GeneralNameTags.otherNameValue) throw Asn1StructuralException("Invalid otherName Alternative Name found (explicit value tag != 0): ${it.toDerHexString()}")
-                ObjectIdentifier.decodeFromAsn1ContentBytes(it.children.first().asPrimitive().content)
-                Asn1.Sequence { it.children.forEach { child -> +child } }
-            }
-        }
+    val dnsNames: List<String> get() = entries.filterIsInstance<X509GeneralName.Dns>().map { it.value }
+    val rfc822Names: List<String> get() = entries.filterIsInstance<X509GeneralName.Rfc822>().map { it.value }
+    val uris: List<String>
+        get() = entries.filterIsInstance<X509GeneralName.UniformResourceIdentifier>().map { it.value }
+    val ipAddresses: List<ByteArray> get() = entries.filterIsInstance<X509GeneralName.IpAddress>().map { it.value }
+    val directoryNames: List<X500Name>
+        get() = entries.filterIsInstance<X509GeneralName.Directory>().map { it.value }
+    val otherNames: List<X509GeneralName.Other.SemanticValue>
+        get() = entries.filterIsInstance<X509GeneralName.Other>().map { it.value }
 
     companion object {
         @Throws(Asn1Exception::class)
-        fun X509Certificate.findSubjectAltNames() = tbsCertificate.findSubjectAltNames()
-        @Throws(Asn1Exception::class)
-        fun X509TbsCertificate.findSubjectAltNames() = extensions?.findSubjectAltNames()
+        fun X509Certificate.findSubjectAltNames(der: Der = DER) = tbsCertificate.findSubjectAltNames(der)
 
         @Throws(Asn1Exception::class)
-        fun List<X509CertificateExtension>.findSubjectAltNames() =
-            runWrappingAs(a=::Asn1Exception) {
-                find(ObjectIdentifier("2.5.29.17"))?.let { X509GeneralNames(it) }
-            }
+        fun X509TbsCertificate.findSubjectAltNames(der: Der = DER) = extensions?.findSubjectAltNames(der)
 
         @Throws(Asn1Exception::class)
-        fun X509Certificate.findIssuerAltNames() = tbsCertificate.findIssuerAltNames()
-        @Throws(Asn1Exception::class)
-        fun X509TbsCertificate.findIssuerAltNames() = extensions?.findIssuerAltNames()
+        fun List<X509CertificateExtension>.findSubjectAltNames(der: Der = DER) =
+            runWrappingAs(a = ::Asn1Exception) { findSingle(ObjectIdentifier("2.5.29.17"), der)?.let(::X509GeneralNames) }
 
         @Throws(Asn1Exception::class)
-        fun List<X509CertificateExtension>.findIssuerAltNames() =
-            runWrappingAs(a=::Asn1Exception) {
-                find(ObjectIdentifier("2.5.29.18"))?.let { X509GeneralNames(it) }
-            }
+        fun X509Certificate.findIssuerAltNames(der: Der = DER) = tbsCertificate.findIssuerAltNames(der)
 
-        private fun List<X509CertificateExtension>.find(oid: ObjectIdentifier): List<Asn1Element>? {
+        @Throws(Asn1Exception::class)
+        fun X509TbsCertificate.findIssuerAltNames(der: Der = DER) = extensions?.findIssuerAltNames(der)
+
+        @Throws(Asn1Exception::class)
+        fun List<X509CertificateExtension>.findIssuerAltNames(der: Der = DER) =
+            runWrappingAs(a = ::Asn1Exception) { findSingle(ObjectIdentifier("2.5.29.18"), der)?.let(::X509GeneralNames) }
+
+        private fun List<X509CertificateExtension>.findSingle(oid: ObjectIdentifier, der: Der): List<X509GeneralName>? {
             val matches = filter { it.oid == oid }
             if (matches.size > 1) throw Asn1StructuralException("More than one extension with oid $oid found")
-            return if (matches.isEmpty()) null
-            else Asn1Element.parse(matches.first().value).asSequence().children
+            return matches.singleOrNull()?.let { extension ->
+                Asn1Element.parse(extension.value).asSequence().children.map {
+                    der.decodeFromTlv(it)
+                }
+            }
         }
     }
-}
-
-/**
- *
- * Context-specific tags for RFC 5280 `GeneralName` alternatives.
- */
-object GeneralNameTags {
-    val otherName = constructedContextTag(0uL)
-    val rfc822Name = Asn1.ImplicitTag(1uL)
-    val dnsName = Asn1.ImplicitTag(2uL)
-    val x400Address = constructedContextTag(3uL)
-
-    /*
-     * `directoryName [4] Name` is encoded as a constructed wrapper because
-     * `Name` is itself a CHOICE and has no tag that implicit tagging could replace.
-     */
-    val directoryName = constructedContextTag(4uL)
-
-    val ediPartyName = constructedContextTag(5uL)
-    val uniformResourceIdentifier = Asn1.ImplicitTag(6uL)
-    val ipAddress = Asn1.ImplicitTag(7uL)
-    val registeredID = Asn1.ImplicitTag(8uL)
-
-    /** `OtherName.value [0] EXPLICIT ANY DEFINED BY type-id`. */
-    val otherNameValue = Asn1.ExplicitTag(0uL)
-
-    //same as explicit tag, but like this the source code reads close to the semantics:
-    //an implicitly tagged CONSTRUCTED element
-    private fun constructedContextTag(tagNumber: ULong) =
-        Asn1Element.Tag(tagNumber, constructed = true, tagClass = TagClass.CONTEXT_SPECIFIC)
 }

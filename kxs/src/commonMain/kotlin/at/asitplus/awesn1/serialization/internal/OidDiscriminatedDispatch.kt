@@ -52,7 +52,9 @@ internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
         }
 
     init {
-        require(subtypes.isNotEmpty()) { "At least one subtype registration is required" }
+        require(subtypes.isNotEmpty() || catchAllRegistration != null) {
+            "At least one subtype or catchAll registration is required"
+        }
         subtypes.forEach { registration ->
             require(registration.leadingTags.isNotEmpty()) {
                 "Subtype '${registration.debugName}' must declare at least one leading ASN.1 tag"

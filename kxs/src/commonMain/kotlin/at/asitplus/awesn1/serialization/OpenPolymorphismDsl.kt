@@ -15,7 +15,9 @@ import at.asitplus.awesn1.serialization.internal.inferOpenPolymorphicSubtypeLead
 import at.asitplus.awesn1.serialization.internal.oidFrom
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.PolymorphicSerializer
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.modules.SerializersModuleBuilder
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
@@ -197,8 +199,8 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
         serialName: String,
         oidSelector: (Asn1Element) -> ObjectIdentifier?,
     ): KSerializer<T> {
-        if (registrations.isEmpty()) {
-            throw SerializationException("At least one subtype registration is required for $serialName")
+        if (registrations.isEmpty() && catchAllRegistration == null) {
+            throw SerializationException("At least one subtype or catchAll registration is required for $serialName")
         }
         return Asn1OidDiscriminatedOpenPolymorphicSerializer(
             serialName = serialName,
@@ -237,6 +239,21 @@ fun <T : Identifiable> asn1OpenPolymorphicByOidSerializer(
 ): KSerializer<T> = Asn1OpenPolymorphismByOidBuilder<T>()
     .apply(block)
     .build(serialName, oidSelector)
+
+/**
+ * Uses a contextual ASN.1 open-polymorphic serializer for [baseClass] when one is registered in the active DER
+ * instance, and [defaultSerializer] otherwise.
+ *
+ * This is useful for extensible ASN.1 types that also have a structural fallback representation. Subclass it with an
+ * object usable from `@Serializable(with = ...)`. It keeps an open-polymorphic descriptor, so callers can add semantic
+ * subtype mappings through the usual `polymorphicByTag` or `polymorphicByOid` DSL.
+ */
+open class Asn1OpenPolymorphicWithDefaultSerializer<T : Any>(
+    val baseClass: KClass<T>,
+    val defaultSerializer: KSerializer<T>,
+) : KSerializer<T> by defaultSerializer {
+    override val descriptor: SerialDescriptor = PolymorphicSerializer(baseClass).descriptor
+}
 
 /**
  * Registers a tag-discriminated ASN.1 open-polymorphic serializer as contextual serializer.

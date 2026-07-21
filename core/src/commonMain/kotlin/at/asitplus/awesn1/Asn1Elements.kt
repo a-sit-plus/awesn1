@@ -1085,10 +1085,6 @@ class Asn1CustomStructure internal constructor(
     }
 }
 
-
-@Deprecated("Replace with Asn1OctetString", ReplaceWith("Asn1OctetString(content)"))
-typealias Asn1PrimitiveOctetString = Asn1OctetString
-
 /**
  * ASN.1 OCTET STRING 0x04 ([BERTags.OCTET_STRING]) containing arbitrary bytes
  *

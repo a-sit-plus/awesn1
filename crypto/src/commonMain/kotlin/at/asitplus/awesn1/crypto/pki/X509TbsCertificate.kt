@@ -12,8 +12,6 @@ import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
 import kotlinx.serialization.Serializable
 
-@Deprecated("Use X509TbsCertificate instead", ReplaceWith("X509TbsCertificate"))
-typealias TbsCertificate = X509TbsCertificate
 
 /**
  *
@@ -81,9 +79,9 @@ data class X509TbsCertificate internal constructor(
     private val taggedVersion: ExplicitlyTagged<Version>? = null,
     val serialNumber: Asn1Integer,
     val signatureAlgorithm: X509AlgorithmIdentifier,
-    val issuerName: List<X500RelativeDistinguishedName>,
+    val issuerName: X500Name,
     val validity: Validity,
-    val subjectName: List<X500RelativeDistinguishedName>,
+    val subjectName: X500Name,
     val subjectPublicKeyInfo: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 1u)
     val rawIssuerUniqueID: LenientBitString? = null,
@@ -96,10 +94,10 @@ data class X509TbsCertificate internal constructor(
         version: Version? = Version.V3,
         serialNumber: Asn1Integer,
         signatureAlgorithm: X509AlgorithmIdentifier,
-        issuerName: List<X500RelativeDistinguishedName>,
+        issuerName: X500Name,
         validFrom: Asn1Time.SecondsCapped,
         validUntil: Asn1Time.SecondsCapped,
-        subjectName: List<X500RelativeDistinguishedName>,
+        subjectName: X500Name,
         subjectPublicKeyInfo: SubjectPublicKeyInfo,
         issuerUniqueID: Asn1BitString? = null,
         subjectUniqueID: Asn1BitString? = null,

@@ -15,9 +15,6 @@ import at.asitplus.awesn1.encoding.parse
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
-@Deprecated("Use X509SignatureValue instead", ReplaceWith("X509SignatureValue"))
-typealias SignatureValue = X509SignatureValue
-
 /**
  *
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
