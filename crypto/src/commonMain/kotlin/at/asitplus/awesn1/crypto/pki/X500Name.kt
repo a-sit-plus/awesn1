@@ -3,7 +3,15 @@
 
 package at.asitplus.awesn1.crypto.pki
 
+import kotlinx.serialization.Serializable
+import kotlin.jvm.JvmInline
+
 /**
  * RFC 5280 `Name`. The currently defined CHOICE has exactly one alternative, an `RDNSequence`.
  */
-typealias X500Name = List<X500RelativeDistinguishedName>
+@JvmInline
+@Serializable
+value class X500Name(private val value: List<X500RelativeDistinguishedName>) : List<X500RelativeDistinguishedName> by value {
+    constructor(single: X500RelativeDistinguishedName) : this(listOf(single))
+}
+

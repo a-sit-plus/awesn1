@@ -8,6 +8,7 @@ import at.asitplus.awesn1.crypto.pki.X509Certificate
 import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.crypto.pki.X509GeneralName.Tags
 import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
+import at.asitplus.awesn1.crypto.pki.X500Name
 import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.X509GeneralName
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames
@@ -81,7 +82,7 @@ val X509GeneralNamesTest by matrixSuite {
                 X509GeneralName.Dns("example.com"),
                 X509GeneralName.X400Address(opaqueSequence),
                 X509GeneralName.Directory(
-                    listOf(X500RelativeDistinguishedName(X500AttributeTypeAndValue.CommonName("subject")))
+                    X500Name(X500RelativeDistinguishedName(X500AttributeTypeAndValue.CommonName("subject")))
                 ),
                 X509GeneralName.EdiParty(opaqueSequence),
                 X509GeneralName.UniformResourceIdentifier("https://example.com"),

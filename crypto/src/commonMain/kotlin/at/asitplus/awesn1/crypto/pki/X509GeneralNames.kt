@@ -55,7 +55,7 @@ sealed interface X509GeneralName {
         }
     }
 
-    /**Will be parsed leniently*/
+    /**Will be parsed leniently: Any valid ASN.1 String type will initially decode; validation is deferred to the getter of [value].*/
     @Serializable
     @JvmInline
     @Asn1Tag(tagNumber = 1u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
@@ -63,10 +63,14 @@ sealed interface X509GeneralName {
 
         val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed RFC822Name IA5String payload") else rawValue.value
 
+        /**
+         * @throws Asn1Exception if the string contain characters that are not a legal [Asn1String.IA5]
+         */
+        @Throws(Asn1Exception::class)
         constructor(value: String) : this(Asn1String.IA5(value))
     }
 
-    /**Will be parsed leniently*/
+    /**Will be parsed leniently: Any valid ASN.1 String type will initially decode; validation is deferred to the getter of [value].*/
     @Serializable
     @JvmInline
     @Asn1Tag(tagNumber = 2u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
@@ -74,6 +78,10 @@ sealed interface X509GeneralName {
 
         val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed dNSName IA5String payload") else rawValue.value
 
+        /**
+         * @throws Asn1Exception if the string contain characters that are not a legal [Asn1String.IA5]
+         */
+        @Throws(Asn1Exception::class)
         constructor(value: String) : this(Asn1String.IA5(value))
     }
 
@@ -84,7 +92,7 @@ sealed interface X509GeneralName {
     @Serializable
     @JvmInline
     @Asn1Tag(tagNumber = 3u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
-    value class X400Address private constructor(val elements: List<Asn1Element>) : X509GeneralName {
+    value class X400Address(val elements: List<Asn1Element>) : X509GeneralName {
 
         /**
          * Convenience constructor
@@ -101,7 +109,7 @@ sealed interface X509GeneralName {
     value class Directory private constructor(
         val taggedValue: ExplicitlyTagged<X500Name>,
     ) : X509GeneralName {
-        val value: X500Name get() = taggedValue.value //Value classes cannot have delegated props
+        val value: X500Name get() = taggedValue.value
 
         companion object {
             operator fun invoke(value: X500Name) =
@@ -115,7 +123,7 @@ sealed interface X509GeneralName {
     @Serializable
     @JvmInline
     @Asn1Tag(tagNumber = 5u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
-    value class EdiParty private constructor(private val elements: List<Asn1Element>) : X509GeneralName {
+    value class EdiParty(private val elements: List<Asn1Element>) : X509GeneralName {
 
         /**
          * convenience constructor
@@ -123,7 +131,7 @@ sealed interface X509GeneralName {
         constructor(value: Asn1Sequence) : this(value.children)
     }
 
-    /**Will be parsed leniently*/
+    /**Will be parsed leniently: Any valid ASN.1 String type will initially decode; validation is deferred to the getter of [value].*/
     @Serializable
     @JvmInline
     @Asn1Tag(tagNumber = 6u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
@@ -131,6 +139,10 @@ sealed interface X509GeneralName {
 
         val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed uniformResourceIdentifier IA5String payload") else rawValue.value
 
+        /**
+         * @throws Asn1Exception if the string contain characters that are not a legal [Asn1String.IA5]
+         */
+        @Throws(Asn1Exception::class)
         constructor(value: String) : this(Asn1String.IA5(value))
     }
 
@@ -146,12 +158,18 @@ sealed interface X509GeneralName {
         val rawValue: Asn1OctetString
     ) : X509GeneralName {
 
-        constructor(ipAddress: ByteArray) : this(Asn1OctetString(ipAddress))
+        /**
+         * Validates the length of the passed IP address to be either 4 (IPv4) or 16 (IPv6).
+         */
+        constructor(ipAddress: ByteArray) : this(Asn1OctetString(ipAddress.validateNumberOfOctets()))
 
         val value: ByteArray
-            get() = if (rawValue.content.size != 4 && rawValue.content.size != 16)
-                throw Asn1StructuralException("Invalid IP address value: expected 4 or 16 octets, got ${rawValue.content.size}") else rawValue.content
+            get() = rawValue.content.validateNumberOfOctets()
 
+        companion object {
+            private fun ByteArray.validateNumberOfOctets() = if (size != 4 && size != 16)
+                throw Asn1StructuralException("Invalid IP address value: expected 4 or 16 octets, got $size") else this
+        }
     }
 
     /**
@@ -203,7 +221,7 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findSubjectAltNames(der: Der = DER) =
-            runWrappingAs(a = ::Asn1Exception) { find(ObjectIdentifier("2.5.29.17"), der)?.let(::X509GeneralNames) }
+            runWrappingAs(a = ::Asn1Exception) { findSingle(ObjectIdentifier("2.5.29.17"), der)?.let(::X509GeneralNames) }
 
         @Throws(Asn1Exception::class)
         fun X509Certificate.findIssuerAltNames(der: Der = DER) = tbsCertificate.findIssuerAltNames(der)
@@ -213,9 +231,9 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findIssuerAltNames(der: Der = DER) =
-            runWrappingAs(a = ::Asn1Exception) { find(ObjectIdentifier("2.5.29.18"), der)?.let(::X509GeneralNames) }
+            runWrappingAs(a = ::Asn1Exception) { findSingle(ObjectIdentifier("2.5.29.18"), der)?.let(::X509GeneralNames) }
 
-        private fun List<X509CertificateExtension>.find(oid: ObjectIdentifier, der: Der): List<X509GeneralName>? {
+        private fun List<X509CertificateExtension>.findSingle(oid: ObjectIdentifier, der: Der): List<X509GeneralName>? {
             val matches = filter { it.oid == oid }
             if (matches.size > 1) throw Asn1StructuralException("More than one extension with oid $oid found")
             return matches.singleOrNull()?.let { extension ->
