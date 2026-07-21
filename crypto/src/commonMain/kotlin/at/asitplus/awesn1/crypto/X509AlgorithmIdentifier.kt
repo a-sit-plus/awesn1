@@ -8,7 +8,9 @@ import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.decodeFromTlv
 import kotlinx.serialization.Serializable
+import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.jvm.JvmInline
+import kotlin.native.HiddenFromObjC
 
 /**
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1.1.2):
@@ -53,16 +55,28 @@ value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
         oid //check that oid is present
     }
 
+    //already throws during init, so no throws declaration here
     /**
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * From Swift/Objective-C use the throwing `oid()` accessor (exported as a static `oid(_:)`, since
+     * value classes are not bridged as Objective-C types).
      */
     override val oid: ObjectIdentifier
-        get() = (element.asSequence().children.firstOrNull() as? Asn1Primitive)?.readOid()
-            ?: throw Asn1Exception("AlgorithmIdentifier has no OID: $element")
+        get() = runRethrowing {
+            (element.asSequence().children.firstOrNull() as? Asn1Primitive)?.readOid()
+                ?: throw Asn1Exception("AlgorithmIdentifier has no OID: $element")
+        }
 
     /**
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * From Swift/Objective-C use the throwing `parameters()` accessor (exported as a static
+     * `parameters(_:)`, since value classes are not bridged as Objective-C types).
+     *
+     * @throws Asn1Exception if this identifier has more than one parameter element
      */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(Asn1Exception::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
     val parameters: Asn1Element?
         get() = when (element.children.size) {
             1 -> null
@@ -78,11 +92,17 @@ value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
      *
      * @return `null` if this algorithm is nor RSA_SSA_PSS
      *
-     * @throws Asn1Exception if this algorothm is RSA_SSA_PSS has no parameters, or the parameter element is
+     * @throws Asn1Exception if this algorithm is RSA_SSA_PSS has no parameters, or the parameter element is
      * not a valid `RSASSA-PSS-params` SEQUENCE.
      *
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * From Swift/Objective-C use the throwing `rsaSsaPssParams()` accessor (exported as a static
+     * `rsaSsaPssParams(_:)`, since value classes are not bridged as Objective-C types).
      */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(Asn1Exception::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
     val rsaSsaPssParams: RsaSsaPssParams?
         get() = runWrappingAs(a = ::Asn1Exception) {
             if (oid != RsaSsaPssParams.RSA_SSA_PSS_OID) {

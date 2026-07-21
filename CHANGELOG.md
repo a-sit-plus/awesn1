@@ -12,6 +12,9 @@
 * **Other Changes:**
     * Document provided-fallback open-polymorphism fallbacks and extending X.509 `OtherName`, including default-`DER` startup registration with test-backed source snippets.
     * Remove Deprecations
+    * Use [Lockhart's Sleight of Hand](https://github.com/jeffdgr8/kotbase/blob/6d783c25bb31be3a374b19d406a8fbd14f149f6f/couchbase-lite/src/appleMain/kotlin/kotbase/Scope.apple.kt#L33-L51) to hide throwing ObjC getters:
+        * Allows properly annotating throwing getters in common main sources
+        * Exposes semantically equivalent extension function to ObjC
 
 ## 0.5.0
 * **Fixes:**

@@ -11,6 +11,8 @@ import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
 import kotlinx.serialization.Serializable
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 
 
 /**
@@ -125,13 +127,31 @@ data class X509TbsCertificate internal constructor(
     val version: Version get() = rawVersion ?: Version.V1
 
     /**
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * Hidden from Objective-C because a throwing getter cannot be bridged (see
+     * [KT-63047](https://youtrack.jetbrains.com/issue/KT-63047)); from Swift/Objective-C use the
+     * throwing `issuerUniqueID()` accessor instead.
+     *
+     * @throws IllegalArgumentException if the encoded issuer unique ID is structurally invalid
      */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(IllegalArgumentException::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
     val issuerUniqueID: Asn1BitString? by rawIssuerUniqueID
 
     /**
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * Hidden from Objective-C because a throwing getter cannot be bridged (see
+     * [KT-63047](https://youtrack.jetbrains.com/issue/KT-63047)); from Swift/Objective-C use the
+     * throwing `subjectUniqueID()` accessor instead.
+     *
+     * @throws IllegalArgumentException if the encoded subject unique ID is structurally invalid
      */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(IllegalArgumentException::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
     val subjectUniqueID: Asn1BitString? by rawSubjectUniqueID
 
     override fun equals(other: Any?): Boolean {

@@ -1,0 +1,41 @@
+name: Build XCFramework
+
+on:
+  #For caching
+  push:
+    branches:
+      - main
+      - development
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      kotlin-version:
+        description: 'Override Kotlin version?'
+        required: false
+        default: ''
+        type: string
+      testballoon-version:
+        description: 'Override TestBalloon version (full version string)?'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  buildXcf:
+    runs-on: macos-latest
+    timeout-minutes: 300
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.token }}
+          submodules: recursive
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 26.4.1
+      - name: Build Framework
+        run: ./gradlew assembleAwesn1CryptoXCFramework

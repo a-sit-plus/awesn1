@@ -35,3 +35,5 @@ kotlin {
         }
     }
 }
+//we need to test export works
+exportXCFramework("Awesn1Crypto", transitiveExports = true)
