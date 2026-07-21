@@ -162,7 +162,7 @@ sealed interface X509GeneralName {
     @Asn1Tag(tagNumber = 8u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
     value class RegisteredId(val oid: ObjectIdentifier) : X509GeneralName
 
-    /** Context-specific tags for RFC 5280 `GeneralName` alternatives. Handy for manually sifting through and X509GeneralName structure. */
+    /** Context-specific tags for RFC 5280 `GeneralName` alternatives. Handy for manually sifting through an X509GeneralName structure. */
     object Tags {
         val otherName = Asn1.ExplicitTag(0u)
         val rfc822Name = Asn1.ImplicitTag(1u)
