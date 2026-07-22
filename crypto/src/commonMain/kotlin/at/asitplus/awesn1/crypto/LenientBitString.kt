@@ -14,6 +14,8 @@ import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.catchingUnwrapped
 import at.asitplus.awesn1.serialization.Asn1Serializer
 import kotlinx.serialization.Serializable
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -43,8 +45,17 @@ data class LenientBitString private constructor(
     /**
      * Parses and validates this lenient bit string into a strict [Asn1BitString].
      *
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * Hidden from Objective-C because a throwing getter cannot be bridged (see
+     * [KT-63047](https://youtrack.jetbrains.com/issue/KT-63047)); from Swift/Objective-C use the
+     * throwing `strict()` accessor instead.
+     *
+     * @throws IllegalArgumentException if the padding bits are structurally invalid
      */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(IllegalArgumentException::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
     val strict: Asn1BitString by lazy {
         Asn1BitString.fromRawParts(numPaddingBits, bitCarryingBytes)
     }

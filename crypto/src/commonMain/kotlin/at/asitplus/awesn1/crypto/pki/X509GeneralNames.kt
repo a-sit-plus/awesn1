@@ -8,7 +8,9 @@ import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.serialization.*
 import kotlinx.serialization.Serializable
+import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.jvm.JvmInline
+import kotlin.native.HiddenFromObjC
 
 /**
  * The RFC 5280 `GeneralName` CHOICE.
@@ -61,6 +63,15 @@ sealed interface X509GeneralName {
     @Asn1Tag(tagNumber = 1u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
     value class Rfc822 private constructor(val rawValue: Asn1String.IA5) : X509GeneralName {
 
+        /**
+         * From Swift/Objective-C use the throwing `value()` accessor (exported as a static
+         * `value(_:)`, since value classes are not bridged as Objective-C types).
+         */
+        @OptIn(ExperimentalObjCRefinement::class)
+        @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+        @get:Throws(Asn1Exception::class)
+        @HiddenFromObjC
+        @get:HiddenFromObjC
         val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed RFC822Name IA5String payload") else rawValue.value
 
         /**
@@ -76,6 +87,15 @@ sealed interface X509GeneralName {
     @Asn1Tag(tagNumber = 2u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
     value class Dns private constructor(val rawValue: Asn1String.IA5) : X509GeneralName {
 
+        /**
+         * From Swift/Objective-C use the throwing `value()` accessor (exported as a static
+         * `value(_:)`, since value classes are not bridged as Objective-C types).
+         */
+        @OptIn(ExperimentalObjCRefinement::class)
+        @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+        @get:Throws(Asn1Exception::class)
+        @HiddenFromObjC
+        @get:HiddenFromObjC
         val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed dNSName IA5String payload") else rawValue.value
 
         /**
@@ -137,6 +157,15 @@ sealed interface X509GeneralName {
     @Asn1Tag(tagNumber = 6u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
     value class UniformResourceIdentifier private constructor(val rawValue: Asn1String.IA5) : X509GeneralName {
 
+        /**
+         * From Swift/Objective-C use the throwing `value()` accessor (exported as a static
+         * `value(_:)`, since value classes are not bridged as Objective-C types).
+         */
+        @OptIn(ExperimentalObjCRefinement::class)
+        @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+        @get:Throws(Asn1Exception::class)
+        @HiddenFromObjC
+        @get:HiddenFromObjC
         val value: String get() = if (!rawValue.isValid) throw Asn1Exception("Malformed uniformResourceIdentifier IA5String payload") else rawValue.value
 
         /**
@@ -163,8 +192,16 @@ sealed interface X509GeneralName {
          */
         constructor(ipAddress: ByteArray) : this(Asn1OctetString(ipAddress.validateNumberOfOctets()))
 
-        val value: ByteArray
-            get() = rawValue.content.validateNumberOfOctets()
+        /**
+         * From Swift/Objective-C use the throwing `value()` accessor (exported as a static
+         * `value(_:)`, since value classes are not bridged as Objective-C types).
+         */
+        @OptIn(ExperimentalObjCRefinement::class)
+        @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+        @get:Throws(Asn1StructuralException::class)
+        @HiddenFromObjC
+        @get:HiddenFromObjC
+        val value: ByteArray get() = rawValue.content.validateNumberOfOctets()
 
         companion object {
             private fun ByteArray.validateNumberOfOctets() = if (size != 4 && size != 16)

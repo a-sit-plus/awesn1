@@ -11,6 +11,8 @@ import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 
 @Serializable
 sealed interface RsaParams
@@ -76,14 +78,33 @@ data class RsaSsaPssParams internal constructor(
 
     val effectiveMaskGenAlgorithm: X509AlgorithmIdentifier get() = maskGenAlgorithm ?: MGF1_SHA1_IDENTIFIER
 
+
     /**
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * Hidden from Objective-C because a throwing getter cannot be bridged (see
+     * [KT-63047](https://youtrack.jetbrains.com/issue/KT-63047)); from Swift/Objective-C use the
+     * throwing `effectiveSaltLength()` accessor instead.
+     *
+     * @throws NumberFormatException if the salt length is not a valid integer
      */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(NumberFormatException::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
     val effectiveSaltLength: Int by lazy { saltLength?.toInt() ?: DEFAULT_SALT_LENGTH }
 
     /**
-     * Getter may throw but we cannot annotate due to https://youtrack.jetbrains.com/issue/KT-63047/Throws-annotation-on-getter-leads-to-compile-time-error-for-iOS-target
+     * Hidden from Objective-C because a throwing getter cannot be bridged (see
+     * [KT-63047](https://youtrack.jetbrains.com/issue/KT-63047)); from Swift/Objective-C use the
+     * throwing `effectiveTrailerField()` accessor instead.
+     *
+     * @throws NumberFormatException if the trailer field is not a valid integer
      */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(NumberFormatException::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
     val effectiveTrailerField: Int by lazy { trailerField?.toInt() ?: DEFAULT_TRAILER_FIELD }
 
     companion object {
