@@ -1,7 +1,6 @@
 # Changelog
 
-## NEXT
-
+## 0.6.0
 * **Features:**
     * Add a closed, serializable `X509GeneralName` hierarchy covering every RFC 5280 `GeneralName` alternative.
     * Make X.509 `otherName` extensible through OID-based open polymorphism. Unknown OIDs use a structural fallback by default, while applications can register semantic subtypes on a custom `Der` instance or through the startup-only `DefaultDer` registry.
@@ -14,6 +13,7 @@
     * Remove Deprecations
     * Use [Lockhart's Sleight of Hand](https://github.com/jeffdgr8/kotbase/blob/6d783c25bb31be3a374b19d406a8fbd14f149f6f/couchbase-lite/src/appleMain/kotlin/kotbase/Scope.apple.kt#L33-L51) to hide throwing ObjC getters:
         * Allows properly annotating throwing getters in common main sources
+    * Remove private fuzzer from public repo
 
 ## 0.5.0
 * **Fixes:**
