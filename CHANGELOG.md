@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## 0.6.0
 * **Features:**
     * Add a closed, serializable `X509GeneralName` hierarchy covering every RFC 5280 `GeneralName` alternative.
