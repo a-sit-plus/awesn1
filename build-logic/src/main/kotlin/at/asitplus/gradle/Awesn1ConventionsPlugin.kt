@@ -93,10 +93,15 @@ class Awesn1ConventionsExtension(private val project: Project) {
         val javadocJar = setupDokka(
             baseUrl = "https://github.com/a-sit-plus/awesn1/tree/main/",
         )
+
+        val javadocRedirectJar = tasks.register<org.gradle.api.tasks.bundling.Jar>("javadocRedirectJar") {
+            archiveClassifier.set("javadoc")
+            from(rootProject.rootDir.absolutePath+"/docs/javadoc")
+        }
         extensions.getByType<PublishingExtension>().apply {
             publications {
                 withType<org.gradle.api.publish.maven.MavenPublication> {
-                    if (this.name != "relocation") artifact(javadocJar)
+                    if (this.name != "relocation") artifact(javadocRedirectJar)
                     pom {
                         this.name.set(name)
                         this.description.set(description)
