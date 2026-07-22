@@ -12,4 +12,8 @@ import kotlin.experimental.ExperimentalObjCName
  */
 @Throws(IllegalArgumentException::class)
 @ObjCName("strict")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_LenientBitString_strict(it: LenientBitString) = it.strict

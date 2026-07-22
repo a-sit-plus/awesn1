@@ -11,6 +11,10 @@ import kotlin.experimental.ExperimentalObjCName
  */
 @Throws(NumberFormatException::class)
 @ObjCName("effectiveTrailerField")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_RsaSsaPssParams_effectiveTrailerField(it: RsaSsaPssParams) = it.effectiveTrailerField
 
 /**
@@ -18,4 +22,8 @@ fun __apple_workaround_RsaSsaPssParams_effectiveTrailerField(it: RsaSsaPssParams
  */
 @Throws(NumberFormatException::class)
 @ObjCName("effectiveSaltLength")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_RsaSsaPssParams_effectiveSaltLength(it: RsaSsaPssParams) = it.effectiveSaltLength

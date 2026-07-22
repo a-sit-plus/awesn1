@@ -14,6 +14,10 @@ import kotlin.experimental.ExperimentalObjCName
  */
 @Throws(Asn1Exception::class)
 @ObjCName("parameters")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_X509AlgorithmIdentifier_parameters(it: X509AlgorithmIdentifier) = it.parameters
 
 /**
@@ -21,4 +25,8 @@ fun __apple_workaround_X509AlgorithmIdentifier_parameters(it: X509AlgorithmIdent
  */
 @Throws(Asn1Exception::class)
 @ObjCName("rsaSsaPssParams")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_X509AlgorithmIdentifier_rsaSsaPssParams(it: X509AlgorithmIdentifier) = it.rsaSsaPssParams

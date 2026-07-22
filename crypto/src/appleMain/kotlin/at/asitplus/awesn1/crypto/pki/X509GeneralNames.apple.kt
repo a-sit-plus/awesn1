@@ -13,6 +13,10 @@ import kotlin.experimental.ExperimentalObjCName
  */
 @Throws(Asn1Exception::class)
 @ObjCName("value")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_X509GeneralName_Rfc822_value(it: X509GeneralName.Rfc822) = it.value
 
 /**
@@ -20,6 +24,10 @@ fun __apple_workaround_X509GeneralName_Rfc822_value(it: X509GeneralName.Rfc822) 
  */
 @Throws(Asn1Exception::class)
 @ObjCName("value")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_X509GeneralName_Dns_value(it: X509GeneralName.Dns) = it.value
 
 /**
@@ -27,6 +35,10 @@ fun __apple_workaround_X509GeneralName_Dns_value(it: X509GeneralName.Dns) = it.v
  */
 @Throws(Asn1Exception::class)
 @ObjCName("value")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_X509GeneralName_URI_value(it: X509GeneralName.UniformResourceIdentifier) = it.value
 
 /**
@@ -34,4 +46,8 @@ fun __apple_workaround_X509GeneralName_URI_value(it: X509GeneralName.UniformReso
  */
 @Throws(Asn1StructuralException::class)
 @ObjCName("value")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_X509GeneralName_IpAddress_value(it: X509GeneralName.IpAddress) = it.value

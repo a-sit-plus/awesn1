@@ -12,6 +12,10 @@ import kotlin.experimental.ExperimentalObjCName
  */
 @Throws(IllegalArgumentException::class)
 @ObjCName("issuerUniqueID")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_X509TbsCertificate_issuerUniqueID(it: X509TbsCertificate) = it.issuerUniqueID
 
 /**
@@ -19,4 +23,8 @@ fun __apple_workaround_X509TbsCertificate_issuerUniqueID(it: X509TbsCertificate)
  */
 @Throws(IllegalArgumentException::class)
 @ObjCName("subjectUniqueID")
+@Deprecated(
+    message = "Objective-C export only",
+    level = DeprecationLevel.HIDDEN
+)
 fun __apple_workaround_X509TbsCertificate_subjectUniqueID(it: X509TbsCertificate) = it.subjectUniqueID
