@@ -1,6 +1,14 @@
 # Changelog
 
 ## NEXT
+* **Fixes:**
+    * `X509GeneralName.IpAddress` now accepts the RFC 5280 §4.2.1.10 name-constraints encoding (address **plus** subnet mask: 8 octets for IPv4, 32 for IPv6) in addition to bare `subjectAltName`/`issuerAltName` addresses (4/16 octets). It previously rejected the 8/32-octet form outright.
+    * `Asn1String.IA5.isValid` now accepts the complete 7-bit IA5 alphabet `0x00`–`0x7F`, **including DELETE (`0x7F`)** (ITU-T T.50 / ISO 646); DELETE was previously rejected.
+    * `Asn1String.UTF8.isValid` now reports UTF-8 well-formedness (RFC 3629) via a canonical round-trip instead of testing for the replacement character. A value that legitimately contains U+FFFD is no longer rejected, and malformed/overlong byte sequences are detected reliably.
+    * `Asn1String.Teletex`, `Asn1String.General`, and `Asn1String.Graphic` no longer reject legitimate 8-bit or multi-byte content (e.g. Latin-1 or CJK graphic characters). Their true repertoires (ISO 2022 / T.61) cannot be validated exactly, so `isValid` now performs best-effort recognition: `true` for a recognized subset, `null` ("unknown") otherwise, and **never `false`**; their `String` constructors consequently never throw.
+        * **API change:** `isValid` on these three types widened from `Boolean` to `Boolean?` (the base-class type; `null` denotes "not validated / unknown").
+* **Other Changes:**
+    * Document `Asn1String` repertoires and validation semantics — a per-type table, best-effort/limitation warnings, and X.680 §41 / ITU-T T.50 / RFC 3629 references — in the low-level guide and API docs.
 
 ## 0.6.0
 * **Features:**

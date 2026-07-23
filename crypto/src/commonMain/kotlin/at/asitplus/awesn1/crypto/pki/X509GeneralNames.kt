@@ -175,7 +175,7 @@ sealed interface X509GeneralName {
         constructor(value: String) : this(Asn1String.IA5(value))
     }
 
-    /**Will parse leniently*/
+    /**Will be parsed leniently: Any valid ASN.1 OCTET STRING will initially decode; validation is deferred to the getter of [value].*/
     @Serializable
     @JvmInline
     @Asn1Tag(tagNumber = 7u, constructed = Asn1Tag.ConstructedBit.PRIMITIVE)
@@ -188,7 +188,9 @@ sealed interface X509GeneralName {
     ) : X509GeneralName {
 
         /**
-         * Validates the length of the passed IP address to be either 4 (IPv4) or 16 (IPv6).
+         * Validates the length of the passed IP address (+ optional subents, as this class can be used both as SAN or nameConstraints)
+         *  * **SAN / IAN:** a bare address of 4 (IPv4) or 16 (IPv6) octets.
+         *  * **nameConstraints:** address + subnet mask of 8 (IPv4) or 32 (IPv6) octets.
          */
         constructor(ipAddress: ByteArray) : this(Asn1OctetString(ipAddress.validateNumberOfOctets()))
 
@@ -204,8 +206,15 @@ sealed interface X509GeneralName {
         val value: ByteArray get() = rawValue.content.validateNumberOfOctets()
 
         companion object {
-            private fun ByteArray.validateNumberOfOctets() = if (size != 4 && size != 16)
-                throw Asn1StructuralException("Invalid IP address value: expected 4 or 16 octets, got $size") else this
+            // Legal octet counts for the iPAddress GeneralName depend on context (RFC 5280):
+            //   * subjectAltName / issuerAltName (§4.2.1.6): a bare address of 4 (IPv4) or 16 (IPv6) octets.
+            //   * nameConstraints    (§4.2.1.10): address + subnet mask of 8 (IPv4) or 32 (IPv6) octets.
+            // This value class is context-free, so we accept the union of both encodings.
+            private fun ByteArray.validateNumberOfOctets() = if (size !in intArrayOf(4, 8, 16, 32))
+                throw Asn1StructuralException(
+                    "Invalid IP address value: expected 4 or 16 octets (address) " +
+                            "or 8 or 32 octets (address+mask), got $size"
+                ) else this
         }
     }
 
@@ -258,7 +267,12 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findSubjectAltNames(der: Der = DER) =
-            runWrappingAs(a = ::Asn1Exception) { findSingle(ObjectIdentifier("2.5.29.17"), der)?.let(::X509GeneralNames) }
+            runWrappingAs(a = ::Asn1Exception) {
+                findSingle(
+                    ObjectIdentifier("2.5.29.17"),
+                    der
+                )?.let(::X509GeneralNames)
+            }
 
         @Throws(Asn1Exception::class)
         fun X509Certificate.findIssuerAltNames(der: Der = DER) = tbsCertificate.findIssuerAltNames(der)
@@ -268,7 +282,12 @@ value class X509GeneralNames @Throws(Throwable::class) constructor(
 
         @Throws(Asn1Exception::class)
         fun List<X509CertificateExtension>.findIssuerAltNames(der: Der = DER) =
-            runWrappingAs(a = ::Asn1Exception) { findSingle(ObjectIdentifier("2.5.29.18"), der)?.let(::X509GeneralNames) }
+            runWrappingAs(a = ::Asn1Exception) {
+                findSingle(
+                    ObjectIdentifier("2.5.29.18"),
+                    der
+                )?.let(::X509GeneralNames)
+            }
 
         private fun List<X509CertificateExtension>.findSingle(oid: ObjectIdentifier, der: Der): List<X509GeneralName>? {
             val matches = filter { it.oid == oid }
