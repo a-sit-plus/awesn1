@@ -86,11 +86,57 @@ The core module includes rich semantic types beyond raw TLV primitives:
 
 - `Asn1Integer`: arbitrary-precision ASN.1 INTEGER handling.
 - `Asn1Real`: ASN.1 REAL with arbitrary precision model and IEEE-754 bridges.
-- `Asn1String` hierarchy: UTF8, Printable, IA5, BMP, Numeric, etc.
+- `Asn1String` hierarchy: UTF8, Printable, IA5, BMP, Numeric, etc. See [ASN.1 String Types and Validation](#asn1-string-types-and-validation).
 - `Asn1Time`: bridges `Instant` to UTC/Generalized Time.
 - `Asn1BitString`: bit-level representation with padding-bit tracking.
 - `BitSet`: pure-Kotlin bitset implementation.
 - `ObjectIdentifier`: OID support (string/components/bytes/UUID-based constructors). See [Object Identifiers (OID) Deep Dive](#object-identifiers-oid-deep-dive).
+
+## ASN.1 String Types and Validation
+
+awesn1 models each ASN.1 restricted character-string type as a subtype of `Asn1String`. Consistent with
+[Deferred Semantic Parsing](#deferred-semantic-parsing), **decoding from ASN.1 never validates the content**: the raw
+bytes are preserved verbatim in `rawValue`, and `value` is always their UTF-8 interpretation. Validity is exposed
+separately through `isValid: Boolean?`:
+
+- `true` / `false` — the type implements a repertoire check.
+- `null` — no validation is implemented for that type.
+
+The `String` constructors (e.g. `Asn1String.IA5("…")`) are the only place that *enforces* validity: they throw
+`Asn1Exception` when `isValid` would be `false`.
+
+| Type            | Tag | Repertoire                                                | `isValid`       |
+|-----------------|-----|-----------------------------------------------------------|-----------------|
+| `UTF8`          | 12  | Any well-formed UTF-8 (ISO/IEC 10646, RFC 3629)           | exact           |
+| `Numeric`       | 18  | Digits `0`–`9` and SPACE                                  | exact           |
+| `Printable`     | 19  | `A`–`Z` `a`–`z` `0`–`9` SPACE `' ( ) + , - . / : = ?`     | exact           |
+| `IA5`           | 22  | ITU-T T.50 / ISO 646, 7-bit `0x00`–`0x7F` (incl. DELETE)  | exact           |
+| `Visible`       | 26  | T.50 graphic subset + SPACE, `0x20`–`0x7E`                | exact           |
+| `Teletex` (T61) | 20  | ITU-T T.61 (multi-byte)                                   | best-effort (`true`/`null`) |
+| `Graphic`       | 25  | ISO 2022 registered G-sets + SPACE                        | best-effort (`true`/`null`) |
+| `General`       | 27  | ISO 2022 registered G/C-sets + SPACE + DELETE             | best-effort (`true`/`null`) |
+| `Universal`     | 28  | UCS-4 / UTF-32                                            | none (`null`)   |
+| `Videotex`      | 21  | T.100 / T.101 (obsolete)                                  | none (`null`)   |
+| `Unrestricted`  | 29  | CHARACTER STRING                                          | none (`null`)   |
+| `BMP`           | 30  | UCS-2 (UTF-16 BMP)                                        | none (`null`)   |
+
+!!! warning "Validation limitations"
+
+    * **`Teletex`, `Graphic`, and `General` are best-effort.** Their true repertoires are multi-byte / ISO 2022
+      code sets that awesn1 does not fully model, so it only *recognizes* a fixed low-range subset (Latin-1
+      `0x00`–`0xFF` for Teletex, 7-bit `0x20`–`0x7E` for Graphic, 7-bit `0x00`–`0x7F` for General). These types
+      return `true` for recognized content and `null` ("unknown") for anything else, and **never return `false`** —
+      so they never reject potentially-valid 8-bit or multi-byte input, and their `String` constructors never throw.
+      A `true` is a positive recognition, not a guarantee of full-repertoire conformance.
+    * **`Universal`, `Videotex`, `Unrestricted`, and `BMP` are never validated** (`isValid == null`). `rawValue` is
+      preserved as-is; interpret it yourself if you need semantics.
+    * **`UTF8.isValid` means "well-formed UTF-8", not "printable".** It deliberately accepts the replacement
+      character U+FFFD (`EF BF BD`). Because any Kotlin `String` is UTF-8-encodable, the `UTF8(String)` constructor
+      never rejects — byte-level well-formedness only matters for values decoded from ASN.1.
+
+Repertoire definitions follow **ITU-T Rec. X.680 (ISO/IEC 8824-1) §41** and the underlying alphabets
+([ITU-T T.50 / ISO 646](https://www.itu.int/rec/T-REC-T.50) for IA5/Visible; [RFC 3629](https://www.rfc-editor.org/rfc/rfc3629)
+for UTF-8).
 
 ## Object Identifiers (OID) Deep Dive
 

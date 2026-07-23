@@ -77,16 +77,27 @@ sealed class Asn1String(
     val value: String by lazy { String.decodeFromAsn1ContentBytes(rawValue) }
 
     /**
-     * Returns whether this string is valid:
+     * Returns whether this string's [rawValue] is valid for its concrete ASN.1 string type:
      * - `true`: validation succeeded
      * - `false`: validation failed
-     * - `null`: no validation implemented
+     * - `null`: no validation implemented (see [Universal], [BMP], [Unrestricted], [Videotex])
+     *
+     * With the sole exception of [UTF8] (which validates the raw UTF-8 bytes directly), validation is evaluated
+     * against the decoded [value].
+     *
+     * **Accuracy caveat:** [Teletex], [General], and [Graphic] cannot be validated exactly (their true repertoires
+     * are multi-byte / ISO 2022). They perform *best-effort* recognition: `true` for a recognized subset, `null`
+     * for anything else, and **never `false`** — so they never reject potentially-valid input. [UTF8], [IA5],
+     * [Visible], [Printable], and [Numeric] validate their exact repertoires and do report `false` for violations.
      */
     abstract val isValid: Boolean?
 
 
     /**
-     * UTF8 STRING (verbatim String)
+     * UTF8 STRING (ISO/IEC 10646, encoded as UTF-8 per RFC 3629).
+     *
+     * [isValid] reports whether [rawValue] is **well-formed UTF-8**; it deliberately does *not* reject the
+     * legitimate replacement character U+FFFD.
      */
     @Serializable(with = Asn1Utf8StringSerializer::class)
     class UTF8 private constructor(
@@ -95,8 +106,17 @@ sealed class Asn1String(
     ) : Asn1String(rawValue, performValidation) {
         override val tag = BERTags.UTF8_STRING.toULong()
 
+        /**
+         * `true` iff [rawValue] is well-formed UTF-8, via a canonical round-trip: [value] decodes [rawValue]
+         * (replacing any malformed sequence with U+FFFD), and re-encoding reproduces [rawValue] exactly **iff**
+         * the input was well-formed. Bytes that genuinely encode U+FFFD round-trip and are reported valid;
+         * malformed/overlong sequences re-encode differently and are reported invalid.
+         *
+         * **Limitation:** the [String] constructor cannot observe malformed bytes (any Kotlin [String] is
+         * encodable), so it never rejects; byte-level validation is meaningful only for values decoded from ASN.1.
+         */
         override val isValid: Boolean by lazy {
-            !value.contains('\uFFFD')
+            value.encodeToByteArray().contentEquals(rawValue)
         }
 
         /**
@@ -134,7 +154,10 @@ sealed class Asn1String(
     }
 
     /**
-     * VISIBLE STRING (checked)
+     * VISIBLE STRING (a.k.a. ISO646String).
+     *
+     * The visible/printing subset of ITU-T T.50: graphic characters plus SPACE, i.e. `0x20`–`0x7E`
+     * (no control characters, no DELETE).
      */
     @Serializable(with = Asn1VisibleStringSerializer::class)
     class Visible private constructor(
@@ -160,7 +183,10 @@ sealed class Asn1String(
     }
 
     /**
-     * IA5 STRING (checked)
+     * IA5 STRING.
+     *
+     * The IA5 alphabet is the International Reference Alphabet (ITU-T T.50 / ISO 646): the full 7-bit range
+     * `0x00`–`0x7F`, **including DELETE (`0x7F`)**. [isValid] accepts every code point `<= 0x7F`.
      */
     @Serializable(with = Asn1Ia5StringSerializer::class)
     class IA5 private constructor(
@@ -169,8 +195,9 @@ sealed class Asn1String(
     ) : Asn1String(rawValue, performValidation) {
         override val tag = BERTags.IA5_STRING.toULong()
 
+        /** `true` iff every character of [value] is in the 7-bit IA5 range `0x00`–`0x7F`. */
         override val isValid: Boolean by lazy {
-            Regex("[\\x00-\\x7E]*").matches(value)
+            Regex("[\\x00-\\x7F]*").matches(value)
         }
 
         /**
@@ -186,8 +213,14 @@ sealed class Asn1String(
     }
 
     /**
-     * TELETEX STRING (checked).
-     *  This string format is deprecated for HTTPS certificates and its use in generally discouraged in favor of UTF-8 strings (see [Asn1String.UTF8]).
+     * TELETEX (T61) STRING.
+     *
+     * Deprecated for HTTPS certificates; prefer UTF-8 (see [Asn1String.UTF8]).
+     *
+     * **Best-effort validation.** True T.61/Teletex is a multi-byte coded character set (ITU-T T.61) that awesn1
+     * does not fully model. [isValid] only *recognizes* the Latin-1 subset (`0x00`–`0xFF`): it returns `true` for
+     * recognized content and `null` ("unknown") otherwise, and **never returns `false`** — so it never rejects
+     * potentially-valid input, and the `String` constructor never throws.
      */
     @Serializable(with = Asn1StringSerializer::class)
     class Teletex private constructor(
@@ -196,8 +229,8 @@ sealed class Asn1String(
     ) : Asn1String(rawValue, performValidation) {
         override val tag = BERTags.T61_STRING.toULong()
 
-        override val isValid: Boolean by lazy {
-            Regex("[\\u0000-\\u00FF]*").matches(value)
+        override val isValid: Boolean? by lazy {
+            if (Regex("[\\u0000-\\u00FF]*").matches(value)) true else null
         }
 
         /**
@@ -205,7 +238,7 @@ sealed class Asn1String(
          */
         @Throws(Asn1Exception::class)
         constructor(value: String) : this(value.encodeToByteArray(), true) {
-            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+            if (isValid == false) throw Asn1Exception("Input contains invalid chars: '$value'")
         }
 
         @PublishedApi
@@ -235,7 +268,15 @@ sealed class Asn1String(
     }
 
     /**
-     * GENERAL STRING (checked)
+     * GENERAL STRING.
+     *
+     * GeneralString (X.680 §41) comprises all registered ISO 2022 graphic (G) and control (C) sets plus SPACE and
+     * DELETE — effectively unbounded, including 8-bit and multi-byte content.
+     *
+     * **Best-effort validation.** awesn1 does not model the full ISO 2022 repertoire. [isValid] only *recognizes*
+     * the 7-bit subset (`0x00`–`0x7F`, which includes DELETE): it returns `true` for recognized content and `null`
+     * ("unknown") otherwise, and **never returns `false`** — so it never rejects potentially-valid 8-bit or
+     * multi-byte input, and the `String` constructor never throws.
      */
     @Serializable(with = Asn1StringSerializer::class)
     class General private constructor(
@@ -244,8 +285,8 @@ sealed class Asn1String(
     ) : Asn1String(rawValue, performValidation) {
         override val tag = BERTags.GENERAL_STRING.toULong()
 
-        override val isValid: Boolean by lazy {
-            Regex("[\\x00-\\x7E]*").matches(value)
+        override val isValid: Boolean? by lazy {
+            if (Regex("[\\x00-\\x7F]*").matches(value)) true else null
         }
 
         /**
@@ -253,7 +294,7 @@ sealed class Asn1String(
          */
         @Throws(Asn1Exception::class)
         constructor(value: String) : this(value.encodeToByteArray(), true) {
-            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+            if (isValid == false) throw Asn1Exception("Input contains invalid chars: '$value'")
         }
 
         @PublishedApi
@@ -261,7 +302,15 @@ sealed class Asn1String(
     }
 
     /**
-     * GRAPHIC STRING (checked)
+     * GRAPHIC STRING.
+     *
+     * GraphicString (X.680 §41) comprises all registered ISO 2022 graphic (G) sets plus SPACE (no control
+     * characters, no DELETE).
+     *
+     * **Best-effort validation.** awesn1 does not model the full ISO 2022 repertoire. [isValid] only *recognizes*
+     * the 7-bit graphic subset (`0x20`–`0x7E`): it returns `true` for recognized content and `null` ("unknown")
+     * otherwise, and **never returns `false`** — so it never rejects potentially-valid input such as accented
+     * Latin-1 letters or CJK characters, and the `String` constructor never throws.
      */
     @Serializable(with = Asn1StringSerializer::class)
     class Graphic private constructor(
@@ -270,8 +319,8 @@ sealed class Asn1String(
     ) : Asn1String(rawValue, performValidation) {
         override val tag = BERTags.GRAPHIC_STRING.toULong()
 
-        override val isValid: Boolean by lazy {
-            Regex("[\\x20-\\x7E]*").matches(value)
+        override val isValid: Boolean? by lazy {
+            if (Regex("[\\x20-\\x7E]*").matches(value)) true else null
         }
 
         /**
@@ -279,7 +328,7 @@ sealed class Asn1String(
          */
         @Throws(Asn1Exception::class)
         constructor(value: String) : this(value.encodeToByteArray(), true) {
-            if (!isValid) throw Asn1Exception("Input contains invalid chars: '$value'")
+            if (isValid == false) throw Asn1Exception("Input contains invalid chars: '$value'")
         }
 
         @PublishedApi
@@ -330,7 +379,9 @@ sealed class Asn1String(
     }
 
     /**
-     * PRINTABLE STRING (checked)
+     * PRINTABLE STRING.
+     *
+     * The PrintableString repertoire (X.680 §41): `A`–`Z`, `a`–`z`, `0`–`9`, SPACE and `' ( ) + , - . / : = ?`.
      */
     @Serializable(with = Asn1PrintableStringSerializer::class)
     class Printable private constructor(
@@ -356,7 +407,9 @@ sealed class Asn1String(
     }
 
     /**
-     * NUMERIC STRING (checked)
+     * NUMERIC STRING.
+     *
+     * The NumericString repertoire (X.680 §41): digits `0`–`9` and SPACE.
      */
     @Serializable(with = Asn1NumericStringSerializer::class)
     class Numeric private constructor(

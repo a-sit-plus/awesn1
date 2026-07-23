@@ -25,8 +25,8 @@
       "invalid": []
     },
     "graphic": {
-      "valid": ["123456", "Graphic123"],
-      "invalid": ["é23456", "テスト"]
+      "valid": ["123456", "Graphic123", "é23456", "テスト"],
+      "invalid": []
     },
     "bmp": {
       "valid": ["User", "s", "TestUser"],
