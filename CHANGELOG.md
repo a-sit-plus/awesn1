@@ -1,6 +1,6 @@
 # Changelog
 
-## NEXT
+## 0.6.1
 * **Fixes:**
     * `X509GeneralName.IpAddress` now accepts the RFC 5280 §4.2.1.10 name-constraints encoding (address **plus** subnet mask: 8 octets for IPv4, 32 for IPv6) in addition to bare `subjectAltName`/`issuerAltName` addresses (4/16 octets). It previously rejected the 8/32-octet form outright.
     * `Asn1String.IA5.isValid` now accepts the complete 7-bit IA5 alphabet `0x00`–`0x7F`, **including DELETE (`0x7F`)** (ITU-T T.50 / ISO 646); DELETE was previously rejected.
