@@ -49,21 +49,4 @@ value class X509SignatureValue(val rawBitString: Asn1BitString): WrappedEncodabl
     constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
     val rawBytes: ByteArray get() = rawBitString.bitCarryingBytes
-
-    // runRethrowing: a malformed ECDSA-Sig-Value (fewer than two children, or non-positive integers) would
-    // otherwise leak NoSuchElementException/ClassCastException instead of a catchable Asn1Exception.
-    @Throws(Asn1Exception::class)
-    fun decodeRS(): Pair<Asn1Integer.Positive, Asn1Integer.Positive> = runRethrowing {
-        Asn1Element.parse(rawBytes).asSequence().decodeAs {
-            next().asPrimitive().decodeToAsn1Integer() as Asn1Integer.Positive to
-                next().asPrimitive().decodeToAsn1Integer() as Asn1Integer.Positive
-        }
-    }
-
-    companion object {
-        fun fromRS(r: Asn1Integer.Positive, s: Asn1Integer.Positive) =
-            X509SignatureValue(Asn1.Sequence { +r; +s }.derEncoded)
-    }
 }
-
-fun X509SignatureValue.decodeRsOrNull() = catchingUnwrapped { decodeRS() }.getOrNull()

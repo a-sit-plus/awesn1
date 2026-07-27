@@ -84,7 +84,7 @@ private fun randomBitStringSignatureValue(random: Random) =
     X509SignatureValue(randomBytes(random))
 
 private fun randomEcdsaSignatureValue(random: Random) =
-    X509SignatureValue.fromRS(positiveAsn1Integer(random), positiveAsn1Integer(random))
+    EcdsaSigValue(positiveAsn1Integer(random), positiveAsn1Integer(random)).toX509SignatureValue()
 
 private fun randomEcPrivateKey(random: Random) = Sec1EcPrivateKeyInfo(
     privateKey = randomBytes(random, 32),
