@@ -22,6 +22,8 @@ import kotlin.native.HiddenFromObjC
  *   parameters  ANY DEFINED BY algorithm OPTIONAL
  * }
  * ```
+ *
+ * As a transparent [WrappedElement], an identifier can be added directly to an ASN.1 builder with unary `+`.
  */
 @JvmInline
 @Serializable

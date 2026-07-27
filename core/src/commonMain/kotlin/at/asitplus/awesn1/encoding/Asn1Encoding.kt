@@ -5,7 +5,6 @@ package at.asitplus.awesn1.encoding
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.internal.encodeToDer
-import kotlinx.serialization.KSerializer
 import kotlin.time.Instant
 
 /**
@@ -62,11 +61,12 @@ class Asn1TreeBuilder {
     operator fun Asn1Element.unaryPlus() {
         elements += this
     }
+
     /**
-     * appends a single [Asn1Element] to this ASN.1 structure
+     * Appends the [Asn1Element] exposed by this transparent wrapper.
      */
     operator fun WrappedElement<*>.unaryPlus() {
-        elements += (this.element)
+        elements += element
     }
 
     /**
@@ -79,7 +79,8 @@ class Asn1TreeBuilder {
     }
 
     /**
-     * appends a single [WrappedEncodable] to this ASN.1 structure
+     * Encodes the [Asn1Encodable] exposed by this transparent wrapper and appends the resulting TLV element.
+     *
      * @throws Asn1Exception in case encoding constraints of children are violated
      */
     @Throws(Asn1Exception::class)
@@ -358,13 +359,13 @@ object Asn1 {
 
 }
 
-/**
- * Marker interface to allow for conveniently adding to an ASN.1 colletion when using builder DSL
- */
-interface WrappedEncodable<T: Asn1Encodable<*>>{
+/** Exposes an [Asn1Encodable] so its transparent wrapper can be added directly to an [Asn1TreeBuilder]. */
+interface WrappedEncodable<T : Asn1Encodable<*>> {
     val value: T
 }
-interface WrappedElement<T: Asn1Element>{
+
+/** Exposes an [Asn1Element] so its transparent wrapper can be added directly to an [Asn1TreeBuilder]. */
+interface WrappedElement<T : Asn1Element> {
     val element: T
 }
 

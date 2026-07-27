@@ -32,6 +32,8 @@ import kotlin.jvm.JvmInline
  *   s  INTEGER
  * }
  * ```
+ *
+ * As a transparent [WrappedEncodable], a signature value can be added directly to an ASN.1 builder with unary `+`.
  */
 @JvmInline
 @Serializable
