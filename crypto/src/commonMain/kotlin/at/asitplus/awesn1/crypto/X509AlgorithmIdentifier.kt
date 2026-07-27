@@ -5,6 +5,7 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.encoding.WrappedElement
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.decodeFromTlv
 import kotlinx.serialization.Serializable
@@ -21,11 +22,13 @@ import kotlin.native.HiddenFromObjC
  *   parameters  ANY DEFINED BY algorithm OPTIONAL
  * }
  * ```
+ *
+ * As a transparent [WrappedElement], an identifier can be added directly to an ASN.1 builder with unary `+`.
  */
 @JvmInline
 @Serializable
 @Suppress("SERIALIZER_TYPE_INCOMPATIBLE")
-value class X509AlgorithmIdentifier(val element: Asn1Sequence) : Identifiable {
+value class X509AlgorithmIdentifier(override val element: Asn1Sequence) : Identifiable, WrappedElement<Asn1Sequence> {
 
     /**
      * Convenience constructor for creating an instance of `X509AlgorithmIdentifier`

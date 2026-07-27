@@ -368,6 +368,26 @@ Main DSL constructors under `Asn1`:
 - Primitive builders:
   `Bool`, `Int` (all integer overloads), `Real` (float/double), `Enumerated`, `OctetString`, `BitString`, `Utf8String`, `PrintableString`, `Null`, `UtcTime`, `GeneralizedTime`
 
+Inside a builder, unary `+` accepts raw `Asn1Element` values and `Asn1Encodable` values. Transparent wrapper types can
+also participate without exposing their backing value at each call site:
+
+- `WrappedElement<T>` appends its `element` directly.
+- `WrappedEncodable<T>` encodes its `value` and appends the resulting TLV element.
+
+Use these marker interfaces only when the wrapper has exactly the same ASN.1 representation as the exposed value.
+For example, the `crypto` module's `X509AlgorithmIdentifier` wraps an `Asn1Sequence`, while `X509SignatureValue` wraps an
+`Asn1BitString`; both can therefore be added without a serialization context:
+
+```kotlin
+val sequence = Asn1.Sequence {
+    +algorithmIdentifier
+    +signatureValue
+}
+```
+
+To add arbitrary `@Serializable` values instead, use the `kxs` integration described in
+[Serializable Values in the Builder DSL](kxs.md#serializable-values-in-the-builder-dsl).
+
 !!! Example "Basic DSL"
     
     ```kotlin

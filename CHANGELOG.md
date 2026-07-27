@@ -1,6 +1,8 @@
 # Changelog
 
 ## NEXT
+* Allow `Asn1` builder unary `+` for transparent wrappers around `Asn1Element`/`Asn1Encodable`, and for serializable
+  values when a `Der` instance is in context.
 
 ## 0.6.1
 * **Fixes:**

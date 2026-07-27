@@ -4,10 +4,6 @@
 package at.asitplus.awesn1.encoding
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.Asn1.ExplicitlyTagged
-import at.asitplus.awesn1.encoding.Asn1.Sequence
-import at.asitplus.awesn1.encoding.Asn1.Set
-import at.asitplus.awesn1.encoding.Asn1.SetOf
 import at.asitplus.awesn1.encoding.internal.encodeToDer
 import kotlin.time.Instant
 
@@ -67,12 +63,29 @@ class Asn1TreeBuilder {
     }
 
     /**
+     * Appends the [Asn1Element] exposed by this transparent wrapper.
+     */
+    operator fun WrappedElement<*>.unaryPlus() {
+        elements += element
+    }
+
+    /**
      * appends a single [Asn1Encodable] to this ASN.1 structure
      * @throws Asn1Exception in case encoding constraints of children are violated
      */
     @Throws(Asn1Exception::class)
     operator fun Asn1Encodable<*>.unaryPlus() {
         +encodeToTlv()
+    }
+
+    /**
+     * Encodes the [Asn1Encodable] exposed by this transparent wrapper and appends the resulting TLV element.
+     *
+     * @throws Asn1Exception in case encoding constraints of children are violated
+     */
+    @Throws(Asn1Exception::class)
+    operator fun WrappedEncodable<*>.unaryPlus() {
+        +(value.encodeToTlv())
     }
 }
 
@@ -344,6 +357,16 @@ object Asn1 {
     fun ExplicitTag(tagNum: ULong) =
         Asn1Element.Tag(tagNum, constructed = true, tagClass = TagClass.CONTEXT_SPECIFIC)
 
+}
+
+/** Exposes an [Asn1Encodable] so its transparent wrapper can be added directly to an [Asn1TreeBuilder]. */
+interface WrappedEncodable<T : Asn1Encodable<*>> {
+    val value: T
+}
+
+/** Exposes an [Asn1Element] so its transparent wrapper can be added directly to an [Asn1TreeBuilder]. */
+interface WrappedElement<T : Asn1Element> {
+    val element: T
 }
 
 /**

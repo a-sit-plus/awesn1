@@ -77,6 +77,56 @@ materialization work out of the box.
 implementation("at.asitplus.awesn1:kxs:$version")
 ```
 
+## Serializable Values in the Builder DSL
+
+The `kxs` module lets an `Asn1TreeBuilder` encode values whose static type has an available kotlinx serializer. Use a
+`Der` instance as context parameter and use unary `+`; the serializer is inferred from that static type:
+
+```kotlin
+val envelope = with(DER) {
+    Asn1.Sequence {
+        +certificate
+    }
+}
+```
+
+Here `certificate` may be an `@Serializable` application type or, for example, the `X509Certificate` model from the
+`crypto` module. The encoded certificate is appended as one child TLV element; the surrounding `Asn1.Sequence` remains
+an additional outer sequence.
+
+The equivalent explicit builder calls are:
+
+```kotlin
+Asn1.Sequence {
+    append(certificate, DER)                       // inferred serializer
+    append(X509Certificate.serializer(), other, DER) // explicit serializer
+}
+```
+
+Nullable values follow the selected `Der` configuration. If encoding omits a nullable `null` because
+`explicitNulls` is disabled, the builder appends nothing.
+
+Core builder operands do not need a `Der` context. `Asn1Element`, `Asn1Encodable`, `WrappedElement`, and
+`WrappedEncodable` values work directly with unary `+`; they continue to work unchanged inside `with(DER)`. In
+particular, the `crypto` module's `X509AlgorithmIdentifier` and `X509SignatureValue` are transparent wrappers:
+
+```kotlin
+val withoutContext = Asn1.Sequence {
+    +algorithmIdentifier
+    +signatureValue
+}
+
+val withContext = with(DER) {
+    Asn1.Sequence {
+        +algorithmIdentifier
+        +signatureValue
+    }
+}
+```
+
+Both forms append the wrappers' existing ASN.1 representation. A `Der` context is required only for values that need
+the serialization bridge.
+
 ## Baseline Mapping
 
 awesn1's `DER` codec makes `@Serializable` class work with ASN.1 automatically.
