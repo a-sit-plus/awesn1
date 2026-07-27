@@ -87,35 +87,6 @@ value class X509AlgorithmIdentifier(override val element: Asn1Sequence) : Identi
             else -> throw Asn1Exception("AlgorithmIdentifier has ${element.children.size} children")
         }
 
-    /**
-     * Parses [parameters] as RSASSA-PSS parameters if this identifier uses the `id-RSASSA-PSS` OID.
-     *
-     * This helper models [RFC 4055, section 3.1](https://www.rfc-editor.org/rfc/rfc4055.html#section-3.1) without
-     * making [X509AlgorithmIdentifier] itself enforce algorithm-specific parameter schemas during generic DER parsing.
-     *
-     * @return `null` if this algorithm is nor RSA_SSA_PSS
-     *
-     * @throws Asn1Exception if this algorithm is RSA_SSA_PSS has no parameters, or the parameter element is
-     * not a valid `RSASSA-PSS-params` SEQUENCE.
-     *
-     * From Swift/Objective-C use the throwing `rsaSsaPssParams()` accessor (exported as a static
-     * `rsaSsaPssParams(_:)`, since value classes are not bridged as Objective-C types).
-     */
-    @OptIn(ExperimentalObjCRefinement::class)
-    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
-    @get:Throws(Asn1Exception::class)
-    @HiddenFromObjC
-    @get:HiddenFromObjC
-    val rsaSsaPssParams: RsaSsaPssParams?
-        get() = runWrappingAs(a = ::Asn1Exception) {
-            if (oid != RsaSsaPssParams.RSA_SSA_PSS_OID) {
-                return null
-            }
-            DER.decodeFromTlv<RsaSsaPssParams>(
-                parameters?.asSequence() ?: throw Asn1Exception("RSASSA-PSS AlgorithmIdentifier has no parameters")
-            )
-        }
-
     override fun toString(): String {
         return catchingUnwrapped {
             "AlgorithmIdentifier(" +
