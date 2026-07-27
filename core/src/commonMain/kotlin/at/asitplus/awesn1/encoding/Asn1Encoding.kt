@@ -4,11 +4,8 @@
 package at.asitplus.awesn1.encoding
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.Asn1.ExplicitlyTagged
-import at.asitplus.awesn1.encoding.Asn1.Sequence
-import at.asitplus.awesn1.encoding.Asn1.Set
-import at.asitplus.awesn1.encoding.Asn1.SetOf
 import at.asitplus.awesn1.encoding.internal.encodeToDer
+import kotlinx.serialization.KSerializer
 import kotlin.time.Instant
 
 /**
@@ -65,6 +62,12 @@ class Asn1TreeBuilder {
     operator fun Asn1Element.unaryPlus() {
         elements += this
     }
+    /**
+     * appends a single [Asn1Element] to this ASN.1 structure
+     */
+    operator fun WrappedElement<*>.unaryPlus() {
+        elements += (this.element)
+    }
 
     /**
      * appends a single [Asn1Encodable] to this ASN.1 structure
@@ -73,6 +76,15 @@ class Asn1TreeBuilder {
     @Throws(Asn1Exception::class)
     operator fun Asn1Encodable<*>.unaryPlus() {
         +encodeToTlv()
+    }
+
+    /**
+     * appends a single [WrappedEncodable] to this ASN.1 structure
+     * @throws Asn1Exception in case encoding constraints of children are violated
+     */
+    @Throws(Asn1Exception::class)
+    operator fun WrappedEncodable<*>.unaryPlus() {
+        +(value.encodeToTlv())
     }
 }
 
@@ -344,6 +356,16 @@ object Asn1 {
     fun ExplicitTag(tagNum: ULong) =
         Asn1Element.Tag(tagNum, constructed = true, tagClass = TagClass.CONTEXT_SPECIFIC)
 
+}
+
+/**
+ * Marker interface to allow for conveniently adding to an ASN.1 colletion when using builder DSL
+ */
+interface WrappedEncodable<T: Asn1Encodable<*>>{
+    val value: T
+}
+interface WrappedElement<T: Asn1Element>{
+    val element: T
 }
 
 /**

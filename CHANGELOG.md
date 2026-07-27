@@ -1,6 +1,7 @@
 # Changelog
 
 ## NEXT
+* Amend `Asn1` builder DSL for serializable and value classes wrapping `Asn1Encodable` and `Asn1Element`
 
 ## 0.6.1
 * **Fixes:**

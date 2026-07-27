@@ -10,6 +10,7 @@ import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.catchingUnwrapped
 import at.asitplus.awesn1.runRethrowing
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.encoding.WrappedEncodable
 import at.asitplus.awesn1.encoding.decodeToAsn1Integer
 import at.asitplus.awesn1.encoding.parse
 import kotlinx.serialization.Serializable
@@ -34,12 +35,14 @@ import kotlin.jvm.JvmInline
  */
 @JvmInline
 @Serializable
-value class X509SignatureValue(val rawBitString: Asn1BitString) {
+value class X509SignatureValue(val rawBitString: Asn1BitString): WrappedEncodable<Asn1BitString> {
     init {
         if (rawBitString.numPaddingBits != 0.toByte()) {
             throw Asn1Exception("The signature value must not have padding bits")
         }
     }
+
+    override val value: Asn1BitString get() = rawBitString
 
     constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
