@@ -4,12 +4,7 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.parse
-import at.asitplus.awesn1.encoding.readNull
-import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.serialization.decodeFromTlv
-import at.asitplus.awesn1.serialization.encodeToTlv
+import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo.Companion.invoke
 import kotlinx.serialization.Serializable
 
 /**
@@ -21,6 +16,7 @@ import kotlinx.serialization.Serializable
  *   subjectPublicKey  BIT STRING
  * }
  * ```
+ * @see Pkcs1RsaPublicKeyInfo.of
  */
 @Serializable
 data class SubjectPublicKeyInfo(
@@ -38,18 +34,10 @@ data class SubjectPublicKeyInfo(
 
     override val pemLabel: String get() = PEM_LABEL_PUBLIC_KEY
 
-    @Throws(Asn1Exception::class)
-    fun decodeRsaPublicKey(): Pkcs1RsaPublicKeyInfo {
-        if (algorithmOid != RSA_ENCRYPTION_OID) {
-            throw Asn1Exception("SubjectPublicKeyInfo is not an RSA public key")
-        }
-        requireNotNull(algorithmParameters) { "RSA SubjectPublicKeyInfo must contain NULL params" }
-        algorithmParameters!!.asPrimitive().readNull()
-        return DER.decodeFromTlv( Asn1Element.parse(subjectPublicKey.bitCarryingBytes))
-    }
+    @Deprecated("Moved to a more suitable location", ReplaceWith("Pkcs1RsaPublicKeyInfo.of(this)"))
+    fun decodeRsaPublicKey() = Pkcs1RsaPublicKeyInfo.of(this)
 
     companion object : PemLabelSpec<SubjectPublicKeyInfo> {
-        private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")
         private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
         const val PEM_LABEL_PUBLIC_KEY = "PUBLIC KEY"
@@ -59,16 +47,13 @@ data class SubjectPublicKeyInfo(
         override val alternativePemLabels: Set<String> = setOf(PEM_LABEL_RSA_PUBLIC_KEY)
 
 
-        fun rsa(publicKey: Pkcs1RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
-            algorithmIdentifier = X509AlgorithmIdentifier(
-                RSA_ENCRYPTION_OID,
-                Asn1.Null()
-            ),
-            subjectPublicKey = Asn1BitString(DER.encodeToTlv(publicKey).derEncoded)
-        )
+        @Deprecated("Moved to a more suitable location",
+            replaceWith = ReplaceWith("SubjectPublicKeyInfo.of(publicKey)"))
+        fun rsa(publicKey: Pkcs1RsaPublicKeyInfo) = this(publicKey)
 
-        fun rsa(modulus: Asn1Integer, exponent: Asn1Integer): SubjectPublicKeyInfo =
-            rsa(Pkcs1RsaPublicKeyInfo(modulus, exponent))
+        @Deprecated("Moved to a more suitable location",
+            replaceWith = ReplaceWith("SubjectPublicKeyInfo.of(modulus, exponent)"))
+        fun rsa(modulus: Asn1Integer, exponent: Asn1Integer) = this(modulus, exponent)
 
         fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
             algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, curveOid.encodeToTlv()),

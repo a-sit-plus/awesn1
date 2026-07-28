@@ -8,11 +8,17 @@
 * Clean up algorithm-specific parsers and move them out of the generic element they parse
     * `RsaSsaPssParams`:
         * `X509AlgorithmIdentifier.rsaSsaPssParams` -> `RsaSsaPssParams.of(X509AlgorithmIdentifier)`
-        * new extension on `RsaSsaPssParams` companion: `X509AlgorithmIdentifier.of(RsaSsaPssParams)`
+        * new extension on `RsaSsaPssParams` companion: `X509AlgorithmIdentifier(RsaSsaPssParams)`
     * `EcdsaSigValue`:
         * new class: `EcdsaSigValue` models `ECDSA-Sig-Value` from RFC 5480
         * `X509SignatureValue.decodeRS()` in class -> `X509SignatureValue.toEcdsaSigValue()` on `EcdsaSigValue` companion
         * `X509SignatureValue.fromRS()` -> `EcdsaSigValue.toX509SignatureValue()`
+    * `Pkcs1RsaPublicKeyInfo`:
+        * `SubjectPublicKeyInfo.decodeRsaPublicKey()` -> `Pkcs1RsaPublicKeyInfo.of(SubjectPublicKeyInfo)`
+        * `SubjectPublicKeyInfo.rsa(...)` -> `SubjectPublicKeyInfo(...)` extensions on `Pkcs1RsaPublicKeyInfo` companion
+    * `Pkcs1RsaPrivateKeyInfo`:
+        * `Pkcs8PrivateKeyInfo.decodeRsaPrivateKey()` -> `Pkcs1RsaPrivateKeyInfo.of(Pkcs8PrivateKeyInfo)`
+        * `Pkcs8PrivateKeyInfo.rsa(...)` -> `Pkcs8PrivateKeyInfo(...)` extensions on `Pkcs1RsaPrivateKeyInfo` companion
 * Renamed the `effectiveX` getters on `RsaSsaParams` to `X` getters, and the old `X` getters to `rawX` getters, to better reflect their purpose.
 
 ## 0.6.1

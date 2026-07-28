@@ -141,7 +141,7 @@ data class RsaSsaPssParams internal constructor(
         val SHA1_IDENTIFIER = X509AlgorithmIdentifier(SHA1_OID, Asn1.Null())
         val MGF1_SHA1_IDENTIFIER = X509AlgorithmIdentifier(MGF1_OID, SHA1_IDENTIFIER)
 
-        fun X509AlgorithmIdentifier.Companion.of(params: RsaSsaPssParams, der: Der = DER) = runRethrowing {
+        operator fun X509AlgorithmIdentifier.Companion.invoke(params: RsaSsaPssParams, der: Der = DER) = runRethrowing {
             X509AlgorithmIdentifier(
                 RSA_SSA_PSS_OID,
                 der.encodeToTlv(params)
