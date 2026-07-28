@@ -3,6 +3,16 @@
 ## NEXT
 * Allow `Asn1` builder unary `+` for transparent wrappers around `Asn1Element`/`Asn1Encodable`, and for serializable
   values when a `Der` instance is in context.
+* Change the `X509AlgorithmIdentifier` constructor to take a single nullable `parameters` element.
+  * Previously, it took a `List` that could only reasonably have 0-1 elements, enforced by the `parameters` getter. Deprecated that constructor variant.
+* Clean up algorithm-specific parsers and move them out of the generic element they parse
+  * `RsaSsaPssParams`:
+    * `X509AlgorithmIdentifier.rsaSsaPssParams` -> `RsaSsaPssParams.of(X509AlgorithmIdentifier)`
+    * new extension on `RsaSsaPssParams` companion: `X509AlgorithmIdentifier.of(RsaSsaPssParams)`
+  * `EcdsaSigValue`:
+    * new class: `EcdsaSigValue` models `ECDSA-Sig-Value` from RFC 5480
+    * `X509SignatureValue.decodeRS()` in class -> `X509SignatureValue.toEcdsaSigValue()` on `EcdsaSigValue` companion
+    * `X509SignatureValue.fromRS()` -> `EcdsaSigValue.toX509SignatureValue()`
 
 ## 0.6.1
 * **Fixes:**
