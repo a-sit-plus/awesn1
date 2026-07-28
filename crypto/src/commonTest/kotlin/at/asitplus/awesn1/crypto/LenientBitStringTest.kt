@@ -62,7 +62,7 @@ private fun minimalTbsCertificate(
     subjectUniqueID: Asn1BitString? = null,
 ) = X509TbsCertificate(
     serialNumber = Asn1Integer(1u),
-    signatureAlgorithm = X509AlgorithmIdentifier(ObjectIdentifier("1.2.840.113549.1.1.11"), emptyList()),
+    signatureAlgorithm = X509AlgorithmIdentifier(ObjectIdentifier("1.2.840.113549.1.1.11"), null),
     issuerName = X500Name(X500RelativeDistinguishedName(setOf(X500AttributeTypeAndValue.CommonName("issuer")))),
     validFrom = Asn1Time.SecondsCapped(Instant.fromEpochSeconds(1_700_000_000L)),
     validUntil = Asn1Time.SecondsCapped(Instant.fromEpochSeconds(1_700_086_400L)),

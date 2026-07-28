@@ -64,7 +64,7 @@ data class Pkcs8PrivateKeyInfo(
         fun rsa(privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null): Pkcs8PrivateKeyInfo =
             Pkcs8PrivateKeyInfo(
                 version = Version.V1,
-                privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, listOf(Asn1.Null())),
+                privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, Asn1.Null()),
                 privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(privateKey) },
                 attributes = attributes,
             )
@@ -77,7 +77,7 @@ data class Pkcs8PrivateKeyInfo(
             version = Version.V1,
             privateKeyAlgorithm = X509AlgorithmIdentifier(
                 EC_PUBLIC_KEY_OID,
-                curveOid?.let { listOf(it.encodeToTlv()) }.orEmpty(),
+                curveOid?.encodeToTlv(),
             ),
             privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(sec1Key) },
             attributes = attributes,

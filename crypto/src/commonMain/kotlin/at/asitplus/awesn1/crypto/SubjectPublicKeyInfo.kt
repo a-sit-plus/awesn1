@@ -62,7 +62,7 @@ data class SubjectPublicKeyInfo(
         fun rsa(publicKey: Pkcs1RsaPublicKeyInfo): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
             algorithmIdentifier = X509AlgorithmIdentifier(
                 RSA_ENCRYPTION_OID,
-                listOf(Asn1.Null())
+                Asn1.Null()
             ),
             subjectPublicKey = Asn1BitString(DER.encodeToTlv(publicKey).derEncoded)
         )
@@ -71,7 +71,7 @@ data class SubjectPublicKeyInfo(
             rsa(Pkcs1RsaPublicKeyInfo(modulus, exponent))
 
         fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
-            algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, listOf(curveOid.encodeToTlv())),
+            algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, curveOid.encodeToTlv()),
             subjectPublicKey = Asn1BitString(ansiX963Key)
         )
     }

@@ -4,6 +4,7 @@ import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Integer.Sign
+import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.crypto.legacy.EcPrivateKeyInfo as LegacyEcPrivateKeyInfo
 import at.asitplus.awesn1.crypto.legacy.EncryptedPrivateKeyInfo as LegacyEncryptedPrivateKeyInfo
@@ -86,7 +87,7 @@ private fun LegacyEncryptedPrivateKeyInfo.toCurrent() =
 private fun LegacyPkcs8PrivateKeyInfo.toCurrent() =
     Pkcs8PrivateKeyInfo(
         Pkcs8PrivateKeyInfo.Version.V1,
-        privateKeyAlgorithm = X509AlgorithmIdentifier(algorithmOid, algorithmParameters),
+        privateKeyAlgorithm = X509AlgorithmIdentifier(algorithmOid, algorithmParameters.singleOrNull()),
         privateKey = privateKey,
         attributes = attributes?.toSet(),
     )
@@ -121,14 +122,14 @@ private fun LegacyRsaPublicKeyInfo.toCurrent() =
 private fun LegacySignatureAlgorithmIdentifier.toCurrent() =
     X509AlgorithmIdentifier(
         oid = oid,
-        parameters = parameters,
+        parameters = parameters.singleOrNull(),
     )
 
 private fun LegacySignatureValue.toCurrent() = X509SignatureValue(rawBitString)
 
 private fun LegacySubjectPublicKeyInfo.toCurrent() =
     SubjectPublicKeyInfo(
-        algorithmIdentifier = X509AlgorithmIdentifier(algorithmOid, algorithmParameters),
+        algorithmIdentifier = X509AlgorithmIdentifier(algorithmOid, algorithmParameters.singleOrNull()),
         subjectPublicKey = subjectPublicKey,
     )
 

@@ -95,7 +95,7 @@ private fun randomEcPrivateKey(random: Random) = Sec1EcPrivateKeyInfo(
 private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyInfo(
     encryptionAlgorithm = X509AlgorithmIdentifier(
         oid = randomOid(random),
-        parameters = randomRawElement(random).takeIf { random.nextBoolean() }?.let { listOf(it) }?:listOf(),
+        parameters = randomRawElement(random).takeIf { random.nextBoolean() },
     ),
     encryptedData = if (random.nextBoolean()) Asn1EncapsulatingOctetString(
         listOf(Asn1OctetString(randomBytes(random, 32)))
@@ -128,7 +128,7 @@ private fun randomRsaPublicKey(random: Random) = Pkcs1RsaPublicKeyInfo(
 
 private fun randomSignatureAlgorithmIdentifier(random: Random) = X509AlgorithmIdentifier(
     oid = randomOid(random),
-    parameters = List(random.nextInt(0, 3)) { randomRawElement(random) },
+    parameters = randomRawElement(random),
 )
 
 private fun randomSubjectPublicKeyInfo(random: Random): SubjectPublicKeyInfo =
