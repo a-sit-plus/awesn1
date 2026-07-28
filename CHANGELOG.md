@@ -19,6 +19,9 @@
     * `Pkcs1RsaPrivateKeyInfo`:
         * `Pkcs8PrivateKeyInfo.decodeRsaPrivateKey()` -> `Pkcs1RsaPrivateKeyInfo.of(Pkcs8PrivateKeyInfo)`
         * `Pkcs8PrivateKeyInfo.rsa(...)` -> `Pkcs8PrivateKeyInfo(...)` extensions on `Pkcs1RsaPrivateKeyInfo` companion
+    * `Sec1EcPrivateKeyInfo`:
+        * `Pkcs8PrivateKeyInfo.decodeEcPrivateKey()` -> `Sec1EcPrivateKeyInfo.of(Pkcs8PrivateKeyInfo)`
+        * `Pkcs8PrivateKeyInfo.ec(...)` -> `Pkcs8PrivateKeyInfo(...)` extensions on `Sec1EcPrivateKeyInfo` companion
 * Renamed the `effectiveX` getters on `RsaSsaParams` to `X` getters, and the old `X` getters to `rawX` getters, to better reflect their purpose.
 
 ## 0.6.1

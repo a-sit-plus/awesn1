@@ -1143,10 +1143,11 @@ class Asn1EncapsulatingOctetString private constructor(
 
     constructor(children: List<Asn1Element>) : this(Asn1Sequence(children))
 
-    /**
-     * This structure's child elements
-     */
+    /** The elements contained in the octet string (potentially more than one, with their DER representations concatenated) */
     val children: List<Asn1Element> get() = _sequence.children
+
+    /** The single element whose DER representation is contained in the octet string */
+    val element get() = runRethrowing { children.single() }
 
     // Behaves as a STRUCTURE, not a primitive: it never retains its encoded bytes. The length is taken from the
     // children (so it does NOT force the `content` provider), and derEncoded re-encodes on each access (stack-safe

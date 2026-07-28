@@ -16,6 +16,7 @@ import at.asitplus.awesn1.runRethrowing
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.decodeFromDer
+import at.asitplus.awesn1.serialization.decodeFromTlv
 import at.asitplus.awesn1.serialization.encodeToTlv
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToByteArray
@@ -79,7 +80,8 @@ data class Pkcs1RsaPrivateKeyInfo(
                 { "Pkcs8PrivateKeyInfo is not an RSA private key" }
             require(privateKeyInfo.algorithmParameters == Asn1Null)
                 { "RSA SubjectPublicKeyInfo must contain NULL params" }
-            der.decodeFromDer<Pkcs1RsaPrivateKeyInfo>(privateKeyInfo.privateKey.content)
+            der.decodeFromTlv<Pkcs1RsaPrivateKeyInfo>(
+                privateKeyInfo.privateKey.asEncapsulatingOctetString().element)
         }
 
         operator fun Pkcs8PrivateKeyInfo.Companion.invoke(

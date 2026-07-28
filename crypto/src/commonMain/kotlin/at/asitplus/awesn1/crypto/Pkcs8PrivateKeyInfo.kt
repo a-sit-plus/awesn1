@@ -5,7 +5,7 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.Pkcs1RsaPrivateKeyInfo.Companion.invoke
-import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.crypto.Sec1EcPrivateKeyInfo.Companion.invoke
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.decodeFromTlv
@@ -28,6 +28,7 @@ import kotlinx.serialization.Serializable
  * Attributes ::= SET OF Attribute
  * ```
  * @see Pkcs1RsaPrivateKeyInfo.of
+ * @see Sec1EcPrivateKeyInfo.of
  */
 @Serializable
 data class Pkcs8PrivateKeyInfo(
@@ -46,12 +47,11 @@ data class Pkcs8PrivateKeyInfo(
     fun decodeRsaPrivateKey() =
         Pkcs1RsaPrivateKeyInfo.of(this)
 
-    @Throws(Asn1Exception::class)
+    @Deprecated("Moved to a more suitable location", ReplaceWith("Sec1EcPrivateKeyInfo.of(this)"))
     fun decodeEcPrivateKey(): Sec1EcPrivateKeyInfo =
-        DER.decodeFromTlv(privateKey.asEncapsulatingOctetString().decodeRethrowing { next() })
+        Sec1EcPrivateKeyInfo.of(this)
 
     companion object : PemLabelSpec<Pkcs8PrivateKeyInfo> {
-        private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
 
         const val PEM_LABEL_PRIVATE_KEY = "PRIVATE KEY"
         const val PEM_LABEL_RSA_PRIVATE_KEY = Pkcs1RsaPrivateKeyInfo.PEM_LABEL
@@ -61,24 +61,15 @@ data class Pkcs8PrivateKeyInfo(
         override val alternativePemLabels: Set<String> =
             setOf(PEM_LABEL_RSA_PRIVATE_KEY, PEM_LABEL_EC_PRIVATE_KEY)
 
-        @Deprecated("Moved to a more suitable location", ReplaceWith("Pkcs8PrivateKeyInfo(privateKey, attributes)"))
+        @Deprecated("Moved to an extension on Pkcs1RsaPrivateKeyInfo's companion",
+            ReplaceWith("Pkcs8PrivateKeyInfo(privateKey, attributes)"))
         fun rsa(privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null) =
             this(privateKey, attributes)
 
-        @Deprecated("Moved to a more suitable location", ReplaceWith("Pkcs8PrivateKeyInfo(sec1Key, curveOid, attributes)"))
-        fun ec(
-            sec1Key: Sec1EcPrivateKeyInfo,
-            curveOid: ObjectIdentifier?,
-            attributes: Set<Asn1Element>? = null,
-        ): Pkcs8PrivateKeyInfo = Pkcs8PrivateKeyInfo(
-            version = Version.V1,
-            privateKeyAlgorithm = X509AlgorithmIdentifier(
-                EC_PUBLIC_KEY_OID,
-                curveOid?.encodeToTlv(),
-            ),
-            privateKey = Asn1.OctetStringEncapsulating { +DER.encodeToTlv(sec1Key) },
-            attributes = attributes,
-        )
+        @Deprecated("Moved to an extension on Sec1EcPrivateKeyInfo's companion",
+            ReplaceWith("Pkcs8PrivateKeyInfo(sec1Key, curveOid, attributes)"))
+        fun ec(sec1Key: Sec1EcPrivateKeyInfo, curveOid: ObjectIdentifier?, attributes: Set<Asn1Element>? = null) =
+            this(sec1Key, curveOid, attributes)
     }
 
     /**
