@@ -92,6 +92,7 @@ class Asn1TreeBuilder {
 /**
  * Namespace object for ASN.1 builder DSL functions and utility functions for creating ASN.1 primitives
  */
+@MustUseReturnValues
 object Asn1 {
     /**
      * Creates a new SEQUENCE as [Asn1Sequence].

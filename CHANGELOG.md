@@ -3,6 +3,7 @@
 ## NEXT
 * Allow `Asn1` builder unary `+` for transparent wrappers around `Asn1Element`/`Asn1Encodable`, and for serializable
   values when a `Der` instance is in context.
+* Fix ASN.1 builder not reporting unused return values
 
 ## 0.6.1
 * **Fixes:**
