@@ -13,6 +13,7 @@
         * new class: `EcdsaSigValue` models `ECDSA-Sig-Value` from RFC 5480
         * `X509SignatureValue.decodeRS()` in class -> `X509SignatureValue.toEcdsaSigValue()` on `EcdsaSigValue` companion
         * `X509SignatureValue.fromRS()` -> `EcdsaSigValue.toX509SignatureValue()`
+* Renamed the `effectiveX` getters on `RsaSsaParams` to `X` getters, and the old `X` getters to `rawX` getters, to better reflect their purpose.
 
 ## 0.6.1
 * **Fixes:**

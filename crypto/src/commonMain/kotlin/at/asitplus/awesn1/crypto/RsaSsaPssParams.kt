@@ -72,17 +72,25 @@ data class RsaSsaPssParams internal constructor(
         taggedTrailerField = trailerField.takeIf { it != DEFAULT_TRAILER_FIELD }?.let { ExplicitlyTagged(Asn1Integer(it)) },
     )
 
-    val hashAlgorithm: X509AlgorithmIdentifier? by taggedHashAlgorithm
+    /** The raw hash algorithm as stored (null for default)
+     * @see hashAlgorithm */
+    val rawHashAlgorithm: X509AlgorithmIdentifier? by taggedHashAlgorithm
 
-    val maskGenAlgorithm: X509AlgorithmIdentifier? by taggedMaskGenAlgorithm
+    /** The raw mask generation algorithm identifier as stored (null for default)
+     * @see maskGenAlgorithm */
+    val rawMaskGenAlgorithm: X509AlgorithmIdentifier? by taggedMaskGenAlgorithm
 
-    val saltLength: Asn1Integer? by taggedSaltLength
+    /** The raw salt length as stored (null for default)
+     * @see saltLength */
+    val rawSaltLength: Asn1Integer? by taggedSaltLength
 
-    val trailerField: Asn1Integer? by taggedTrailerField
+    /** The raw trailer field as stored (null for default)
+     * @see trailerField */
+    val rawTrailerField: Asn1Integer? by taggedTrailerField
 
-    val effectiveHashAlgorithm: X509AlgorithmIdentifier get() = hashAlgorithm ?: SHA1_IDENTIFIER
+    val hashAlgorithm: X509AlgorithmIdentifier get() = rawHashAlgorithm ?: SHA1_IDENTIFIER
 
-    val effectiveMaskGenAlgorithm: X509AlgorithmIdentifier get() = maskGenAlgorithm ?: MGF1_SHA1_IDENTIFIER
+    val maskGenAlgorithm: X509AlgorithmIdentifier get() = rawMaskGenAlgorithm ?: MGF1_SHA1_IDENTIFIER
 
 
     /**
@@ -97,7 +105,7 @@ data class RsaSsaPssParams internal constructor(
     @get:Throws(NumberFormatException::class)
     @HiddenFromObjC
     @get:HiddenFromObjC
-    val effectiveSaltLength: Int by lazy { saltLength?.toInt() ?: DEFAULT_SALT_LENGTH }
+    val saltLength: Int get() = rawSaltLength?.toInt() ?: DEFAULT_SALT_LENGTH
 
     /**
      * Hidden from Objective-C because a throwing getter cannot be bridged (see
@@ -111,7 +119,16 @@ data class RsaSsaPssParams internal constructor(
     @get:Throws(NumberFormatException::class)
     @HiddenFromObjC
     @get:HiddenFromObjC
-    val effectiveTrailerField: Int by lazy { trailerField?.toInt() ?: DEFAULT_TRAILER_FIELD }
+    val trailerField: Int get() = rawTrailerField?.toInt() ?: DEFAULT_TRAILER_FIELD
+
+    @Deprecated("Renamed", ReplaceWith("hashAlgorithm"))
+    val effectiveHashAlgorithm get() = hashAlgorithm
+    @Deprecated("Renamed", ReplaceWith("maskGenAlgorithm"))
+    val effectiveMaskGenAlgorithm get() = maskGenAlgorithm
+    @Deprecated("Renamed", ReplaceWith("maskGenAlgorithm"))
+    val effectiveSaltLength get() = saltLength
+    @Deprecated("Renamed", ReplaceWith("trailerField"))
+    val effectiveTrailerField get() = trailerField
 
     companion object {
         val RSA_SSA_PSS_OID = ObjectIdentifier("1.2.840.113549.1.1.10")
@@ -122,7 +139,7 @@ data class RsaSsaPssParams internal constructor(
         const val DEFAULT_TRAILER_FIELD = 1
 
         val SHA1_IDENTIFIER = X509AlgorithmIdentifier(SHA1_OID, Asn1.Null())
-        val MGF1_SHA1_IDENTIFIER = X509AlgorithmIdentifier(MGF1_OID, SHA1_IDENTIFIER.element)
+        val MGF1_SHA1_IDENTIFIER = X509AlgorithmIdentifier(MGF1_OID, SHA1_IDENTIFIER)
 
         fun X509AlgorithmIdentifier.Companion.of(params: RsaSsaPssParams, der: Der = DER) = runRethrowing {
             X509AlgorithmIdentifier(
@@ -136,7 +153,7 @@ data class RsaSsaPssParams internal constructor(
         val X509AlgorithmIdentifier.rsaSsaPssParams get() = RsaSsaPssParams.of(this)
         /**
          * Asserts that this identifier uses the `id-RSASSA-PSS` OID,
-         * then parses [parameters] as RSASSA-PSS parameters.
+         * then parses its [X509AlgorithmIdentifier.parameters] as RSASSA-PSS parameters.
          *
          * This helper models [RFC 4055, section 3.1](https://www.rfc-editor.org/rfc/rfc4055.html#section-3.1).
          *
@@ -153,32 +170,8 @@ data class RsaSsaPssParams internal constructor(
 
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is RsaSsaPssParams) return false
-
-        if (taggedHashAlgorithm != other.taggedHashAlgorithm) return false
-        if (taggedMaskGenAlgorithm != other.taggedMaskGenAlgorithm) return false
-        if (taggedSaltLength != other.taggedSaltLength) return false
-        if (taggedTrailerField != other.taggedTrailerField) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = taggedHashAlgorithm?.hashCode() ?: 0
-        result = 31 * result + (taggedMaskGenAlgorithm?.hashCode() ?: 0)
-        result = 31 * result + (taggedSaltLength?.hashCode() ?: 0)
-        result = 31 * result + (taggedTrailerField?.hashCode() ?: 0)
-        return result
-    }
-
     override fun toString(): String {
         return "RsaSsaPssParams(" +
-                "effectiveHashAlgorithm=$effectiveHashAlgorithm, " +
-                "effectiveMaskGenAlgorithm=$effectiveMaskGenAlgorithm, " +
-                "effectiveSaltLength=$effectiveSaltLength, " +
-                "effectiveTrailerField=$effectiveTrailerField, " +
                 "hashAlgorithm=$hashAlgorithm, " +
                 "maskGenAlgorithm=$maskGenAlgorithm, " +
                 "saltLength=$saltLength, " +
