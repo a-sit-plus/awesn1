@@ -22,6 +22,7 @@ import kotlin.native.HiddenFromObjC
  * ```
  *
  * As a transparent [WrappedElement], an identifier can be added directly to an ASN.1 builder with unary `+`.
+ * @see RsaSsaPssParams.of
  */
 @JvmInline
 @Serializable

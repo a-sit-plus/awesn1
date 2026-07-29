@@ -18,19 +18,9 @@ import kotlin.jvm.JvmInline
 
 /**
  *
- * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
+ * This type models signatureValue as per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):
  * ```
  * signatureValue       BIT STRING
- * ```
- *
- * This type models `signatureValue`, represented as raw `BIT STRING` bytes.
- * Helper methods `decodeRS` / `fromRS` use ASN.1 `ECDSA-Sig-Value` from
- * [RFC5759](https://www.rfc-editor.org/rfc/rfc5759.html#section-4.2):
- * ```
- * ECDSA-Sig-Value ::= SEQUENCE {
- *   r  INTEGER,
- *   s  INTEGER
- * }
  * ```
  *
  * As a transparent [WrappedEncodable], a signature value can be added directly to an ASN.1 builder with unary `+`.
