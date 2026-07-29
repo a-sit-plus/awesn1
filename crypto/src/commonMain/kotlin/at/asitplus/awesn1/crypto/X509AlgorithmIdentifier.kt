@@ -6,8 +6,6 @@ package at.asitplus.awesn1.crypto
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.WrappedElement
-import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.serialization.decodeFromTlv
 import kotlinx.serialization.Serializable
 import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.jvm.JvmInline
@@ -34,28 +32,27 @@ value class X509AlgorithmIdentifier(override val element: Asn1Sequence) : Identi
      * Convenience constructor for creating an instance of `X509AlgorithmIdentifier`
      * using an `ObjectIdentifier` and a list of `Asn1Element` parameters.
      *
-     * The passed [parameters] are unrolled, making construction of the algorithm identifier object work as follows:
-     * ```
-     * Asn1.Sequence {
-     *     +oid
-     *     parameters.forEach { +it }
-     * }
-     * ```
+     * **Note that passing `null` as [parameters] is different from passing [Asn1Null] as [parameters].**
+     * Passing `null` omits the second member from the sequence entirely. (e.g., ECDSA)
+     * Passing [Asn1Null] encodes ASN.1 NULL as the second member of the sequence. (e.g., RSA/PKCS1)
      *
      * @param oid The object identifier representing the algorithm.
-     * @param parameters A list of ASN.1 elements representing the algorithm parameters.
+     * @param parameters The algorithm parameters element, if any.
      */
     constructor(
         oid: ObjectIdentifier,
-        parameters: List<Asn1Element>
+        parameters: Asn1Element?
     ) : this(Asn1.Sequence {
         +oid
-        parameters.forEach { +it }
+        parameters?.let { +it }
     })
 
+    @Deprecated(level = DeprecationLevel.WARNING, message = "parameters can only have 0 or 1 elements, use nullable ctor",
+        replaceWith = ReplaceWith("X509AlgorithmIdentifier(oid, parameters.singleOrNull())"))
+    constructor(oid: ObjectIdentifier, parameters: List<Asn1Element>) : this(oid, parameters.singleOrNull())
+
     init {
-        require(element.children.isNotEmpty()) { "AlgorithmIdentifier must not be an empty SEQUENCE" }
-        oid //check that oid is present
+        val _ = oid //check that oid is present
     }
 
     //already throws during init, so no throws declaration here
@@ -84,36 +81,7 @@ value class X509AlgorithmIdentifier(override val element: Asn1Sequence) : Identi
         get() = when (element.children.size) {
             1 -> null
             2 -> element.children[1]
-            else -> throw Asn1Exception("AlgorithmIdentifier has ${element.children.size} children")
-        }
-
-    /**
-     * Parses [parameters] as RSASSA-PSS parameters if this identifier uses the `id-RSASSA-PSS` OID.
-     *
-     * This helper models [RFC 4055, section 3.1](https://www.rfc-editor.org/rfc/rfc4055.html#section-3.1) without
-     * making [X509AlgorithmIdentifier] itself enforce algorithm-specific parameter schemas during generic DER parsing.
-     *
-     * @return `null` if this algorithm is nor RSA_SSA_PSS
-     *
-     * @throws Asn1Exception if this algorithm is RSA_SSA_PSS has no parameters, or the parameter element is
-     * not a valid `RSASSA-PSS-params` SEQUENCE.
-     *
-     * From Swift/Objective-C use the throwing `rsaSsaPssParams()` accessor (exported as a static
-     * `rsaSsaPssParams(_:)`, since value classes are not bridged as Objective-C types).
-     */
-    @OptIn(ExperimentalObjCRefinement::class)
-    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
-    @get:Throws(Asn1Exception::class)
-    @HiddenFromObjC
-    @get:HiddenFromObjC
-    val rsaSsaPssParams: RsaSsaPssParams?
-        get() = runWrappingAs(a = ::Asn1Exception) {
-            if (oid != RsaSsaPssParams.RSA_SSA_PSS_OID) {
-                return null
-            }
-            DER.decodeFromTlv<RsaSsaPssParams>(
-                parameters?.asSequence() ?: throw Asn1Exception("RSASSA-PSS AlgorithmIdentifier has no parameters")
-            )
+            else -> throw Asn1Exception("AlgorithmIdentifier has ${element.children.size} (> 2) children")
         }
 
     override fun toString(): String {

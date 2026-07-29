@@ -3,11 +3,17 @@
 
 package at.asitplus.awesn1.crypto
 
+import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.runRethrowing
 import at.asitplus.awesn1.serialization.Asn1Tag
+import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.serialization.decodeFromTlv
+import at.asitplus.awesn1.serialization.encodeToTlv
 import at.asitplus.awesn1.serialization.getValue
 import at.asitplus.awesn1.toInt
 import kotlinx.serialization.Serializable
@@ -115,8 +121,36 @@ data class RsaSsaPssParams internal constructor(
         const val DEFAULT_SALT_LENGTH = 20
         const val DEFAULT_TRAILER_FIELD = 1
 
-        val SHA1_IDENTIFIER = X509AlgorithmIdentifier(SHA1_OID, listOf(Asn1.Null()))
-        val MGF1_SHA1_IDENTIFIER = X509AlgorithmIdentifier(MGF1_OID, listOf(SHA1_IDENTIFIER.element))
+        val SHA1_IDENTIFIER = X509AlgorithmIdentifier(SHA1_OID, Asn1.Null())
+        val MGF1_SHA1_IDENTIFIER = X509AlgorithmIdentifier(MGF1_OID, SHA1_IDENTIFIER.element)
+
+        fun X509AlgorithmIdentifier.Companion.of(params: RsaSsaPssParams, der: Der = DER) = runRethrowing {
+            X509AlgorithmIdentifier(
+                RSA_SSA_PSS_OID,
+                der.encodeToTlv(params)
+            )
+        }
+
+        @Deprecated(level = DeprecationLevel.WARNING, message = "prefer of(), which can take a `Der` object",
+            replaceWith = ReplaceWith("RsaSsaPssParams.of(this)"))
+        val X509AlgorithmIdentifier.rsaSsaPssParams get() = RsaSsaPssParams.of(this)
+        /**
+         * Asserts that this identifier uses the `id-RSASSA-PSS` OID,
+         * then parses [parameters] as RSASSA-PSS parameters.
+         *
+         * This helper models [RFC 4055, section 3.1](https://www.rfc-editor.org/rfc/rfc4055.html#section-3.1).
+         *
+         * @throws Asn1Exception if this algorithm is RSA_SSA_PSS has no parameters, or the parameter element is
+         * not a valid `RSASSA-PSS-params` SEQUENCE.
+         */
+        fun of(algorithmIdentifier: X509AlgorithmIdentifier, der: Der = DER): RsaSsaPssParams = runRethrowing {
+            require(algorithmIdentifier.oid == RSA_SSA_PSS_OID)
+            der.decodeFromTlv<RsaSsaPssParams>(
+                algorithmIdentifier.parameters?.asSequence() ?:
+                    throw Asn1Exception("RSASSA-PSS AlgorithmIdentifier has no parameters")
+            )
+        }
+
     }
 
     override fun equals(other: Any?): Boolean {

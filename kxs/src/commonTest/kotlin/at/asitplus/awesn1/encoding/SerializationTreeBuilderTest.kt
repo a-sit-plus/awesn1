@@ -24,7 +24,7 @@ val SerializationTreeBuilderTest by matrixSuite {
     "X509AlgorithmIdentifier unary plus works with and without DER context" {
         val algorithm = X509AlgorithmIdentifier(
             ObjectIdentifier("1.2.840.113549.1.1.11"),
-            listOf(Asn1.Null()),
+            Asn1.Null(),
         )
         val expected = listOf(DER.encodeToTlv(algorithm))
 
@@ -44,7 +44,7 @@ val SerializationTreeBuilderTest by matrixSuite {
         val publicKey = Pkcs1RsaPublicKeyInfo(Asn1Integer(3233), Asn1Integer(17))
         val algorithm = X509AlgorithmIdentifier(
             ObjectIdentifier("1.2.840.113549.1.1.11"),
-            listOf(Asn1.Null()),
+            Asn1.Null(),
         )
         val name = X500Name(X500RelativeDistinguishedName(X500AttributeTypeAndValue.CommonName("example")))
         val certificate = X509Certificate(
