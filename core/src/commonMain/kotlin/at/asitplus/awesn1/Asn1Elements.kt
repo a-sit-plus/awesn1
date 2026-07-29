@@ -14,6 +14,8 @@ import at.asitplus.awesn1.encoding.internal.decapsulateOrSelf
 import kotlinx.serialization.Serializable
 import kotlin.concurrent.Volatile
 import kotlin.experimental.ExperimentalObjCName
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 import kotlin.native.ObjCName
 
 /** A node (element + indentation) for the [DeepRecursiveFunction] string renderer (see [Asn1Element.renderTo]). */
@@ -25,7 +27,7 @@ private class RenderNode(val element: Asn1Element, val indent: Int)
  * [plusExact]). Stack-safe (heap-allocated recursion) and safe to share — each invocation gets its own stack.
  *
  */
-// Here, DeepRevursiveFunction was faster than hand-rolled. But should be re-evaluated at some point, since we now got rid of the lazies
+// Here, DeepRecursiveFunction was faster than hand-rolled. But should be re-evaluated at some point, since we now got rid of the lazies
 private val computeContentLength: DeepRecursiveFunction<Asn1Structure, Unit> = DeepRecursiveFunction { n ->
     if (n.cachedContentLength < 0) {
         var sum = 0L
@@ -1146,7 +1148,15 @@ class Asn1EncapsulatingOctetString private constructor(
     /** The elements contained in the octet string (potentially more than one, with their DER representations concatenated) */
     val children: List<Asn1Element> get() = _sequence.children
 
-    /** The single element whose DER representation is contained in the octet string */
+    /** The single element whose DER representation is contained in the octet string.
+     * Obj-C/Swift need to use `element()`, visible there. See KT-63047.
+     * "It's okay that this is broken, many other things are broken too."
+     * @throws Asn1Exception if two or more elements are concatenated in the [Asn1OctetString] */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(Asn1Exception::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
     val element get() = runRethrowing { children.single() }
 
     // Behaves as a STRUCTURE, not a primitive: it never retains its encoded bytes. The length is taken from the
