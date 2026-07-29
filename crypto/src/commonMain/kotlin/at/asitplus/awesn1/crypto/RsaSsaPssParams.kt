@@ -125,7 +125,7 @@ data class RsaSsaPssParams internal constructor(
     val effectiveHashAlgorithm get() = hashAlgorithm
     @Deprecated("Renamed", ReplaceWith("maskGenAlgorithm"))
     val effectiveMaskGenAlgorithm get() = maskGenAlgorithm
-    @Deprecated("Renamed", ReplaceWith("maskGenAlgorithm"))
+    @Deprecated("Renamed", ReplaceWith("saltLength"))
     val effectiveSaltLength get() = saltLength
     @Deprecated("Renamed", ReplaceWith("trailerField"))
     val effectiveTrailerField get() = trailerField
