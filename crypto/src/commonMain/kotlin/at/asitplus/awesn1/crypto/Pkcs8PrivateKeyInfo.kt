@@ -31,7 +31,7 @@ import kotlinx.serialization.Serializable
 data class Pkcs8PrivateKeyInfo(
     val version: Version,
     val privateKeyAlgorithm: X509AlgorithmIdentifier,
-    val privateKey: Asn1Element,
+    val privateKey: Asn1OctetString,
     @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
 ) : WithPemLabel {

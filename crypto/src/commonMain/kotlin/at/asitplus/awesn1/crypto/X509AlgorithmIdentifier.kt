@@ -47,6 +47,10 @@ value class X509AlgorithmIdentifier(override val element: Asn1Sequence) : Identi
         parameters?.let { +it }
     })
 
+    @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+    @kotlin.internal.LowPriorityInOverloadResolution
+    constructor(oid: ObjectIdentifier, parameters: WrappedElement<out Asn1Element>?) : this(oid, parameters?.element)
+
     @Deprecated(level = DeprecationLevel.WARNING, message = "parameters can only have 0 or 1 elements, use nullable ctor",
         replaceWith = ReplaceWith("X509AlgorithmIdentifier(oid, parameters.singleOrNull())"))
     constructor(oid: ObjectIdentifier, parameters: List<Asn1Element>) : this(oid, parameters.singleOrNull())
