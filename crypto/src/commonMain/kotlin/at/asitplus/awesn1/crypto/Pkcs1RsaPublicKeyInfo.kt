@@ -54,7 +54,7 @@ data class Pkcs1RsaPublicKeyInfo(
             )
         }
 
-        operator fun SubjectPublicKeyInfo.Companion.invoke(modulus: Asn1Integer, exponent: Asn1Integer, der: Der = DER) =
+        fun SubjectPublicKeyInfo.Companion.rsa(modulus: Asn1Integer, exponent: Asn1Integer, der: Der = DER) =
             runRethrowing { invoke(Pkcs1RsaPublicKeyInfo(modulus, exponent), der) }
     }
 }

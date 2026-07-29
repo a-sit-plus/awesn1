@@ -51,10 +51,6 @@ data class SubjectPublicKeyInfo(
             replaceWith = ReplaceWith("SubjectPublicKeyInfo.of(publicKey)"))
         fun rsa(publicKey: Pkcs1RsaPublicKeyInfo) = this(publicKey)
 
-        @Deprecated("Moved to a more suitable location",
-            replaceWith = ReplaceWith("SubjectPublicKeyInfo.of(modulus, exponent)"))
-        fun rsa(modulus: Asn1Integer, exponent: Asn1Integer) = this(modulus, exponent)
-
         fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
             algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, curveOid.encodeToTlv()),
             subjectPublicKey = Asn1BitString(ansiX963Key)
