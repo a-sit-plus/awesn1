@@ -18,6 +18,14 @@ import kotlin.time.Instant
 import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 
 val CryptoDerRoundTripTest by matrixSuite {
+    "PKCS #10 request info equality and hash ignore attribute order" {
+        val ordered = certificationRequestInfo(linkedSetOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE))
+        val reversed = certificationRequestInfo(linkedSetOf(LARGER_ATTRIBUTE, SMALLER_ATTRIBUTE))
+
+        ordered shouldBe reversed
+        ordered.hashCode() shouldBe reversed.hashCode()
+    }
+
     "programmatic PKCS #10 attributes are canonically sorted" {
         DER.decodeFromTlv<Pkcs10CertificationRequestInfo>(
             DER.encodeToTlv(
@@ -28,8 +36,7 @@ val CryptoDerRoundTripTest by matrixSuite {
                     )
                 )
             )
-        ).rawAttributes shouldBe
-                listOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE)
+        ).rawAttributes shouldBe listOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE)
     }
 
     "decoded PKCS #10 rawAttributes retain wire order" {
