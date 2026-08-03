@@ -61,15 +61,72 @@ val CryptoDerRoundTripTest by matrixSuite {
         )
     }
 
-    "programmatic PKCS #10 attribute bags reject duplicate OIDs" {
+    "programmatic PKCS #10 request info rejects duplicate attribute OIDs" {
         shouldThrow<IllegalArgumentException> {
-            Pkcs10CsrAttributeBag(
+            certificationRequestInfo(
                 setOf(
                     Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(0)),
                     Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(1)),
                 )
             )
         }
+    }
+
+    "programmatic PKCS #10 attribute values are canonically sorted" {
+        DER.decodeFromTlv<Pkcs10CsrAttribute>(
+            DER.encodeToTlv(
+                Pkcs10CsrAttribute(
+                    ObjectIdentifier("1.2.3"),
+                    linkedSetOf(LARGER_ATTRIBUTE_VALUE, SMALLER_ATTRIBUTE_VALUE),
+                )
+            )
+        ).rawValue.toList() shouldBe listOf(SMALLER_ATTRIBUTE_VALUE, LARGER_ATTRIBUTE_VALUE)
+    }
+
+    "decoded PKCS #10 rawValue retains wire order" {
+        val canonical = DER.encodeToTlv(
+            Pkcs10CsrAttribute(
+                ObjectIdentifier("1.2.3"),
+                linkedSetOf(SMALLER_ATTRIBUTE_VALUE, LARGER_ATTRIBUTE_VALUE),
+            )
+        ).asSequence()
+        val values = canonical.children.last().asStructure()
+        val nonCanonical = Asn1.Sequence {
+            +canonical.children.first()
+            +Asn1CustomStructure(values.children.reversed(), Asn1Element.Tag.SET.tagValue)
+        }
+
+        DER.decodeFromByteArray<Pkcs10CsrAttribute>(nonCanonical.derEncoded).rawValue.toList() shouldBe
+                listOf(LARGER_ATTRIBUTE_VALUE, SMALLER_ATTRIBUTE_VALUE)
+    }
+
+    "malformed duplicate PKCS #10 values decode but the value getter rejects them" {
+        val canonical = DER.encodeToTlv(
+            Pkcs10CsrAttribute(ObjectIdentifier("1.2.3"), SMALLER_ATTRIBUTE_VALUE)
+        ).asSequence()
+        val malformed = Asn1.Sequence {
+            +canonical.children.first()
+            +Asn1CustomStructure(
+                listOf(SMALLER_ATTRIBUTE_VALUE, SMALLER_ATTRIBUTE_VALUE),
+                Asn1Element.Tag.SET.tagValue,
+            )
+        }
+        val decoded = DER.decodeFromByteArray<Pkcs10CsrAttribute>(malformed.derEncoded)
+
+        decoded.rawValue.toList() shouldBe listOf(SMALLER_ATTRIBUTE_VALUE, SMALLER_ATTRIBUTE_VALUE)
+        shouldThrow<Asn1Exception> { decoded.value }
+    }
+
+    "empty PKCS #10 attribute values only decode leniently" {
+        val malformed = Asn1.Sequence {
+            +ObjectIdentifier("1.2.3")
+            +Asn1.Set { }
+        }
+        val decoded = DER.decodeFromByteArray<Pkcs10CsrAttribute>(malformed.derEncoded)
+
+        decoded.rawValue.isEmpty() shouldBe true
+        shouldThrow<Asn1Exception> { decoded.value }
+        shouldThrow<IllegalArgumentException> { Pkcs10CsrAttribute(ObjectIdentifier("1.2.3"), emptySet()) }
     }
 
     "PKCS #10 attributes rejects duplicate OIDs" {
@@ -100,6 +157,8 @@ val CryptoDerRoundTripTest by matrixSuite {
 
 private val SMALLER_ATTRIBUTE = Pkcs10CsrAttribute(ObjectIdentifier("1.2.3"), Asn1.Int(0))
 private val LARGER_ATTRIBUTE = Pkcs10CsrAttribute(ObjectIdentifier("1.2.4"), Asn1.Int(0))
+private val SMALLER_ATTRIBUTE_VALUE = Asn1.Int(0)
+private val LARGER_ATTRIBUTE_VALUE = Asn1.Int(1)
 private val DUPLICATE_ATTRIBUTE_OID = ObjectIdentifier("1.2.3")
 
 private fun certificationRequestInfo(attributes: Set<Pkcs10CsrAttribute>) = Pkcs10CertificationRequestInfo(

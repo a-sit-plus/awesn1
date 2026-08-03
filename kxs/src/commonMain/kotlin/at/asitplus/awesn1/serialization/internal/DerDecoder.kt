@@ -38,6 +38,7 @@ import kotlin.time.Instant
  * - annotation-driven implicit tag override processing via [at.asitplus.awesn1.serialization.Asn1Tag]
  * - sealed CHOICE decoding via sealed polymorphism
  * - runtime ambiguity checks for nullable/optional class layouts
+ * - lossless Kotlin [Set] decoding by rejecting duplicate elements instead of silently collapsing them
  */
 class DerDecoder internal constructor(
     private val elements: List<Asn1Element>,
@@ -702,6 +703,14 @@ class DerDecoder internal constructor(
             dropFirstChildInNextStructure = false
         }
         val value = deserializer.deserialize(childDecoder)
+        if (deserializer.descriptor.isKotlinSetDescriptor &&
+            value is Set<*> &&
+            value.size != processedElement.asStructure().children.size
+        ) {
+            throw SerializationException(
+                "Duplicate elements cannot be decoded into ${deserializer.descriptor.serialName} without data loss"
+            )
+        }
         elementIndex++
         return value
     }

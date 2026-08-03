@@ -426,13 +426,18 @@ Call `DefaultDer.register(...)` during application or library startup, before th
 
 Default mappings for `Map` and `Set` are supported, so idiomatic Kotlin collection models can be encoded without
 custom serializers in many cases.
-This is useful for attribute bags, extension dictionaries, and grouped values that naturally map to ASN.1 collection
+This is useful for attribute sets, extension dictionaries, and grouped values that naturally map to ASN.1 collection
 constructs.
 In PKI and signed-message standards, `SET` and sequence-of-entry patterns are common; see
 [X.509 (RFC 5280)](https://www.rfc-editor.org/rfc/rfc5280) and [CMS (RFC 5652)](https://www.rfc-editor.org/rfc/rfc5652).
 
 - Kotlin `Set<T>` maps to ASN.1 `SET` semantics.
 - Kotlin `Map<K, V>` is encoded as a structured collection of key/value entries.
+
+When decoding into Kotlin `Set<T>`, awesn1 throws `SerializationException` if encoded elements compare equal and would
+therefore collapse. This intentionally differs from formats such as kotlinx.serialization JSON, whose standard set
+serializer silently deduplicates JSON array elements. Use `LenientSet<T>` when duplicate or non-canonically ordered
+input must be retained.
 
 ```kotlin
 --8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-map-set-definitions"
@@ -444,6 +449,23 @@ In PKI and signed-message standards, `SET` and sequence-of-entry patterns are co
 
 1. {{ asn1js_iframe('kxs-map-set') -}}
    Explore on <a href="{{ asn1js_url('kxs-map-set') }}" target="_blank" rel="noopener">asn1js.eu</a>
+
+### Lenient `SET OF` Decoding
+
+Use `LenientSet<T>` when a model must accept malformed `SET OF` input without losing its wire order or duplicate
+elements. Programmatic construction accepts a Kotlin `Set<T>`, preventing duplicates up front. Decoding retains the
+received elements as a collection; call `toValidatedSet()` when a strict semantic view is needed. It throws
+`Asn1Exception` if decoded input contained duplicates.
+
+```kotlin
+val values = LenientSet(linkedSetOf("first", "second"))
+val validated: Set<String> = values.toValidatedSet()
+```
+
+`LenientSet` implements `Collection`, not `Set`: decoded contents may be malformed. Its equality and hash code use set
+semantics. Programmatically constructed instances use canonical `SET OF` ordering; decoded instances preserve their
+wire order and duplicates when re-encoded. Schema-specific constraints such as minimum size or uniqueness by OID
+remain the responsibility of the containing model.
 
 ## Retaining and Re-Emitting Raw ASN.1 Data
 

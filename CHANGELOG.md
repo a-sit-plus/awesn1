@@ -1,7 +1,13 @@
 # Changelog
 
 ## NEXT
-* Fixed PKCS10 Certification Request Info's attribute canonicalisation
+* Fixed PKCS#10 attribute canonicalisation: programmatically created attribute sets are DER-sorted, while decoded
+  `rawAttributes` and `rawValue` retain malformed wire order and duplicates for lenient parsing.
+* Added `LenientSet`, a serializable ASN.1 `SET OF` collection that accepts only Kotlin sets when constructed,
+  preserves decoded wire contents when re-encoded, and exposes `toValidatedSet()` for duplicate validation.
+* Decoding an ASN.1 `SET OF` into Kotlin `Set<T>` now throws instead of silently discarding duplicate elements.
+* PKCS#10 semantic `attributes` and `value` getters now reject malformed decoded duplicates; empty attribute values,
+  duplicate attribute OIDs, and empty extension requests are rejected during programmatic construction.
 * Allow `Asn1` builder unary `+` for transparent wrappers around `Asn1Element`/`Asn1Encodable`, and for serializable
   values when a `Der` instance is in context.
 * Change the `X509AlgorithmIdentifier` constructor to take a single nullable `parameters` element.
