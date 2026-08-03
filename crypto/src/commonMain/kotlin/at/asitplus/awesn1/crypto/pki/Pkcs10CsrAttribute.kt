@@ -7,8 +7,9 @@ import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.encoding.unaryPlus
 import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.serialization.encodeToTlv
+import at.asitplus.awesn1.serialization.Der
 import kotlinx.serialization.Serializable
 
 /**
@@ -31,11 +32,11 @@ data class Pkcs10CsrAttribute(
     companion object {
         val EXTENSION_REQUEST_OID = ObjectIdentifier("1.2.840.113549.1.9.14")
 
-        fun ExtensionRequest(extensions: List<X509CertificateExtension>): Pkcs10CsrAttribute {
+        fun ExtensionRequest(extensions: List<X509CertificateExtension>, der: Der = DER): Pkcs10CsrAttribute {
             require(extensions.isNotEmpty()) { "At least one extension is required" }
             return Pkcs10CsrAttribute(
                 EXTENSION_REQUEST_OID,
-                Asn1.Sequence { extensions.forEach { +DER.encodeToTlv(it) } },
+                with(der) { Asn1.Sequence { extensions.forEach { +it } } }
             )
         }
     }

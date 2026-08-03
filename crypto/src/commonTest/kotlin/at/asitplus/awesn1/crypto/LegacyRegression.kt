@@ -35,6 +35,7 @@ import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.runWrappingAs
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.decodeFromTlv
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 
@@ -148,13 +149,7 @@ private fun LegacyAttributeTypeAndValue.toCurrent() =
 private fun LegacyRelativeDistinguishedName.toCurrent() =
     X500RelativeDistinguishedName(attrsAndValues.map { it.toCurrent() }.toSet())
 
-private fun LegacyPkcs10CertificationRequestInfo.toCurrent() =
-    Pkcs10CertificationRequestInfo(
-        version = Pkcs10CertificationRequestInfo.Version.V1,
-        subjectName = X500Name(subjectName.map { it.toCurrent() }),
-        publicKey = publicKey.toCurrent(),
-        attributes = attributes.map { it.toCurrent() }.toSet(),
-    )
+private fun LegacyPkcs10CertificationRequestInfo.toCurrent() =DER.decodeFromTlv<Pkcs10CertificationRequestInfo>(encodeToTlv())
 
 private fun LegacyPkcs10CertificationRequest.toCurrent() =
     Pkcs10CertificationRequest(

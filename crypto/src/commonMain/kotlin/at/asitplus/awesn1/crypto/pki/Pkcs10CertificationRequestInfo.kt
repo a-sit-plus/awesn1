@@ -6,13 +6,7 @@ package at.asitplus.awesn1.crypto.pki
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
 import at.asitplus.awesn1.serialization.Asn1Tag
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.builtins.SetSerializer
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.native.HiddenFromObjC
 
@@ -38,7 +32,7 @@ import kotlin.native.HiddenFromObjC
  * }
  * ```
  *
- * [rawAttributes] is modelled as a generic collection to be able to hold malformed data too. Canonical sorting happens only on encode!
+ * [rawAttributes] uses [Pkcs10CsrAttributeBag] to hold malformed data too. **DO NOT ASSUME ANY PARTICULAR ORDER OR CONCRETE COLLECTION TYPE!** Canonical sorting happens only on encode!
  * Hence, the order of attributes may differ post-encode.
  *
  * This class's [equals] and [hashCode] reflect this characteristic: Order of attributes is irrelevant for equality!
@@ -49,8 +43,7 @@ data class Pkcs10CertificationRequestInfo private constructor(
     val subjectName: X500Name,
     val publicKey: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 0u)
-    @Serializable(with = CsrAttributesSerializer::class)
-    val rawAttributes: Collection<Pkcs10CsrAttribute> = emptyList(),
+    val rawAttributes: Pkcs10CsrAttributeBag = Pkcs10CsrAttributeBag(emptySet()),
 ) {
 
     constructor(
@@ -58,7 +51,7 @@ data class Pkcs10CertificationRequestInfo private constructor(
         subjectName: X500Name,
         publicKey: SubjectPublicKeyInfo,
         attributes: Set<Pkcs10CsrAttribute> = emptySet(),
-    ) : this(version, subjectName, publicKey, rawAttributes = attributes.toSet())
+    ) : this(version, subjectName, publicKey, rawAttributes = Pkcs10CsrAttributeBag(attributes))
 
 
     /**
@@ -88,48 +81,4 @@ data class Pkcs10CertificationRequestInfo private constructor(
     enum class Version {
         V1
     }
-
-    /**
-     * Attribute-order-insensitive equality check
-     */
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is Pkcs10CertificationRequestInfo) return false
-
-        if (version != other.version) return false
-        if (subjectName != other.subjectName) return false
-        if (publicKey != other.publicKey) return false
-        if (rawAttributes.toSet() != other.rawAttributes.toSet()) return false
-
-        return true
-    }
-
-    /**
-     * Attribute-order-insensitive hash code computation
-     */
-    override fun hashCode(): Int {
-        var result = version.hashCode()
-        result = 31 * result + subjectName.hashCode()
-        result = 31 * result + publicKey.hashCode()
-        result = 31 * result + rawAttributes.toSet().hashCode()
-        return result
-    }
-}
-
-private object CsrAttributesSerializer : KSerializer<Collection<Pkcs10CsrAttribute>> {
-    private val listSerializer = ListSerializer(Pkcs10CsrAttribute.serializer())
-    private val setSerializer = SetSerializer(Pkcs10CsrAttribute.serializer())
-
-    override val descriptor: SerialDescriptor = SerialDescriptor(
-        "at.asitplus.awesn1.crypto.pki.Pkcs10CsrAttributes",
-        listSerializer.descriptor,
-    )
-
-    @Suppress("UNCHECKED_CAST")
-    override fun serialize(encoder: Encoder, value: Collection<Pkcs10CsrAttribute>) =
-        if (value is Set<*>) setSerializer.serialize(encoder, value as Set<Pkcs10CsrAttribute>)
-        else listSerializer.serialize(encoder, value.toList())
-
-    override fun deserialize(decoder: Decoder): Collection<Pkcs10CsrAttribute> =
-        listSerializer.deserialize(decoder)
 }

@@ -22,6 +22,8 @@ val CryptoDerRoundTripTest by matrixSuite {
         val ordered = certificationRequestInfo(linkedSetOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE))
         val reversed = certificationRequestInfo(linkedSetOf(LARGER_ATTRIBUTE, SMALLER_ATTRIBUTE))
 
+        (ordered.rawAttributes == reversed.rawAttributes) shouldBe true
+        ordered.rawAttributes.hashCode() shouldBe reversed.rawAttributes.hashCode()
         ordered shouldBe reversed
         ordered.hashCode() shouldBe reversed.hashCode()
     }
@@ -36,7 +38,7 @@ val CryptoDerRoundTripTest by matrixSuite {
                     )
                 )
             )
-        ).rawAttributes shouldBe listOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE)
+        ).rawAttributes.toList() shouldBe listOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE)
     }
 
     "decoded PKCS #10 rawAttributes retain wire order" {
@@ -49,7 +51,7 @@ val CryptoDerRoundTripTest by matrixSuite {
             +Asn1CustomStructure(attributes.children.reversed(), 0uL, TagClass.CONTEXT_SPECIFIC)
         }
 
-        DER.decodeFromByteArray<Pkcs10CertificationRequestInfo>(nonCanonical.derEncoded).rawAttributes shouldBe
+        DER.decodeFromByteArray<Pkcs10CertificationRequestInfo>(nonCanonical.derEncoded).rawAttributes.toList() shouldBe
                 listOf(LARGER_ATTRIBUTE, SMALLER_ATTRIBUTE)
     }
 
@@ -57,6 +59,17 @@ val CryptoDerRoundTripTest by matrixSuite {
         malformedCertificationRequestInfo().rawAttributes.map { it.oid } shouldBe listOf(
             DUPLICATE_ATTRIBUTE_OID, DUPLICATE_ATTRIBUTE_OID
         )
+    }
+
+    "programmatic PKCS #10 attribute bags reject duplicate OIDs" {
+        shouldThrow<IllegalArgumentException> {
+            Pkcs10CsrAttributeBag(
+                setOf(
+                    Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(0)),
+                    Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(1)),
+                )
+            )
+        }
     }
 
     "PKCS #10 attributes rejects duplicate OIDs" {
@@ -95,19 +108,21 @@ private fun certificationRequestInfo(attributes: Set<Pkcs10CsrAttribute>) = Pkcs
     attributes = attributes,
 )
 
-private fun malformedCertificationRequestInfo(): Pkcs10CertificationRequestInfo =
-    DER.decodeFromByteArray(
-        DER.encodeToByteArray(
-            Pkcs10CertificationRequestInfo(
-                subjectName = X500Name(emptyList()),
-                publicKey = SubjectPublicKeyInfo.ec(ObjectIdentifier("1.2.3"), byteArrayOf(4)),
-                attributes = setOf(
-                    Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(0)),
-                    Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(1)),
-                ),
-            )
+private fun malformedCertificationRequestInfo(): Pkcs10CertificationRequestInfo {
+    val valid = DER.encodeToTlv(certificationRequestInfo(emptySet())).asSequence()
+    val malformed = Asn1.Sequence {
+        valid.children.dropLast(1).forEach { +it }
+        +Asn1CustomStructure(
+            listOf(
+                DER.encodeToTlv(Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(0))),
+                DER.encodeToTlv(Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(1))),
+            ),
+            0uL,
+            TagClass.CONTEXT_SPECIFIC,
         )
-    )
+    }
+    return DER.decodeFromByteArray(malformed.derEncoded)
+}
 
 private inline fun <reified T> CompactScope.checkRoundTrip(noinline generator: (Random) -> T) {
     property("value", kotestArbitrary { rs -> generator(rs.random) }) test { value ->
