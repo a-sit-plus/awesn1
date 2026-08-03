@@ -4,8 +4,11 @@ import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.decodeFromTlv
+import at.asitplus.awesn1.serialization.encodeToTlv
 import at.asitplus.testballoon.matrix.CompactScope
 import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -15,6 +18,44 @@ import kotlin.time.Instant
 import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 
 val CryptoDerRoundTripTest by matrixSuite {
+    "programmatic PKCS #10 attributes are canonically sorted" {
+        DER.decodeFromTlv<Pkcs10CertificationRequestInfo>(
+            DER.encodeToTlv(
+                certificationRequestInfo(
+                    linkedSetOf(
+                        LARGER_ATTRIBUTE,
+                        SMALLER_ATTRIBUTE
+                    )
+                )
+            )
+        ).rawAttributes shouldBe
+                listOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE)
+    }
+
+    "decoded PKCS #10 rawAttributes retain wire order" {
+        val canonical = DER.encodeToTlv(
+            certificationRequestInfo(linkedSetOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE))
+        ).asSequence()
+        val attributes = canonical.children.last().asStructure()
+        val nonCanonical = Asn1.Sequence {
+            canonical.children.dropLast(1).forEach { +it }
+            +Asn1CustomStructure(attributes.children.reversed(), 0uL, TagClass.CONTEXT_SPECIFIC)
+        }
+
+        DER.decodeFromByteArray<Pkcs10CertificationRequestInfo>(nonCanonical.derEncoded).rawAttributes shouldBe
+                listOf(LARGER_ATTRIBUTE, SMALLER_ATTRIBUTE)
+    }
+
+    "malformed PKCS #10 duplicate attributes decode into rawAttributes" {
+        malformedCertificationRequestInfo().rawAttributes.map { it.oid } shouldBe listOf(
+            DUPLICATE_ATTRIBUTE_OID, DUPLICATE_ATTRIBUTE_OID
+        )
+    }
+
+    "PKCS #10 attributes rejects duplicate OIDs" {
+        shouldThrow<Asn1Exception> { malformedCertificationRequestInfo().attributes }
+    }
+
     "Property checks" - {
         compact("SignatureValue from raw bit string") - { checkRoundTrip(::randomRawBitStringSignatureValue) }
         compact("SignatureValue from raw bytes") - { checkRoundTrip(::randomBitStringSignatureValue) }
@@ -36,6 +77,30 @@ val CryptoDerRoundTripTest by matrixSuite {
         compact("TbsCertificate") - { checkRoundTrip(::randomTbsCertificate) }
     }
 }
+
+private val SMALLER_ATTRIBUTE = Pkcs10CsrAttribute(ObjectIdentifier("1.2.3"), Asn1.Int(0))
+private val LARGER_ATTRIBUTE = Pkcs10CsrAttribute(ObjectIdentifier("1.2.4"), Asn1.Int(0))
+private val DUPLICATE_ATTRIBUTE_OID = ObjectIdentifier("1.2.3")
+
+private fun certificationRequestInfo(attributes: Set<Pkcs10CsrAttribute>) = Pkcs10CertificationRequestInfo(
+    subjectName = X500Name(emptyList()),
+    publicKey = SubjectPublicKeyInfo.ec(ObjectIdentifier("1.2.3"), byteArrayOf(4)),
+    attributes = attributes,
+)
+
+private fun malformedCertificationRequestInfo(): Pkcs10CertificationRequestInfo =
+    DER.decodeFromByteArray(
+        DER.encodeToByteArray(
+            Pkcs10CertificationRequestInfo(
+                subjectName = X500Name(emptyList()),
+                publicKey = SubjectPublicKeyInfo.ec(ObjectIdentifier("1.2.3"), byteArrayOf(4)),
+                attributes = setOf(
+                    Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(0)),
+                    Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(1)),
+                ),
+            )
+        )
+    )
 
 private inline fun <reified T> CompactScope.checkRoundTrip(noinline generator: (Random) -> T) {
     property("value", kotestArbitrary { rs -> generator(rs.random) }) test { value ->
@@ -181,7 +246,7 @@ private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
 private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10CertificationRequestInfo(
     subjectName = X500Name(List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) }),
     publicKey = randomSubjectPublicKeyInfo(random),
-    attributes = List(random.nextInt(0, 3)) { randomAttribute(random) },
+    attributes = (List(random.nextInt(0, 3)) { randomAttribute(random) }).toSet(),
 )
 
 private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10CertificationRequest(

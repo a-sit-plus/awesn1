@@ -153,7 +153,7 @@ private fun LegacyPkcs10CertificationRequestInfo.toCurrent() =
         version = Pkcs10CertificationRequestInfo.Version.V1,
         subjectName = X500Name(subjectName.map { it.toCurrent() }),
         publicKey = publicKey.toCurrent(),
-        attributes = attributes.map { it.toCurrent() },
+        attributes = attributes.map { it.toCurrent() }.toSet(),
     )
 
 private fun LegacyPkcs10CertificationRequest.toCurrent() =
