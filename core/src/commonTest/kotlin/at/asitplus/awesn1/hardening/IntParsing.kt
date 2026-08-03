@@ -4,6 +4,7 @@ import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.encoding.*
+import at.asitplus.awesn1.toLong
 import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.matrixConfig
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -45,7 +46,7 @@ val asn1IntegerSemanticParsing by matrixSuite {
     ) test { fixture ->
         val p = primitive(fixture.der)
 
-        p.decodeToAsn1Integer().toString().toLong() shouldBe fixture.expected
+        p.decodeToAsn1Integer().toLong() shouldBe fixture.expected
         p.decodeToLong() shouldBe fixture.expected
 
         if (fixture.expected in Int.MIN_VALUE..Int.MAX_VALUE) {
@@ -67,7 +68,7 @@ val asn1IntegerSemanticParsing by matrixSuite {
 
         listOf(true, false).asData(name = "lenient") test { lenient ->
             if (lenient) {
-                p.decodeToAsn1Integer(lenient = true).toString() shouldBe der.substring(4).toInt(radix = 16).toString()
+                p.decodeToAsn1Integer(lenient = true).toDecimalString() shouldBe der.substring(4).toInt(radix = 16).toString()
                 p.decodeToLong(lenient = true).toString() shouldBe der.substring(4).toInt(radix = 16).toString()
                 p.decodeToInt(lenient = true).toString() shouldBe der.substring(4).toInt(radix = 16).toString()
                 p.decodeToULong(lenient = true).toString() shouldBe der.substring(4).toInt(radix = 16).toString()

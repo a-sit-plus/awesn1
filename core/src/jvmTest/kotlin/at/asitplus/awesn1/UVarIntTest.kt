@@ -82,7 +82,7 @@ val UVarIntTest by matrixSuite {
 
 
             val buffer = src.toByteArray().wrapInUnsafeSource()
-            buffer.decodeAsn1VarBigInt().first.toString() shouldBe bigInteger.toString()
+            buffer.decodeAsn1VarBigInt().first.toDecimalString() shouldBe bigInteger.toString()
             rnd.forEach { it shouldBe buffer.readByte() }
             buffer.exhausted().shouldBeTrue()
         }
@@ -96,7 +96,7 @@ val UVarIntTest by matrixSuite {
             src.decodeAsn1VarBigInt().first.toString() shouldBe bigInt.toString()
 
             val buf = src.toByteArray().wrapInUnsafeSource()
-            buf.decodeAsn1VarBigInt().first.toString() shouldBe bigInt.toString()
+            buf.decodeAsn1VarBigInt().first.toDecimalString() shouldBe bigInt.toString()
             rnd.forEach { it shouldBe buf.readByte() }
             buf.exhausted().shouldBeTrue()
         }

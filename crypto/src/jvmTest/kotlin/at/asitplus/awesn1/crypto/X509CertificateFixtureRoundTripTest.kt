@@ -232,7 +232,7 @@ internal fun assertEquals(
     ownDecoded.tbsCertificate.version.ordinal+1 shouldBe certificate.version
     ownDecoded.signatureValue.rawBytes shouldBe certificate.signature
     ownDecoded.signatureAlgorithm.oid.toString() shouldBe certificate.sigAlgOID
-    ownDecoded.tbsCertificate.serialNumber.toString() shouldBe certificate.serialNumber.toString()
+    ownDecoded.tbsCertificate.serialNumber.toDecimalString() shouldBe certificate.serialNumber.toString()
     ownDecoded.tbsCertificate.validity.validFrom.instant.toJavaInstant() shouldBe certificate.notBefore.toInstant()
     ownDecoded.tbsCertificate.validity.validUntil.instant.toJavaInstant() shouldBe certificate.notAfter.toInstant()
 }

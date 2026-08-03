@@ -136,7 +136,7 @@ val RealTest by matrixSuite {
                                     else -> {
                                         val normalized = fromComponents.shouldBeInstanceOf<Asn1Real.Finite>()
                                         normalized.normalizedExponent shouldBe expectedExponent
-                                        normalized.normalizedMantissa.toString() shouldBe expectedMantissa.toString()
+                                        normalized.normalizedMantissa.toDecimalString() shouldBe expectedMantissa.toString()
                                     }
                                 }
                             }

@@ -28,16 +28,14 @@ private const val IEEE754_BIAS = 1023
 @Serializable(with = Asn1Real.Companion::class)
 sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
 
-    /**
-     * Converts this Asn1Real to a [Float]. **Beware of *probable* loss of precision!**
-     */
+    /** Converts this Asn1Real to a [Float]. **Beware of *probable* loss of precision!** */
+    @Throws(Asn1Exception::class)
     fun toFloat() = toDouble().toFloat()
 
-    /**
-     * Converts this Asn1Real to a [Double]. **Beware of possible loss of precision!**
-     */
+    /** Converts this Asn1Real to a [Double]. **Beware of possible loss of precision!** */
+    @Throws(Asn1Exception::class)
     fun toDouble() = when (this) {
-        is Finite -> (normalizedMantissa.toString().toDouble() * 2.0.pow(normalizedExponent.toDouble()))
+        is Finite -> (normalizedMantissa.toDouble() * 2.0.pow(normalizedExponent.toDouble()))
         NegativeInfinity -> Double.NEGATIVE_INFINITY
         PositiveInfinity -> Double.POSITIVE_INFINITY
         PositiveZero -> 0.0
@@ -46,24 +44,37 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
     }
 
     @Serializable(with = Asn1RealStringSerializer::class)
-    object NegativeZero : Asn1Real
+    object NegativeZero : Asn1Real {
+        override fun toString(): String = "-0.0"
+
+    }
 
     @Serializable(with = Asn1RealStringSerializer::class)
-    object PositiveZero : Asn1Real
+    object PositiveZero : Asn1Real {
+        override fun toString(): String = "0.0"
+    }
 
     @Serializable(with = Asn1RealStringSerializer::class)
-    object NaN : Asn1Real
+    object NaN : Asn1Real {
+        override fun toString(): String = "NaN"
+    }
 
     @Serializable(with = Asn1RealStringSerializer::class)
-    object PositiveInfinity : Asn1Real
+    object PositiveInfinity : Asn1Real {
+        override fun toString(): String = "INF"
+    }
 
     @Serializable(with = Asn1RealStringSerializer::class)
-    object NegativeInfinity : Asn1Real
+    object NegativeInfinity : Asn1Real {
+        override fun toString(): String = "-INF"
+    }
 
     @Serializable(with = Asn1RealStringSerializer::class)
     @ConsistentCopyVisibility
-    data class Finite internal constructor(val normalizedMantissa: Asn1Integer, val normalizedExponent: Long) :
-        Asn1Real
+    data class Finite internal constructor(
+        /** normalized - no trailing zero bits in the mantissa */
+        val normalizedMantissa: Asn1Integer, val normalizedExponent: Long
+    ) : Asn1Real
 
     override fun encodeToTlv(): Asn1Primitive = encodeToAsn1Primitive()
 
@@ -288,8 +299,8 @@ object Asn1RealStringSerializer : KSerializer<Asn1Real> {
             Asn1Real.NaN                ->  "NaN"
             //@formatter:on
             is Asn1Real.Finite -> {
-                val mantissa = value.normalizedMantissa.toString()
-                val exponent = value.normalizedExponent
+                val mantissa = value.normalizedMantissa.toHexString()
+                val exponent = value.normalizedExponent.toString(16)
                 "$mantissa * 2^$exponent"
             }
         }
@@ -311,8 +322,8 @@ object Asn1RealStringSerializer : KSerializer<Asn1Real> {
             else -> {
                 val parts = decodedString.replace("\\s".toRegex(), "").split("*2^")
                 require(parts.size == 2) { "Invalid format for Asn1Real" }
-                val mantissa = Asn1Integer.fromDecimalString(parts[0])
-                val exponent = parts[1].toLong()
+                val mantissa = Asn1Integer.fromHexString(parts[0])
+                val exponent = parts[1].toLong(16)
                 Asn1Real(mantissa, exponent)
             }
         }

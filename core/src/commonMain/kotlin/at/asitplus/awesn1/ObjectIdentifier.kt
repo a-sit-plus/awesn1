@@ -35,9 +35,9 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
     nodes: List<VarUInt>?
 ) : Asn1Encodable<Asn1Primitive>, Comparable<ObjectIdentifier> {
     init {
-        if ((bytes == null) && (nodes == null)) {
+        if ((bytes == null) == (nodes == null)) {
             //we're not even declaring this, since this is an implementation error on our end
-            throw IllegalArgumentException("either nodes or bytes required")
+            throw ImplementationError("either nodes or bytes required")
         }
         if (bytes?.isEmpty() == true || nodes?.isEmpty() == true)
             throw Asn1Exception("Empty OIDs are not supported")
@@ -83,7 +83,7 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
     @Volatile
     private var bytesCache: ByteArray? = bytes
     @Volatile
-    private var nodesCache: List<String>? = nodes?.map { it.toString() }
+    private var nodesCache: List<String>? = null // not initialized eagerly; it might throw
 
     /**
      * Efficient, but cursed encoding of OID nodes, see [Microsoft's KB entry on OIDs](https://learn.microsoft.com/en-us/windows/win32/seccertenroll/about-object-identifier)
@@ -97,6 +97,10 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
      */
     val nodes: List<String> get() {
         nodesCache?.let { return it }
+        nodesForBytes?.let { nodes ->
+            return nodes.map { it.toDecimalString(MAX_SUBIDENTIFIER_BYTES) }
+                .also { nodesCache = it }
+        }
         val firstSubidentifierEndExclusive = this.bytes.indexOfFirst { it >= 0 } + 1
         val (firstSubidentifier, firstTailIndex) =
             this.bytes.decodeAsn1VarBigUIntValue(0, firstSubidentifierEndExclusive)
@@ -118,7 +122,7 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
                 index = nextIndex
             }
         }
-        return collected.map { it.toString() }.also { nodesCache = it }
+        return collected.map { it.toDecimalString(MAX_SUBIDENTIFIER_BYTES) }.also { nodesCache = it }
     }
 
     /**
@@ -148,7 +152,9 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
     @Throws(Asn1Exception::class)
     constructor(oid: String) : this(
         bytes = null,
-        nodes = (oid.split(if (oid.contains('.')) '.' else ' ')).map { VarUInt(it) }
+        nodes =
+            (oid.split(if (oid.contains('.')) '.' else ' '))
+                .map { VarUInt.fromDecimalString(it, maxInputLength = MAX_SUBIDENTIFIER_CHARS) }
     )
 
 
@@ -202,6 +208,11 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
+
+        /** maximum characters per sub-identifier when decoding from string */
+        const val MAX_SUBIDENTIFIER_CHARS = 150
+        /** maximum bytes per sub-identifier when encoding to string */
+        const val MAX_SUBIDENTIFIER_BYTES = 64
 
         /**
          * Parses an OBJECT IDENTIFIER contained in [src] to an [ObjectIdentifier]

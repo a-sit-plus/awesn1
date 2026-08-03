@@ -4,18 +4,17 @@ import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.matrixConfig
-import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.property.Arb
+import io.kotest.property.arbitrary.long
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalStdlibApi::class)
-val SerializationTestFormatCompatibility by matrixSuite(
-    matrixConfig { execution= ExecutionMode.Sequential }
-) {
+val SerializationTestFormatCompatibility by matrixSuite {
     "Basic ASN.1 scalar serializers support non-ASN.1 formats" {
         val asn1String = Asn1String.UTF8("foo")
         Json.decodeFromString(
@@ -46,23 +45,23 @@ val SerializationTestFormatCompatibility by matrixSuite(
         val positive = Asn1Integer(42) as Asn1Integer.Positive
         val negative = Asn1Integer(-42) as Asn1Integer.Negative
 
-        Json.encodeToString(Asn1Integer.Positive.serializer(), positive) shouldBe "\"42\""
+        Json.encodeToString(Asn1Integer.Positive.serializer(), positive) shouldBe "\"0x2a\""
         Json.decodeFromString(
             Asn1Integer.Positive.serializer(),
             Json.encodeToString(Asn1Integer.serializer(), positive)
         ) shouldBe positive
 
-        Json.encodeToString(Asn1Integer.Negative.serializer(), negative) shouldBe "\"-42\""
+        Json.encodeToString(Asn1Integer.Negative.serializer(), negative) shouldBe "\"-0x2a\""
         Json.decodeFromString(
             Asn1Integer.Negative.serializer(),
             Json.encodeToString(Asn1Integer.serializer(), negative)
         ) shouldBe negative
 
         shouldThrow<SerializationException> {
-            Json.decodeFromString(Asn1Integer.Positive.serializer(), "\"-42\"")
+            Json.decodeFromString(Asn1Integer.Positive.serializer(), "\"-0x2a\"")
         }
         shouldThrow<SerializationException> {
-            Json.decodeFromString(Asn1Integer.Negative.serializer(), "\"42\"")
+            Json.decodeFromString(Asn1Integer.Negative.serializer(), "\"0x2a\"")
         }
 
         DER.decodeFromByteArray(
@@ -85,6 +84,13 @@ val SerializationTestFormatCompatibility by matrixSuite(
                 Asn1Integer.Negative.serializer(),
                 DER.encodeToByteArray(Asn1Integer.serializer(), positive)
             )
+        }
+    }
+
+    "Asn1Integer decimal string serializer can be selected explicitly" - {
+        property(Arb.long()) test { long ->
+            val decoded = Asn1Integer.fromDecimalString("$long")
+            Json.encodeToString(Asn1IntegerDecimalStringSerializer, decoded) shouldBe "\"$long\""
         }
     }
 

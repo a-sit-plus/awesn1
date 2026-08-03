@@ -29,8 +29,11 @@ dependencies {
 jmh {
     jmhVersion.set(libs.versions.jmh.get())
     warmupIterations.set(3)
+    warmup.set("10s")
     iterations.set(5)
+    timeOnIteration.set("10s")
     fork.set(1)
+    jmhTimeout.set("30m")
     // measure average time per operation in microseconds (decode/encode of one fixture == one op)
     benchmarkMode.set(listOf("avgt"))
     timeUnit.set("us")

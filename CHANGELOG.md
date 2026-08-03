@@ -1,6 +1,17 @@
 # Changelog
 
 ## NEXT
+* Harden INTEGER/OID decimal conversion against DoS [Hardening → Bounded Numeric Conversion](hardening.md):
+    * Added `Asn1Integer.toLong()`/`toLongOrNull()`
+    * `Asn1Integer.fromDecimalString()` and `Asn1Integer.toDecimalString()` now have input size limits
+      (with reasonable defaults)
+      * `Asn1IntegerDecimalStringSerializer`'s limits can be overridden manually (and globally) if desired
+      * DER encoding/decoding is unaffected by this change.
+        It **only** pertains to explicit decimal conversion.
+    * `Asn1Integer`'s string representation and default fallback serializer now use hex notation (with `-` prefixed for negative values).
+      `toString()` is bounded, prefixes truncated output with `[truncated, N bytes total]`, renders at most 48 magnitude bytes, and never throws; `toHexString()` and serialization remain exact.
+    * `Asn1Real`'s finite string representation and fallback serializer now use a hexadecimal mantissa and exponent.
+      `toString()` uses the same bounded mantissa rendering as `Asn1Integer`; serialization remains exact. Special values render as `0.0`, `-0.0`, `INF`, `-INF`, or `NaN`.
 * Fix resource hog when decapsulating OCTET STRINGs through array views (addresses [GHSA-q34j-33q7-fw9h](https://github.com/a-sit-plus/awesn1/security/advisories/GHSA-q34j-33q7-fw9h))
 * Fixed PKCS#10 attribute canonicalisation: programmatically created attribute sets are DER-sorted, while decoded
   `rawAttributes` and `rawValue` retain malformed wire order and duplicates for lenient parsing.

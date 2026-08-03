@@ -437,12 +437,12 @@ Fixtures: **cert** = a real self-signed X.509 v3 certificate; **integers** = a `
 
 | Operation (µs/op)                          |        cert |    integers |       mixed |
 |--------------------------------------------|------------:|------------:|------------:|
-| awesn1 decode                              | 3.513 ±0.04 | 4.884 ±0.34 | 1.172 ±0.01 |
-| Bouncy Castle decode                       | 2.016 ±0.02 | 1.072 ±0.03 | 0.085 ±0.00 |
-| awesn1 encode (warm, recomputes each call) | 0.830 ±0.00 | 1.065 ±0.01 | 0.103 ±0.00 |
-| Bouncy Castle encode                       | 1.283 ±0.05 | 0.498 ±0.05 | 0.056 ±0.00 |
-| awesn1 round-trip (cold: parse + encode)   | 6.393 ±0.09 | 5.339 ±0.04 | 1.339 ±0.01 |
-| awesn1 `derEncoded` access (recomputes)    | 0.800 ±0.00 | 0.819 ±0.00 | 0.064 ±0.00 |
+| awesn1 decode                              | 3.848 ±0.02 | 4.368 ±0.12 | 1.119 ±0.02 |
+| Bouncy Castle decode                       | 2.072 ±0.17 | 1.108 ±0.01 | 0.131 ±0.00 |
+| awesn1 encode (warm, recomputes each call) | 1.133 ±0.03 | 1.073 ±0.01 | 0.143 ±0.01 |
+| Bouncy Castle encode                       | 1.250 ±0.02 | 0.455 ±0.00 | 0.070 ±0.00 |
+| awesn1 round-trip (cold: parse + encode)   | 5.304 ±0.15 | 5.429 ±0.08 | 1.434 ±0.02 |
+| awesn1 `derEncoded` access (recomputes)    | 0.772 ±0.01 | 0.807 ±0.01 | 0.176 ±0.01 |
 
 The raw parser decodes in the low-single-digit-microsecond range — roughly 1.5–2× Bouncy Castle on the realistic
 certificate fixture (more on the tiny integer/mixed fixtures, where fixed per-element overhead dominates a sub-microsecond
@@ -458,14 +458,15 @@ ASN.1 data during parsing.
 
 | Operation (µs/op)                                |         cert |    integers |       mixed |
 |--------------------------------------------------|-------------:|------------:|------------:|
-| `parse` only                                     |  3.723 ±0.36 | 5.562 ±0.14 | 1.209 ±0.02 |
-| `parse` + `overallLengthLong` (cold length walk) |  4.602 ±0.08 | 4.263 ±0.06 | 1.223 ±0.01 |
-| `toString()` (compact)                           | 18.028 ±0.12 | 8.673 ±0.21 | 0.593 ±0.01 |
-| `prettyPrint()`                                  | 20.320 ±0.18 | 8.576 ±0.10 | 0.657 ±0.01 |
+| `parse` only                                     |  3.814 ±0.11 | 4.700 ±0.07 | 1.235 ±0.01 |
+| `parse` + `overallLengthLong` (cold length walk) |  4.710 ±0.02 | 4.158 ±0.04 | 1.276 ±0.03 |
+| `toString()` (compact)                           | 11.141 ±0.68 | 8.357 ±0.05 | 1.042 ±0.01 |
+| `prettyPrint()`                                  | 12.566 ±0.39 | 8.491 ±0.12 | 1.105 ±0.01 |
 
-The content-length walk is a stack-safe post-order pass; `parseThenLength − parseOnly` puts it well under a microsecond
-on the cert and mixed fixtures (the two integer figures overlap within run-to-run noise). Rendering is uncached and
-bounded (see [Hardening → bounded rendering](hardening.md)).
+The content-length walk is a stack-safe post-order pass; `parseThenLength − parseOnly` puts it around one microsecond
+on the certificate and below a tenth of a microsecond on the mixed fixture. The separately measured integer result is
+lower with the length walk, so its subtraction is not meaningful. Rendering is uncached and bounded (see
+[Hardening → bounded rendering](hardening.md)).
 
 
 ### Real-World Corpus Sweep vs Bouncy Castle
@@ -476,10 +477,10 @@ comparison stays fair.
 
 | Operation (µs/op, full sweep) |            Score |
 |-------------------------------|-----------------:|
-| awesn1 decode                 | 4745.460 ± 31.26 |
-| Bouncy Castle decode          | 2824.754 ± 25.46 |
-| awesn1 encode                 | 1437.397 ± 20.11 |
-| Bouncy Castle encode          | 1227.419 ± 18.30 |
+| awesn1 decode                 | 4658.056 ± 34.28 |
+| Bouncy Castle decode          | 2690.705 ± 10.04 |
+| awesn1 encode                 | 1437.832 ± 17.93 |
+| Bouncy Castle encode          | 1232.552 ±129.85 |
 
 ## Memory
 

@@ -9,7 +9,7 @@ import at.asitplus.awesn1.encodeLength
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.plusExact
-import at.asitplus.awesn1.toIntChecked
+import at.asitplus.awesn1.toNonnegativeIntChecked
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -31,11 +31,11 @@ val LengthOverflowGuardTest by matrixSuite {
                 byteArrayOf(0x86.toByte(), 0x01, 0x00, 0x00, 0x00, 0x00, 0x00).toList()
     }
 
-    "toIntChecked returns in range and throws otherwise" {
-        0L.toIntChecked() shouldBe 0
-        Int.MAX_VALUE.toLong().toIntChecked() shouldBe Int.MAX_VALUE
-        shouldThrow<Asn1Exception> { (Int.MAX_VALUE.toLong() + 1).toIntChecked("content length") }
-        shouldThrow<Asn1Exception> { (-1L).toIntChecked() }
+    "toNonnegativeIntChecked returns in range and throws otherwise" {
+        0L.toNonnegativeIntChecked() shouldBe 0
+        Int.MAX_VALUE.toLong().toNonnegativeIntChecked() shouldBe Int.MAX_VALUE
+        shouldThrow<Asn1Exception> { (Int.MAX_VALUE.toLong() + 1).toNonnegativeIntChecked("content length") }
+        shouldThrow<Asn1Exception> { (-1L).toNonnegativeIntChecked() }
     }
 
     "plusExact throws on Long overflow" {

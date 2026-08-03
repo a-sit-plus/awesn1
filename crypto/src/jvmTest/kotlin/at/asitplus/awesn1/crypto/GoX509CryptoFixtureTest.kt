@@ -1,10 +1,16 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.PemBlock
+import at.asitplus.awesn1.crypto.Pkcs1RsaPrivateKeyInfo
+import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo
+import at.asitplus.awesn1.crypto.Pkcs8PrivateKeyInfo
+import at.asitplus.awesn1.crypto.Sec1EcPrivateKeyInfo
+import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
 import at.asitplus.awesn1.decodeFromPem
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.toLong
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.KSerializer
@@ -19,14 +25,14 @@ val GoX509CryptoFixtureTest by matrixSuite {
         val decoded = checkRoundTrip(encoded, Pkcs1RsaPrivateKeyInfo.serializer())
 
         decoded.version.ordinal shouldBe 0
-        decoded.publicExponent.toString().toLong() shouldBe 65537L
+        decoded.publicExponent.toLong() shouldBe 65537L
     }
 
     "PKCS#1 RSA public key" {
         val encoded = hexFixture("pkcs1-rsa-public-key.hex")
         val decoded = checkRoundTrip(encoded, Pkcs1RsaPublicKeyInfo.serializer())
 
-        decoded.publicExponent.toString().toLong() shouldBe 3L
+        decoded.publicExponent.toLong() shouldBe 3L
     }
 
     listOf(
@@ -42,7 +48,7 @@ val GoX509CryptoFixtureTest by matrixSuite {
         )
 
         if (fixture.rsa) {
-            decoded.decodeRsaPublicKey().publicExponent.toString().toLong() shouldBe 65537L
+            Pkcs1RsaPublicKeyInfo.of(decoded).publicExponent.toLong() shouldBe 65537L
         }
     }
 
@@ -60,8 +66,8 @@ val GoX509CryptoFixtureTest by matrixSuite {
         )
 
         when (fixture.nested) {
-            NestedPrivateKey.RSA -> decoded.decodeRsaPrivateKey().version shouldBe Pkcs1RsaPrivateKeyInfo.Version.TWO_PRIME
-            NestedPrivateKey.EC -> decoded.decodeEcPrivateKey().version shouldBe Sec1EcPrivateKeyInfo.Version.V1
+            NestedPrivateKey.RSA -> Pkcs1RsaPrivateKeyInfo.of(decoded).version shouldBe Pkcs1RsaPrivateKeyInfo.Version.TWO_PRIME
+            NestedPrivateKey.EC -> Sec1EcPrivateKeyInfo.of(decoded).version shouldBe Sec1EcPrivateKeyInfo.Version.V1
             NestedPrivateKey.NONE -> Unit
         }
     }

@@ -58,8 +58,8 @@ materialization work out of the box.
 ??? info "Non-DER Fallback Representations"
 
     - `ObjectIdentifier` serializes as dotted-decimal text (`1.2.840...`)
-    - `Asn1Integer` serializes as decimal string (due to being arbitrary precision)
-    - `Asn1Real` (`Zero`, `PositiveInfinity`, `NegativeInfinity`, `Finite`) serializes as string (due to being arbitrary precision)
+    - `Asn1Integer` serializes as a signed hexadecimal string (`0x2A`, `-0x2A`)
+    - `Asn1Real` (`PositiveZero`, `NegativeZero`, `PositiveInfinity`, `NegativeInfinity`, `NaN`, `Finite`) serializes as a string; finite values use hexadecimal mantissa and exponent (`0x3 * 2^4`)
     - `Asn1String` and concrete subtypes (`UTF8`, `Universal`, `Visible`, `IA5`, `Teletex`, `BMP`, `General`, `Graphic`, `Unrestricted`, `Videotex`, `Printable`, `Numeric`) serialize as plain string
     - `Asn1Time` serializes as plain `Instant` string form
     - `Asn1BitString` serializes as a string surrogate containing padding and Base64 payload
@@ -69,6 +69,18 @@ materialization work out of the box.
     **Warning**: Non-DER fallback serialization is intentionally lossy for `Asn1String` and `Asn1Time` for cross-format simplicity.
     `Asn1String` deserializes to `UTF8` (original ASN.1 string subtype is not preserved), and `Asn1Time` deserializes
     from `Instant` only (original UTC TIME vs GENERALIZED TIME choice is not preserved where ranges overlap).
+
+!!! warning "Breaking representation change in awesn1 0.7"
+
+    awesn1 0.7 changed the non-DER fallback representations of `Asn1Integer` and finite `Asn1Real` from decimal to
+    hexadecimal. It also changed their human-readable `toString()` output accordingly. Migrate persisted JSON or other
+    string-encoded values before upgrading: an old digit-only value may be interpreted as hexadecimal rather than
+    rejected. DER encoding is unchanged.  
+    `Asn1Integer.toString()` and finite `Asn1Real.toString()` are bounded debug representations: truncated values are
+    prefixed with `[truncated, N bytes total]` and include at most 48 magnitude bytes. Non-DER serialization always uses
+    the complete hexadecimal value.
+    An explicit `Asn1IntegerDecimalStringSerializer` is provided for when decimal string representation is required.
+    The bounds of this serializer are configurable as described in its API documentation.
 
 
 ## Maven Coordinates
@@ -770,12 +782,12 @@ re-encodes a real self-signed X.509 v3 certificate through `DER.decodeFromByteAr
 
 | Operation (X.509 certificate)      | Score (µs/op) |
 |------------------------------------|--------------:|
-| awesn1 `kxs` decode → typed model  | 12.071 ±0.079 |
-| Bouncy Castle decode → typed model |  2.105 ±0.017 |
-| awesn1 `kxs` encode ← typed model  |  6.483 ±0.119 |
-| Bouncy Castle encode ← typed model |  1.292 ±0.010 |
+| awesn1 `kxs` decode → typed model  | 12.208 ±0.359 |
+| Bouncy Castle decode → typed model |  2.092 ±0.025 |
+| awesn1 `kxs` encode ← typed model  |  6.584 ±0.051 |
+| Bouncy Castle encode ← typed model |  1.277 ±0.024 |
 
-Reading the numbers: the declarative `kxs` model decodes a certificate in ~12 µs and re-encodes it in ~6.5 µs – single-
+Reading the numbers: the declarative `kxs` model decodes a certificate in ~12 µs and re-encodes it in ~6.6 µs – single-
 digit-to-low-double-digit microseconds, i.e. tens of thousands of certificates per second per core, while letting you
 work with plain `@Serializable` Kotlin types instead of a bespoke ASN.1 model. The hand-written Bouncy Castle model is
 significantly faster in absolute terms, but lacks the convenience and multiplatform support.

@@ -59,7 +59,7 @@ decapsulated iteratively and without per-layer byte copies, so nested octet stri
 - A single primitive's content is `ByteArray`-backed, so it is hard-capped at `Int.MAX_VALUE` bytes; a longer primitive
   is rejected, not truncated.
 - All length sums go through `plusExact`, and every attacker-influenced `Long`→`Int` narrowing goes through
-  `toIntChecked` — so a size computation can never quietly turn a bounds check into a bypass.
+  `toNonnegativeIntChecked` — so a size computation can never quietly turn a bounds check into a bypass.
 
 By default everything stays `Int`-based: `DerConfiguration.maxInputLength` defaults to `Int.MAX_VALUE`, so any input
 decoded with the defaults produces only `Int`-sized lengths and never trips the guards — the `…Long` accessors and
@@ -81,10 +81,42 @@ Decode/parse paths run inside `runRethrowing`/`runWrappingAs`, which catch non-f
 
 ### Bounded Rendering
 
-`toString()` and `prettyPrint()` are length-capped (JVM `String`/`StringBuilder` are themselves `Int`-bounded) and
+`Asn1Element.toString()` and `prettyPrint()` are length-capped (JVM `String`/`StringBuilder` are themselves `Int`-bounded) and
 **truncate** with a `… (output truncated)` marker rather than exhausting memory; an oversized primitive's content is
 shown as a bounded hex prefix with a `…(N bytes)` note. These renderers are for human inspection — use `derEncoded` for
 the exact bytes.
+
+### Bounded Decimal Conversion (INTEGER decimal, OID nodes)
+
+Converting a magnitude between base-256 and base-10 is inherently **O(n²)** in the byte length.
+A single small attacker-supplied field — a large-magnitude `INTEGER`, or an `OBJECT IDENTIFIER` with one giant base-128
+sub-identifier — is cheap to *parse* (decoding is linear) but could otherwise burn minutes of CPU the moment it is
+converted, compared, rendered, or merely logged. awesn1 bounds every one of these paths:
+
+- **Fixed-width decoders are O(1).** `Asn1Integer.toInt()/toIntOrNull()/toLong()/toLongOrNull()` (and the
+  `Int`/`Long`/`UInt`/`ULong` `decodeFromAsn1ContentBytes` helpers) range-check the magnitude byte length **before**
+  any conversion, so reading a "small int" version/serial/counter field out of a hostile 64 KiB magnitude returns
+  `null`/throws immediately instead of running the full expansion.
+- **The decimal conversion is chunked.** The base-256 ↔ base-10 routine works in base-10⁹ limbs with primitive
+  arithmetic rather than a per-decimal-digit `List<Char>` schoolbook. This is still O(n²) but with a ~2-orders-of-magnitude
+  smaller constant, so realistic crypto integers (RSA-8192 = 1 KiB, RSA-32768 = 4 KiB, DH-8192, Paillier/Damgård–Jurik
+  ciphertexts) convert in single-digit milliseconds.
+- **A magnitude cap bounds the worst case.** `toDecimalString()` caps the magnitude byte length it will process
+  (default **32 KiB**, covering realistic crypto integers with wide margin) and throws above the cap.
+  `Asn1Integer.toString()` instead renders hexadecimal, prefixes truncated output with `[truncated, N bytes total]`,
+  renders at most 48 magnitude bytes, and never throws. Finite `Asn1Real.toString()` applies the same bound to its
+  hexadecimal mantissa. `toHexString()` and the default non-DER serializers remain exact rather than truncating.
+- **Decimal serializers are lossless-or-throw, never truncate.** The opt-in `Asn1IntegerDecimalStringSerializer` emits
+  the exact value or throws `Asn1Exception` over the cap. `ObjectIdentifierStringSerializer`, which remains decimal,
+  has the same lossless-or-throw contract. Deserializing an over-limit decimal INTEGER or an OID string with an
+  oversized arc throws at the cap rather than running the quadratic parse.
+  
+!!! note "DER is never affected"
+
+    These caps concern only explicit **decimal** conversion and decimal OID handling. DER TLV encoding and decoding operate on
+    two's-complement/base-128 **bytes** and never route through the base-10 conversion, so encoding to DER and parsing
+    from DER are unaffected by `MAX_MAGNITUDE_BYTES` / `MAX_SUBIDENTIFIER_BYTES` — round-tripping a value through DER is
+    always exact regardless of the caps.
 
 ### No Reliance on Implicit Array Bounds Checks (Kotlin/Wasm)
 

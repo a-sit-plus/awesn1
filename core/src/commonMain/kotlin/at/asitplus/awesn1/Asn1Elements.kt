@@ -122,7 +122,7 @@ sealed class Asn1Element(
      * if [contentLengthLong] exceeds [Int.MAX_VALUE] (a >2 GiB aggregate) rather than silently overflowing.
      * For such elements use [contentLengthLong].
      */
-    val contentLength: Int get() = contentLengthLong.toIntChecked("content length")
+    val contentLength: Int get() = contentLengthLong.toNonnegativeIntChecked("content length")
 
     /**
      * Total number of bytes required to represent this element when encoding to ASN.1, as a [Long]. Computed
@@ -137,7 +137,7 @@ sealed class Asn1Element(
      * Total number of bytes required to represent this element when encoding to ASN.1. Guarded: throws
      * [Asn1Exception] if [overallLengthLong] exceeds [Int.MAX_VALUE]. For such elements use [overallLengthLong].
      */
-    val overallLength: Int get() = overallLengthLong.toIntChecked("overall length")
+    val overallLength: Int get() = overallLengthLong.toNonnegativeIntChecked("overall length")
 
 
     /**
@@ -1444,7 +1444,7 @@ internal inline fun Long.plusExact(other: Int): Long = plusExact(other.toLong())
  */
 @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 @kotlin.internal.InlineOnly
-inline fun Long.toIntChecked(what: String = "value"): Int {
+inline fun Long.toNonnegativeIntChecked(what: String = "value"): Int {
     if (this < 0 || this > Int.MAX_VALUE.toLong()) throw Asn1Exception("$what ($this) exceeds Int.MAX_VALUE")
     return toInt()
 }

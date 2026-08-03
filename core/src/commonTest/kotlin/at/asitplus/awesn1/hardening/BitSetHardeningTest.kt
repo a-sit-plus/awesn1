@@ -11,8 +11,8 @@ import io.kotest.matchers.shouldNotBe
 
 val BitSetCompactionHardeningTest by matrixSuite {
 
-    // L-3 regression: a bit count whose byte index exceeds Int.MAX_VALUE must be rejected loudly (via toIntChecked),
-    // not silently truncated to a bogus/negative byte index. (nBits/8 > Int.MAX_VALUE => throws; no allocation.)
+    // a bit count whose byte index exceeds Int.MAX_VALUE must be rejected loudly
+    // not silently truncated to a bogus/negative byte index
     "BitSet(nBits) rejects a byte index beyond Int range instead of truncating" {
         val overflowingNBits = (Int.MAX_VALUE.toLong() + 1) * 8 // /8 == Int.MAX_VALUE + 1 -> not Int-representable
         shouldThrow<Asn1Exception> { BitSet(overflowingNBits) }

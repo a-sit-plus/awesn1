@@ -24,13 +24,13 @@ val Asn1IntegerRepresentationTest by matrixSuite {
         listOf("1027", "256", "1", "3", "8", "127", "128", "255", "512", "1024").asData(name = "integer") test { integer ->
             val bigInt = BigInteger.parseString(integer)
             val ref = bigInt.toString()
-            val own = VarUInt(ref)
+            val own = VarUInt.fromDecimalString(ref)
             val ownBytes = own.bytes
             val javaBytes = bigInt.toByteArray()
             val bigitBytes = javaBytes.dropWhile { it == 0.toByte() && javaBytes.size > 1 }.map { it.toUByte() }
 
 
-            own.toString() shouldBe ref
+            own.toDecimalString() shouldBe ref
             ownBytes shouldBe bigitBytes
 
             val varInt = own.toAsn1VarInt()
@@ -45,12 +45,12 @@ val Asn1IntegerRepresentationTest by matrixSuite {
         property("bytes", Arb.byteArray(Arb.positiveInt(65), Arb.byte())) test { bytes ->
             val bigInt = BigInteger.fromByteArray(bytes, Sign.POSITIVE)
             val ref = bigInt.toString()
-            val own = VarUInt(ref)
+            val own = VarUInt.fromDecimalString(ref)
             val ownBytes = own.bytes
             val javaBytes = bigInt.toByteArray()
             val bigitBytes = javaBytes.dropWhile { it == 0.toByte() && javaBytes.size > 1 }.map { it.toUByte() }
 
-            own.toString() shouldBe ref
+            own.toDecimalString() shouldBe ref
             ownBytes shouldBe bigitBytes
             own.toAsn1VarInt() shouldBe BigInteger.parseString(bigInt.toString()).toAsn1VarInt()
         }
@@ -75,7 +75,7 @@ val Asn1IntegerRepresentationTest by matrixSuite {
                 val neg = BigInteger.parseString(integer)
                 val ownNeg = Asn1Integer.fromDecimalString(neg.toString())
                 withClue(neg.toString()) {
-                    ownNeg.toString() shouldBe neg.toString()
+                    ownNeg.toDecimalString() shouldBe neg.toString()
                     ownNeg.twosComplement() shouldBe neg.toTwosComplementByteArray()
                 }
             }
@@ -87,11 +87,11 @@ val Asn1IntegerRepresentationTest by matrixSuite {
                 val neg = BigInteger.fromByteArray(bytes, Sign.NEGATIVE)
 
                 val ownPos = Asn1Integer.fromDecimalString(pos.toString())
-                ownPos.toString() shouldBe pos.toString()
+                ownPos.toDecimalString() shouldBe pos.toString()
                 ownPos.twosComplement() shouldBe pos.toTwosComplementByteArray()
                 val ownNeg = Asn1Integer.fromDecimalString(neg.toString())
                 withClue(neg.toString()) {
-                    ownNeg.toString() shouldBe neg.toString()
+                    ownNeg.toDecimalString() shouldBe neg.toString()
                     ownNeg.twosComplement() shouldBe neg.toTwosComplementByteArray()
                 }
                 Asn1Integer.fromTwosComplement(ownPos.twosComplement()) shouldBe ownPos
@@ -104,7 +104,7 @@ val Asn1IntegerRepresentationTest by matrixSuite {
             val neg = BigInteger.fromTwosComplementByteArray(bytes)
             val ownNeg = Asn1Integer.fromTwosComplement(bytes)
 
-            ownNeg.toString() shouldBe neg.toString()
+            ownNeg.toDecimalString() shouldBe neg.toString()
             ownNeg.twosComplement() shouldBe bytes
         }
     }

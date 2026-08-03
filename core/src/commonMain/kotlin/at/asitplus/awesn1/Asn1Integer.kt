@@ -5,7 +5,6 @@
 
 package at.asitplus.awesn1
 
-import at.asitplus.awesn1.Asn1Integer.Companion.fromTwosComplement
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.*
 import at.asitplus.awesn1.serialization.Asn1Serializer
@@ -19,9 +18,16 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.experimental.or
 import kotlin.jvm.JvmInline
+import kotlin.math.pow
 
 private val REGEX_BASE10 = Regex("[0-9]+")
-private val REGEX_ZERO = Regex("0*")
+
+// default limit for toDecimalString (32 KB)
+private const val DEFAULT_MAX_MAGNITUDE_BYTES = 32 * 1024
+private const val DEFAULT_MAX_INPUT_LENGTH = (DEFAULT_MAX_MAGNITUDE_BYTES * 2410) / 1000 + 1
+
+// number of bytes rendered for debugging before truncation
+private const val DEBUGGING_MAGNITUDE_BYTES = 48
 
 fun Asn1Integer(number: Int) = Asn1Integer(number.toLong())
 fun Asn1Integer(number: Long) =
@@ -48,9 +54,30 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
         NEGATIVE
     }
 
+    /** Bounded hex representation. */
     override fun toString(): String = when (sign) {
-        Sign.POSITIVE -> uint.toString()
-        Sign.NEGATIVE -> "-${uint}"
+        Sign.POSITIVE -> uint.toString("0x")
+        Sign.NEGATIVE -> uint.toString("-0x")
+    }
+
+    /** Hex representation*/
+    fun toHexString(): String = when (sign) {
+        Sign.POSITIVE -> uint.toHexString("0x")
+        Sign.NEGATIVE -> uint.toHexString("-0x")
+    }
+
+    /**
+     * Renders this INTEGER as a decimal string.
+     * O(n²) in byte length, so capped to [maxMagnitudeBytes] bytes.
+     *
+     * @throws Asn1Exception if the magnitude exceeds [maxMagnitudeBytes]
+     */
+    @Throws(Asn1Exception::class)
+    fun toDecimalString(
+        maxMagnitudeBytes: Int = DEFAULT_MAX_MAGNITUDE_BYTES,
+    ) = when (sign) {
+        Sign.POSITIVE -> uint.toDecimalString(maxMagnitudeBytes)
+        Sign.NEGATIVE -> "-${uint.toDecimalString(maxMagnitudeBytes)}"
     }
 
     /** Encodes the [Asn1Integer] to its minimum-size twos-complement encoding. Non-empty. */
@@ -103,27 +130,63 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
         decodable = object : Asn1Decodable<Asn1Primitive, Asn1Integer> {
             override fun doDecode(src: Asn1Primitive): Asn1Integer = src.decodeToAsn1Integer(src.tag)
         },
-        fallbackSerializer = Asn1IntegerStringSerializer,
+        fallbackSerializer = Asn1IntegerHexStringSerializer,
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
-        val ONE  by lazy { Asn1Integer.Positive(VarUInt(1u)) }
+        val ONE by lazy { Asn1Integer.Positive(VarUInt(1u)) }
         val ZERO by lazy { Asn1Integer.Positive(VarUInt(0u)) }
 
-        /** Constructs an [Asn1Integer] from a decimal string */
-        fun fromDecimalString(input: String): Asn1Integer {
-            require(input.isNotEmpty())
-            val (numericPart, sign) = when {
-                input.first() == '-' -> Pair(input.substring(1), Sign.NEGATIVE)
-                else -> Pair(input, Sign.POSITIVE)
+        /**
+         * Constructs an [Asn1Integer] from a decimal string.
+         * O(n²) in the size, so bounded by [maxInputLength].
+         * Input beyond this will throw.
+         *
+         * @throws Asn1Exception if the input length exceeds [maxInputLength]
+         */
+        @Throws(Asn1Exception::class, NumberFormatException::class)
+        fun fromDecimalString(input: String, maxInputLength: Int = DEFAULT_MAX_INPUT_LENGTH): Asn1Integer =
+            runRethrowing {
+                if (input.isEmpty()) throw NumberFormatException("Empty input")
+                //@formatter:off
+            return when (input.first()) {
+                '-' ->
+                    fromSignMagnitude(VarUInt.fromDecimalString(input, fromOffset = 1, maxInputLength), Sign.NEGATIVE)
+                '+' ->
+                    fromSignMagnitude(VarUInt.fromDecimalString(input, fromOffset = 1, maxInputLength), Sign.POSITIVE)
+                else ->
+                    fromSignMagnitude(VarUInt.fromDecimalString(input, fromOffset = 0, maxInputLength), Sign.POSITIVE)
             }
-            require(numericPart.matches(REGEX_BASE10)) { "NaN: $input" }
-            return fromSignMagnitude(VarUInt(numericPart), sign)
+            //@formatter:on
+            }
+
+        /**
+         * Creates an Ans1Integer from a hex string. Valid inputs include:
+         * * `0xCAFEBABE`
+         * * `0xdeafbeef`
+         * * `-badf00d`
+         * * `+badf00d`
+         * * `+0x1337`
+         * * `-0xF00`
+         */
+        @Throws(NumberFormatException::class)
+        fun fromHexString(input: String): Asn1Integer {
+            if (input.isEmpty()) throw NumberFormatException("Empty input")
+            //@formatter:off
+            return when (input.first()) {
+                '-' ->
+                    fromSignMagnitude(VarUInt.fromHexString(input,1), Sign.NEGATIVE)
+                '+' ->
+                    fromSignMagnitude(VarUInt.fromHexString(input,1), Sign.POSITIVE)
+                else ->
+                    fromSignMagnitude(VarUInt.fromHexString(input), Sign.POSITIVE)
+            }
+            //@formatter:on
         }
 
         private fun fromSignMagnitude(magnitude: VarUInt, sign: Sign) = when {
-            sign == Sign.POSITIVE || magnitude.isZero() -> Positive(magnitude)
+            (sign == Sign.POSITIVE) || magnitude.isZero() -> Positive(magnitude)
             else -> Negative(magnitude)
         }
 
@@ -180,12 +243,44 @@ private fun UByteArray.decodeNegativeMagnitude(): UByteArray {
     return (VarUInt(this).inv() + 1.toUByte()).bytes
 }
 
-/**
- * The integer must fit the valid Int value range (within Int.MIN_VALUE..Int.MAX_VALUE), otherwise a [NumberFormatException] will be thrown.
- */
+/** Returns this value as an [Int], or throws [NumberFormatException] if it does not fit in one. */
 @Throws(NumberFormatException::class)
-fun Asn1Integer.toInt(): Int = toString().toInt()
-fun Asn1Integer.toIntOrNull(): Int? = toString().toIntOrNull()
+fun Asn1Integer.toInt(): Int = toIntOrNull()
+    ?: throw NumberFormatException("Asn1Integer does not fit into Int (bitLength=${uint.bitLength()})")
+
+/** Returns this value as an [Int], or `null` if it does not fit in an [Int]. */
+fun Asn1Integer.toIntOrNull(): Int? {
+    // An in-range Int magnitude never exceeds 4 bytes (Int.MIN_VALUE = -2^31 -> magnitude 0x80000000).
+    if (uint.words.size > 4) return null
+    return toLongOrNull()?.takeIf { it in Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong() }?.toInt()
+}
+
+/** Returns this value as a [Long], or throws [NumberFormatException] if it does not fit in one. */
+@Throws(NumberFormatException::class)
+fun Asn1Integer.toLong(): Long = toLongOrNull()
+    ?: throw NumberFormatException("Asn1Integer does not fit into Long (bitLength=${uint.bitLength()})")
+
+/** Returns this value as a [Long], or `null` if it does not fit in one. */
+fun Asn1Integer.toLongOrNull(): Long? {
+    // An in-range Long magnitude never exceeds 8 bytes (Long.MIN_VALUE = -2^63 -> magnitude 0x8000000000000000).
+    if (uint.words.size > 8) return null
+    var magnitude = 0uL // ULong holds the full unsigned 8-byte magnitude (up to 2^64-1) without overflow
+    for (word in uint.words) magnitude = (magnitude shl 8) or word.toULong()
+    return when (sign) {
+        Asn1Integer.Sign.POSITIVE -> if (magnitude <= Long.MAX_VALUE.toULong()) magnitude.toLong() else null
+        Asn1Integer.Sign.NEGATIVE -> when {
+            magnitude <= Long.MAX_VALUE.toULong() -> -(magnitude.toLong())
+            // Long.MIN_VALUE has magnitude 2^63 = Long.MAX_VALUE + 1, which does not fit in a positive Long.
+            magnitude == Long.MAX_VALUE.toULong() + 1uL -> Long.MIN_VALUE
+            else -> null
+        }
+    }
+}
+
+fun Asn1Integer.toDouble() = when (sign) {
+    Asn1Integer.Sign.POSITIVE -> uint.toDouble()
+    Asn1Integer.Sign.NEGATIVE -> uint.toDouble() * -1.0
+}
 
 // ?????????????????????????????????????????????????????????????????????????????????????????????
 // ??? WHY DOES THIS NOT EXIST IN THE STANDARD LIBRARY ????? ????? ????? ????? ????? ????? ?????
@@ -204,7 +299,11 @@ private inline fun combine(highByte: UByte, lowByte: UByte, highBits: Int) =
 
 
 @JvmInline
-internal value class VarUInt private constructor(val words: UByteArray) {
+internal value class VarUInt private constructor(
+    /** the internal storage. never empty, always canonicalized (no leading zeros).
+     * this is a direct accessor (it allows in-place mutation). with great power comes great responsibility. */
+    val words: UByteArray
+) {
 
     init {
         check(!words.isEmpty())
@@ -214,15 +313,81 @@ internal value class VarUInt private constructor(val words: UByteArray) {
     @Suppress("NOTHING_TO_INLINE")
     inline fun isEqualTo(other: VarUInt) = (words contentEquals other.words)
 
+    /** a copy of the internal storage.
+     * @see words */
     val bytes get() = words.copyOf()
 
-    override fun toString() = words.iterator().toDecimalString()
-    fun toHexString() = StringBuilder().apply {
-        words.forEachIndexed { i, it ->
-            append(
-                it.toString(16).run { if (i > 0 && length < 2) "0$this" else this })
+    /** O(n^2) in number of bytes, therefore capped by [byteLimit]
+     * @throws Asn1Exception if [byteLimit] is exceeded*/
+    fun toDecimalString(byteLimit: Int = DEFAULT_MAX_MAGNITUDE_BYTES): String {
+        if (words.size > byteLimit)
+            throw Asn1Exception("Magnitude (${words.size} bytes) exceeds byte limit ($byteLimit bytes).")
+        // Little-endian base-10^9 limbs (limbs[0] is least significant). Grows as needed.
+        var limbs = IntArray(32) { 0 }
+        var used = 1 // number of significant limbs (always >= 1; limbs[0]==0 represents zero)
+        words.forEachIndexed { idx, byte ->
+            var carry = (byte.toInt() and 0xFF).toLong()
+            var i = 0
+            while (i < used) {
+                val cur = limbs[i].toLong() * 256L + carry
+                limbs[i] = (cur % DECIMAL_RADIX).toInt()
+                carry = cur / DECIMAL_RADIX
+                i++
+            }
+            while (carry > 0L) {
+                if (used == limbs.size) limbs = limbs.copyOf(limbs.size * 2)
+                limbs[used++] = (carry % DECIMAL_RADIX).toInt()
+                carry /= DECIMAL_RADIX
+            }
         }
-    }.toString()
+        // Emit most-significant limb without padding, every following limb zero-padded to 9 digits.
+        var top = used - 1
+        while (top > 0 && limbs[top] == 0) top--
+        val sb = StringBuilder()
+        sb.append(limbs[top])
+        for (i in top - 1 downTo 0) {
+            val limbStr = limbs[i].toString()
+            repeat(DECIMAL_RADIX_DIGITS - limbStr.length) { sb.append('0') }
+            sb.append(limbStr)
+        }
+        return sb.toString()
+    }
+
+    /** Bounded hex representation. */
+    override fun toString() = toString("0x")
+    fun toString(prefix: String) =
+        toHexStringInternal(truncatePast = DEBUGGING_MAGNITUDE_BYTES, prefix = prefix)
+
+    fun toHexString(prefix: String = "0x") =
+        toHexStringInternal(prefix = prefix)
+
+    private fun toHexStringInternal(truncatePast: Int = Int.MAX_VALUE, prefix: String = "0x"): String {
+        val effectivePrefix = when {
+            truncatePast < words.size -> "[truncated, ${words.size} bytes total] $prefix"
+            else -> prefix
+        }
+        val effectiveSuffix = when {
+            truncatePast < words.size -> "…"
+            else -> ""
+        }
+        val overhead = effectivePrefix.length + effectiveSuffix.length
+        val effectiveByteLimit = (Int.MAX_VALUE - overhead)/2 /* String maximum length */
+
+
+        val renderEnd = minOf(truncatePast, words.size)
+        require(renderEnd <= effectiveByteLimit)
+            { "UVarInt (${words.size} bytes) is too long to be converted to String!" }
+
+        val result = StringBuilder(renderEnd*2 + overhead)
+        result.append(effectivePrefix)
+        for (i in 0 until renderEnd) {
+            val value = words[i].toInt()
+            result.append(HEX_ALPHABET[value ushr 4])
+            result.append(HEX_ALPHABET[value and 0x0f])
+        }
+        result.append(effectiveSuffix)
+        return result.toString()
+    }
 
     infix fun and(other: VarUInt): VarUInt {
         val (shorter, longer) = if (other.words.size < words.size) other to this else this to other
@@ -339,6 +504,25 @@ internal value class VarUInt private constructor(val words: UByteArray) {
         else if (words.size > 1) words.last().toInt() and (words[words.lastIndex - 1].toInt() shl 8)
         else words.last().toInt()
 
+    /** converts to a double. rounding behavior is slightly different from IEEE for performance. */
+    fun toDouble(): Double {
+        // IEEE 754 binary64 ("double"): 53 bits mantissa/significand, 11 bits exponent, 1 bit sign
+        // so we take the leading (most significant) 54 bits, to account for rounding, and lose precision after that
+        val firstByte = words[0]
+        var result = firstByte.toDouble()
+        var bitsToTake = 54 - firstByte.bitLength
+        var i = 1
+        while ((bitsToTake > 0) && i < words.size) {
+            result *= 256.0
+            result += words[i++].toDouble()
+            bitsToTake -= 8
+            // bitsToTake might be less than 0 here, but that's okay, we lose the last few to "normal" double math
+        }
+        // now multiply the remaining bits in
+        result *= 256.0.pow(words.size - i)
+        return result
+    }
+
 
     companion object {
         val ZERO = VarUInt(ubyteArrayOf(0x00u))
@@ -353,7 +537,6 @@ internal value class VarUInt private constructor(val words: UByteArray) {
         }
 
         operator fun invoke(uByte: UByte = 0x00u) = constructFromUntrimmed(ubyteArrayOf(uByte), true)
-        operator fun invoke(value: String) = constructFromUntrimmed(value.parseAsBase10().toUByteArray(), true)
         operator fun invoke(ubyteArray: UByteArray) = constructFromUntrimmed(ubyteArray, false)
         operator fun invoke(byteArray: ByteArray) = constructFromUntrimmed(byteArray.asUByteArray(), false)
         operator fun invoke(uLong: ULong) =
@@ -363,6 +546,7 @@ internal value class VarUInt private constructor(val words: UByteArray) {
 
         internal fun constructUnsafe(ownedArray: UByteArray) = constructFromUntrimmed(ownedArray, true)
 
+        @IgnorableReturnValue
         internal fun Sink.writeAsn1VarInt(number: VarUInt): Int {
             if (number.isZero()) {
                 writeByte(0)
@@ -379,95 +563,135 @@ internal value class VarUInt private constructor(val words: UByteArray) {
             return numBytes
         }
 
-        private fun MutableList<Char>.divRem(d: Int): Pair<MutableList<Char>, Int> {
-            val result = mutableListOf<Char>()
-            var residue = 0
-            // result * 256 + residue == (string[0..i])
-            for (char in this) {
-                val currentDigit = residue * 10 + char.digitToInt()
-                result.add((currentDigit / d).digitToChar()) // Append the quotient
-                residue = currentDigit % d // Update remainder
+        // 10^9 fits in an Int and is the largest power of ten whose product with 255 (a base-256 digit) still
+        // fits in a Long, so a whole 9-decimal-digit limb can be multiply-accumulated in one Long operation.
+        private const val DECIMAL_RADIX = 1_000_000_000L
+        private const val DECIMAL_RADIX_DIGITS = 9
+
+        /**
+         * Parse decimal string [value] (starting at position [fromOffset] to VarUInt.
+         * O(n²) in input length. Therefore, bounded to [maxInputLength] characters.
+         * Excessive inputs throw.
+         * @throws Asn1Exception on invalid or overlong input */
+        @Throws(Asn1Exception::class)
+        fun fromDecimalString(
+            value: String, fromOffset: Int = 0,
+            maxInputLength: Int = DEFAULT_MAX_INPUT_LENGTH
+        ): VarUInt = runRethrowing {
+            if (value.length > maxInputLength)
+                throw Asn1Exception("Decimal string of ${value.length} characters exceeds limit ($maxInputLength).")
+            if (REGEX_BASE10.matchAt(value, fromOffset)?.range?.last != value.lastIndex)
+                throw NumberFormatException("Illegal input (not numerical)")
+            val firstNonZero = value.indexOfFirst(startIndex = fromOffset) { it != '0' }
+            if (firstNonZero == -1) return ZERO // input is all zeroes
+
+            // Pack decimal digits into little-endian base-10^9 limbs, grouping 9 digits from the least significant end.
+            val limbCount = (value.length - firstNonZero + DECIMAL_RADIX_DIGITS - 1) / DECIMAL_RADIX_DIGITS
+            val limbs = IntArray(limbCount)
+            var end = value.length
+            var limbIndex = 0
+            while (end > firstNonZero) {
+                val start = maxOf(firstNonZero, end - DECIMAL_RADIX_DIGITS)
+                limbs[limbIndex++] = value.substring(start, end).toInt()
+                end = start
             }
-            result.apply { while (isNotEmpty() && first() == '0') removeFirst() }
-            return Pair(result, residue)
+
+            // Repeatedly divide the base-10^9 value by 256, collecting remainders as little-endian magnitude bytes.
+            val byteListReversed = ArrayList<UByte>()
+            var high = limbCount // number of still-significant limbs
+            while (high > 0) {
+                var rem = 0L
+                for (i in high - 1 downTo 0) {
+                    val cur = rem * DECIMAL_RADIX + limbs[i].toLong()
+                    limbs[i] = (cur / 256L).toInt()
+                    rem = cur % 256L
+                }
+                byteListReversed.add(rem.toUByte())
+                while (high > 0 && limbs[high - 1] == 0) high--
+            }
+            // byteListReversed is little-endian, we need big-endian
+            val result = UByteArray(byteListReversed.size) { byteListReversed[byteListReversed.size - 1 - it] }
+            return constructFromUntrimmed(result, isOwned = true)
         }
 
-        private fun String.parseAsBase10(): UByteArray {
-            if (!matches(REGEX_BASE10)) throw Asn1Exception("Illegal input!")
-            if (matches(REGEX_ZERO)) return ubyteArrayOf(0x00u)
-            var currentValue = toMutableList()
-            val byteList = mutableListOf<UByte>()
-            while ((currentValue.size > 1) || (currentValue.size == 1 && currentValue.first() != '0')) {
-                currentValue.divRem(256).let { (newValue, rem) ->
-                    currentValue = newValue
-                    byteList.add(rem.toUByte())
+        private const val HEX_ALPHABET = "0123456789abcdef"
+
+        private fun hexDigit(c: Char): Int = when (c) {
+            //TODO: replace with LUT, if we want even better perf, but not a prio
+            in '0'..'9' -> c.code - '0'.code
+            in 'a'..'f' -> c.code - 'a'.code + 10
+            in 'A'..'F' -> c.code - 'A'.code + 10
+            else -> -1
+        }
+
+        /** Lenient hex string parsing, strips 0x, whitespace and `:` */
+        @Throws(Asn1Exception::class)
+        fun fromHexString(hexString: String, offset: Int = 0): VarUInt = runRethrowing {
+            var index = offset
+
+            //pass over starting whitespace
+            while (index < hexString.length && hexString[index].isWhitespace()) {
+                index++
+            }
+
+            //pass over `0x`
+            catchingUnwrapped {
+                if (
+                    index + 1 < hexString.length &&
+                    hexString[index] == '0' &&
+                    (hexString[index + 1] == 'x' || hexString[index + 1] == 'X')
+                ) {
+                    index += 2
+                }
+            }.onFailure { throw NumberFormatException(it.message) }
+
+            if (index >= hexString.length) throw NumberFormatException("Not a hex string")
+
+            //count actual jex digits, so we can allocate
+            var digits = 0
+            for (i in index until hexString.length) {
+                val c = hexString[i]
+                if (c != ':' && !c.isWhitespace()) {
+                    if (hexDigit(c) < 0)
+                        throw NumberFormatException("Invalid hex character '$c' at index $i")
+
+                    digits++
                 }
             }
-            return UByteArray(byteList.size) { byteList[byteList.size - it - 1] }
+            //alloc words + account for no leading zero
+            val result = UByteArray((digits + 1) ushr 1)
+
+            var byte = hexDigit(hexString[index])
+            var output = 0
+            if (digits % 2 == 0) {
+                index++
+                while (hexDigit(hexString[index]) == -1) index++
+                byte = (byte shl 4) or hexDigit(hexString[index])
+            }
+            result[output] = byte.toUByte()
+            output++
+            var pending = false
+            while (index + 1 < hexString.length) {
+                index++
+                if (hexDigit(hexString[index]) == -1) {
+                    continue
+                }
+                if (!pending) {
+                    pending = true
+                    byte = hexDigit(hexString[index])
+                    continue
+                } else {
+                    pending = false
+                    byte = (byte shl 4) or hexDigit(hexString[index])
+                }
+                result[output] = byte.toUByte()
+                output++
+
+            }
+            return VarUInt(words = result)
+
         }
 
-
-        private fun Iterator<UByte>.toDecimalString(): String {
-            // Initialize the result to hold the base-10 value
-            var decimalResult = mutableListOf('0')
-
-            // Process each byte in the base-256 array
-            for (byte in this) {
-                // Convert byte to an integer (unsigned)
-                val value = byte.toInt() and 0xFF
-
-                // Multiply the current decimal result by 256
-                decimalResult = decimalResult.times256()
-
-                // Add the new value
-                decimalResult = decimalResult decimalPlus value.toString().toList()
-            }
-
-            return decimalResult.joinToString(separator = "")
-        }
-
-        // Function to multiply a large base-10 number (as a string) by 256
-        private fun List<Char>.times256(): MutableList<Char> {
-            var carry = 0
-            val result = StringBuilder()
-
-            for (digit in asReversed()) {
-                val prod = digit.digitToInt() * 256 + carry
-                result.append(prod % 10)
-                carry = prod / 10
-            }
-
-            // Add remaining carry
-            while (carry > 0) {
-                result.append(carry % 10)
-                carry /= 10
-            }
-
-            return result.reverse().toMutableList()
-        }
-
-        // Function to add two large base-10 numbers (as strings)
-        internal infix fun List<Char>.decimalPlus(num2: List<Char>): MutableList<Char> {
-            val result = StringBuilder()
-            var carry = 0
-
-            val (shorter, longer) = (if (size < num2.size) this to num2
-            else num2 to this).let { (a, b) -> a.asReversed() to b.asReversed() }
-
-            for (i in longer.indices) {
-                val sum = (if (shorter.size > i) shorter[i].digitToInt() else 0) + longer[i].digitToInt() + carry
-                result.append(sum % 10)
-                carry = sum / 10
-            }
-
-            // Add remaining carry
-            while (carry > 0) {
-                result.append(carry % 10)
-                carry /= 10
-            }
-
-            return result.reverse().toMutableList()
-        }
 
         internal fun ByteArray.decodeAsn1VarBigUInt() = wrapInUnsafeSource().decodeAsn1VarBigUIntValue()
 
@@ -536,16 +760,50 @@ internal value class VarUInt private constructor(val words: UByteArray) {
  * Intended as a non-DER fallback representation for generic formats such as JSON.
  * When used with the `awesn1.kxs` DER format, this serializer is bypassed and native INTEGER DER TLV
  * encoding/decoding is used.
+ *
+ * Serialization uses [Asn1Integer.toDecimalString]/[Asn1Integer.fromDecimalString].
+ * These functions are length limited.
+ * The limits used by this serializer can be overridden (globally)
+ *   using [decodingLimit]/[encodingLimit].
+ * This only affects string serialization for non-DER formats.
  */
-object Asn1IntegerStringSerializer : KSerializer<Asn1Integer> {
+object Asn1IntegerDecimalStringSerializer : KSerializer<Asn1Integer> {
+    override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
+
+    /** maximum size (characters) for decoding. can only be increased, not decreased. */
+    //@formatter:off
+    var decodingLimit = DEFAULT_MAX_INPUT_LENGTH; set(v) { field = maxOf(field, v) }
+    //@formatter:on
+    override fun deserialize(decoder: Decoder): Asn1Integer =
+        Asn1Integer.fromDecimalString(decoder.decodeString(), decodingLimit)
+
+    /** maximum size (bytes) for encoding. can only be increased, not decreased. */
+    //@formatter:off
+    var encodingLimit = DEFAULT_MAX_MAGNITUDE_BYTES; set(v) { field = maxOf(field, v) }
+    //@formatter:on
+    override fun serialize(encoder: Encoder, value: Asn1Integer) {
+        encoder.encodeString(value.toDecimalString(encodingLimit))
+    }
+
+}
+
+/**
+ * String serializer for [Asn1Integer].
+ *
+ * Intended as a non-DER fallback representation for generic formats such as JSON.
+ * When used with the `awesn1.kxs` DER format, this serializer is bypassed and native INTEGER DER TLV
+ * encoding/decoding is used.
+ *
+ * Serialization uses [Asn1Integer.toHexString]/[Asn1Integer.fromHexString].
+ */
+object Asn1IntegerHexStringSerializer : KSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
     override fun deserialize(decoder: Decoder): Asn1Integer =
-        Asn1Integer.fromDecimalString(decoder.decodeString())
-
+        Asn1Integer.fromHexString(decoder.decodeString())
 
     override fun serialize(encoder: Encoder, value: Asn1Integer) {
-        encoder.encodeString(value.toString())
+        encoder.encodeString(value.toHexString())
     }
 
 }
