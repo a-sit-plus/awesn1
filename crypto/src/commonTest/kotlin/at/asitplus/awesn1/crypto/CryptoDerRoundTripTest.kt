@@ -4,8 +4,11 @@ import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.decodeFromTlv
+import at.asitplus.awesn1.serialization.encodeToTlv
 import at.asitplus.testballoon.matrix.CompactScope
 import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -15,6 +18,121 @@ import kotlin.time.Instant
 import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 
 val CryptoDerRoundTripTest by matrixSuite {
+    "PKCS #10 request info equality and hash ignore attribute order" {
+        val ordered = certificationRequestInfo(linkedSetOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE))
+        val reversed = certificationRequestInfo(linkedSetOf(LARGER_ATTRIBUTE, SMALLER_ATTRIBUTE))
+
+        (ordered.rawAttributes == reversed.rawAttributes) shouldBe true
+        ordered.rawAttributes.hashCode() shouldBe reversed.rawAttributes.hashCode()
+        ordered shouldBe reversed
+        ordered.hashCode() shouldBe reversed.hashCode()
+    }
+
+    "programmatic PKCS #10 attributes are canonically sorted" {
+        DER.decodeFromTlv<Pkcs10CertificationRequestInfo>(
+            DER.encodeToTlv(
+                certificationRequestInfo(
+                    linkedSetOf(
+                        LARGER_ATTRIBUTE,
+                        SMALLER_ATTRIBUTE
+                    )
+                )
+            )
+        ).rawAttributes.toList() shouldBe listOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE)
+    }
+
+    "decoded PKCS #10 rawAttributes retain wire order" {
+        val canonical = DER.encodeToTlv(
+            certificationRequestInfo(linkedSetOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE))
+        ).asSequence()
+        val attributes = canonical.children.last().asStructure()
+        val nonCanonical = Asn1.Sequence {
+            canonical.children.dropLast(1).forEach { +it }
+            +Asn1CustomStructure(attributes.children.reversed(), 0uL, TagClass.CONTEXT_SPECIFIC)
+        }
+
+        DER.decodeFromByteArray<Pkcs10CertificationRequestInfo>(nonCanonical.derEncoded).rawAttributes.toList() shouldBe
+                listOf(LARGER_ATTRIBUTE, SMALLER_ATTRIBUTE)
+    }
+
+    "malformed PKCS #10 duplicate attributes decode into rawAttributes" {
+        malformedCertificationRequestInfo().rawAttributes.map { it.oid } shouldBe listOf(
+            DUPLICATE_ATTRIBUTE_OID, DUPLICATE_ATTRIBUTE_OID
+        )
+    }
+
+    "programmatic PKCS #10 request info rejects duplicate attribute OIDs" {
+        shouldThrow<IllegalArgumentException> {
+            certificationRequestInfo(
+                setOf(
+                    Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(0)),
+                    Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(1)),
+                )
+            )
+        }
+    }
+
+    "programmatic PKCS #10 attribute values are canonically sorted" {
+        DER.decodeFromTlv<Pkcs10CsrAttribute>(
+            DER.encodeToTlv(
+                Pkcs10CsrAttribute(
+                    ObjectIdentifier("1.2.3"),
+                    linkedSetOf(LARGER_ATTRIBUTE_VALUE, SMALLER_ATTRIBUTE_VALUE),
+                )
+            )
+        ).rawValue.toList() shouldBe listOf(SMALLER_ATTRIBUTE_VALUE, LARGER_ATTRIBUTE_VALUE)
+    }
+
+    "decoded PKCS #10 rawValue retains wire order" {
+        val canonical = DER.encodeToTlv(
+            Pkcs10CsrAttribute(
+                ObjectIdentifier("1.2.3"),
+                linkedSetOf(SMALLER_ATTRIBUTE_VALUE, LARGER_ATTRIBUTE_VALUE),
+            )
+        ).asSequence()
+        val values = canonical.children.last().asStructure()
+        val nonCanonical = Asn1.Sequence {
+            +canonical.children.first()
+            +Asn1CustomStructure(values.children.reversed(), Asn1Element.Tag.SET.tagValue)
+        }
+
+        DER.decodeFromByteArray<Pkcs10CsrAttribute>(nonCanonical.derEncoded).rawValue.toList() shouldBe
+                listOf(LARGER_ATTRIBUTE_VALUE, SMALLER_ATTRIBUTE_VALUE)
+    }
+
+    "malformed duplicate PKCS #10 values decode but the value getter rejects them" {
+        val canonical = DER.encodeToTlv(
+            Pkcs10CsrAttribute(ObjectIdentifier("1.2.3"), SMALLER_ATTRIBUTE_VALUE)
+        ).asSequence()
+        val malformed = Asn1.Sequence {
+            +canonical.children.first()
+            +Asn1CustomStructure(
+                listOf(SMALLER_ATTRIBUTE_VALUE, SMALLER_ATTRIBUTE_VALUE),
+                Asn1Element.Tag.SET.tagValue,
+            )
+        }
+        val decoded = DER.decodeFromByteArray<Pkcs10CsrAttribute>(malformed.derEncoded)
+
+        decoded.rawValue.toList() shouldBe listOf(SMALLER_ATTRIBUTE_VALUE, SMALLER_ATTRIBUTE_VALUE)
+        shouldThrow<Asn1Exception> { decoded.value }
+    }
+
+    "empty PKCS #10 attribute values only decode leniently" {
+        val malformed = Asn1.Sequence {
+            +ObjectIdentifier("1.2.3")
+            +Asn1.Set { }
+        }
+        val decoded = DER.decodeFromByteArray<Pkcs10CsrAttribute>(malformed.derEncoded)
+
+        decoded.rawValue.isEmpty() shouldBe true
+        shouldThrow<Asn1Exception> { decoded.value }
+        shouldThrow<IllegalArgumentException> { Pkcs10CsrAttribute(ObjectIdentifier("1.2.3"), emptySet()) }
+    }
+
+    "PKCS #10 attributes rejects duplicate OIDs" {
+        shouldThrow<Asn1Exception> { malformedCertificationRequestInfo().attributes }
+    }
+
     "Property checks" - {
         compact("SignatureValue from raw bit string") - { checkRoundTrip(::randomRawBitStringSignatureValue) }
         compact("SignatureValue from raw bytes") - { checkRoundTrip(::randomBitStringSignatureValue) }
@@ -35,6 +153,34 @@ val CryptoDerRoundTripTest by matrixSuite {
         compact("Pkcs10CertificationRequest") - { checkRoundTrip(::randomPkcs10CertificationRequest) }
         compact("TbsCertificate") - { checkRoundTrip(::randomTbsCertificate) }
     }
+}
+
+private val SMALLER_ATTRIBUTE = Pkcs10CsrAttribute(ObjectIdentifier("1.2.3"), Asn1.Int(0))
+private val LARGER_ATTRIBUTE = Pkcs10CsrAttribute(ObjectIdentifier("1.2.4"), Asn1.Int(0))
+private val SMALLER_ATTRIBUTE_VALUE = Asn1.Int(0)
+private val LARGER_ATTRIBUTE_VALUE = Asn1.Int(1)
+private val DUPLICATE_ATTRIBUTE_OID = ObjectIdentifier("1.2.3")
+
+private fun certificationRequestInfo(attributes: Set<Pkcs10CsrAttribute>) = Pkcs10CertificationRequestInfo(
+    subjectName = X500Name(emptyList()),
+    publicKey = SubjectPublicKeyInfo.ec(ObjectIdentifier("1.2.3"), byteArrayOf(4)),
+    attributes = attributes,
+)
+
+private fun malformedCertificationRequestInfo(): Pkcs10CertificationRequestInfo {
+    val valid = DER.encodeToTlv(certificationRequestInfo(emptySet())).asSequence()
+    val malformed = Asn1.Sequence {
+        valid.children.dropLast(1).forEach { +it }
+        +Asn1CustomStructure(
+            listOf(
+                DER.encodeToTlv(Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(0))),
+                DER.encodeToTlv(Pkcs10CsrAttribute(DUPLICATE_ATTRIBUTE_OID, Asn1.Int(1))),
+            ),
+            0uL,
+            TagClass.CONTEXT_SPECIFIC,
+        )
+    }
+    return DER.decodeFromByteArray(malformed.derEncoded)
 }
 
 private inline fun <reified T> CompactScope.checkRoundTrip(noinline generator: (Random) -> T) {
@@ -181,7 +327,7 @@ private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
 private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10CertificationRequestInfo(
     subjectName = X500Name(List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) }),
     publicKey = randomSubjectPublicKeyInfo(random),
-    attributes = List(random.nextInt(0, 3)) { randomAttribute(random) },
+    attributes = (List(random.nextInt(0, 3)) { randomAttribute(random) }).toSet(),
 )
 
 private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10CertificationRequest(

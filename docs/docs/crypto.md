@@ -58,11 +58,11 @@ The module currently includes models such as:
 - `SubjectPublicKeyInfo`
 - `Pkcs8PrivateKeyInfo`
 - `EncryptedPrivateKeyInfo`
-- `RsaPublicKeyInfo`
 - `Pkcs1RsaPrivateKeyInfo`
+- `Pkcs1RsaPublicKeyInfo`
 - `Pkcs1RsaOtherPrimeInfo`
 - `Sec1EcPrivateKeyInfo`
-- `SignatureValue`
+- `X509SignatureValue`
 - `X509AlgorithmIdentifier`
 - `RsaSsaPssParams`
 - `X509Certificate`
@@ -70,7 +70,8 @@ The module currently includes models such as:
 - `X509CertificateExtension`
 - `Pkcs10CertificationRequest`
 - `Pkcs10CertificationRequestInfo`
-- DN-related helper models such as `X500RelativeDistinguishedName`, `X500AttributeTypeAndValue`, and `Attribute`
+- `Pkcs10CsrAttribute`
+- DN-related helper models such as `X500RelativeDistinguishedName` and `X500AttributeTypeAndValue`
 
 These are structural models.
 They parse and encode ASN.1 DER correctly, but they do not aim to be a full certificate validation stack,
@@ -101,6 +102,18 @@ The `crypto` already handles the most common cryptographic data structures out o
 - Handle PKCS#10 certificate signing requests
 - Preserve, round-trip, or transform cryptographic ASN.1 data in Kotlin Multiplatform code
 - Use these models as strongly typed payloads in ASN.1/DER serialization workflows
+
+## PKCS#10 Attributes
+
+`Pkcs10CertificationRequestInfo.rawAttributes` and `Pkcs10CsrAttribute.rawValue` use `LenientSet` so malformed input
+can be inspected without discarding duplicate elements or wire order. Use the `attributes` and `value` properties for
+validated set views. These getters throw `Asn1Exception` for malformed decoded collections; `attributes` additionally
+rejects duplicate attribute OIDs.
+
+Programmatic constructors accept Kotlin sets, but reject empty attribute values and duplicate attribute OIDs. Encoding
+of programmatically created objects uses canonical DER `SET OF` ordering.
+An empty `CertificationRequestInfo.attributes` set remains valid. The
+`Pkcs10CsrAttribute.ExtensionRequest` helper requires at least one extension.
 
 ## Extending X.509 `OtherName`
 
