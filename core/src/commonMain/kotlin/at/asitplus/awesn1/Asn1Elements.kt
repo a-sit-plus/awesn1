@@ -1098,17 +1098,46 @@ sealed class Asn1OctetString : Asn1Primitive {
     /** This is an implementation detail, you shouldn't check for it */
     private class NotEncapsulating(content: ByteArray) : Asn1OctetString(content)
 
+    /**
+     * Parser-only raw OCTET STRING whose content is a zero-copy [view] into the source buffer (see
+     * [Source.readSubSource]). It never materialises its content, so peeling one decapsulation layer costs only that
+     * layer's header — this is what makes nested decapsulation O(input) instead of O(input²). It is a transient
+     * parse-time node: [parseOctetStrings][at.asitplus.awesn1.encoding.internal] always [finalizeRaw]es it (or
+     * swaps in an encapsulating counterpart) before the tree is handed out, so a view — which pins the whole source
+     * buffer — never survives parsing.
+     */
+    private class ViewBacked(private val view: Source<*>, private val length: Int) :
+        Asn1OctetString({ view.peek().readByteArray(length) }) {
+        // report the length without forcing the (lazy) content, so decapsulation never triggers a copy
+        override val contentLengthLong: Long get() = length.toLong()
+        // fresh independent reader over the same shared bytes; the view itself is never consumed
+        override fun contentSource(): Source<*> = view.peek()
+        // transition to an owned, exact-size node (one copy) that holds no view -> releases the source buffer
+        override fun finalizeRaw(): Asn1OctetString = NotEncapsulating(view.peek().readByteArray(length))
+    }
+
     private constructor(content: ByteArray) : super(Tag.OCTET_STRING, content)
     constructor(contentProvider: () -> ByteArray) : super(Tag.OCTET_STRING, contentProvider)
+
+    /** Re-reads this OCTET STRING's raw content as a fresh [Source] for decapsulation (zero-copy when view-backed). */
+    internal open fun contentSource(): Source<*> = content.wrapInUnsafeSource()
+
+    /**
+     * The finalized form of this raw OCTET STRING, once decapsulation has decided it stays non-encapsulating: an
+     * owned, exact-size node retaining no view into (and so no longer pinning) the source buffer. Already-owned
+     * instances return `this`.
+     */
+    internal open fun finalizeRaw(): Asn1OctetString = this
 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "OCTET STRING " + super.prettyPrintHeader(0)
 
     companion object {
+
         /**
-         * Constructs a raw (non-encapsulating) OCTET STRING from [content] without attempting to decode it.
-         * Used by the parser, which decodes encapsulated content separately and iteratively.
+         * Constructs a raw (non-encapsulating) OCTET STRING whose [length]-byte content is a zero-copy [view] into
+         * the source buffer. Used by the parser; see [ViewBacked].
          */
-        internal fun nonEncapsulating(content: ByteArray): Asn1OctetString = NotEncapsulating(content)
+        internal fun viewBacked(view: Source<*>, length: Int): Asn1OctetString = ViewBacked(view, length)
 
         /**
          * Constructs an [Asn1OctetString].
@@ -1372,9 +1401,12 @@ open class Asn1Primitive private constructor(
  * Number of bytes the DER length field occupies for a content length of [len], computed arithmetically without
  * materializing the length encoding. Mirrors the byte count produced by [Long.encodeLength]/[Sink.encodeLength].
  */
+@Suppress("NOTHING_TO_INLINE")
 private inline fun lengthEncodedSize(len: Long): Int =
     if (len < 0x80) 1 else 1 + (Long.SIZE_BITS - len.countLeadingZeroBits() + Byte.SIZE_BITS - 1) / Byte.SIZE_BITS
 
+@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@kotlin.internal.InlineOnly
 internal fun Int.encodeLength(): ByteArray = toLong().encodeLength()
 
 @Throws(IllegalArgumentException::class)
@@ -1392,7 +1424,8 @@ internal fun Long.encodeLength(): ByteArray {
 }
 
 /** Checked addition for non-negative ASN.1 lengths; throws [Asn1Exception] on [Long] overflow. */
-@Suppress("NOTHING_TO_INLINE")
+@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@kotlin.internal.InlineOnly
 internal inline fun Long.plusExact(other: Long): Long {
     if(other<0L) throw ImplementationError("Long addition")
     val result = this + other
@@ -1400,12 +1433,17 @@ internal inline fun Long.plusExact(other: Long): Long {
     return result
 }
 
+@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@kotlin.internal.InlineOnly
+internal inline fun Long.plusExact(other: Int): Long = plusExact(other.toLong())
+
 /**
  * Narrows this [Long] (e.g. an ASN.1 [contentLength][Asn1Element.contentLengthLong]) to an [Int], throwing
  * [Asn1Exception] if it does not fit in `0..Int.MAX_VALUE`. Convenience for call sites that need an `Int`
  * (array sizing/indexing) but hold a [Long] length.
  */
-@Suppress("NOTHING_TO_INLINE")
+@Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@kotlin.internal.InlineOnly
 inline fun Long.toIntChecked(what: String = "value"): Int {
     if (this < 0 || this > Int.MAX_VALUE.toLong()) throw Asn1Exception("$what ($this) exceeds Int.MAX_VALUE")
     return toInt()

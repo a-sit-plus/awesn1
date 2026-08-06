@@ -34,6 +34,19 @@ interface Source<S : Sink> {
     fun skip(nBytes: Long)
 
     /**
+     * Reads the next [nBytes] bytes and returns them as an independent [Source], advancing past them.
+     *
+     * Unlike [readByteArray], this never obliges a copy: array-backed sources (e.g. [ByteArrayBuffer]) return a
+     * view sharing their backing array in O(1). The default implementation falls back to a single copy for sources
+     * that cannot share storage (e.g. streams). The returned source is independent of this source's read position
+     * and lifetime, so it may be retained and re-read (via [peek]) afterwards.
+     *
+     * This is what keeps OCTET STRING decapsulation O(input) instead of O(input²): each nested layer is re-parsed
+     * from a shared view rather than a fresh per-layer copy of the remaining content.
+     */
+    fun readSubSource(nBytes: Int): Source<*> = ByteArrayBuffer.wrap(readByteArray(nBytes))
+
+    /**
      * Returns a new Source that can read data from this source without consuming it. The returned source becomes invalid once this source is next read or closed.
      */
     fun peek(): Source<S>
@@ -64,18 +77,7 @@ internal class BoundedSource<S : Sink>(
         require(nBytes >= 0) { "Cannot read a negative number of bytes" }
         if (remaining == null) return
         require(nBytes <= remaining!!) {
-            buildString {
-                append("Source limit exceeded: requested ")
-                append(nBytes)
-                append(" bytes with ")
-                append(remaining)
-                append(" remaining (")
-                append(bytesRead)
-                append("/")
-                append(limit)
-                append(" already read)")
-
-            }
+            "Source limit exceeded: requested $nBytes bytes with $remaining remaining ($bytesRead/$limit already read)"
         }
     }
 
@@ -99,6 +101,11 @@ internal class BoundedSource<S : Sink>(
         requireRemaining(nBytes)
         source.skip(nBytes)
         bytesRead += nBytes
+    }
+
+    override fun readSubSource(nBytes: Int): Source<*> {
+        requireRemaining(nBytes.toLong())
+        return source.readSubSource(nBytes).also { bytesRead += nBytes.toLong() }
     }
 
     override fun peek(): BoundedSource<S> = BoundedSource(source.peek(), remaining)
@@ -304,6 +311,20 @@ class ByteArrayBuffer private constructor(
         if (owner == null) invalidatePeeks()
         require(readIndex + nBytes <= limit) { "Cannot skip beyond size of underlying data" }
         readIndex += nBytes.toInt()
+    }
+
+    // Zero-copy: hand out an independent (owner == null) buffer over the same backing array window and advance past
+    // it, instead of slicing a fresh array. The window's bytes are never mutated during a parse, so the returned
+    // buffer stays valid for the tree's lifetime; it is what makes nested OCTET STRING decapsulation linear.
+    override fun readSubSource(nBytes: Int): Source<*> {
+        ensureValidPeek()
+        require(nBytes >= 0) { "nBytes must be non-negative" }
+        if (owner == null) invalidatePeeks()
+        val endIndexExclusive = readIndex.toLong() + nBytes.toLong()
+        require(endIndexExclusive <= limit.toLong()) { "Cannot read beyond available bytes" }
+        val start = readIndex
+        readIndex = endIndexExclusive.toInt()
+        return wrap(readArray, start, readIndex)
     }
 
     override fun peek(): Source<Buffer> {

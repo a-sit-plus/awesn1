@@ -1,6 +1,7 @@
 # Changelog
 
 ## NEXT
+* Fix resource hog when decapsulating OCTET STRINGs through array views (addresses [GHSA-q34j-33q7-fw9h](https://github.com/a-sit-plus/awesn1/security/advisories/GHSA-q34j-33q7-fw9h))
 * Fixed PKCS#10 attribute canonicalisation: programmatically created attribute sets are DER-sorted, while decoded
   `rawAttributes` and `rawValue` retain malformed wire order and duplicates for lenient parsing.
 * Added `LenientSet`, a serializable ASN.1 `SET OF` collection that accepts only Kotlin sets when constructed,

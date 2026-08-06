@@ -23,6 +23,7 @@ private const val UVARINT_SINGLEBYTE_MAXVALUE_UBYTE: UByte = 0x80u
  */
 
 @InternalAwesn1Api
+@IgnorableReturnValue
 fun Sink.writeAsn1VarInt(number: ULong) = writeAsn1VarInt(number, ULong.SIZE_BITS)
 
 /**
@@ -33,6 +34,7 @@ fun Sink.writeAsn1VarInt(number: ULong) = writeAsn1VarInt(number, ULong.SIZE_BIT
  */
 
 @InternalAwesn1Api
+@IgnorableReturnValue
 fun Sink.writeAsn1VarInt(number: UInt) = writeAsn1VarInt(number.toULong(), UInt.SIZE_BITS)
 
 /**
@@ -43,6 +45,7 @@ fun Sink.writeAsn1VarInt(number: UInt) = writeAsn1VarInt(number.toULong(), UInt.
  */
 
 @InternalAwesn1Api
+@IgnorableReturnValue
 private fun Sink.writeAsn1VarInt(number: ULong, bits: Int): Int {
     if (number == 0uL) { //fast case
         writeByte(0)
@@ -119,6 +122,7 @@ private fun Source<*>.decodeAsn1VarInt(bits: Int): Pair<ULong, ByteArray> {
  * @return the number of byte written to the sink
  */
 @InternalAwesn1Api
+@IgnorableReturnValue
 fun Sink.writeTwosComplementLong(number: Long): Int = appendUnsafe(number.toTwosComplementByteArray())
 
 /**
@@ -126,6 +130,7 @@ fun Sink.writeTwosComplementLong(number: Long): Int = appendUnsafe(number.toTwos
  * @return the number of bytes written
  */
 @InternalAwesn1Api
+@IgnorableReturnValue
 fun Sink.writeTwosComplementULong(number: ULong): Int = appendUnsafe(number.toTwosComplementByteArray())
 
 
@@ -133,6 +138,7 @@ fun Sink.writeTwosComplementULong(number: ULong): Int = appendUnsafe(number.toTw
  * @return the number of bytes written to the sink
  */
 @InternalAwesn1Api
+@IgnorableReturnValue
 fun Sink.writeTwosComplementUInt(number: UInt) = writeTwosComplementLong(number.toLong())
 
 /**
@@ -213,6 +219,7 @@ fun Source<*>.readTwosComplementUInt(nBytes: Int, lenient: Boolean): UInt {
  *  @return the number of bytes written
  */
 @InternalAwesn1Api
+@IgnorableReturnValue
 fun Sink.writeMagnitudeLong(number: Long): Int {
     require(number >= 0)
     return number.toTwosComplementByteArray().let { appendUnsafe(it, if (it[0] == 0.toByte()) 1 else 0) }
@@ -227,6 +234,7 @@ fun Sink.writeMagnitudeLong(number: Long): Int {
  */
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
+@IgnorableReturnValue
 fun Sink.writeAsn1VarInt(number: Asn1Integer): Int {
     require(number is Asn1Integer.Positive) { "Only non-negative numbers are supported" }
     return writeAsn1VarInt(number.uint)

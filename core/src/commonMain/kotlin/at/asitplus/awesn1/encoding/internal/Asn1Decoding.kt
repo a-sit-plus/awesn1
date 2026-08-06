@@ -5,23 +5,26 @@ package at.asitplus.awesn1.encoding.internal
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.toAsn1VarInt
+import kotlin.contracts.ExperimentalContracts
 import kotlin.experimental.and
+import kotlin.jvm.JvmInline
 
-//start defence in depth helpers; if any of these is ever reached, hardware is either beefy or sensible limits were omitted.
+// start defense-in-depth helpers
+// if any of these is ever reached, hardware is either beefy or sensible limits were omitted.
 
 /** Conservative maximum collection size — the largest array length addressable on the JVM. */
-internal const val MAX_COLLECTION_SIZE = Int.MAX_VALUE - 8
+private const val MAX_COLLECTION_SIZE = Int.MAX_VALUE - 8
 
 @Suppress("NOTHING_TO_INLINE")
 private inline fun <E> MutableList<E>.addGuarded(element: E) {
-    if (size >= MAX_COLLECTION_SIZE)
+    if (this.size >= MAX_COLLECTION_SIZE)
         throw Asn1Exception("ASN.1 input exceeds the maximum addressable element/nesting count ($MAX_COLLECTION_SIZE)")
     add(element)
 }
 
 @Suppress("NOTHING_TO_INLINE")
 private inline fun <E> MutableList<E>.addAllGuarded(elements: Collection<E>) {
-    if (size.toLong() + elements.size > MAX_COLLECTION_SIZE)
+    if (elements.size > MAX_COLLECTION_SIZE - this.size)
         throw Asn1Exception("ASN.1 input exceeds the maximum addressable element/nesting count ($MAX_COLLECTION_SIZE)")
     addAll(elements)
 }
@@ -92,12 +95,13 @@ private class Frame(
 }
 
 /**
- * A raw OCTET STRING discovered during parsing, together with the means to replace it in place with its
- * encapsulating counterpart once (and if) its content is decoded. [raw] is the node to peel; [replaceWith] swaps
- * the node in its containing structure / encapsulating octet string / root list.
+ * A raw OCTET STRING discovered during parsing, together with the means to replace it in place once parsing is done.
+ * [raw] is the (view-backed, parse-time-only) node to finalize; [replaceWith] swaps in its finalized counterpart —
+ * an [Asn1EncapsulatingOctetString] if its content decoded, or a plain owned OCTET STRING if it stays raw — in its
+ * containing structure / encapsulating octet string / root list. No view-backed node survives into the handed-out tree.
  */
 @InternalAwesn1Api
-private class OctetSlot(val raw: Asn1OctetString, val replaceWith: (Asn1EncapsulatingOctetString) -> Unit)
+private class OctetSlot(val raw: Asn1OctetString, val replaceWith: (Asn1OctetString) -> Unit)
 
 /**
  * Result of one structural parse pass: the parsed [roots], the number of bytes consumed ([bytesRead]), and every
@@ -229,8 +233,10 @@ private fun ArrayDeque<Frame>.pushOrPrimitive(
 
     tag == Asn1Element.Tag.OCTET_STRING -> {
         require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
-        //leave OCTET STRING content raw here; encapsulated content is decoded iteratively afterwards (see drainEncapsulatedOctetStrings)
-        Asn1OctetString.nonEncapsulating(src.readByteArray(length.toInt()))
+        //leave OCTET STRING content raw here, as a zero-copy view; encapsulated content is decoded iteratively
+        //afterwards (see parseOctetStrings). The view shares the source buffer, so re-parsing nested layers never
+        //re-copies the remaining content -> decapsulation is O(input), not O(input²).
+        Asn1OctetString.viewBacked(src.readSubSource(length.toInt()), length.toInt())
     }
 
     else -> {
@@ -284,20 +290,27 @@ internal fun Asn1OctetString.decapsulateOrSelf(): Asn1OctetString {
 /**
  * In-place, iterative counterpart to the former recursive OCTET STRING decoding. Drains a work-list of raw
  * OCTET STRINGs ([OctetSlot]s) (discovered during parsing — see [doParse]), replacing each whose content is
- * valid DER with an [Asn1EncapsulatingOctetString] and leaving the rest raw. Each peel decodes exactly one layer
- * via the iterative [doParse]. Must run before the tree escapes. See `equals`/`hashCode` caveat in [Asn1Structure.replaceChild].
+ * valid DER with an [Asn1EncapsulatingOctetString] and finalizing the rest into a plain owned OCTET STRING. Each
+ * peel decodes exactly one layer via the iterative [doParse], re-parsed from a zero-copy view over the raw content
+ * ([Asn1OctetString.contentSource]) so reading one layer's header is all it costs — this is what keeps nested
+ * decapsulation O(input), not O(input²). Any nested OCTET STRING a layer reveals is itself view-backed and queued
+ * here. Must run before the tree escapes: no view-backed node (which would pin the whole source buffer) survives it.
+ * See `equals`/`hashCode` caveat in [Asn1Structure.replaceChild].
  */
 @InternalAwesn1Api
 private fun ArrayDeque<OctetSlot>.parseOctetStrings() {
     while (isNotEmpty()) {
         val slot = removeFirst()
-        val content = slot.raw.content
-        catchingUnwrapped {
-            val layer = content.wrapInUnsafeSource().doParse(content.size.toLong(), single = false)
+        val raw = slot.raw
+        val decapsulated = catchingUnwrapped {
+            val layer = raw.contentSource().doParse(raw.contentLengthLong, single = false)
             require(layer.roots.isNotEmpty())
             addAllGuarded(layer.octets)
             Asn1EncapsulatingOctetString.decapsulated(layer.roots)
-        }.getOrNull()?.let { slot.replaceWith(it) }
+        }.getOrNull()
+        // finalize the parse-time node: encapsulating on success, else an owned (compacted) OCTET STRING that no
+        // longer holds a view into — and thus no longer pins — the (potentially far larger) source buffer.
+        slot.replaceWith(decapsulated ?: raw.finalizeRaw())
     }
 }
 

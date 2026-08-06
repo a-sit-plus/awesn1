@@ -27,7 +27,7 @@ value class KxIoSource(val source: kotlinx.io.Source) : Source<KxIoSink> {
     override fun skip(nBytes: Long) = source.skip(nBytes)
 
     override fun peek(): KxIoSource = KxIoSource(source.peek())
-    override fun transferTo(sink: KxIoSink): Long =source.transferTo(sink.sink)
+    override fun transferTo(sink: KxIoSink): Long = source.transferTo(sink.sink)
 
 }
 
