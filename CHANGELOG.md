@@ -1,47 +1,53 @@
 # Changelog
 
-## NEXT
-* Harden INTEGER/OID decimal conversion against DoS [Hardening → Bounded Numeric Conversion](hardening.md):
-    * Added `Asn1Integer.toLong()`/`toLongOrNull()`
-    * `Asn1Integer.fromDecimalString()` and `Asn1Integer.toDecimalString()` now have input size limits
-      (with reasonable defaults)
-      * `Asn1IntegerDecimalStringSerializer`'s limits can be overridden manually (and globally) if desired
-      * DER encoding/decoding is unaffected by this change.
-        It **only** pertains to explicit decimal conversion.
-    * `Asn1Integer`'s string representation and default fallback serializer now use hex notation (with `-` prefixed for negative values).
-      `toString()` is bounded, prefixes truncated output with `[truncated, N bytes total]`, renders at most 48 magnitude bytes, and never throws; `toHexString()` and serialization remain exact.
-    * `Asn1Real`'s finite string representation and fallback serializer now use a hexadecimal mantissa and exponent.
-      `toString()` uses the same bounded mantissa rendering as `Asn1Integer`; serialization remains exact. Special values render as `0.0`, `-0.0`, `INF`, `-INF`, or `NaN`.
-* Fix resource hog when decapsulating OCTET STRINGs through array views (addresses [GHSA-q34j-33q7-fw9h](https://github.com/a-sit-plus/awesn1/security/advisories/GHSA-q34j-33q7-fw9h))
-* Fixed PKCS#10 attribute canonicalisation: programmatically created attribute sets are DER-sorted, while decoded
-  `rawAttributes` and `rawValue` retain malformed wire order and duplicates for lenient parsing.
-* Added `LenientSet`, a serializable ASN.1 `SET OF` collection that accepts only Kotlin sets when constructed,
-  preserves decoded wire contents when re-encoded, and exposes `toValidatedSet()` for duplicate validation.
-* Decoding an ASN.1 `SET OF` into Kotlin `Set<T>` now throws instead of silently discarding duplicate elements.
-* PKCS#10 semantic `attributes` and `value` getters now reject malformed decoded duplicates; empty attribute values,
-  duplicate attribute OIDs, and empty extension requests are rejected during programmatic construction.
-* Allow `Asn1` builder unary `+` for transparent wrappers around `Asn1Element`/`Asn1Encodable`, and for serializable
-  values when a `Der` instance is in context.
-* Change the `X509AlgorithmIdentifier` constructor to take a single nullable `parameters` element.
-    * Previously, it took a `List` that could only reasonably have 0-1 elements, enforced by the `parameters` getter. Deprecated that constructor variant.
-* Clean up algorithm-specific parsers and move them out of the generic element they parse
-    * `RsaSsaPssParams`:
-        * `X509AlgorithmIdentifier.rsaSsaPssParams` -> `RsaSsaPssParams.of(X509AlgorithmIdentifier)`
-        * new extension on `RsaSsaPssParams` companion: `X509AlgorithmIdentifier(RsaSsaPssParams)`
-    * `EcdsaSigValue`:
-        * new class: `EcdsaSigValue` models `ECDSA-Sig-Value` from RFC 5480
-        * `X509SignatureValue.decodeRS()` in class -> `X509SignatureValue.toEcdsaSigValue()` on `EcdsaSigValue` companion
-        * `X509SignatureValue.fromRS()` -> `EcdsaSigValue.toX509SignatureValue()`
-    * `Pkcs1RsaPublicKeyInfo`:
-        * `SubjectPublicKeyInfo.decodeRsaPublicKey()` -> `Pkcs1RsaPublicKeyInfo.of(SubjectPublicKeyInfo)`
-        * `SubjectPublicKeyInfo.rsa(...)` -> `SubjectPublicKeyInfo(...)` extensions on `Pkcs1RsaPublicKeyInfo` companion
-    * `Pkcs1RsaPrivateKeyInfo`:
-        * `Pkcs8PrivateKeyInfo.decodeRsaPrivateKey()` -> `Pkcs1RsaPrivateKeyInfo.of(Pkcs8PrivateKeyInfo)`
-        * `Pkcs8PrivateKeyInfo.rsa(...)` -> `Pkcs8PrivateKeyInfo(...)` extensions on `Pkcs1RsaPrivateKeyInfo` companion
-    * `Sec1EcPrivateKeyInfo`:
-        * `Pkcs8PrivateKeyInfo.decodeEcPrivateKey()` -> `Sec1EcPrivateKeyInfo.of(Pkcs8PrivateKeyInfo)`
-        * `Pkcs8PrivateKeyInfo.ec(...)` -> `Pkcs8PrivateKeyInfo(...)` extensions on `Sec1EcPrivateKeyInfo` companion
-* Renamed the `effectiveX` getters on `RsaSsaParams` to `X` getters, and the old `X` getters to `rawX` getters, to better reflect their purpose.
+## 0.7.0
+* **Security Hardening:**
+    * Harden INTEGER/OID decimal conversion against DoS [Hardening → Bounded Numeric Conversion](hardening.md):
+        * Added `Asn1Integer.toLong()`/`toLongOrNull()`
+        * `Asn1Integer.fromDecimalString()` and `Asn1Integer.toDecimalString()` now have input size limits
+          (with reasonable defaults)
+            * `Asn1IntegerDecimalStringSerializer`'s limits can be overridden manually (and globally) if desired
+            * DER encoding/decoding is unaffected by this change.
+              It **only** pertains to explicit decimal conversion.
+        * `Asn1Integer`'s string representation and default fallback serializer now use hex notation (with `-` prefixed for negative values).
+          `toString()` is bounded, prefixes truncated output with `[truncated, N bytes total]`, renders at most 48 magnitude bytes, and never throws; `toHexString()` and serialization remain exact.
+        * `Asn1Real`'s finite string representation and fallback serializer now use a hexadecimal mantissa and exponent.
+          `toString()` uses the same bounded mantissa rendering as `Asn1Integer`; serialization remains exact. Special values render as `0.0`, `-0.0`, `INF`, `-INF`, or `NaN`.
+    * Fix resource hog when decapsulating OCTET STRINGs through array views (addresses [GHSA-q34j-33q7-fw9h](https://github.com/a-sit-plus/awesn1/security/advisories/GHSA-q34j-33q7-fw9h))
+* **Fixes:**
+    * Fixed PKCS#10 attribute canonicalisation: programmatically created attribute sets are DER-sorted, while decoded
+      `rawAttributes` and `rawValue` retain malformed wire order and duplicates for lenient parsing.
+    * Added `LenientSet`, a serializable ASN.1 `SET OF` collection that accepts only Kotlin sets when constructed,
+      preserves decoded wire contents when re-encoded, and exposes `toValidatedSet()` for duplicate validation.
+    * Decoding an ASN.1 `SET OF` into Kotlin `Set<T>` now throws instead of silently discarding duplicate elements.
+    * PKCS#10 semantic `attributes` and `value` getters now reject malformed decoded duplicates; empty attribute values,
+      duplicate attribute OIDs, and empty extension requests are rejected during programmatic construction.
+    * Allow `Asn1` builder unary `+` for transparent wrappers around `Asn1Element`/`Asn1Encodable`, and for serializable
+      values when a `Der` instance is in context.
+* **Other Changes:**
+    * Change the `X509AlgorithmIdentifier` constructor to take a single nullable `parameters` element.
+        * Previously, it took a `List` that could only reasonably have 0-1 elements, enforced by the `parameters` getter. Deprecated that constructor variant.
+    * Clean up algorithm-specific parsers and move them out of the generic element they parse
+        * `RsaSsaPssParams`:
+            * `X509AlgorithmIdentifier.rsaSsaPssParams` -> `RsaSsaPssParams.of(X509AlgorithmIdentifier)`
+            * new extension on `RsaSsaPssParams` companion: `X509AlgorithmIdentifier(RsaSsaPssParams)`
+        * `EcdsaSigValue`:
+            * new class: `EcdsaSigValue` models `ECDSA-Sig-Value` from RFC 5480
+            * `X509SignatureValue.decodeRS()` in class -> `X509SignatureValue.toEcdsaSigValue()` on `EcdsaSigValue` companion
+            * `X509SignatureValue.fromRS()` -> `EcdsaSigValue.toX509SignatureValue()`
+        * `Pkcs1RsaPublicKeyInfo`:
+            * `SubjectPublicKeyInfo.decodeRsaPublicKey()` -> `Pkcs1RsaPublicKeyInfo.of(SubjectPublicKeyInfo)`
+            * `SubjectPublicKeyInfo.rsa(...)` -> `SubjectPublicKeyInfo(...)` extensions on `Pkcs1RsaPublicKeyInfo` companion
+        * `Pkcs1RsaPrivateKeyInfo`:
+            * `Pkcs8PrivateKeyInfo.decodeRsaPrivateKey()` -> `Pkcs1RsaPrivateKeyInfo.of(Pkcs8PrivateKeyInfo)`
+            * `Pkcs8PrivateKeyInfo.rsa(...)` -> `Pkcs8PrivateKeyInfo(...)` extensions on `Pkcs1RsaPrivateKeyInfo` companion
+        * `Sec1EcPrivateKeyInfo`:
+            * `Pkcs8PrivateKeyInfo.decodeEcPrivateKey()` -> `Sec1EcPrivateKeyInfo.of(Pkcs8PrivateKeyInfo)`
+            * `Pkcs8PrivateKeyInfo.ec(...)` -> `Pkcs8PrivateKeyInfo(...)` extensions on `Sec1EcPrivateKeyInfo` companion
+    * Renamed the `effectiveX` getters on `RsaSsaParams` to `X` getters, and the old `X` getters to `rawX` getters, to better reflect their purpose.
+* **Dependency Updates:**
+    * Kotlin 2.4.10
+    * Bouncy Castle 1.85
 
 ## 0.6.1
 * **Fixes:**
