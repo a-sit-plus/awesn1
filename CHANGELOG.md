@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## 0.7.0
 * **Security Hardening:**
     * Harden INTEGER/OID decimal conversion against DoS [Hardening → Bounded Numeric Conversion](hardening.md):
