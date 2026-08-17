@@ -28,15 +28,13 @@ import kotlin.jvm.JvmInline
 @JvmInline
 @Serializable
 value class X509SignatureValue(val rawBitString: Asn1BitString): WrappedEncodable<Asn1BitString> {
-    init {
-        if (rawBitString.numPaddingBits != 0.toByte()) {
-            throw Asn1Exception("The signature value must not have padding bits")
-        }
-    }
 
     override val value: Asn1BitString get() = rawBitString
 
     constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
-    val rawBytes: ByteArray get() = rawBitString.bitCarryingBytes
+    val rawBytes: ByteArray get() = rawBitString.also {
+        if (it.numPaddingBits != 0.toByte())
+            throw Asn1Exception("The signature value must not have padding bits")
+    }.bitCarryingBytes
 }

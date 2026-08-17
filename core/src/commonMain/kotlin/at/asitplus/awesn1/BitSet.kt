@@ -242,6 +242,9 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
             }
         }
 
+        operator fun invoke(vararg bits: Boolean) =
+            invoke(bits.size) { bits[it] }
+
         /**
          * Wraps [bytes] into a BitSet. Copies all bytes.
          * Hence, modifications to [bytes] are **not** reflected in the newly created BitSet.

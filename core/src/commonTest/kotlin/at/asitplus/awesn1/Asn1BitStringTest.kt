@@ -1,6 +1,9 @@
 package at.asitplus.awesn1
 
+import at.asitplus.awesn1.encoding.decodeFromDer
+import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
@@ -20,5 +23,15 @@ val Asn1BitStringTest by matrixSuite {
         fromBitSet1.hashCode() shouldBe fromBitSet1.hashCode()
         fromBitSet1.hashCode() shouldBe fromBitSet2.hashCode()
         fromBitSet1.hashCode() shouldNotBe fromBitSet3.hashCode()
+    }
+
+    "Bit String Test 2" {
+        val bitString = Asn1BitString(false)
+        bitString.numPaddingBits shouldBe 7.toByte()
+        val encoded = bitString.encodeToDer()
+        val decoded = Asn1BitString.decodeFromDer(encoded)
+        decoded.numPaddingBits shouldBe 7.toByte()
+        decoded[0] shouldBe false
+        shouldThrow<IndexOutOfBoundsException> { decoded[1] }
     }
 }
