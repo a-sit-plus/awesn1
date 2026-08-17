@@ -17,6 +17,7 @@ import kotlinx.serialization.Serializable
  * }
  * ```
  * @see Pkcs1RsaPublicKeyInfo.of
+ * @see Sec1EcPublicKeyInfo.of
  */
 @Serializable
 data class SubjectPublicKeyInfo(
@@ -33,8 +34,6 @@ data class SubjectPublicKeyInfo(
     fun decodeRsaPublicKey() = Pkcs1RsaPublicKeyInfo.of(this)
 
     companion object : PemLabelSpec<SubjectPublicKeyInfo> {
-        private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
-
         const val PEM_LABEL_PUBLIC_KEY = "PUBLIC KEY"
         const val PEM_LABEL_RSA_PUBLIC_KEY = "RSA PUBLIC KEY"
 
@@ -43,12 +42,8 @@ data class SubjectPublicKeyInfo(
 
 
         @Deprecated("Moved to a more suitable location",
-            replaceWith = ReplaceWith("SubjectPublicKeyInfo.of(publicKey)"))
+            replaceWith = ReplaceWith("SubjectPublicKeyInfo(publicKey)"))
         fun rsa(publicKey: Pkcs1RsaPublicKeyInfo) = this(publicKey)
 
-        fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
-            algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, curveOid.encodeToTlv()),
-            subjectPublicKey = Asn1BitString(ansiX963Key)
-        )
     }
 }
