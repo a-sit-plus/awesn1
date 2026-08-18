@@ -121,11 +121,6 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
     }
 
     /**
-     * Current length of the bitset.
-     */
-    fun length(): Long = highestSetIndex() + 1L
-
-    /**
      * Iterates over each bit in the `BitSet` and invokes the provided [action] for every index and corresponding bit value.
      *
      * Deliberatelly not an extension function, to have precedence over the int-indexed `forEach` function of the `Iterable` interface.
@@ -136,7 +131,7 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
      */
     //deliberately not an extension function
     inline fun forEachIndexed(action: (i: Long, it: Boolean) -> Unit) {
-        for (i in 0..<length()) action(i, this[i])
+        for (i in 0..highestSetIndex()) action(i, this[i])
     }
 
     /**
@@ -153,7 +148,7 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
         }
     }
 
-    private fun highestSetIndex(): Long {
+    fun highestSetIndex(): Long {
         compact()
         for (i: Long in buffer.size.toLong() * 8L - 1L downTo 0L) {
             if (buffer.getBit(i)) return i
@@ -229,7 +224,7 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
      */
     override fun iterator(): Iterator<Boolean> = object : Iterator<Boolean> {
         var index = 0L
-        override fun hasNext(): Boolean = index < length()
+        override fun hasNext(): Boolean = index <= highestSetIndex()
         override fun next(): Boolean = get(index++)
     }
 
@@ -241,6 +236,9 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) : Iterab
                 if (initializer(it)) set(it.toLong())
             }
         }
+
+        operator fun invoke(vararg bits: Boolean) =
+            invoke(bits.size) { bits[it] }
 
         /**
          * Wraps [bytes] into a BitSet. Copies all bytes.
