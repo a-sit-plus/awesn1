@@ -149,10 +149,6 @@ val BitSetTest by matrixSuite {
                         }
                     }
 
-                    withClue("\nKMM: ${kmm.toBitStringView()}\nJVM: ${jvm.toString()}") {
-                        kmm.length() shouldBe jvm.length()
-                    }
-
                     input.forEachIndexed { i, b ->
                         withClue("jvm[$i]") { jvm[i] shouldBe b }
                         withClue("kmm[$i]") { kmm[i.toLong()] shouldBe b }

@@ -6,7 +6,6 @@
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.Asn1BitString.Companion.fromBitSet
-import at.asitplus.awesn1.KnownOIDs.size
 import at.asitplus.awesn1.serialization.Asn1Serializer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -46,17 +45,8 @@ data class Asn1BitString private constructor(
 
     ) : Asn1Encodable<Asn1Primitive> {
 
-    /**
-     * The total length of the bit string content octets, including the padding-bit-count byte.
-     */
-    val overallContentLength get() = bitCarryingBytes.size + 1
-
-    /**
-     * The DER content octets of the bit string, including the padding-bit-count byte.
-     */
-    val overallContent get() = byteArrayOf(numPaddingBits, *bitCarryingBytes)
-
-    val size get() = bitCarryingBytes.size.toLong() * 8 - numPaddingBits
+    val sizeBits get() = bitCarryingBytes.size.toLong() * 8 - numPaddingBits
+    val sizeBytes get() = bitCarryingBytes.size
 
     /**
      * helper constructor to be able to use [fromBitSet]
@@ -120,12 +110,12 @@ data class Asn1BitString private constructor(
      *
      */
     fun toBitSet(): BitSet {
-        val bitset = BitSet(size)
+        val bitset = BitSet(sizeBits)
         for (i in bitCarryingBytes.indices) {
             val bitOffset = i.toLong() * 8L
             for (bitIndex in 0..<8) {
                 val globalIndex = bitOffset + bitIndex
-                if (globalIndex == size) return bitset
+                if (globalIndex == sizeBits) return bitset
                 bitset[globalIndex] = (bitCarryingBytes[i].toInt() and (0x80 shr bitIndex) != 0)
             }
         }
@@ -133,19 +123,8 @@ data class Asn1BitString private constructor(
     }
 
     operator fun get(bitIndex: Int): Boolean {
-        if (bitIndex >= size) throw IndexOutOfBoundsException("bitIndex: $bitIndex, size: ${size}")
+        if (bitIndex >= sizeBits) throw IndexOutOfBoundsException("bitIndex: $bitIndex, size: ${sizeBits}")
         return (bitCarryingBytes[bitIndex / 8] and (0x80 shl (bitIndex % 8)).toByte()) != 0.toByte()
-    }
-
-    operator fun set(bitIndex: Int, value: Boolean) {
-        if (bitIndex >= size) throw IndexOutOfBoundsException("bitIndex: $bitIndex, size: ${size}")
-        val byteIndex = bitIndex / 8
-        val byteMask = (0x80 shl (bitIndex % 8)).toByte()
-        if (value) {
-            bitCarryingBytes[byteIndex] = bitCarryingBytes[byteIndex] or byteMask
-        } else {
-            bitCarryingBytes[byteIndex] = bitCarryingBytes[byteIndex] and byteMask.inv()
-        }
     }
 
     companion object : Asn1Serializer<Asn1Primitive, Asn1BitString>(
@@ -170,7 +149,7 @@ data class Asn1BitString private constructor(
                 }
                 res.toUByte().toByte()
             }.toByteArray()
-            return Pair(((8 - (bitSet.length() % 8)) % 8).toByte(), rawBytes)
+            return Pair(((8 - ((bitSet.highestSetIndex()+1L) % 8)) % 8).toByte(), rawBytes)
         }
 
         private fun fromBits(bits: BooleanArray): Pair<Byte, ByteArray> {
