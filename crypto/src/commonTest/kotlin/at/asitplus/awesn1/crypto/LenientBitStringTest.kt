@@ -6,6 +6,7 @@ import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
 import at.asitplus.awesn1.BitSet
 import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.crypto.Sec1EcPublicKeyInfo.Companion.ec
 import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
 import at.asitplus.awesn1.crypto.pki.X500Name
 import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
@@ -67,7 +68,10 @@ private fun minimalTbsCertificate(
     validFrom = Asn1Time.SecondsCapped(Instant.fromEpochSeconds(1_700_000_000L)),
     validUntil = Asn1Time.SecondsCapped(Instant.fromEpochSeconds(1_700_086_400L)),
     subjectName = X500Name(X500RelativeDistinguishedName(setOf(X500AttributeTypeAndValue.CommonName("subject")))),
-    subjectPublicKeyInfo = SubjectPublicKeyInfo.ec(ObjectIdentifier("1.2.840.10045.3.1.7"), ByteArray(65) { it.toByte() }),
+    subjectPublicKeyInfo = SubjectPublicKeyInfo.ec(
+        curveOid = ObjectIdentifier("1.2.840.10045.3.1.7"),
+        xBytes = ByteArray(64) { 0x1 },
+        usePositiveY = true),
     issuerUniqueID = issuerUniqueID,
     subjectUniqueID = subjectUniqueID,
 )

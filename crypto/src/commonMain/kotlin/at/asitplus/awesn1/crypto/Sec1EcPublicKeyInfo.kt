@@ -19,6 +19,11 @@ sealed class Sec1EcPublicKeyInfo(val curveOid: ObjectIdentifier, val x: ByteArra
             return curveOid == other.curveOid && x.contentEquals(other.x) && y.contentEquals(other.y)
         }
 
+        init {
+            runRethrowing { require(x.size == y.size)
+                { "EC subjectPublicKey must have x.size (${x.size}) == y.size (${y.size})" } }
+        }
+
         override fun hashCode() = 31 * (31 * curveOid.hashCode() + x.contentHashCode()) + y.contentHashCode()
     }
 
@@ -37,15 +42,9 @@ sealed class Sec1EcPublicKeyInfo(val curveOid: ObjectIdentifier, val x: ByteArra
         const val UNCOMPRESSED_PREFIX = 0x04.toByte()
         const val COMPRESSED_PLUS_PREFIX = 0x03.toByte()
         const val COMPRESSED_MINUS_PREFIX = 0x02.toByte()
-        fun of(publicKeyInfo: SubjectPublicKeyInfo, der: Der = DER) = runRethrowing {
-            require(publicKeyInfo.algorithmOid == EC_PUBLIC_KEY_OID)
-                { "SubjectPublicKeyInfo is not an ECDSA public key" }
-            val curveOid = publicKeyInfo.algorithmParameters?.asPrimitive()?.readOid() ?:
-                throw IllegalArgumentException("ECDSA SubjectPublicKeyInfo must not contain NULL params")
-            require(publicKeyInfo.subjectPublicKey.numPaddingBits == 0.toByte())
-                { "ECDSA subjectPublicKey must only have full octets" }
-            val contentBytes = publicKeyInfo.subjectPublicKey.bitCarryingBytes
-            when (val firstByte = contentBytes[0]) {
+
+        operator fun invoke(curveOid: ObjectIdentifier, contentBytes: ByteArray) = runRethrowing {
+            when (val firstByte = contentBytes.getOrNull(0)) {
                 UNCOMPRESSED_PREFIX -> {
                     require(contentBytes.size % 2 == 1) // leading byte + even number
                         { "ECDSA subjectPublicKey must have an even number of point octets" }
@@ -65,7 +64,24 @@ sealed class Sec1EcPublicKeyInfo(val curveOid: ObjectIdentifier, val x: ByteArra
             }
         }
 
-        operator fun SubjectPublicKeyInfo.Companion.invoke(publicKey: Sec1EcPublicKeyInfo) = runRethrowing {
+        operator fun invoke(curveOid: ObjectIdentifier, xBytes: ByteArray, yBytes: ByteArray) =
+            Uncompressed(curveOid, xBytes, yBytes)
+
+        operator fun invoke(curveOid: ObjectIdentifier, xBytes: ByteArray, usePositiveY: Boolean) =
+            Compressed(curveOid, xBytes, usePositiveY)
+
+        fun of(publicKeyInfo: SubjectPublicKeyInfo, der: Der = DER) = runRethrowing {
+            require(publicKeyInfo.algorithmOid == EC_PUBLIC_KEY_OID)
+                { "SubjectPublicKeyInfo is not an ECDSA public key" }
+            val curveOid = publicKeyInfo.algorithmParameters?.asPrimitive()?.readOid() ?:
+                throw IllegalArgumentException("ECDSA SubjectPublicKeyInfo must not contain NULL params")
+            require(publicKeyInfo.subjectPublicKey.numPaddingBits == 0.toByte())
+                { "ECDSA subjectPublicKey must only have full octets" }
+            val contentBytes = publicKeyInfo.subjectPublicKey.bitCarryingBytes
+            invoke(curveOid, contentBytes)
+        }
+
+        fun SubjectPublicKeyInfo.Companion.from(publicKey: Sec1EcPublicKeyInfo) = runRethrowing {
             SubjectPublicKeyInfo(
                 X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, publicKey.curveOid.encodeToTlv()),
                 when (publicKey) {
@@ -78,16 +94,12 @@ sealed class Sec1EcPublicKeyInfo(val curveOid: ObjectIdentifier, val x: ByteArra
             )
         }
 
-        fun SubjectPublicKeyInfo.Companion.ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = runRethrowing {
-            when (val firstByte = ansiX963Key[0]) {
-                UNCOMPRESSED_PREFIX -> require(ansiX963Key.size % 2 == 1)
-                    { "ECDSA subjectPublicKey must have an even number of point octets" }
-                COMPRESSED_PLUS_PREFIX, COMPRESSED_MINUS_PREFIX -> {}
-                else -> throw Asn1Exception("Unknown ECDSA prefix byte $firstByte")
-            }
-            return SubjectPublicKeyInfo(
-                algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, curveOid.encodeToTlv()),
-                subjectPublicKey = Asn1BitString(ansiX963Key))
+        fun SubjectPublicKeyInfo.Companion.ec(curveOid: ObjectIdentifier, xBytes: ByteArray, yBytes: ByteArray): SubjectPublicKeyInfo = runRethrowing {
+            from(Sec1EcPublicKeyInfo(curveOid, xBytes, yBytes))
+        }
+
+        fun SubjectPublicKeyInfo.Companion.ec(curveOid: ObjectIdentifier, xBytes: ByteArray, usePositiveY: Boolean): SubjectPublicKeyInfo = runRethrowing {
+            from(Sec1EcPublicKeyInfo(curveOid, xBytes, usePositiveY))
         }
     }
 }

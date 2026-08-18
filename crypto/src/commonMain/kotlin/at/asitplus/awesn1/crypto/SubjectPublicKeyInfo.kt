@@ -4,7 +4,8 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo.Companion.invoke
+import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo.Companion.from
+import at.asitplus.awesn1.crypto.Sec1EcPublicKeyInfo.Companion.from
 import kotlinx.serialization.Serializable
 
 /**
@@ -42,8 +43,13 @@ data class SubjectPublicKeyInfo(
 
 
         @Deprecated("Moved to a more suitable location",
-            replaceWith = ReplaceWith("SubjectPublicKeyInfo(publicKey)"))
-        fun rsa(publicKey: Pkcs1RsaPublicKeyInfo) = this(publicKey)
+            replaceWith = ReplaceWith("SubjectPublicKeyInfo.from(publicKey)"))
+        fun rsa(publicKey: Pkcs1RsaPublicKeyInfo) = this.from(publicKey)
+
+        @Deprecated("Passing x/y separately is preferred")
+        fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = runRethrowing {
+            from(Sec1EcPublicKeyInfo(curveOid, ansiX963Key))
+        }
 
     }
 }
