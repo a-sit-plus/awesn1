@@ -16,7 +16,6 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.experimental.and
-import kotlin.experimental.inv
 import kotlin.experimental.or
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -145,7 +144,7 @@ data class Asn1BitString private constructor(
                 .withAsn1LeadingTags(leadingTags)
 
         private fun fromBitSet(bitSet: BitSet): Pair<Byte, ByteArray> {
-            val rawBytes = bitSet.bytes.map {
+            val rawBytes = bitSet.mutableBytes.map {
                 var res = 0
                 for (i in 0..7) {
                     if (it.toUByte().toInt() and (0x80 shr i) != 0) res = res or (0x01 shl i)
