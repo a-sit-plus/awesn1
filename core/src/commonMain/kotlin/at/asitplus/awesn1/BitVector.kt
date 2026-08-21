@@ -3,258 +3,250 @@
 
 package at.asitplus.awesn1
 
-import at.asitplus.awesn1.BitVector.Companion.getByteIndexUnsafe
 import kotlin.experimental.and
 
+/**
+ * Logical, index-addressable bits without a size or byte-layout contract.
+ *
+ * Implementations define their valid index domain through [BoundedBitVector] or [UnboundedBitVector]. Byte packing is
+ * deliberately absent: concrete types expose their own explicitly named LSB0 and MSB0 representations.
+ *
+ * This base interface deliberately does not extend [Iterable]. Iteration requires an end, but a plain bit vector has no
+ * extent contract: [BoundedBitVector] must iterate exactly its [BoundedBitVector.logicalBitCount], including trailing
+ * `false` positions, whereas [UnboundedBitVector] exposes only the finite prefix ending at [highestSetIndex]. Putting
+ * either rule here would discard meaningful trailing `false` bits for some implementations or invent a finite end for
+ * an unbounded abstraction. The extent-specific subinterfaces therefore define their own `Iterable<Boolean>` semantics.
+ */
+interface BitVector {
+    /**
+     * Returns the bit at [index]. Negative indexes always throw. A bounded implementation also throws when [index] is
+     * not smaller than its size; every nonnegative index is valid for an unbounded implementation.
+     */
+    @Throws(IndexOutOfBoundsException::class)
+    operator fun get(index: Long): Boolean
 
-fun Byte.getBit(index: Int): Boolean =
-    if (index !in 0..7) throw IndexOutOfBoundsException("bit index $index out of bounds.")
-    else (((1 shl index).toByte() and this) != 0.toByte())
+    /** Returns the first set bit at or after [fromIndex], or `-1` if no such bit exists. */
+    @Throws(IndexOutOfBoundsException::class)
+    fun nextSetBit(fromIndex: Long): Long
+
+    /** Returns the first set bit after [index], or `-1` if no such bit exists. */
+    @Throws(IndexOutOfBoundsException::class)
+    fun nextSetBitAfter(index: Long): Long =
+        if (index == Long.MAX_VALUE) -1 else nextSetBit(index + 1)
+
+    /** Returns the greatest index whose bit is set, or `-1` if no bit is set. */
+    fun highestSetIndex(): Long
+
+    companion object {
+        /** Returns the backing-byte index containing logical [index]. */
+        @Throws(IndexOutOfBoundsException::class)
+        internal fun getByteIndex(index: Long): Int {
+            if (index < 0) throw IndexOutOfBoundsException("index = $index")
+            val byteIndex = index / 8
+            if (byteIndex > Int.MAX_VALUE) throw IndexOutOfBoundsException("byte index = $byteIndex")
+            return byteIndex.toInt()
+        }
+
+        /** Returns the mask for logical [index] when bit zero is the least-significant bit of its byte. */
+        internal fun getLsb0Mask(index: Long): Byte = (1 shl (index % 8).toInt()).toByte()
+
+        /** Returns the mask for logical [index] when bit zero is the most-significant bit of its byte. */
+        internal fun getMsb0Mask(index: Long): Byte = (0x80 ushr (index % 8).toInt()).toByte()
+
+        /** Returns the minimum number of bytes required to store [logicalBitCount] bits. */
+        internal fun getByteCount(logicalBitCount: Long): Int {
+            if (logicalBitCount < 0) {
+                throw IllegalArgumentException("a bit vector of size $logicalBitCount makes no sense")
+            }
+            val byteCount = logicalBitCount / 8 + if (logicalBitCount % 8 == 0L) 0 else 1
+            // ponytail: JVM/native arrays cannot practically represent Int.MAX_VALUE elements.
+            if (byteCount >= Int.MAX_VALUE) throw Asn1Exception("BitVector byte count exceeds supported range: $byteCount")
+            return byteCount.toNonnegativeIntChecked("BitVector byte count")
+        }
+
+    }
+
+    /** Orientation of logical bit indexes within each backing-array byte. Byte order itself is unchanged. */
+    enum class BitOrder { LSB0, MSB0 }
+}
 
 
+/** A bit vector with an array representation whose native intra-byte orientation is [bitOrder]. */
+interface ArrayBackedBitVector : BoundedBitVector {
+    val bitOrder: BitVector.BitOrder
+}
+
+/** An array-backed vector whose logical index zero uses the most-significant bit of its first byte. */
+interface Msb0BitVector : ArrayBackedBitVector {
+    override val bitOrder: BitVector.BitOrder get() = BitVector.BitOrder.MSB0
+}
+
+/** An array-backed vector whose logical index zero uses the least-significant bit of its first byte. */
+interface Lsb0BitVector : ArrayBackedBitVector {
+    override val bitOrder: BitVector.BitOrder get() = BitVector.BitOrder.LSB0
+}
+
+/** A vector whose valid logical indexes are exactly `0..<logicalBitCount`. */
+interface BoundedBitVector : BitVector, Iterable<Boolean> {
+    /**
+     * Exact number of addressable logical bit positions.
+     *
+     * Every index in `0..<logicalBitCount` belongs to this vector, including positions whose value is `false` and
+     * trailing `false` positions after [BitVector.highestSetIndex]. This is not backing-array capacity: padding or other
+     * physically stored bits outside this range are not part of the vector and cannot be addressed through [get].
+     * For example, a value of `3` means that only indexes `0`, `1`, and `2` exist; index `3` is out of bounds even when
+     * an array-backed implementation uses a whole byte internally.
+     */
+    val logicalBitCount: Long
+
+    /** Iterates exactly [logicalBitCount] bits, including unset bits at either end. */
+    override fun iterator(): Iterator<Boolean> = bitIterator(logicalBitCount)
+
+    /** Returns exactly [logicalBitCount] logical bits in increasing index order. */
+    fun toLogicalBitString(): String = joinToString("") { if (it) "1" else "0" }
+
+    /** Returns the bytes needed for exactly [logicalBitCount] bits in LSB0 order; unused final-byte bits are zero. */
+    fun toLsb0ByteArray(): ByteArray
+
+    /** Returns the bytes needed for exactly [logicalBitCount] bits in MSB0 order; unused final-byte bits are zero. */
+    fun toMsb0ByteArray(): ByteArray
+
+    /** Iterates the exact bounded representation in LSB0 order; unused final-byte bits are zero. */
+    fun lsb0ByteIterator(): ByteIterator
+
+    /** Iterates the exact bounded representation in MSB0 order; unused final-byte bits are zero. */
+    fun msb0ByteIterator(): ByteIterator
+}
+
+/**
+ * A vector without a fixed logical upper bound. Every unset nonnegative index reads as `false`; mutation may still fail
+ * when an index exceeds the concrete storage implementation. Iteration ends immediately after
+ * [BitVector.highestSetIndex], and an empty vector therefore produces no elements.
+ */
+interface UnboundedBitVector : BitVector, Iterable<Boolean> {
+    override fun iterator(): Iterator<Boolean> = bitIterator(highestSetIndex() + 1)
+
+    /** Returns logical bits from index zero through [BitVector.highestSetIndex]. */
+    fun toLogicalBitString(): String = joinToString("") { if (it) "1" else "0" }
+
+    /** Returns the compact LSB0 representation ending at [BitVector.highestSetIndex]. */
+    fun toLsb0ByteArray(): ByteArray
+
+    /** Returns the compact MSB0 representation ending at [BitVector.highestSetIndex]. */
+    fun toMsb0ByteArray(): ByteArray
+
+    /** Iterates the compact LSB0 representation ending at [BitVector.highestSetIndex]. */
+    fun lsb0ByteIterator(): ByteIterator
+
+    /** Iterates the compact MSB0 representation ending at [BitVector.highestSetIndex]. */
+    fun msb0ByteIterator(): ByteIterator
+}
+
+/** Mutation capability shared by bounded and unbounded bit vectors. */
 interface MutableBitVector : BitVector {
+    /** Sets [index] to [value], subject to the receiver's bounded or unbounded index contract. */
+    @Throws(IndexOutOfBoundsException::class)
     operator fun set(index: Long, value: Boolean)
 }
 
-interface BitVector : Iterable<Boolean> {
+/** A fixed-size mutable bit vector. */
+interface MutableBoundedBitVector : BoundedBitVector, MutableBitVector
 
+/** A mutable bit vector that grows when a previously unrepresented nonnegative index is set. */
+interface MutableUnboundedBitVector : UnboundedBitVector, MutableBitVector
 
-    /**
-     * Creates a deep copy of the current `BitVector` instance.
-     *
-     * @return A new `BitSet` object containing the same state as the current one.
-     */
-    fun copyOf(): BitVector
+private fun BitVector.bitIterator(size: Long): Iterator<Boolean> = object : Iterator<Boolean> {
+    private var index = 0L
 
-    /**
-     * Read-Only iterator
-     */
-    val byteIterator: ByteIterator
+    override fun hasNext(): Boolean = index < size
 
-
-    /**
-     * Returns the bit at [index]. Never throws an exception when [index]>=0, as getting a bit outside the underlying
-     * bytes' bounds returns false.
-     */
-    operator fun get(index: Long): Boolean
-
-    /**
-     * Returns the first bit set to true from [fromIndex] *(= inclusive)*.
-     * @return the index of the first bit set to true, or -1 if there are no bits set to true
-     */
-    fun nextSetBit(fromIndex: Long): Long
-
-    /**
-     * Returns the first bit set to true *after* [index] (= exclusive).
-     * @return the index of the first bit set to true, or -1 if there are no bits set to true
-     */
-    fun nextSetBitAfter(index: Long): Long = nextSetBit(index + 1)
-
-
-    /**
-     * Iterates over each bit in the `BitSet` and invokes the provided [action] for every index and corresponding bit value.
-     *
-     * Deliberatelly not an extension function, to have precedence over the int-indexed `forEach` function of the `Iterable` interface.
-     *
-     * @param action A lambda function that is invoked with two arguments:
-     * - `i`: The index of the bit in the `BitSet`.
-     * - `it`: The value of the bit at the given index, either `true` or `false`.
-     */
-    //deliberately not an extension function
-    fun forEachIndexed(action: (i: Long, it: Boolean) -> Unit) {
-        for (i in 0..highestSetIndex()) action(i, this[i])
-    }
-
-    /**
-     * Allocates a fresh byte array and writes the values of this bitset's underlying bytes to it
-     */
-    fun toByteArray(): ByteArray
-
-
-    fun highestSetIndex(): Long
-
-    /**
-     * Returns all bits as they are accessible by the global bit index
-     *
-     * Note that this representation conflicts with the usual binary representation of a bit-set's
-     * underlying byte array for the following reason:
-     *
-     * Printing a byte array usually shows the MS*Byte* at the right-most position, but each byte's MS*Bit*
-     * at a byte's individual left-most position, leading to bit and byte indices running in opposing directions.
-     *
-     * The string representation returned by this function can simply be interpreted as a list of boolean values
-     * accessible by a monotonic index running in one direction.
-     *
-     * See the following illustration of memory layout vs. bit string index and the resulting string:
-     * ```
-     * ┌──────────────────────────────┐
-     * │                              │
-     * │                              │ Addr: 2
-     * │   0  0  0  0  1  1  0  1    │
-     * │ ◄─23─22─21─20─19─18─17─16─┐  │
-     * │                           │  │
-     * ├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ┤
-     * │                           │  │
-     * │ ┌─────────────────────────┘  │ Addr: 1
-     * │ │  1  0  0  0  1  0  0  0    │
-     * │ └─15─14─12─12─11─10──9──8─┐  │
-     * │                           │  │
-     * ├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ┤
-     * │                           │  │
-     * │ ┌─────────────────────────┘  │ Addr: 0
-     * │ │  1  0  1  1  0  1  1  1    │
-     * │ └──7──6──5──4──3──2──1──0──────index─◄─
-     * │                              │
-     * └──────────────────────────────┘
-     *```
-     *
-     * This leads to the following bit string:
-     * 11101101000100011011
-     */
-    fun toBitStringView() = toByteArray().toBitStringView()
-
-    /**
-     * Returns a binary representation of this bit set's memory layout, when packed into a byte array
-     * Bytes are separated by a single space. An empty byte array results in an empty string.
-     *
-     * ```kotlin
-     * val bits = BitSet()
-     * bits[2] = true                   //00000100
-     * bits[1] = true                   //00000110
-     * bits[0] = true                   //00000111
-     * bits[8] = true                   //00000111 00000001
-     * ```
-     */
-    fun memDumpView() = toByteArray().memDumpView()
-
-
-    /**
-     * returns an iterator over bits. use [bytes]`.iterator()` to iterate over bytes
-     */
-    override fun iterator(): Iterator<Boolean> = object : Iterator<Boolean> {
-        var index = 0L
-        override fun hasNext(): Boolean = index <= highestSetIndex()
-        override fun next(): Boolean = get(index++)
-    }
-
-    companion object {
-        internal fun getByteIndex(i: Long) = (i / 8).toNonnegativeIntChecked("BitSet byte index")
-        internal fun getBitIndex(i: Long) = (i % 8).toInt()
-
-        internal fun Any.getByteIndexUnsafe(index: Long): Int {
-            if (index < 0) throw IndexOutOfBoundsException("index = $index")
-            val byteIndex = index / 8
-            if (byteIndex >= (if (this is ByteArray) size else (this as List<*>).size)) return -1
-            return byteIndex.toInt()
-        }
+    override fun next(): Boolean {
+        if (!hasNext()) throw NoSuchElementException()
+        return get(index++)
     }
 }
 
-fun ByteArray.getBit(index: Long): Boolean {
-    context(BitVector.Companion) {
-        val byteIndex = this.getByteIndexUnsafe(index)
-        return this[byteIndex].getBit(BitVector.getBitIndex(index))
-    }
+/** Returns the LSB0 bit at [index], or `false` when [index] exceeds this array. */
+@Throws(IndexOutOfBoundsException::class)
+fun ByteArray.getLsb0Bit(index: Long): Boolean {
+    if (index < 0) throw IndexOutOfBoundsException("index = $index")
+    val byteIndex = index / 8
+    return byteIndex < size && (this[byteIndex.toInt()] and BitVector.getLsb0Mask(index)) != 0.toByte()
+}
+
+/** Returns the MSB0 bit at [index], or `false` when [index] exceeds this array. */
+@Throws(IndexOutOfBoundsException::class)
+fun ByteArray.getMsb0Bit(index: Long): Boolean {
+    if (index < 0) throw IndexOutOfBoundsException("index = $index")
+    val byteIndex = index / 8
+    return byteIndex < size && (this[byteIndex.toInt()] and BitVector.getMsb0Mask(index)) != 0.toByte()
+}
+
+/** Returns the LSB0 bit at [index], or `false` when [index] exceeds this list. */
+@Throws(IndexOutOfBoundsException::class)
+internal fun List<Byte>.getLsb0Bit(index: Long): Boolean {
+    if (index < 0) throw IndexOutOfBoundsException("index = $index")
+    val byteIndex = index / 8
+    return byteIndex < size && (this[byteIndex.toInt()] and BitVector.getLsb0Mask(index)) != 0.toByte()
 }
 
 
-fun List<Byte>.getBit(index: Long): Boolean {
-    context(BitVector.Companion) {
-        val byteIndex = this.getByteIndexUnsafe(index)
-        return this[byteIndex].getBit(BitVector.getBitIndex(index))
-    }
+/** Returns this byte with the order of all eight bits reversed. */
+fun Byte.reverseBits(): Byte {
+    var value = toInt() and 0xff
+    value = ((value and 0x55) shl 1) or ((value ushr 1) and 0x55)
+    value = ((value and 0x33) shl 2) or ((value ushr 2) and 0x33)
+    return (((value and 0x0f) shl 4) or ((value ushr 4) and 0x0f)).toByte()
 }
-
 
 /**
- * Returns all bits as they are accessible by the global bit index (i.e. after wrapping this ByteArray into a BitSet)
+ * Returns a diagnostic view of this array's physical byte contents.
  *
- * Note that this representation conflicts with the usual binary representation of a byte array for the following reason:
+ * Bytes appear in array-index order, starting with byte `0`. Within every byte, characters appear in conventional
+ * binary notation from the most-significant physical bit (`b7`) to the least-significant physical bit (`b0`). Adjacent
+ * bytes are separated by one space; an empty array produces an empty string.
  *
- * Printing a byte array usually shows the MS*Byte* at the right-most position, but each byte's MS*Bit*
- * at a byte's individual left-most position, leading to bit and byte indices running in opposing directions.
+ * This function does not apply an LSB0 or MSB0 interpretation. In particular, it does not reverse bits, remove trailing
+ * zeroes, or hide padding bits. The same physical byte therefore has the same dump regardless of how a bit vector maps
+ * logical indexes onto it:
  *
- * The string representation returned by this function can simply be interpreted as a list of boolean values
- * accessible by a monotonic index running in one direction.
- *
- * See the following illustration of memory layout vs. bit string index and the resulting string:
+ * ```text
+ * array index        byte 0                         byte 1
+ * physical bit       b7 b6 b5 b4 b3 b2 b1 b0       b7 b6 b5 b4 b3 b2 b1 b0
+ * MSB0 bit index      0  1  2  3  4  5  6  7        8  9 10 11 12 13 14 15
+ * LSB0 bit index      7  6  5  4  3  2  1  0       15 14 13 12 11 10  9  8
+ * dump order         ───────────────────────►      ───────────────────────►
  * ```
- * ┌──────────────────────────────┐
- * │                              │
- * │                              │ Addr: 2
- * |    0  0  0  0  1  1  0  1    │
- * │ ◄─23─22─21─20─19─18─17─16─┐  │
- * │                           │  │
- * ├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ┤
- * │                           │  │
- * │ ┌─────────────────────────┘  │ Addr: 1
- * │ │  1  0  0  0  1  0  0  0    │
- * │ └─15─14─12─12─11─10──9──8─┐  │
- * │                           │  │
- * ├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─│─ ┤
- * │                           │  │
- * │ ┌─────────────────────────┘  │ Addr: 0
- * │ │  1  0  1  1  0  1  1  1    │
- * │ └──7──6──5──4──3──2──1──0──────index─◄─
- * │                              │
- * └──────────────────────────────┘
- *```
  *
- * This leads to the following bit string:
- * 11101101000100011011
- */
-fun ByteArray.toBitStringView(): String =
-    joinToString(separator = "") {
-        it.toUByte().toString(2).padStart(8, '0').reversed()
-    }.dropLastWhile { it == '0' }
-
-/**
- * Returns a binary representation of this byte array's memory layout
- * Bytes are separated by a single space. An empty byte array results in an empty string.
+ * Examples:
  *
  * ```kotlin
- * byteArrayOf(4).memDump()         //00000100
- * byteArrayOf(7).memDump()         //00000111
- * byteArrayOf(17, 31).memDump()    //00010001 00011111
+ * byteArrayOf().memDumpView()                 // ""
+ * byteArrayOf(4).memDumpView()                // "00000100"
+ * byteArrayOf(7).memDumpView()                // "00000111"
+ * byteArrayOf(17, 31).memDumpView()           // "00010001 00011111"
+ * byteArrayOf(0x81.toByte(), 2).memDumpView() // "10000001 00000010"
  * ```
  */
 fun ByteArray.memDumpView(): String =
     joinToString(separator = " ") { it.toUByte().toString(2).padStart(8, '0') }
 
-
-/**
- * shorthand for `set(index, true)`
- */
-fun MutableBitVector.set(index: Long) {
-    this[index] = true
-}
-
+/** Sets [index]. */
+fun MutableBitVector.set(index: Long) { this[index] = true }
 fun MutableBitVector.set(index: Int) = set(index.toLong())
-
-
 operator fun BitVector.get(index: Int): Boolean = this[index.toLong()]
-operator fun MutableBitVector.set(index: Int, value: Boolean) {
-    this[index.toLong()] = value
-}
+operator fun MutableBitVector.set(index: Int, value: Boolean) { this[index.toLong()] = value }
 
-fun MutableBitVector.flip(index: Long) {
-    this[index] = !this[index]
-}
-
+/** Inverts [index]. */
+fun MutableBitVector.flip(index: Long) { this[index] = !this[index] }
 fun MutableBitVector.flip(index: Int) = flip(index.toLong())
 
-/**
- * shorthand for `set(index, false)`
- */
-fun MutableBitVector.clear(index: Long) {
-    this[index] = false
-}
-
+/** Clears [index]. */
+fun MutableBitVector.clear(index: Long) { this[index] = false }
 fun MutableBitVector.clear(index: Int) = clear(index.toLong())
-
-fun MutableBitVector.flip(fromIndex: Long, toIndex: Long) = flip(LongRange(fromIndex, toIndex))
+fun MutableBitVector.flip(fromIndex: Long, toIndex: Long) = flip(fromIndex..toIndex)
 fun MutableBitVector.flip(indexes: LongRange) = indexes.forEach { flip(it) }
-fun MutableBitVector.set(fromIndex: Long, toIndex: Long) = set(LongRange(fromIndex, toIndex))
+fun MutableBitVector.set(fromIndex: Long, toIndex: Long) = set(fromIndex..toIndex)
 fun MutableBitVector.set(indexes: LongRange) = indexes.forEach { set(it) }
-fun MutableBitVector.clear(fromIndex: Long, toIndex: Long) = clear(LongRange(fromIndex, toIndex))
-fun MutableBitVector.clear(longRange: LongRange) = longRange.forEach { clear(it) }
+fun MutableBitVector.clear(fromIndex: Long, toIndex: Long) = clear(fromIndex..toIndex)
+fun MutableBitVector.clear(indexes: LongRange) = indexes.forEach { clear(it) }

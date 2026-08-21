@@ -4,9 +4,9 @@
 * Moved the faux-constructor extensions on `SubjectPublicKeyInfo` to `from` extensions
     * This avoids pathological autocomplete behavior
 * Added `Sec1EcPublicKeyInfo` to match `Pkcs1RsaPublicKeyInfo`
-* Usability improvements to `Asn1BitString`
-    * Added indexing operators and size
-    * Added utility constructor from vararg bits
+* Introduce BitVector interface hierarchy
+    * Revamp `BitSet` and `Asn1BitString`
+    * Introduce `BitArray`
 
 ## 0.7.0
 * **Security Hardening:**
