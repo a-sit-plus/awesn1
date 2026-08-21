@@ -14,7 +14,7 @@ val BitSetTest by matrixSuite {
 
     "Custom BitSet Implementation" - {
         "manual tests" {
-            KmpBitSet.fromString("011011100101110111").toBitStringView() shouldBe "011011100101110111"
+            KmpBitSet.fromLogicalBitString("011011100101110111").toLogicalBitString() shouldBe "011011100101110111"
 
             val kmm = KmpBitSet(0)
             val jvm = BitSet(0)
@@ -24,16 +24,16 @@ val BitSetTest by matrixSuite {
                 jvm[it] = true
             }
             jvm.toString() shouldBe "{2}"
-            kmm.toBitStringView() shouldBe "001"
-            KmpBitSet.fromString(kmm.toBitStringView()) shouldBe kmm
+            kmm.toLogicalBitString() shouldBe "001"
+            KmpBitSet.fromLogicalBitString(kmm.toLogicalBitString()) shouldBe kmm
 
             8.let {
                 kmm[it.toLong()] = true
                 jvm[it] = true
             }
             jvm.toString() shouldBe "{2, 8}"
-            kmm.toBitStringView() shouldBe "001000001"
-            KmpBitSet.fromString(kmm.toBitStringView()) shouldBe kmm
+            kmm.toLogicalBitString() shouldBe "001000001"
+            KmpBitSet.fromLogicalBitString(kmm.toLogicalBitString()) shouldBe kmm
 
 
             2.let {
@@ -42,8 +42,8 @@ val BitSetTest by matrixSuite {
             }
 
             jvm.toString() shouldBe "{8}"
-            kmm.toBitStringView() shouldBe "000000001"
-            KmpBitSet.fromString(kmm.toBitStringView()) shouldBe kmm
+            kmm.toLogicalBitString() shouldBe "000000001"
+            KmpBitSet.fromLogicalBitString(kmm.toLogicalBitString()) shouldBe kmm
 
             10.let {
                 kmm[it.toLong()] = false
@@ -51,8 +51,8 @@ val BitSetTest by matrixSuite {
             }
 
             jvm.toString() shouldBe "{8}"
-            kmm.toBitStringView() shouldBe "000000001"
-            KmpBitSet.fromString(kmm.toBitStringView()) shouldBe kmm
+            kmm.toLogicalBitString() shouldBe "000000001"
+            KmpBitSet.fromLogicalBitString(kmm.toLogicalBitString()) shouldBe kmm
 
 
             8.let {
@@ -61,8 +61,8 @@ val BitSetTest by matrixSuite {
             }
 
             jvm.toString() shouldBe "{}"
-            kmm.toBitStringView() shouldBe ""
-            KmpBitSet.fromString(kmm.toBitStringView()) shouldBe kmm
+            kmm.toLogicalBitString() shouldBe ""
+            KmpBitSet.fromLogicalBitString(kmm.toLogicalBitString()) shouldBe kmm
 
 
             val bits = BitSet()
@@ -159,36 +159,36 @@ val BitSetTest by matrixSuite {
                     val i = input.size - 1
                     withClue(
                         "first bit set in second half\n" +
-                                "KMM: ${kmm.toBitStringView()}\n" +
+                                "KMM: ${kmm.toLogicalBitString()}\n" +
                                 "JVM: ${jvm.toString()}"
                     ) {
                         kmm.nextSetBit(i.toLong() / 2L).toInt() shouldBe jvm.nextSetBit(i / 2)
                     }
                     withClue(
                         "first bit set in last three quarters\n" +
-                                "KMM: ${kmm.toBitStringView()}\n" +
+                                "KMM: ${kmm.toLogicalBitString()}\n" +
                                 "JVM: ${jvm.toString()}"
                     ) {
                         kmm.nextSetBit(i.toLong() / 4L).toInt() shouldBe jvm.nextSetBit(i / 4)
                     }
                     withClue(
                         "first bit set in last 4/5 of bit set\n" +
-                                "KMM: ${kmm.toBitStringView()}\n" +
+                                "KMM: ${kmm.toLogicalBitString()}\n" +
                                 "JVM: ${jvm.toString()}"
                     ) {
                         kmm.nextSetBit(4L * i.toLong() / 5L).toInt() shouldBe jvm.nextSetBit(4 * i / 5)
                     }
-                    kmm.toByteArray() shouldBe jvm.toByteArray()
+                    kmm.toLsb0ByteArray() shouldBe jvm.toByteArray()
 
 
-                    BitSet.valueOf(kmm.toByteArray()).toByteArray() shouldBe jvm.toByteArray()
-                    kmm.toByteArray().toBitSet().toByteArray() shouldBe jvm.toByteArray()
-                    jvm.toByteArray().toBitSet().toByteArray() shouldBe jvm.toByteArray()
-                    kmm.toByteArray().toBitSet().toByteArray() shouldBe kmm.toByteArray()
+                    BitSet.valueOf(kmm.toLsb0ByteArray()).toByteArray() shouldBe jvm.toByteArray()
+                    kmm.toLsb0ByteArray().toBitSet().toLsb0ByteArray() shouldBe jvm.toByteArray()
+                    jvm.toByteArray().toBitSet().toLsb0ByteArray() shouldBe jvm.toByteArray()
+                    kmm.toLsb0ByteArray().toBitSet().toLsb0ByteArray() shouldBe kmm.toLsb0ByteArray()
 
-                    jvm.toByteArray().toBitSet().toByteArray() shouldBe kmm.toByteArray()
-                    BitSet.valueOf(jvm.toByteArray()).toByteArray() shouldBe kmm.toByteArray()
-                    BitSet.valueOf(kmm.toByteArray()).toByteArray() shouldBe kmm.toByteArray()
+                    jvm.toByteArray().toBitSet().toLsb0ByteArray() shouldBe kmm.toLsb0ByteArray()
+                    BitSet.valueOf(jvm.toByteArray()).toByteArray() shouldBe kmm.toLsb0ByteArray()
+                    BitSet.valueOf(kmm.toLsb0ByteArray()).toByteArray() shouldBe kmm.toLsb0ByteArray()
                     BitSet.valueOf(jvm.toByteArray()).toByteArray() shouldBe jvm.toByteArray()
                 }
             }
@@ -235,12 +235,11 @@ val BitSetTest by matrixSuite {
                                 .joinToString(separator = "") { if (it) "1" else "0" }
                         }.joinToString(separator = "") { it }.dropLastWhile { it == '0' }
 
-                    kmm.toBitStringView() shouldBe monotonicOrderedStr
+                    kmm.toLogicalBitString() shouldBe monotonicOrderedStr
                 }
             }
         }
     }
 }
 
-fun BitSet.toString(): String = toByteArray().toBitStringView()
 fun BitSet.memDump(): String = toByteArray().memDumpView()

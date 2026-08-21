@@ -14,7 +14,7 @@ import kotlinx.serialization.json.Json
 val BitSetBitStringSerializationTest by matrixSuite {
 
     "top-level BitSet and Asn1BitString share DER BIT STRING encoding" {
-        val bitSet = BitSet.fromString("001")
+        val bitSet = BitSet.fromLogicalBitString("001")
         val bitString = Asn1BitString(bitSet)
 
         DER.encodeToByteArray(bitSet).toHexString() shouldBe "03020520"
@@ -25,7 +25,7 @@ val BitSetBitStringSerializationTest by matrixSuite {
     }
 
     "top-level BitSet and Asn1BitString share non-DER string encoding" {
-        val bitSet = BitSet.fromString("001")
+        val bitSet = BitSet.fromLogicalBitString("001")
         val bitString = Asn1BitString(bitSet)
 
         Json.encodeToString(BitSet.serializer(), bitSet) shouldBe """"5:IA==""""

@@ -3,223 +3,317 @@
 
 package at.asitplus.awesn1
 
-import at.asitplus.awesn1.BitVector.Companion.getByteIndex
 import kotlin.experimental.and
 import kotlin.experimental.inv
 import kotlin.experimental.or
 
+/**
+ * Read-only fixed-size bits backed by a [ByteArray]. The named subclasses make the native [bitOrder] explicit.
+ * Unset bits at the end remain represented and are returned by [iterator].
+ *
+ * [wrap] deliberately aliases its input. This is a read-only view, not an immutable value; use [invoke] to copy.
+ */
+sealed class BitArray protected constructor(
+    private val buffer: ByteArray,
+    final override val logicalBitCount: Long,
+) : BoundedBitVector, ArrayBackedBitVector {
 
-class BitArray(private val impl: MutableBitArray) : BitVector by impl {
-    companion object {
-
-        //yes, int, because if you want more, init using a bytearray!
-        operator fun invoke(nBits: Int, initializer: (Int) -> Boolean): BitArray =
-            BitArray(MutableBitArray(nBits.toLong()).apply {
-                repeat(nBits) {
-                    if (initializer(it)) set(it.toLong())
-                }
-            })
-
-        operator fun invoke(vararg bits: Boolean): BitArray =
-            invoke(bits.size) { bits[it] }
-
-        /**
-         * Wraps [bytes] into a BitSet. Copies all bytes.
-         * Hence, modifications to [bytes] are **not** reflected in the newly created BitSet.
-         */
-        fun wrap(bytes: ByteArray) = BitArray(MutableBitArray(bytes))
-
-        /**
-         * Deep-copies the [byteArray] into a [MutableBitArray]
-         */
-        operator fun invoke(byteArray: ByteArray): BitArray = wrap(byteArray.copyOf())
-
-        /**
-         * Creates bitset from hunan-readably bit string representation
-         * @throws IllegalArgumentException if the provided string contains characters other than '1' and '0'
-         */
-        @Throws(IllegalArgumentException::class)
-        fun fromString(stringRepresentation: String): BitArray {
-            if (stringRepresentation.isEmpty()) return BitArray(0) { false }
-            if (!stringRepresentation.matches(Regex("^[01]+\$"))) throw IllegalArgumentException("Not a bit string")
-            return invoke(stringRepresentation.length) { stringRepresentation[it] == '1' }
+    init {
+        require(BitVector.getByteCount(logicalBitCount) == buffer.size) {
+            "logicalBitCount = $logicalBitCount requires ${BitVector.getByteCount(logicalBitCount)} bytes, found ${buffer.size}"
         }
-
-        /**
-         * Exception-free version of [fromString]
-         */
-        fun fromBitStringOrNull(bitString: String) : BitArray? = catchingUnwrapped { fromString(bitString) }.getOrNull()
     }
-}
 
-class MutableBitArray private constructor(private val buffer: ByteArray) : MutableBitVector {
-
-
-    /**
-     * Creates a deep copy of the current `BitSet` instance.
-     *
-     * @return A new `BitSet` object containing the same state as the current one.
-     */
-    override fun copyOf(): MutableBitArray = MutableBitArray(buffer.copyOf())
-    override val byteIterator: ByteIterator
-        get() = object : ByteIterator() {
-            var index = 0
-            override fun nextByte(): Byte {
-                return buffer[index++]
-            }
-
-            override fun hasNext(): Boolean {
-                return index < buffer.size - 1
-            }
+    override fun get(index: Long): Boolean {
+        checkIndex(index)
+        return when (bitOrder) {
+            BitVector.BitOrder.LSB0 -> buffer.getLsb0Bit(index)
+            BitVector.BitOrder.MSB0 -> buffer.getMsb0Bit(index)
         }
+    }
 
-    /**
-     * Preallocates a buffer capable of holding [nBits] many bits
-     */
-    constructor(nBits: Long = 0) : this(
-        if (nBits < 0) throw IllegalArgumentException("a bit set of size $nBits makes no sense")
-        else with(BitVector.Companion) {
-            ByteArray((getByteIndex(nBits).toLong() + 1).toNonnegativeIntChecked("BitSet preallocate size"))
-        })
-
-
-    /**
-     * Returns the bit at [index]. Never throws an exception when [index]>=0, as getting a bit outside the underlying
-     * bytes' bounds returns false.
-     */
-    override operator fun get(index: Long): Boolean = buffer.getBit(index)
-
-    /**
-     * Returns the first bit set to true from [fromIndex] *(= inclusive)*.
-     * @return the index of the first bit set to true, or -1 if there are no bits set to true
-     * @throws when [fromIndex] exceeds the underlying array's capacity
-     */
-    @Throws(IndexOutOfBoundsException::class)
     override fun nextSetBit(fromIndex: Long): Long {
         if (fromIndex < 0) throw IndexOutOfBoundsException("fromIndex = $fromIndex")
-        val byteIndex = getByteIndex(fromIndex)
-        if (byteIndex > buffer.lastIndex) throw IndexOutOfBoundsException("fromIndex = $fromIndex, size = ${buffer.size.toLong() * 8}")
-        else {
-            val startIndex = with(BitVector.Companion) { getBitIndex(fromIndex).toLong() }
-            for (i: Long in startIndex until buffer.size.toLong() * 8L) {
-                if (buffer.getBit(i)) return byteIndex.toLong() * 8L + i
-            }
-
-            return -1
-        }
+        for (index in fromIndex until logicalBitCount) if (get(index)) return index
+        return -1
     }
-
-    /**
-     * Returns the first bit set to true *after* [index] (= exclusive).
-     * @return the index of the first bit set to true, or -1 if there are no bits set to true
-     * @throws when [fromIndex] exceeds the underlying array's capacity
-     */
-    @Throws(IndexOutOfBoundsException::class)
-    override fun nextSetBitAfter(index: Long): Long = nextSetBit(index + 1)
-
-    /**
-     * The maximum capacity in Bits this [MutableBitArray] can carry.
-     */
-    val capacity: Long get() = buffer.size.toLong() * 8
-
-    /**
-     * Sets the bit at [index] to [value]
-     */
-    override operator fun set(index: Long, value: Boolean) {
-        val byteIndex = getByteIndex(index)
-        if (byteIndex > buffer.lastIndex) throw IndexOutOfBoundsException("fromIndex = $index, size = ${buffer.size.toLong() * 8}")
-        val byte = buffer[byteIndex]
-        with(BitVector.Companion) {
-            buffer[byteIndex] =
-                if (value) {
-                    ((1 shl getBitIndex(index)).toByte() or byte)
-                } else
-                    ((1 shl getBitIndex(index)).toByte().inv() and byte)
-        }
-    }
-
-    /**
-     * Iterates over each bit in the `BitSet` and invokes the provided [action] for every index and corresponding bit value.
-     *
-     * Deliberatelly not an extension function, to have precedence over the int-indexed `forEach` function of the `Iterable` interface.
-     *
-     * @param action A lambda function that is invoked with two arguments:
-     * - `i`: The index of the bit in the `BitSet`.
-     * - `it`: The value of the bit at the given index, either `true` or `false`.
-     */
-    //deliberately not an extension function
-    override fun forEachIndexed(action: (i: Long, it: Boolean) -> Unit) {
-        for (i in 0..highestSetIndex()) action(i, this[i])
-    }
-
-    /**
-     * Allocates a fresh byte array and writes the values of this bitset's underlying bytes to it
-     */
-    override fun toByteArray(): ByteArray {
-        return if (buffer.isEmpty()) byteArrayOf()
-        else buffer.copyOf()
-    }
-
 
     override fun highestSetIndex(): Long {
-        for (i: Long in buffer.size.toLong() * 8L - 1L downTo 0L) {
-            if (buffer.getBit(i)) return i
+        for (index in logicalBitCount - 1 downTo 0) if (get(index)) return index
+        return -1
+    }
+
+    /** Returns the represented logical bits in LSB0 layout. */
+    override fun toLsb0ByteArray(): ByteArray = bytes(BitVector.BitOrder.LSB0)
+
+    /** Returns the represented logical bits in MSB0 layout. */
+    override fun toMsb0ByteArray(): ByteArray = bytes(BitVector.BitOrder.MSB0)
+
+    /** Iterates the represented logical bits packed in LSB0 layout. */
+    override fun lsb0ByteIterator(): ByteIterator =
+        buffer.byteIterator(bitOrder, BitVector.BitOrder.LSB0, logicalBitCount)
+
+    /** Iterates the represented logical bits packed in MSB0 layout. */
+    override fun msb0ByteIterator(): ByteIterator =
+        buffer.byteIterator(bitOrder, BitVector.BitOrder.MSB0, logicalBitCount)
+
+    /** Invokes [action] for every represented bit, including unset bits. */
+    fun forEachIndexed(action: (index: Long, bit: Boolean) -> Unit) {
+        for (index in 0 until logicalBitCount) action(index, get(index))
+    }
+
+    /** Returns a physical dump of the native backing bytes. */
+    fun memDumpView(): String = buffer.memDumpView()
+
+    private fun bytes(order: BitVector.BitOrder): ByteArray =
+        (if (order == bitOrder) buffer.copyOf() else ByteArray(buffer.size) { buffer[it].reverseBits() })
+            .maskUnusedBits(logicalBitCount, order)
+
+    private fun checkIndex(index: Long) {
+        if (index !in 0 until logicalBitCount) {
+            throw IndexOutOfBoundsException("index = $index, logicalBitCount = $logicalBitCount")
         }
-        return -1L
     }
 
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other !is MutableBitArray) return false
-        return buffer.contentEquals(other.buffer)
+    private fun logicalBytes(): ByteArray = toLsb0ByteArray().also { bytes ->
+        val usedBits = (logicalBitCount % 8).toInt()
+        if (usedBits != 0) bytes[bytes.lastIndex] = bytes.last() and ((1 shl usedBits) - 1).toByte()
     }
 
-    override fun hashCode(): Int = toByteArray().contentHashCode()
+    override fun equals(other: Any?): Boolean =
+        this === other || other is BitArray && logicalBitCount == other.logicalBitCount &&
+                logicalBytes().contentEquals(other.logicalBytes())
 
+    override fun hashCode(): Int = 31 * logicalBitCount.hashCode() + logicalBytes().contentHashCode()
 
     companion object {
-
-        //yes, int, because if you want more, init using a bytearray!
-        operator fun invoke(nBits: Int, initializer: (Int) -> Boolean): MutableBitArray =
-            MutableBitArray(nBits.toLong()).apply {
-                repeat(nBits) {
-                    if (initializer(it)) set(it.toLong())
+        /** Creates exactly [nBits] initialized logical bits using the required native [bitOrder]. */
+        operator fun invoke(bitOrder: BitVector.BitOrder, nBits: Int, initializer: (Int) -> Boolean): BitArray {
+            val buffer = ByteArray(BitVector.getByteCount(nBits.toLong()))
+            repeat(nBits) { index ->
+                if (initializer(index)) {
+                    val mask = when (bitOrder) {
+                        BitVector.BitOrder.LSB0 -> BitVector.getLsb0Mask(index.toLong())
+                        BitVector.BitOrder.MSB0 -> BitVector.getMsb0Mask(index.toLong())
+                    }
+                    buffer[index / 8] = buffer[index / 8] or mask
                 }
             }
-
-        operator fun invoke(vararg bits: Boolean) =
-            invoke(bits.size) { bits[it] }
-
-        /**
-         * Wraps [bytes] into a BitSet. Copies all bytes.
-         * Hence, modifications to [bytes] are **not** reflected in the newly created BitSet.
-         */
-        fun wrap(bytes: ByteArray) = MutableBitArray(bytes)
-
-        /**
-         * Deep-copies the [byteArray] into a [MutableBitArray]
-         */
-        operator fun invoke(byteArray: ByteArray): MutableBitArray = wrap(byteArray.copyOf())
-
-        /**
-         * Creates bitset from hunan-readably bit string representation
-         * @throws IllegalArgumentException if the provided string contains characters other than '1' and '0'
-         */
-        @Throws(IllegalArgumentException::class)
-        fun fromString(stringRepresentation: String): MutableBitArray {
-            if (stringRepresentation.isEmpty()) return MutableBitArray(0)
-            if (!stringRepresentation.matches(Regex("^[01]+\$"))) throw IllegalArgumentException("Not a bit string")
-            return invoke(stringRepresentation.length) { stringRepresentation[it] == '1' }
+            return wrap(bitOrder, buffer, nBits.toLong())
         }
 
-        /**
-         * Exception-free version of [fromString]
-         */
-        fun fromBitStringOrNull(bitString: String) = catchingUnwrapped { fromString(bitString) }.getOrNull()
+        /** Creates one represented logical bit for every value in [bits]. */
+        operator fun invoke(bitOrder: BitVector.BitOrder, vararg bits: Boolean): BitArray =
+            invoke(bitOrder, bits.size) { bits[it] }
+
+        /** Wraps [bytes] without copying as exactly [logicalBitCount] logical bits in native [bitOrder]. */
+        fun wrap(
+            bitOrder: BitVector.BitOrder,
+            bytes: ByteArray,
+            logicalBitCount: Long = bytes.size.toLong() * 8,
+        ): BitArray = when (bitOrder) {
+            BitVector.BitOrder.LSB0 -> Lsb0BitArray(bytes, logicalBitCount)
+            BitVector.BitOrder.MSB0 -> Msb0BitArray(bytes, logicalBitCount)
+        }
+
+        /** Copies [byteArray] into a fixed-size bit array using its declared native [bitOrder]. */
+        operator fun invoke(bitOrder: BitVector.BitOrder, byteArray: ByteArray): BitArray =
+            wrap(bitOrder, byteArray.copyOf())
+
+        /** Creates a fixed-size array from logical indexes written left-to-right as `0` and `1`. */
+        @Throws(IllegalArgumentException::class)
+        fun fromLogicalBitString(value: String, bitOrder: BitVector.BitOrder): BitArray {
+            require(value.all { it == '0' || it == '1' }) { "Not a logical bit string" }
+            return invoke(bitOrder, value.length) { value[it] == '1' }
+        }
+
+        /** Returns `null` instead of throwing for an invalid logical bit string. */
+        fun fromLogicalBitStringOrNull(value: String, bitOrder: BitVector.BitOrder): BitArray? =
+            catchingUnwrapped { fromLogicalBitString(value, bitOrder) }.getOrNull()
     }
 }
 
+/** A fixed-size read-only bit array with native MSB0 orientation. */
+class Msb0BitArray internal constructor(bytes: ByteArray, logicalBitCount: Long) :
+    BitArray(bytes, logicalBitCount), Msb0BitVector
+
+/** A fixed-size read-only bit array with native LSB0 orientation. */
+class Lsb0BitArray internal constructor(bytes: ByteArray, logicalBitCount: Long) :
+    BitArray(bytes, logicalBitCount), Lsb0BitVector
+
 /**
- * copies this byteArray into a [BitSet]
+ * Mutable fixed-size bits backed by a [ByteArray]. Valid indexes are exactly `0..<logicalBitCount`; reads and writes
+ * outside that logical domain throw. The named subclasses make the native [bitOrder] explicit.
  */
-fun ByteArray.toBitArray(): MutableBitArray = MutableBitArray(this)
+sealed class MutableBitArray protected constructor(
+    private val buffer: ByteArray,
+    final override val logicalBitCount: Long,
+) : MutableBoundedBitVector, ArrayBackedBitVector {
+
+    init {
+        require(BitVector.getByteCount(logicalBitCount) == buffer.size) {
+            "logicalBitCount = $logicalBitCount requires ${BitVector.getByteCount(logicalBitCount)} bytes, found ${buffer.size}"
+        }
+    }
+
+    override fun get(index: Long): Boolean {
+        checkIndex(index)
+        return when (bitOrder) {
+            BitVector.BitOrder.LSB0 -> buffer.getLsb0Bit(index)
+            BitVector.BitOrder.MSB0 -> buffer.getMsb0Bit(index)
+        }
+    }
+
+    override fun nextSetBit(fromIndex: Long): Long {
+        if (fromIndex < 0) throw IndexOutOfBoundsException("fromIndex = $fromIndex")
+        for (index in fromIndex until logicalBitCount) if (get(index)) return index
+        return -1
+    }
+
+    override fun set(index: Long, value: Boolean) {
+        checkIndex(index)
+        val byteIndex = BitVector.getByteIndex(index)
+        val mask = mask(index)
+        buffer[byteIndex] = if (value) buffer[byteIndex] or mask else buffer[byteIndex] and mask.inv()
+    }
+
+    /** Invokes [action] for every represented bit, including unset bits. */
+    fun forEachIndexed(action: (index: Long, bit: Boolean) -> Unit) {
+        for (index in 0 until logicalBitCount) action(index, get(index))
+    }
+
+    /** Returns the represented logical bits in LSB0 layout. */
+    override fun toLsb0ByteArray(): ByteArray = bytes(BitVector.BitOrder.LSB0)
+
+    /** Returns the represented logical bits in MSB0 layout. */
+    override fun toMsb0ByteArray(): ByteArray = bytes(BitVector.BitOrder.MSB0)
+
+    /** Iterates the represented logical bits packed in LSB0 layout. */
+    override fun lsb0ByteIterator(): ByteIterator =
+        buffer.byteIterator(bitOrder, BitVector.BitOrder.LSB0, logicalBitCount)
+
+    /** Iterates the represented logical bits packed in MSB0 layout. */
+    override fun msb0ByteIterator(): ByteIterator =
+        buffer.byteIterator(bitOrder, BitVector.BitOrder.MSB0, logicalBitCount)
+
+    /** Returns a physical dump of the native backing bytes. */
+    fun memDumpView(): String = buffer.memDumpView()
+
+    override fun highestSetIndex(): Long {
+        for (index in logicalBitCount - 1 downTo 0) if (get(index)) return index
+        return -1
+    }
+
+    private fun bytes(order: BitVector.BitOrder): ByteArray =
+        (if (order == bitOrder) buffer.copyOf() else ByteArray(buffer.size) { buffer[it].reverseBits() })
+            .maskUnusedBits(logicalBitCount, order)
+
+    private fun mask(index: Long): Byte = when (bitOrder) {
+        BitVector.BitOrder.LSB0 -> BitVector.getLsb0Mask(index)
+        BitVector.BitOrder.MSB0 -> BitVector.getMsb0Mask(index)
+    }
+
+    private fun checkIndex(index: Long) {
+        if (index !in 0 until logicalBitCount) {
+            throw IndexOutOfBoundsException("index = $index, logicalBitCount = $logicalBitCount")
+        }
+    }
+
+    private fun logicalBytes(): ByteArray = toLsb0ByteArray().also { bytes ->
+        val usedBits = (logicalBitCount % 8).toInt()
+        if (usedBits != 0) bytes[bytes.lastIndex] = bytes.last() and ((1 shl usedBits) - 1).toByte()
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is MutableBitArray && logicalBitCount == other.logicalBitCount &&
+                logicalBytes().contentEquals(other.logicalBytes())
+
+    override fun hashCode(): Int = 31 * logicalBitCount.hashCode() + logicalBytes().contentHashCode()
+
+    companion object {
+        /** Creates exactly [nBits] unset bits using the required native [bitOrder]. */
+        @Throws(IllegalArgumentException::class, Asn1Exception::class)
+        operator fun invoke(bitOrder: BitVector.BitOrder, nBits: Long = 0): MutableBitArray =
+            wrap(bitOrder, ByteArray(BitVector.getByteCount(nBits)), nBits)
+
+        /** Creates exactly [nBits] initialized logical bits using the required native [bitOrder]. */
+        operator fun invoke(bitOrder: BitVector.BitOrder, nBits: Int, initializer: (Int) -> Boolean): MutableBitArray =
+            invoke(bitOrder, nBits.toLong()).apply {
+                repeat(nBits) { if (initializer(it)) set(it) }
+            }
+
+        /** Creates one represented logical bit for every value in [bits]. */
+        operator fun invoke(bitOrder: BitVector.BitOrder, vararg bits: Boolean): MutableBitArray =
+            invoke(bitOrder, bits.size) { bits[it] }
+
+        /** Wraps [bytes] without copying as exactly [logicalBitCount] logical bits in native [bitOrder]. */
+        fun wrap(
+            bitOrder: BitVector.BitOrder,
+            bytes: ByteArray,
+            logicalBitCount: Long = bytes.size.toLong() * 8,
+        ): MutableBitArray = when (bitOrder) {
+            BitVector.BitOrder.LSB0 -> MutableLsb0BitArray(bytes, logicalBitCount)
+            BitVector.BitOrder.MSB0 -> MutableMsb0BitArray(bytes, logicalBitCount)
+        }
+
+        /** Copies [byteArray] into a fixed-size mutable bit array using its declared native [bitOrder]. */
+        operator fun invoke(bitOrder: BitVector.BitOrder, byteArray: ByteArray): MutableBitArray =
+            wrap(bitOrder, byteArray.copyOf())
+
+        /** Creates a mutable fixed-size array from logical indexes written left-to-right as `0` and `1`. */
+        @Throws(IllegalArgumentException::class)
+        fun fromLogicalBitString(value: String, bitOrder: BitVector.BitOrder): MutableBitArray {
+            require(value.all { it == '0' || it == '1' }) { "Not a logical bit string" }
+            return invoke(bitOrder, value.length) { value[it] == '1' }
+        }
+
+        /** Returns `null` instead of throwing for an invalid logical bit string. */
+        fun fromLogicalBitStringOrNull(value: String, bitOrder: BitVector.BitOrder): MutableBitArray? =
+            catchingUnwrapped { fromLogicalBitString(value, bitOrder) }.getOrNull()
+    }
+}
+
+/** A fixed-size mutable bit array with native MSB0 orientation. */
+class MutableMsb0BitArray internal constructor(bytes: ByteArray, logicalBitCount: Long) :
+    MutableBitArray(bytes, logicalBitCount), Msb0BitVector
+
+/** A fixed-size mutable bit array with native LSB0 orientation. */
+class MutableLsb0BitArray internal constructor(bytes: ByteArray, logicalBitCount: Long) :
+    MutableBitArray(bytes, logicalBitCount), Lsb0BitVector
+
+/** Copies these bytes into a mutable fixed-size bit array using their declared native [bitOrder]. */
+fun ByteArray.toBitArray(bitOrder: BitVector.BitOrder): MutableBitArray = MutableBitArray(bitOrder, this)
+
+private fun ByteArray.byteIterator(
+    nativeOrder: BitVector.BitOrder,
+    requestedOrder: BitVector.BitOrder,
+    logicalBitCount: Long,
+): ByteIterator =
+    object : ByteIterator() {
+        private var index = 0
+
+        override fun hasNext(): Boolean = index < size
+
+        override fun nextByte(): Byte {
+            if (!hasNext()) throw NoSuchElementException()
+            val byte = this@byteIterator[index].let {
+                if (requestedOrder == nativeOrder) it else it.reverseBits()
+            }
+            return if (index++ == lastIndex) byte.maskUnusedBits(logicalBitCount, requestedOrder) else byte
+        }
+    }
+
+private fun ByteArray.maskUnusedBits(logicalBitCount: Long, order: BitVector.BitOrder): ByteArray {
+    if (isNotEmpty()) this[lastIndex] = this[lastIndex].maskUnusedBits(logicalBitCount, order)
+    return this
+}
+
+private fun Byte.maskUnusedBits(logicalBitCount: Long, order: BitVector.BitOrder): Byte {
+    val usedBits = (logicalBitCount % 8).toInt()
+    if (usedBits == 0) return this
+    val mask = when (order) {
+        BitVector.BitOrder.LSB0 -> (1 shl usedBits) - 1
+        BitVector.BitOrder.MSB0 -> 0xff shl (8 - usedBits)
+    }
+    return this and mask.toByte()
+}

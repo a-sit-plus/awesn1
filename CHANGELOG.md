@@ -51,6 +51,9 @@
 * Usability improvements to `Asn1BitString`
     * Added indexing operators and size
     * Added utility constructor from vararg bits
+* Introduce BitVector interface hierarchy
+    * Revamp `BitSet` and `Asn1BitString`
+    * Introduce `BitArray`
 * Usability improvements to `Pkcs8PrivateKeyInfo`
     * Defaulted `version` to `V1` in the constructor
 
