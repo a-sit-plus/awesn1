@@ -22,7 +22,7 @@ import kotlin.time.Instant
 val LenientBitStringTest by matrixSuite {
 
     "malformed unique ID decodes but strict getter throws lazily" {
-        val validDer = DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = BitSet.fromString("111").let(::Asn1BitString)))
+        val validDer = DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = BitSet.fromLogicalBitString("111").let(::Asn1BitString)))
         val malformedDer = validDer.replaceFirst(
             byteArrayOf(0x81.toByte(), 0x02, 0x05, 0xE0.toByte()),
             byteArrayOf(0x81.toByte(), 0x02, 0x05, 0xE1.toByte()),
@@ -47,8 +47,8 @@ val LenientBitStringTest by matrixSuite {
     }
 
     "valid unique IDs round-trip through semantic getters" {
-        val issuer = Asn1BitString(BitSet.fromString("101"))
-        val subject = Asn1BitString(BitSet.fromString("111000001"))
+        val issuer = Asn1BitString(BitSet.fromLogicalBitString("101"))
+        val subject = Asn1BitString(BitSet.fromLogicalBitString("111000001"))
         val decoded = DER.decodeFromByteArray<X509TbsCertificate>(
             DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = issuer, subjectUniqueID = subject))
         )
