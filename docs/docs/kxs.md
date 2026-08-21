@@ -63,12 +63,15 @@ materialization work out of the box.
     - `Asn1String` and concrete subtypes (`UTF8`, `Universal`, `Visible`, `IA5`, `Teletex`, `BMP`, `General`, `Graphic`, `Unrestricted`, `Videotex`, `Printable`, `Numeric`) serialize as plain string
     - `Asn1Time` serializes as plain `Instant` string form
     - `Asn1BitString` serializes as a string surrogate containing padding and Base64 payload
-    - `BitSet` serializes as a bit-string view (`101001...`)
     - `Asn1Element`, `Asn1Structure`, `Asn1ExplicitlyTagged`, `Asn1CustomStructure`, `Asn1EncapsulatingOctetString`, `Asn1PrimitiveOctetString`, `Asn1Set`, `Asn1SetOf`, `Asn1Primitive`, and `Asn1OctetString` serialize as Base64-encoded DER bytes
 
     **Warning**: Non-DER fallback serialization is intentionally lossy for `Asn1String` and `Asn1Time` for cross-format simplicity.
     `Asn1String` deserializes to `UTF8` (original ASN.1 string subtype is not preserved), and `Asn1Time` deserializes
     from `Instant` only (original UTC TIME vs GENERALIZED TIME choice is not preserved where ranges overlap).
+
+    `BitVector`, `BitArray`, `MutableBitArray`, and `BitSet` do not declare a generic kotlinx.serialization fallback.
+    Convert exact ASN.1 bit data to `Asn1BitString`, or explicitly choose a logical string or LSB0/MSB0 byte
+    representation in the surrounding serializable model.
 
 !!! warning "Breaking representation change in awesn1 0.7"
 

@@ -88,9 +88,187 @@ The core module includes rich semantic types beyond raw TLV primitives:
 - `Asn1Real`: ASN.1 REAL with arbitrary precision model and IEEE-754 bridges.
 - `Asn1String` hierarchy: UTF8, Printable, IA5, BMP, Numeric, etc. See [ASN.1 String Types and Validation](#asn1-string-types-and-validation).
 - `Asn1Time`: bridges `Instant` to UTC/Generalized Time.
-- `Asn1BitString`: bit-level representation with padding-bit tracking.
-- `BitSet`: pure-Kotlin bitset implementation.
+- `Asn1BitString`: an exact, bounded MSB0 bit vector with ASN.1 padding-bit tracking.
+- `BitVector`: common logical bit access, refined by bounded/unbounded and mutable interfaces.
+- `BitArray` / `MutableBitArray`: fixed-size byte-array-backed vectors with explicit LSB0 or MSB0 orientation.
+- `BitSet`: growing, compact, pure-Kotlin bit set modelled after Java's `BitSet`.
 - `ObjectIdentifier`: OID support (string/components/bytes/UUID-based constructors). See [Object Identifiers (OID) Deep Dive](#object-identifiers-oid-deep-dive).
+
+## Bit Vectors, Bit Arrays, Bit Sets, and ASN.1 BIT STRING
+
+The bit API separates three concepts which are easy to conflate:
+
+1. **Logical index:** the position passed to `get(index)` or `set(index, value)`.
+2. **Logical extent:** whether the vector has an exact number of positions or ends after its highest set bit.
+3. **Byte orientation:** whether logical index zero maps to the least-significant or most-significant bit of byte zero.
+
+### Interface Hierarchy and Extent
+
+| Type                        | Logical domain                                            | Iteration endpoint                                              | Mutation                               |
+|-----------------------------|-----------------------------------------------------------|-----------------------------------------------------------------|----------------------------------------|
+| `BitVector`                 | Unspecified by the base interface                         | None; it deliberately is **not** `Iterable<Boolean>`            | No                                     |
+| `BoundedBitVector`          | Exactly `0..<logicalBitCount`                             | Exactly `logicalBitCount`, including trailing `false` positions | No                                     |
+| `UnboundedBitVector`        | Every non-negative index; unset positions read as `false` | Immediately after `highestSetIndex()`                           | No                                     |
+| `MutableBoundedBitVector`   | Bounded                                                   | Bounded                                                         | Yes, within the fixed extent           |
+| `MutableUnboundedBitVector` | Unbounded                                                 | Compact                                                         | Yes, growing and shrinking as required |
+
+`BitVector` itself has neither a size nor a byte layout. This is why it does not implement `Iterable<Boolean>` and does
+not expose byte conversion: both operations need an endpoint. `BoundedBitVector` and `UnboundedBitVector` provide those
+operations with different, explicit endpoint rules.
+
+For a bounded vector, `logicalBitCount` is the exact number of addressable positions—not storage capacity and not the
+number of set bits. If it is `3`, indexes `0`, `1`, and `2` exist even when all are `false`; index `3` throws. A byte-backed
+implementation still needs one physical byte, but its other five bits are outside the logical vector.
+
+An unbounded vector has no corresponding size. Its finite iterable/string/byte view is compact and ends immediately
+after its highest set bit. Consequently, trailing `false` values cannot be represented by `BitSet`.
+
+### LSB0 and MSB0 Byte Orientation
+
+`BitVector.BitOrder` describes the mapping of logical indexes within each byte. Byte order itself never changes:
+
+| Logical index | 0    | 1    | 2    | 3    | 4    | 5    | 6    | 7    |
+|---------------|------|------|------|------|------|------|------|------|
+| `LSB0` mask   | `01` | `02` | `04` | `08` | `10` | `20` | `40` | `80` |
+| `MSB0` mask   | `80` | `40` | `20` | `10` | `08` | `04` | `02` | `01` |
+
+`ArrayBackedBitVector` is always bounded and exposes its native `bitOrder`. Its named subinterfaces, `Lsb0BitVector` and
+`Msb0BitVector`, make that orientation visible from the implementing type. `BitSet` is not array-backed: it grows and
+shrinks, and therefore exposes no `bitOrder` property even though its Java-compatible byte conversion is LSB0.
+
+Both bounded and unbounded vectors provide unambiguous conversions in either orientation:
+
+- `toLsb0ByteArray()` / `toMsb0ByteArray()` return fresh arrays.
+- `lsb0ByteIterator()` / `msb0ByteIterator()` avoid allocating an array.
+- Bounded representations contain `ceil(logicalBitCount / 8)` bytes and zero all unused bits in the final byte.
+- Unbounded representations are compact and contain only enough bytes to reach `highestSetIndex()`; an empty vector
+  produces no bytes.
+
+`toLogicalBitString()` is independent of byte orientation: its first character is always logical index zero.
+`ByteArray.memDumpView()`, by contrast, is a diagnostic physical dump in conventional `b7`-to-`b0` notation and applies
+no logical interpretation.
+
+```kotlin
+val bits = MutableBitArray(BitVector.BitOrder.MSB0, 5)
+bits[0] = true
+bits[4] = true
+
+bits.toLogicalBitString() // "10001"
+bits.toMsb0ByteArray()    // [0x88]
+bits.toLsb0ByteArray()    // [0x11]
+```
+
+The public byte helpers make the orientation equally explicit:
+
+- `ByteArray.getLsb0Bit(index)`
+- `ByteArray.getMsb0Bit(index)`
+- `Byte.reverseBits()`
+
+Negative indexes throw. An index beyond a byte array returns `false`.
+
+### `BitArray` and `MutableBitArray`
+
+`BitArray` is a sealed, read-only, fixed-size vector; `MutableBitArray` is its mutable counterpart. Their factories
+require a `BitVector.BitOrder` and return an aptly named concrete subtype (`Lsb0BitArray`, `Msb0BitArray`,
+`MutableLsb0BitArray`, or `MutableMsb0BitArray`).
+
+```kotlin
+val readOnly = BitArray(BitVector.BitOrder.LSB0, true, false, true)
+val mutable = MutableBitArray(BitVector.BitOrder.MSB0, 9)
+
+readOnly.logicalBitCount // 3
+mutable.logicalBitCount  // 9, even though all bits are false
+```
+
+Construction and wrapping have intentionally different ownership:
+
+- `BitArray(order, byteArray)`, `MutableBitArray(order, byteArray)`, and `ByteArray.toBitArray(order)` copy their input.
+- `BitArray.wrap(order, bytes, logicalBitCount)` and `MutableBitArray.wrap(...)` alias their input without copying.
+- `wrap` requires the byte count to be exactly sufficient for `logicalBitCount`.
+- Ordered byte-array conversions always return copies and clear physical padding outside `logicalBitCount`.
+- `memDumpView()` shows native backing bytes, including physical padding, and is therefore not a logical serialization.
+
+!!! warning "Wrapped arrays are live"
+
+    Mutating an array passed to `wrap` changes the vector. A read-only `BitArray` is therefore a read-only **view**, not
+    necessarily an immutable value. Use a copying factory when ownership is shared or uncertain.
+
+### `BitSet`
+
+`BitSet` implements `MutableUnboundedBitVector` and follows Java `BitSet` semantics. Every non-negative index is valid;
+reading an unset index returns `false`, setting a distant index grows storage, and clearing the highest set bit may shrink
+the compact representation.
+
+```kotlin
+val bits = BitSet()
+bits[0] = true
+bits[8] = true
+
+bits.toLogicalBitString() // "100000001"
+bits.toLsb0ByteArray()    // [0x01, 0x01], Java BitSet-compatible
+bits.toMsb0ByteArray()    // [0x80, 0x80]
+
+bits[8] = false
+bits.toLogicalBitString() // "1"
+```
+
+For controlled bulk changes, `mutateLsb0Bytes` exposes the compact Java-compatible bytes only for the duration of its
+callback. The callback is invoked exactly once. Storage is compacted before and after it, even when it throws; mutations
+made before an exception remain applied. The live list must not be retained after the callback returns.
+
+### `Asn1BitString` as a Bit Vector
+
+`Asn1BitString` implements `Msb0BitVector` by delegating to a bounded `Msb0BitArray` over its `bitCarryingBytes`.
+Therefore:
+
+- `logicalBitCount == bitCarryingBytes.size * 8 - numPaddingBits`;
+- iteration includes every ASN.1 data bit, including meaningful trailing `false` values;
+- indexes outside `0..<logicalBitCount` throw;
+- its LSB0/MSB0 byte conversions and byte iterators are the standard `BoundedBitVector` operations;
+- DER padding bits are excluded from the logical vector and must be zero.
+
+Construction from a `BoundedBitVector` preserves its exact extent. Construction from an `UnboundedBitVector` or
+`BitSet` uses its compact finite view, so trailing `false` positions are omitted. The boolean-vararg constructor is
+bounded and therefore preserves every supplied value.
+
+```kotlin
+val fixed = BitArray(BitVector.BitOrder.LSB0, true, false, false, false)
+val exact = Asn1BitString(fixed)
+val compact = Asn1BitString(BitSet(true, false, false, false))
+
+exact.logicalBitCount   // 4
+exact.numPaddingBits    // 4
+compact.logicalBitCount // 1
+compact.numPaddingBits  // 7
+```
+
+`Asn1BitString(ByteArray)` treats the input as byte-aligned MSB0 DER content and does not copy it. Likewise,
+`bitCarryingBytes` is the current backing array. Mutating either changes the delegated bit-vector view.
+`toBitSet()` creates an independent set with the same set indexes, but necessarily loses exact extent and trailing
+`false` positions.
+
+!!! warning "ASN.1 BIT STRING byte ownership"
+
+    Do not mutate `bitCarryingBytes` into an invalid DER state, especially by setting declared padding bits. Copy the
+    array before construction when the caller must retain mutable ownership.
+
+### Migration from the Previous `BitSet` API
+
+| Previous API                        | Current API                                                                          |
+|-------------------------------------|--------------------------------------------------------------------------------------|
+| `BitSet.fromString(value)`          | `BitSet.fromLogicalBitString(value)`                                                 |
+| `BitSet.fromBitStringOrNull(value)` | `BitSet.fromLogicalBitStringOrNull(value)`                                           |
+| `toBitStringView()`                 | `toLogicalBitString()` on a bounded or unbounded vector                              |
+| `BitSet.toByteArray()`              | `toLsb0ByteArray()` for Java-compatible bytes, or `toMsb0ByteArray()` explicitly     |
+| `byteIterator`                      | `lsb0ByteIterator()` or `msb0ByteIterator()`                                         |
+| `BitSet.bytes`                      | Read via ordered conversion/iterator; mutate through `mutateLsb0Bytes`               |
+| `copyOf()`                          | Removed; copy through an explicit logical or ordered-byte representation when needed |
+| `Asn1BitString.sizeBits`            | `logicalBitCount`                                                                    |
+| `Asn1BitString.sizeBytes`           | `bitCarryingBytes.size`                                                              |
+| Ambiguous `ByteArray.getBit`        | `getLsb0Bit` or `getMsb0Bit`                                                         |
+
+Range helpers (`set`, `clear`, and `flip`) now target `MutableBitVector`, so they work for both mutable bounded arrays
+and unbounded sets while retaining each receiver's bounds contract.
 
 ## ASN.1 String Types and Validation
 
@@ -105,20 +283,20 @@ separately through `isValid: Boolean?`:
 The `String` constructors (e.g. `Asn1String.IA5("…")`) are the only place that *enforces* validity: they throw
 `Asn1Exception` when `isValid` would be `false`.
 
-| Type            | Tag | Repertoire                                                | `isValid`       |
-|-----------------|-----|-----------------------------------------------------------|-----------------|
-| `UTF8`          | 12  | Any well-formed UTF-8 (ISO/IEC 10646, RFC 3629)           | exact           |
-| `Numeric`       | 18  | Digits `0`–`9` and SPACE                                  | exact           |
-| `Printable`     | 19  | `A`–`Z` `a`–`z` `0`–`9` SPACE `' ( ) + , - . / : = ?`     | exact           |
-| `IA5`           | 22  | ITU-T T.50 / ISO 646, 7-bit `0x00`–`0x7F` (incl. DELETE)  | exact           |
-| `Visible`       | 26  | T.50 graphic subset + SPACE, `0x20`–`0x7E`                | exact           |
-| `Teletex` (T61) | 20  | ITU-T T.61 (multi-byte)                                   | best-effort (`true`/`null`) |
-| `Graphic`       | 25  | ISO 2022 registered G-sets + SPACE                        | best-effort (`true`/`null`) |
-| `General`       | 27  | ISO 2022 registered G/C-sets + SPACE + DELETE             | best-effort (`true`/`null`) |
-| `Universal`     | 28  | UCS-4 / UTF-32                                            | none (`null`)   |
-| `Videotex`      | 21  | T.100 / T.101 (obsolete)                                  | none (`null`)   |
-| `Unrestricted`  | 29  | CHARACTER STRING                                          | none (`null`)   |
-| `BMP`           | 30  | UCS-2 (UTF-16 BMP)                                        | none (`null`)   |
+| Type            | Tag | Repertoire                                               | `isValid`                   |
+|-----------------|-----|----------------------------------------------------------|-----------------------------|
+| `UTF8`          | 12  | Any well-formed UTF-8 (ISO/IEC 10646, RFC 3629)          | exact                       |
+| `Numeric`       | 18  | Digits `0`–`9` and SPACE                                 | exact                       |
+| `Printable`     | 19  | `A`–`Z` `a`–`z` `0`–`9` SPACE `' ( ) + , - . / : = ?`    | exact                       |
+| `IA5`           | 22  | ITU-T T.50 / ISO 646, 7-bit `0x00`–`0x7F` (incl. DELETE) | exact                       |
+| `Visible`       | 26  | T.50 graphic subset + SPACE, `0x20`–`0x7E`               | exact                       |
+| `Teletex` (T61) | 20  | ITU-T T.61 (multi-byte)                                  | best-effort (`true`/`null`) |
+| `Graphic`       | 25  | ISO 2022 registered G-sets + SPACE                       | best-effort (`true`/`null`) |
+| `General`       | 27  | ISO 2022 registered G/C-sets + SPACE + DELETE            | best-effort (`true`/`null`) |
+| `Universal`     | 28  | UCS-4 / UTF-32                                           | none (`null`)               |
+| `Videotex`      | 21  | T.100 / T.101 (obsolete)                                 | none (`null`)               |
+| `Unrestricted`  | 29  | CHARACTER STRING                                         | none (`null`)               |
+| `BMP`           | 30  | UCS-2 (UTF-16 BMP)                                       | none (`null`)               |
 
 !!! warning "Validation limitations"
 
@@ -344,6 +522,12 @@ These APIs decode only ASN.1 primitive payload bytes (no tag/length):
 - `ByteArray.encodeToAsn1BitStringContentBytes()`
 - `Instant.encodeToAsn1UtcTimePrimitive()`
 - `Instant.encodeToAsn1GeneralizedTimePrimitive()`
+
+`Asn1.BitString(...)` additionally accepts:
+
+- `ByteArray`, interpreted as byte-aligned MSB0 content;
+- `BoundedBitVector`, preserving its exact `logicalBitCount` including trailing `false` positions;
+- `UnboundedBitVector` and `BitSet`, using their compact view through `highestSetIndex()`.
 
 ## Tagging: EXPLICIT and IMPLICIT
 
