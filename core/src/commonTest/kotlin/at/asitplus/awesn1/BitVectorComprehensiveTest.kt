@@ -15,8 +15,8 @@ val BitVectorComprehensiveTest by matrixSuite {
         for (size in sizes) {
             val expected = List(size) { index -> index % 3 == 0 || index == size - 1 }
             for (order in BitVector.BitOrder.entries) {
-                val immutable: BoundedBitVector = BitArray(order, size) { expected[it] }
-                val mutable: BoundedBitVector = MutableBitArray(order, size) { expected[it] }
+                val immutable: FixedSizeBitVector = BitArray(order, size) { expected[it] }
+                val mutable: FixedSizeBitVector = MutableBitArray(order, size) { expected[it] }
 
                 for (actual in listOf(immutable, mutable)) {
                     actual.logicalBitCount shouldBe size.toLong()
@@ -56,7 +56,7 @@ val BitVectorComprehensiveTest by matrixSuite {
     }
 
     "bounded iterators include trailing false bits and obey Iterator exhaustion" {
-        val bits: BoundedBitVector = BitArray(BitVector.BitOrder.MSB0, true, false, false)
+        val bits: FixedSizeBitVector = BitArray(BitVector.BitOrder.MSB0, true, false, false)
         val bitIterator = bits.iterator()
         val byteIterator = bits.msb0ByteIterator()
 
@@ -157,7 +157,7 @@ val BitVectorComprehensiveTest by matrixSuite {
     }
 
     "BitSet grows and compacts according to its highest set bit" {
-        val bits: MutableUnboundedBitVector = BitSet()
+        val bits: MutableUnboundedCompactingBitVector = BitSet()
 
         for (index in listOf(0L, 7L, 8L, 15L, 16L, 63L)) bits[index] = true
         bits.highestSetIndex() shouldBe 63L
@@ -216,7 +216,7 @@ val BitVectorComprehensiveTest by matrixSuite {
     "ASN.1 BIT STRING delegates every bounded operation to its live MSB0 view" {
         val source = byteArrayOf(0x80.toByte(), 0x01)
         val value = Asn1BitString(source)
-        val bounded: BoundedBitVector = value
+        val bounded: FixedSizeBitVector = value
 
         bounded.logicalBitCount shouldBe 16L
         bounded.toLogicalBitString() shouldBe "1000000000000001"
