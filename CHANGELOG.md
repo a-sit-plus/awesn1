@@ -39,6 +39,10 @@
 * Avoid repeated regex compilation and unnecessary string copies when decoding `Asn1Real`.
 * Update to Conventions 20260918 with TestBalloon 1.1.0 and TestBalloon Addons 0.17.0
 * Update to Bouncy Castle 1.86
+* Introduce BitVector interface hierarchy
+    * Revamp `BitSet` and `Asn1BitString`
+    * Introduce `BitArray`
+    * `BitSet` is no longer serializable
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer
@@ -51,9 +55,6 @@
 * Usability improvements to `Asn1BitString`
     * Added indexing operators and size
     * Added utility constructor from vararg bits
-* Introduce BitVector interface hierarchy
-    * Revamp `BitSet` and `Asn1BitString`
-    * Introduce `BitArray`
 * Usability improvements to `Pkcs8PrivateKeyInfo`
     * Defaulted `version` to `V1` in the constructor
 
