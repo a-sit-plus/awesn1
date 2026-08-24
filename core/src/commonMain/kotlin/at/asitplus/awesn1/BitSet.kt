@@ -3,20 +3,12 @@
 
 package at.asitplus.awesn1
 
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.experimental.and
 import kotlin.experimental.inv
 import kotlin.experimental.or
-
 /**
  * A growing, pure-Kotlin bit set modelled after Java's `java.util.BitSet`.
  *
@@ -25,7 +17,7 @@ import kotlin.experimental.or
  * bytes and [toMsb0ByteArray] when index zero must use mask `0x80` within each byte.
  */
 class BitSet private constructor(private val buffer: MutableList<Byte>) :
-    MutableUnboundedBitVector {
+    MutableUnboundedCompactingBitVector {
 
     /**
      * Mutates the compact backing bytes in place using LSB0 order. Byte zero holds logical indexes `0..7`, and logical
@@ -137,7 +129,7 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) :
     companion object {
         /** Creates a set from [nBits] initializer values; trailing false values do not define a size. */
         operator fun invoke(nBits: Int, initializer: (Int) -> Boolean): BitSet = BitSet(nBits.toLong()).apply {
-            repeat(nBits) { if (initializer(it)) set(it) }
+            for (index in 0 until nBits) if (initializer(index)) set(index)
         }
 
         operator fun invoke(vararg bits: Boolean): BitSet = invoke(bits.size) { bits[it] }
@@ -158,5 +150,21 @@ class BitSet private constructor(private val buffer: MutableList<Byte>) :
     }
 }
 
+
 /** Copies Java `BitSet`-compatible LSB0 bytes into a [BitSet]. */
 fun ByteArray.toBitSet(): BitSet = BitSet(this)
+
+/**
+ * Creates an independent [BitSet] containing the same set logical indexes. As [BitSet] is unbounded, this conversion
+ * intentionally loses trailing unset bits and the exact [logicalBitCount].
+ */
+fun FixedSizeBitVector.toBitSet(): BitSet = BitSet(logicalBitCount).also { result ->
+    for (index in 0 until logicalBitCount) if (get(index)) result.set(index)
+}
+
+
+/**
+ * Creates an independent [BitSet] containing the same set logical indexes. As [BitSet] is unbounded, this conversion
+ * intentionally loses trailing unset bits and the exact [logicalBitCount].
+ */
+fun FixedSizeBitVector.toUnboundedCompactingBitVector(): UnboundedCompactingBitVector = toBitSet()

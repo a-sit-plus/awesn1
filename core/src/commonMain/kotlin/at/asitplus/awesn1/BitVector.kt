@@ -8,12 +8,12 @@ import kotlin.experimental.and
 /**
  * Logical, index-addressable bits without a size or byte-layout contract.
  *
- * Implementations define their valid index domain through [BoundedBitVector] or [UnboundedBitVector]. Byte packing is
+ * Implementations define their valid index domain through [FixedSizeBitVector] or [UnboundedCompactingBitVector]. Byte packing is
  * deliberately absent: concrete types expose their own explicitly named LSB0 and MSB0 representations.
  *
  * This base interface deliberately does not extend [Iterable]. Iteration requires an end, but a plain bit vector has no
- * extent contract: [BoundedBitVector] must iterate exactly its [BoundedBitVector.logicalBitCount], including trailing
- * `false` positions, whereas [UnboundedBitVector] exposes only the finite prefix ending at [highestSetIndex]. Putting
+ * extent contract: [FixedSizeBitVector] must iterate exactly its [FixedSizeBitVector.logicalBitCount], including trailing
+ * `false` positions, whereas [UnboundedCompactingBitVector] exposes only the finite prefix ending at [highestSetIndex]. Putting
  * either rule here would discard meaningful trailing `false` bits for some implementations or invent a finite end for
  * an unbounded abstraction. The extent-specific subinterfaces therefore define their own `Iterable<Boolean>` semantics.
  */
@@ -70,24 +70,26 @@ interface BitVector {
     enum class BitOrder { LSB0, MSB0 }
 }
 
+/** Marks a fixed-size array whose logical index zero uses the most-significant bit of its first byte. */
+interface Msb0BitArray : FixedSizeBitVector {
+    val bitOrder: BitVector.BitOrder get() = BitVector.BitOrder.MSB0
 
-/** A bit vector with an array representation whose native intra-byte orientation is [bitOrder]. */
-interface ArrayBackedBitVector : BoundedBitVector {
-    val bitOrder: BitVector.BitOrder
+    companion object {
+        val bitOrder: BitVector.BitOrder get() = BitVector.BitOrder.MSB0
+    }
 }
 
-/** An array-backed vector whose logical index zero uses the most-significant bit of its first byte. */
-interface Msb0BitVector : ArrayBackedBitVector {
-    override val bitOrder: BitVector.BitOrder get() = BitVector.BitOrder.MSB0
-}
+/** Marks a fixed-size array whose logical index zero uses the least-significant bit of its first byte. */
+interface Lsb0BitArray : FixedSizeBitVector {
+    val bitOrder: BitVector.BitOrder get() = BitVector.BitOrder.LSB0
 
-/** An array-backed vector whose logical index zero uses the least-significant bit of its first byte. */
-interface Lsb0BitVector : ArrayBackedBitVector {
-    override val bitOrder: BitVector.BitOrder get() = BitVector.BitOrder.LSB0
+    companion object {
+        val bitOrder: BitVector.BitOrder get() = BitVector.BitOrder.LSB0
+    }
 }
 
 /** A vector whose valid logical indexes are exactly `0..<logicalBitCount`. */
-interface BoundedBitVector : BitVector, Iterable<Boolean> {
+interface FixedSizeBitVector : BitVector, Iterable<Boolean> {
     /**
      * Exact number of addressable logical bit positions.
      *
@@ -123,7 +125,7 @@ interface BoundedBitVector : BitVector, Iterable<Boolean> {
  * when an index exceeds the concrete storage implementation. Iteration ends immediately after
  * [BitVector.highestSetIndex], and an empty vector therefore produces no elements.
  */
-interface UnboundedBitVector : BitVector, Iterable<Boolean> {
+interface UnboundedCompactingBitVector : BitVector, Iterable<Boolean> {
     override fun iterator(): Iterator<Boolean> = bitIterator(highestSetIndex() + 1)
 
     /** Returns logical bits from index zero through [BitVector.highestSetIndex]. */
@@ -150,10 +152,10 @@ interface MutableBitVector : BitVector {
 }
 
 /** A fixed-size mutable bit vector. */
-interface MutableBoundedBitVector : BoundedBitVector, MutableBitVector
+interface MutableFixedSizeBitVector : FixedSizeBitVector, MutableBitVector
 
-/** A mutable bit vector that grows when a previously unrepresented nonnegative index is set. */
-interface MutableUnboundedBitVector : UnboundedBitVector, MutableBitVector
+/** A mutable unbounded vector whose finite representations compact after its highest set bit. */
+interface MutableUnboundedCompactingBitVector : UnboundedCompactingBitVector, MutableBitVector
 
 private fun BitVector.bitIterator(size: Long): Iterator<Boolean> = object : Iterator<Boolean> {
     private var index = 0L

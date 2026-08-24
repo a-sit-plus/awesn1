@@ -107,13 +107,13 @@ The bit API separates three concepts which are easy to conflate:
 | Type                        | Logical domain                                            | Iteration endpoint                                              | Mutation                               |
 |-----------------------------|-----------------------------------------------------------|-----------------------------------------------------------------|----------------------------------------|
 | `BitVector`                 | Unspecified by the base interface                         | None; it deliberately is **not** `Iterable<Boolean>`            | No                                     |
-| `BoundedBitVector`          | Exactly `0..<logicalBitCount`                             | Exactly `logicalBitCount`, including trailing `false` positions | No                                     |
-| `UnboundedBitVector`        | Every non-negative index; unset positions read as `false` | Immediately after `highestSetIndex()`                           | No                                     |
-| `MutableBoundedBitVector`   | Bounded                                                   | Bounded                                                         | Yes, within the fixed extent           |
-| `MutableUnboundedBitVector` | Unbounded                                                 | Compact                                                         | Yes, growing and shrinking as required |
+| `FixedSizeBitVector` | Exactly `0..<logicalBitCount` | Exactly `logicalBitCount`, including trailing `false` positions | No |
+| `UnboundedCompactingBitVector` | Every non-negative index; unset positions read as `false` | Immediately after `highestSetIndex()` | No |
+| `MutableFixedSizeBitVector` | Fixed-size | Fixed-size | Yes, within the fixed extent |
+| `MutableUnboundedCompactingBitVector` | Unbounded | Compact | Yes, growing and shrinking as required |
 
 `BitVector` itself has neither a size nor a byte layout. This is why it does not implement `Iterable<Boolean>` and does
-not expose byte conversion: both operations need an endpoint. `BoundedBitVector` and `UnboundedBitVector` provide those
+not expose byte conversion: both operations need an endpoint. `FixedSizeBitVector` and `UnboundedCompactingBitVector` provide those
 operations with different, explicit endpoint rules.
 
 For a bounded vector, `logicalBitCount` is the exact number of addressable positions—not storage capacity and not the
@@ -132,9 +132,9 @@ after its highest set bit. Consequently, trailing `false` values cannot be repre
 | `LSB0` mask   | `01` | `02` | `04` | `08` | `10` | `20` | `40` | `80` |
 | `MSB0` mask   | `80` | `40` | `20` | `10` | `08` | `04` | `02` | `01` |
 
-`ArrayBackedBitVector` is always bounded and exposes its native `bitOrder`. Its named subinterfaces, `Lsb0BitVector` and
-`Msb0BitVector`, make that orientation visible from the implementing type. `BitSet` is not array-backed: it grows and
-shrinks, and therefore exposes no `bitOrder` property even though its Java-compatible byte conversion is LSB0.
+`BitArray` exposes its native `bitOrder`. The `Lsb0BitArray` and `Msb0BitArray` marker interfaces make that orientation
+visible from the implementing type. `BitSet` is not array-backed: it grows and shrinks, and therefore exposes no
+`bitOrder` property even though its Java-compatible byte conversion is LSB0.
 
 Both bounded and unbounded vectors provide unambiguous conversions in either orientation:
 
@@ -168,9 +168,9 @@ Negative indexes throw. An index beyond a byte array returns `false`.
 
 ### `BitArray` and `MutableBitArray`
 
-`BitArray` is a sealed, read-only, fixed-size vector; `MutableBitArray` is its mutable counterpart. Their factories
-require a `BitVector.BitOrder` and return an aptly named concrete subtype (`Lsb0BitArray`, `Msb0BitArray`,
-`MutableLsb0BitArray`, or `MutableMsb0BitArray`).
+`BitArray` is a sealed, read-only, fixed-size vector. `MutableBitArray` is its sealed mutable subclass, so every mutable
+array is also a `BitArray`. `Lsb0BitArray` and `Msb0BitArray` are orientation markers; `MutableLsb0BitArray` and
+`MutableMsb0BitArray` are concrete `MutableBitArray` subclasses carrying the corresponding marker.
 
 ```kotlin
 val readOnly = BitArray(BitVector.BitOrder.LSB0, true, false, true)
@@ -178,11 +178,15 @@ val mutable = MutableBitArray(BitVector.BitOrder.MSB0, 9)
 
 readOnly.logicalBitCount // 3
 mutable.logicalBitCount  // 9, even though all bits are false
+
+val mutableCopy = readOnly.toMutableBitArray()
+mutableCopy is BitArray // true
 ```
 
 Construction and wrapping have intentionally different ownership:
 
-- `BitArray(order, byteArray)`, `MutableBitArray(order, byteArray)`, and `ByteArray.toBitArray(order)` copy their input.
+- `BitArray(order, byteArray)`, `MutableBitArray(order, byteArray)`, `ByteArray.toBitArray(order)`, and
+  `ByteArray.toMutableBitArray(order)` copy their input.
 - `BitArray.wrap(order, bytes, logicalBitCount)` and `MutableBitArray.wrap(...)` alias their input without copying.
 - `wrap` requires the byte count to be exactly sufficient for `logicalBitCount`.
 - Ordered byte-array conversions always return copies and clear physical padding outside `logicalBitCount`.
@@ -195,7 +199,7 @@ Construction and wrapping have intentionally different ownership:
 
 ### `BitSet`
 
-`BitSet` implements `MutableUnboundedBitVector` and follows Java `BitSet` semantics. Every non-negative index is valid;
+`BitSet` implements `MutableUnboundedCompactingBitVector` and follows Java `BitSet` semantics. Every non-negative index is valid;
 reading an unset index returns `false`, setting a distant index grows storage, and clearing the highest set bit may shrink
 the compact representation.
 
@@ -218,16 +222,16 @@ made before an exception remain applied. The live list must not be retained afte
 
 ### `Asn1BitString` as a Bit Vector
 
-`Asn1BitString` implements `Msb0BitVector` by delegating to a bounded `Msb0BitArray` over its `bitCarryingBytes`.
+`Asn1BitString` implements `Msb0BitArray` by delegating to a bounded `Msb0BitArray` over its `bitCarryingBytes`.
 Therefore:
 
 - `logicalBitCount == bitCarryingBytes.size * 8 - numPaddingBits`;
 - iteration includes every ASN.1 data bit, including meaningful trailing `false` values;
 - indexes outside `0..<logicalBitCount` throw;
-- its LSB0/MSB0 byte conversions and byte iterators are the standard `BoundedBitVector` operations;
+- its LSB0/MSB0 byte conversions and byte iterators are the standard `FixedSizeBitVector` operations;
 - DER padding bits are excluded from the logical vector and must be zero.
 
-Construction from a `BoundedBitVector` preserves its exact extent. Construction from an `UnboundedBitVector` or
+Construction from a `FixedSizeBitVector` preserves its exact extent. Construction from an `UnboundedCompactingBitVector` or
 `BitSet` uses its compact finite view, so trailing `false` positions are omitted. The boolean-vararg constructor is
 bounded and therefore preserves every supplied value.
 
@@ -526,8 +530,8 @@ These APIs decode only ASN.1 primitive payload bytes (no tag/length):
 `Asn1.BitString(...)` additionally accepts:
 
 - `ByteArray`, interpreted as byte-aligned MSB0 content;
-- `BoundedBitVector`, preserving its exact `logicalBitCount` including trailing `false` positions;
-- `UnboundedBitVector` and `BitSet`, using their compact view through `highestSetIndex()`.
+- `FixedSizeBitVector`, preserving its exact `logicalBitCount` including trailing `false` positions;
+- `UnboundedCompactingBitVector` and `BitSet`, using their compact view through `highestSetIndex()`.
 
 ## Tagging: EXPLICIT and IMPLICIT
 
