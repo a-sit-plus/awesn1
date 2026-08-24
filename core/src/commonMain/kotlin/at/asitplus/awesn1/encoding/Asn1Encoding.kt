@@ -296,10 +296,10 @@ object Asn1 {
     fun BitString(bitSet: BitSet) = Asn1BitString(bitSet).encodeToTlv()
 
     /** Creates a BIT STRING [Asn1Primitive] containing all represented bits of bounded [bits]. */
-    fun BitString(bits: BoundedBitVector) = Asn1BitString(bits).encodeToTlv()
+    fun BitString(bits: FixedSizeBitVector) = Asn1BitString(bits).encodeToTlv()
 
     /** Creates a compact BIT STRING [Asn1Primitive] from the finite logical view of unbounded [bits]. */
-    fun BitString(bits: UnboundedBitVector) = Asn1BitString(bits).encodeToTlv()
+    fun BitString(bits: UnboundedCompactingBitVector) = Asn1BitString(bits).encodeToTlv()
 
     /** Creates an UTF8 STRING [Asn1Primitive] from [value] */
     fun Utf8String(value: String) = Asn1String.UTF8(value).encodeToTlv()

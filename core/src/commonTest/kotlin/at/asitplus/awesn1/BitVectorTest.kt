@@ -73,9 +73,53 @@ val BitVectorTest by matrixSuite {
         Asn1BitString(false).bitOrder shouldBe BitVector.BitOrder.MSB0
     }
 
+    "oriented factories return real BitArray subclasses" {
+        val readOnlyMsb = Msb0BitArray(byteArrayOf(0xA0.toByte()), logicalBitCount = 3)
+        val readOnlyLsb = Lsb0BitArray(byteArrayOf(0x05), logicalBitCount = 3)
+        val mutableMsb = MutableMsb0BitArray(byteArrayOf(0xA0.toByte()), logicalBitCount = 3)
+        val mutableLsb = MutableLsb0BitArray(byteArrayOf(0x05), logicalBitCount = 3)
+        val mutableMsbAsMutable: MutableBitArray = mutableMsb
+        val mutableMsbAsReadOnly: BitArray = mutableMsb
+        val mutableLsbAsMutable: MutableBitArray = mutableLsb
+        val mutableLsbAsReadOnly: BitArray = mutableLsb
+
+        (readOnlyMsb is BitArray) shouldBe true
+        (readOnlyLsb is BitArray) shouldBe true
+        (mutableMsbAsMutable === mutableMsbAsReadOnly) shouldBe true
+        (mutableLsbAsMutable === mutableLsbAsReadOnly) shouldBe true
+    }
+
+    "read-only arrays copy naturally to independent mutable arrays" {
+        val readOnly = BitArray(BitVector.BitOrder.MSB0, true, false, true)
+        val mutable = readOnly.toMutableBitArray()
+
+        mutable shouldBe readOnly
+        readOnly shouldBe mutable
+        mutable.bitOrder shouldBe BitVector.BitOrder.MSB0
+        (mutable is MutableMsb0BitArray) shouldBe true
+
+        mutable[0] = false
+        readOnly[0] shouldBe true
+        mutable[0] shouldBe false
+    }
+
+    "copying and wrapping preserve extent and ownership" {
+        val copiedSource = byteArrayOf(0xFF.toByte())
+        val copied = BitArray(BitVector.BitOrder.LSB0, copiedSource, logicalBitCount = 3)
+        copiedSource[0] = 0
+
+        copied.logicalBitCount shouldBe 3L
+        copied.toLogicalBitString() shouldBe "111"
+
+        val wrappedSource = byteArrayOf(0)
+        val wrapped = MutableLsb0BitArray.wrap(wrappedSource, logicalBitCount = 3)
+        wrapped[1] = true
+        wrappedSource shouldBe byteArrayOf(0x02)
+    }
+
     "ASN.1 BIT STRING is an exact bounded logical vector" {
         val value = Asn1BitString(true, false, true)
-        val bounded: BoundedBitVector = value
+        val bounded: FixedSizeBitVector = value
 
         value.logicalBitCount shouldBe 3L
         value.toList() shouldBe listOf(true, false, true)
@@ -90,9 +134,9 @@ val BitVectorTest by matrixSuite {
     }
 
     "bounded byte representations clear non-logical padding" {
-        val msb0: BoundedBitVector =
+        val msb0: FixedSizeBitVector =
             BitArray.wrap(BitVector.BitOrder.MSB0, byteArrayOf(0xBF.toByte()), logicalBitCount = 3)
-        val lsb0: BoundedBitVector =
+        val lsb0: FixedSizeBitVector =
             BitArray.wrap(BitVector.BitOrder.LSB0, byteArrayOf(0xFF.toByte()), logicalBitCount = 3)
 
         msb0.toMsb0ByteArray() shouldBe byteArrayOf(0xA0.toByte())

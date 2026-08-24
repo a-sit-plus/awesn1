@@ -44,7 +44,7 @@ data class Asn1BitString private constructor(
      */
     val bitCarryingBytes: ByteArray,
 
-    ) : Asn1Encodable<Asn1Primitive>, Msb0BitVector by validatedBitVector(numPaddingBits, bitCarryingBytes) {
+    ) : Asn1Encodable<Asn1Primitive>, Msb0BitArray by validatedBitVector(numPaddingBits, bitCarryingBytes) {
 
     /** Number of meaningful bits; DER padding is excluded. */
     override val logicalBitCount get() = bitCarryingBytes.size.toLong() * 8 - numPaddingBits
@@ -61,10 +61,10 @@ data class Asn1BitString private constructor(
     constructor(source: BitSet) : this(fromBits(source))
 
     /** Creates an ASN.1 BIT STRING containing every represented bit of fixed-size [source], including trailing zeroes. */
-    constructor(source: BoundedBitVector) : this(fromBits(source))
+    constructor(source: FixedSizeBitVector) : this(fromBits(source))
 
     /** Creates a compact ASN.1 BIT STRING from the finite logical view of [source]. */
-    constructor(source: UnboundedBitVector) : this(fromBits(source))
+    constructor(source: UnboundedCompactingBitVector) : this(fromBits(source))
 
     /** Constructs an ASN.1 BIT STRING containing exactly the specified logical [bits]. */
     constructor(vararg bits: Boolean) : this(fromBits(bits.asIterable()))
@@ -75,16 +75,6 @@ data class Asn1BitString private constructor(
      * @throws Asn1Exception if [source] does not fulfill ASN.1 BIT STRING requirements
      */
     constructor(source: ByteArray) : this(Pair(0x00.toByte(), source))
-
-    /**
-     * Creates an independent [BitSet] containing the same set logical indexes. As [BitSet] is unbounded, this conversion
-     * intentionally loses trailing unset bits and the exact [logicalBitCount].
-     */
-    fun toBitSet(): BitSet {
-        val bitset = BitSet(logicalBitCount)
-        for (index in 0 until logicalBitCount) if (get(index)) bitset.set(index)
-        return bitset
-    }
 
 
     companion object : Asn1Serializer<Asn1Primitive, Asn1BitString>(
@@ -130,7 +120,7 @@ data class Asn1BitString private constructor(
                     }"
                 }
             }
-            Msb0BitArray(bytes, bytes.size.toLong() * 8 - numPaddingBits)
+            Msb0BitArray.wrap(bytes, bytes.size.toLong() * 8 - numPaddingBits)
         }
     }
 
