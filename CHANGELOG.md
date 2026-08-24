@@ -7,6 +7,7 @@
 * Introduce BitVector interface hierarchy
     * Revamp `BitSet` and `Asn1BitString`
     * Introduce `BitArray`
+    * `BitSet` is no longer serializable
 
 ## 0.7.0
 * **Security Hardening:**
