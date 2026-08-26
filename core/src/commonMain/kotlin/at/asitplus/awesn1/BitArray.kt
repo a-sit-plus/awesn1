@@ -84,16 +84,12 @@ sealed class BitArray protected constructor(
     fun toMutableBitArray(): MutableBitArray =
         MutableBitArray.wrap(bitOrder, buffer.copyOf(), logicalBitCount)
 
-    private fun logicalBytes(): ByteArray = toLsb0ByteArray().also { bytes ->
-        val usedBits = (logicalBitCount % 8).toInt()
-        if (usedBits != 0) bytes[bytes.lastIndex] = bytes.last() and ((1 shl usedBits) - 1).toByte()
-    }
-
     override fun equals(other: Any?): Boolean =
-        this === other || other is BitArray && logicalBitCount == other.logicalBitCount &&
-                logicalBytes().contentEquals(other.logicalBytes())
+        this === other || other is BitArray && bitOrder == other.bitOrder &&
+                logicalBitCount == other.logicalBitCount && toLsb0ByteArray().contentEquals(other.toLsb0ByteArray())
 
-    override fun hashCode(): Int = 31 * logicalBitCount.hashCode() + logicalBytes().contentHashCode()
+    override fun hashCode(): Int =
+        31 * (31 * bitOrder.hashCode() + logicalBitCount.hashCode()) + toLsb0ByteArray().contentHashCode()
 
     companion object {
         /** Creates exactly [nBits] initialized logical bits using the required native [bitOrder]. */
