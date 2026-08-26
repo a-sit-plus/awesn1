@@ -9,9 +9,9 @@ import io.kotest.matchers.shouldNotBe
 
 val Asn1BitStringTest by matrixSuite {
 
-    val bitSet1 = BitSet.fromString("011011100101110111")
-    val bitSet2 = BitSet.fromString("011011100101110111")
-    val bitSet3 = BitSet.fromString("011011100101110101")
+    val bitSet1 = BitSet.fromLogicalBitString("011011100101110111")
+    val bitSet2 = BitSet.fromLogicalBitString("011011100101110111")
+    val bitSet3 = BitSet.fromLogicalBitString("011011100101110101")
 
     "Bit String Test" {
         val fromBitSet1 = Asn1BitString(bitSet1)

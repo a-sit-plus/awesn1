@@ -334,7 +334,7 @@ private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
 private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10CertificationRequestInfo(
     subjectName = X500Name(List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) }),
     publicKey = randomSubjectPublicKeyInfo(random),
-    attributes = (List(random.nextInt(0, 3)) { randomAttribute(random) }).toSet(),
+    attributes = List(random.nextInt(0, 3)) { randomAttribute(random) }.distinctBy { it.oid }.toSet(),
 )
 
 private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10CertificationRequest(

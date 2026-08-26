@@ -287,15 +287,19 @@ object Asn1 {
     fun OctetString(bytes: ByteArray) = bytes.encodeToAsn1OctetStringPrimitive()
 
 
-    /** Creates an BIT STRING [Asn1Primitive] from [bytes] */
+    /** Creates a byte-aligned BIT STRING [Asn1Primitive] using [bytes] as native MSB0 contents. */
     fun BitString(bytes: ByteArray) = bytes.encodeToAsn1BitStringPrimitive()
 
-
     /**
-     * Creates an BIT STRING [Asn1Primitive] from [bitSet].
-     * **Left-Aligned and right-padded (see [Asn1BitString])**
+     * Creates a compact BIT STRING [Asn1Primitive] from [bitSet]. Unset bits after its highest set index are omitted.
      */
     fun BitString(bitSet: BitSet) = Asn1BitString(bitSet).encodeToTlv()
+
+    /** Creates a BIT STRING [Asn1Primitive] containing all represented bits of bounded [bits]. */
+    fun BitString(bits: FixedSizeBitVector) = Asn1BitString(bits).encodeToTlv()
+
+    /** Creates a compact BIT STRING [Asn1Primitive] from the finite logical view of unbounded [bits]. */
+    fun BitString(bits: UnboundedCompactingBitVector) = Asn1BitString(bits).encodeToTlv()
 
     /** Creates an UTF8 STRING [Asn1Primitive] from [value] */
     fun Utf8String(value: String) = Asn1String.UTF8(value).encodeToTlv()

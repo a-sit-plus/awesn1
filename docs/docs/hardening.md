@@ -122,8 +122,8 @@ converted, compared, rendered, or merely logged. awesn1 bounds every one of thes
 
 On JVM/Native, an out-of-bounds array access throws a catchable exception; on Kotlin/Wasm it **traps** instead. awesn1
 therefore does not depend on the runtime to throw on out-of-range indexing during parse and encode.
-Hot paths bounds-check explicitly (e.g. `BitSet.getBit`, the `kxs` enum-ordinal mapping, and `DerDecoder` element access),
-s.t. that the behaviour is identical on all targers and errors stay catchable.
+Hot paths bounds-check explicitly (e.g. `BitVector.get`, `ByteArray.getLsb0Bit` / `getMsb0Bit`, the `kxs` enum-ordinal
+mapping, and `DerDecoder` element access), so the behaviour is identical on all targets and errors stay catchable.
 
 ### Fail-Fast Ambiguity Detection (kxs)
 
@@ -141,7 +141,9 @@ The test harness includes:
   length parsing/overflow guards, parent/child length-consistency enforcement, tag parsing edge cases, and bounded
   `Source` enforcement.
 - **Numeric edge cases:** INTEGER minimality and two's-complement conversion (incl. large negatives and large
-  varint-backed magnitudes), OID arc decoding, `BitSet` and BIT STRING edge cases.
+  varint-backed magnitudes), OID arc decoding, and `BitVector`, `BitSet`, `BitArray`, and BIT STRING edge cases. Bit tests
+  cover both byte orientations, bounded/unbounded extent, non-byte-aligned padding, iterator exhaustion, compacting,
+  aliasing, and conversion round-trips across byte boundaries.
 - Signed/Unsigned integer to primitive mapping for `kxs`, ensuring that numbers round-trip byte-for-byte.
 - **Differential / corpus fuzzing:** randomized and corpus-driven inputs (including a real-world certificate corpus)
   parsed and round-tripped, asserting that malformed input fails with a bounded exception and that valid input

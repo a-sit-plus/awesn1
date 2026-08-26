@@ -30,7 +30,8 @@ universe. It gives you:
 - ASN.1 element types (`Asn1Element`, `Asn1Primitive`, `Asn1Structure`)
 - DER parsing/encoding helpers
 - A builder DSL for manual ASN.1 trees (`Asn1.Sequence`, `Asn1.Set`, `Asn1.ExplicitlyTagged`, ...)
-- Rich ASN.1 domain types (`ObjectIdentifier`, `Asn1Integer`, `Asn1Real`, `Asn1Time`, `Asn1String`, `BitSet`)
+- Rich ASN.1 domain types (`ObjectIdentifier`, `Asn1Integer`, `Asn1Real`, `Asn1Time`, `Asn1String`, `Asn1BitString`)
+- Logical bit-vector types for fixed-size arrays and Java-style growing sets (`BitVector`, `BitArray`, `MutableBitArray`, `BitSet`)
 - Addons for integrating with [kotlinx-io](https://github.com/Kotlin/kotlinx-io) (see [io addons](addons.md#kxs-io))
 - Optional known OID registry (see [OID addons](addons.md#oids))
 - A hardened, fully **iterative** parser/encoder that fails predictably on hostile input (see [Hardening](hardening.md))
@@ -72,6 +73,10 @@ documentation site. See [SBOM](sbom.md) for publication-specific JSON/XML downlo
   Builder DSL plus low-level encode/decode helpers.
 - `at.asitplus.awesn1.serialization`:
   `kotlinx.serialization` format (provided by the `kxs` module).
+
+The bit-vector API deliberately separates logical extent from byte orientation. See
+[Bit Vectors, Bit Arrays, Bit Sets, and ASN.1 BIT STRING](lowlevel.md#bit-vectors-bit-arrays-bit-sets-and-asn1-bit-string)
+before converting between those representations.
 
 ## Serialization Example: RFC CHOICE with Sealed Polymorphism
 

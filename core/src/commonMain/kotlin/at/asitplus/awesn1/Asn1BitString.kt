@@ -5,7 +5,6 @@
 
 package at.asitplus.awesn1
 
-import at.asitplus.awesn1.Asn1BitString.Companion.fromBitSet
 import at.asitplus.awesn1.serialization.Asn1Serializer
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -14,8 +13,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlin.experimental.and
-import kotlin.experimental.inv
 import kotlin.experimental.or
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -29,7 +26,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * When serialized to a non-DER format, the following representation is used:`"$numPaddingBits:${base64Strict(bitCarryingBytes)}"`
  *
  * ```
- * val bitSet = BitSet.fromString("001")
+ * val bitSet = BitSet.fromLogicalBitString("001")
  * val bitString = Asn1BitString(bitSet)
  *
  * Json.encodeToString(bitString)  //produces "5:IA=="
@@ -41,91 +38,44 @@ data class Asn1BitString private constructor(
 
     val numPaddingBits: Byte,
 
+    /**
+     * DER-compatible MSB0 bytes. The returned array is the current backing array; mutability hardening is tracked
+     * separately from the bit-vector refactor.
+     */
     val bitCarryingBytes: ByteArray,
 
-    ) : Asn1Encodable<Asn1Primitive> {
+    ) : Asn1Encodable<Asn1Primitive>, Msb0BitArray by validatedBitVector(numPaddingBits, bitCarryingBytes) {
 
-    val sizeBits get() = bitCarryingBytes.size.toLong() * 8 - numPaddingBits
-    val sizeBytes get() = bitCarryingBytes.size
+    /** Number of meaningful bits; DER padding is excluded. */
+    override val logicalBitCount get() = bitCarryingBytes.size.toLong() * 8 - numPaddingBits
 
     /**
-     * helper constructor to be able to use [fromBitSet]
+     * Helper constructor for logical-bit packing functions.
      */
     private constructor(derValue: Pair<Byte, ByteArray>) : this(derValue.first, derValue.second)
 
     /**
-     * Creates an ASN.1 BIT STRING from the provided bitSet.
-     * The transformation to [bitCarryingBytes] and the calculation of [numPaddingBits] happens
-     * immediately in the constructor. Hence, modifications to the source BitSet have no effect on the resulting [Asn1BitString].
-     *
-     * **BEWARE:** a bitset (as [BitSet] implements it) is, by definition, only as long as the highest bit set!
-     * Hence, trailing zeroes are **ALWAYS** stripped. If you require tailing zeroes, the easiest quick-and-dirty hack to accomplish this in general is as follows:
-     *
-     *  - set the last bit you require as tailing zero to one
-     *  - call this constructor
-     *  - flip the previously set bit back (this will be the lowest bit set in last byte of [bitCarryingBytes]).
-     *
-     * @param source the source [BitSet], which is discarded after [bitCarryingBytes] and [numPaddingBits] have been calculated
-     *
-     * @throws Asn1Exception if [source] does not fulfill the ASN.1 BIT STRING requirements
+     * Creates an ASN.1 BIT STRING from the compact logical view of [source]. The conversion is immediate and independent
+     * of later source mutations. Because [BitSet] is unbounded, unset bits after its highest set index are not encoded.
      */
-    constructor(source: BitSet) : this(fromBitSet(source))
+    constructor(source: BitSet) : this(fromBits(source))
 
-    /** Constructs an ASN.1 BIT STRING from the specified bytes */
-    constructor(vararg bits: Boolean) : this(fromBits(bits))
+    /** Creates an ASN.1 BIT STRING containing every represented bit of fixed-size [source], including trailing zeroes. */
+    constructor(source: FixedSizeBitVector) : this(fromBits(source))
+
+    /** Creates a compact ASN.1 BIT STRING from the finite logical view of [source]. */
+    constructor(source: UnboundedCompactingBitVector) : this(fromBits(source))
+
+    /** Constructs an ASN.1 BIT STRING containing exactly the specified logical [bits]. */
+    constructor(vararg bits: Boolean) : this(fromBits(bits.asIterable()))
 
     /**
-     * Constructs an ASN.1 BIT STRING with [source] used for [bitCarryingBytes] and zero padding bits
+     * Constructs a byte-aligned ASN.1 BIT STRING using [source] as its MSB0 backing bytes without copying.
      *
-     * @throws Asn1Exception if [source] does not fulfill the ASN.1 BIT STRING requirements
+     * @throws Asn1Exception if [source] does not fulfill ASN.1 BIT STRING requirements
      */
     constructor(source: ByteArray) : this(Pair(0x00.toByte(), source))
 
-    init {
-        runRethrowing {
-            require(numPaddingBits in 0..7) { "Number of padding bits must be in range 0..7. Found: $numPaddingBits" }
-            if (numPaddingBits > 0.toByte()) require(bitCarryingBytes.isNotEmpty()) { "Raw bytes must not be empty if padding bits are set" }
-
-            repeat(numPaddingBits.toInt()) {
-                require(
-                    (bitCarryingBytes.last().toInt() and (1.shl(it))) == 0
-                ) {
-                    "Last $numPaddingBits padding bits must be zeroed out. Last byte is: ${
-                        bitCarryingBytes.last().toUByte().toString(2).padStart(8, '0')
-                    }"
-                }
-            }
-        }
-    }
-
-    /**
-     * Transforms [bitCarryingBytes] and wraps into a [BitSet]. The last [numPaddingBits] bits are ignored.
-     * This is a deep copy and mirrors the bits in every byte to match
-     * the native bitset layout where bit and byte indices run in opposite direction.
-     * Hence, modifications to the resulting bitset do not affect [bitCarryingBytes]
-     *
-     * Note: Tailing zeroes never count towards the length of the bitset
-     *
-     * See [BitSet] for more details on bit string representation vs memory layout.
-     *
-     */
-    fun toBitSet(): BitSet {
-        val bitset = BitSet(sizeBits)
-        for (i in bitCarryingBytes.indices) {
-            val bitOffset = i.toLong() * 8L
-            for (bitIndex in 0..<8) {
-                val globalIndex = bitOffset + bitIndex
-                if (globalIndex == sizeBits) return bitset
-                bitset[globalIndex] = (bitCarryingBytes[i].toInt() and (0x80 shr bitIndex) != 0)
-            }
-        }
-        return bitset
-    }
-
-    operator fun get(bitIndex: Int): Boolean {
-        if (bitIndex >= sizeBits) throw IndexOutOfBoundsException("bitIndex: $bitIndex, size: ${sizeBits}")
-        return (bitCarryingBytes[bitIndex / 8] and (0x80 shl (bitIndex % 8)).toByte()) != 0.toByte()
-    }
 
     companion object : Asn1Serializer<Asn1Primitive, Asn1BitString>(
         leadingTags = setOf(Asn1Element.Tag.BIT_STRING),
@@ -141,24 +91,16 @@ data class Asn1BitString private constructor(
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_BIT_STRING, PrimitiveKind.STRING)
 
-        private fun fromBitSet(bitSet: BitSet): Pair<Byte, ByteArray> {
-            val rawBytes = bitSet.bytes.map {
-                var res = 0
-                for (i in 0..7) {
-                    if (it.toUByte().toInt() and (0x80 shr i) != 0) res = res or (0x01 shl i)
-                }
-                res.toUByte().toByte()
-            }.toByteArray()
-            return Pair(((8 - ((bitSet.highestSetIndex()+1L) % 8)) % 8).toByte(), rawBytes)
-        }
-
-        private fun fromBits(bits: BooleanArray): Pair<Byte, ByteArray> {
-            val paddingBits = ((8 - (bits.size % 8)) % 8).toByte()
-            val bytes = ByteArray((bits.size + paddingBits) / 8)
-            bits.forEachIndexed { index, bit ->
-                if (bit) bytes[index/8] = (bytes[index/8] or (0x80 shr index%8).toByte())
+        private fun fromBits(bits: Iterable<Boolean>): Pair<Byte, ByteArray> {
+            val bytes = mutableListOf<Byte>()
+            var logicalBitCount = 0L
+            for (bit in bits) {
+                if (logicalBitCount % 8 == 0L) bytes.add(0)
+                if (bit) bytes[bytes.lastIndex] = bytes.last() or BitVector.getMsb0Mask(logicalBitCount)
+                logicalBitCount++
             }
-            return Pair(paddingBits, bytes)
+            val paddingBits = ((8 - logicalBitCount % 8) % 8).toByte()
+            return paddingBits to bytes.toByteArray()
         }
 
         /**
@@ -168,9 +110,23 @@ data class Asn1BitString private constructor(
         fun fromRawParts(numPaddingBits: Byte, rawBytes: ByteArray): Asn1BitString =
             Asn1BitString(numPaddingBits, rawBytes)
 
+        private fun validatedBitVector(numPaddingBits: Byte, bytes: ByteArray): Msb0BitArray = runRethrowing {
+            require(numPaddingBits in 0..7) { "Number of padding bits must be in range 0..7. Found: $numPaddingBits" }
+            if (numPaddingBits > 0) require(bytes.isNotEmpty()) { "Raw bytes must not be empty if padding bits are set" }
+            repeat(numPaddingBits.toInt()) { bit ->
+                require((bytes.last().toInt() and (1 shl bit)) == 0) {
+                    "Last $numPaddingBits padding bits must be zeroed out. Last byte is: ${
+                        bytes.last().toUByte().toString(2).padStart(8, '0')
+                    }"
+                }
+            }
+            Msb0BitArray.wrap(bytes, bytes.size.toLong() * 8 - numPaddingBits)
+        }
     }
 
-    override fun encodeToTlv() = Asn1Primitive(Asn1Element.Tag.BIT_STRING, byteArrayOf(numPaddingBits, *bitCarryingBytes))
+    override fun encodeToTlv() =
+        Asn1Primitive(Asn1Element.Tag.BIT_STRING, byteArrayOf(numPaddingBits, *bitCarryingBytes))
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false
