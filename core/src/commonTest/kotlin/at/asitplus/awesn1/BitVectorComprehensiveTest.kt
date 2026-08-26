@@ -6,6 +6,7 @@ package at.asitplus.awesn1
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 
 val BitVectorComprehensiveTest by matrixSuite {
 
@@ -119,21 +120,24 @@ val BitVectorComprehensiveTest by matrixSuite {
         }
     }
 
-    "logical equality ignores orientation and non-logical padding" {
+    "array equality respects orientation and ignores non-logical padding" {
         val msb = BitArray.wrap(BitVector.BitOrder.MSB0, byteArrayOf(0xBF.toByte()), 3)
+        val sameMsb = BitArray.wrap(BitVector.BitOrder.MSB0, byteArrayOf(0xA0.toByte()), 3)
         val lsb = BitArray.wrap(BitVector.BitOrder.LSB0, byteArrayOf(0xFD.toByte()), 3)
         val differentExtent = BitArray(BitVector.BitOrder.MSB0, true, false, true, false)
 
-        msb shouldBe lsb
-        msb.hashCode() shouldBe lsb.hashCode()
+        msb shouldBe sameMsb
+        msb.hashCode() shouldBe sameMsb.hashCode()
+        msb shouldNotBe lsb
+        msb.hashCode() shouldNotBe lsb.hashCode()
         (msb == differentExtent) shouldBe false
         msb.msb0ByteIterator().drainBytes() shouldBe byteArrayOf(0xA0.toByte())
         lsb.lsb0ByteIterator().drainBytes() shouldBe byteArrayOf(0x05)
 
         val mutableMsb = MutableBitArray.wrap(BitVector.BitOrder.MSB0, byteArrayOf(0xBF.toByte()), 3)
         val mutableLsb = MutableBitArray.wrap(BitVector.BitOrder.LSB0, byteArrayOf(0xFD.toByte()), 3)
-        mutableMsb shouldBe mutableLsb
-        mutableMsb.hashCode() shouldBe mutableLsb.hashCode()
+        mutableMsb shouldNotBe mutableLsb
+        mutableMsb.hashCode() shouldNotBe mutableLsb.hashCode()
         mutableMsb.toMsb0ByteArray() shouldBe byteArrayOf(0xA0.toByte())
         mutableMsb.toLsb0ByteArray() shouldBe byteArrayOf(0x05)
         mutableLsb.msb0ByteIterator().drainBytes() shouldBe byteArrayOf(0xA0.toByte())
