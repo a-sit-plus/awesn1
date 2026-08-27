@@ -210,6 +210,7 @@ tasks.register<Copy>("copyChangelog") {
 tasks.register<Copy>("mkDocsPrepare") {
     dependsOn("dokkaGenerate")
     dependsOn("copyChangelog")
+    dependsOn(":viewer:copyViewerToDocs")
     dependsOn(syncSbomDocs)
     dependsOn("generateAsn1JsDocInputs")
     dependsOn(":core:generateAsn1JsManifest")

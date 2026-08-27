@@ -33,3 +33,14 @@ kotlin {
         }
     }
 }
+
+tasks.register<Copy>("copyViewerToDocs") {
+    group = "documentation"
+    description = "Builds the browser viewer and copies its JavaScript bundle into the MkDocs sources."
+    dependsOn("jsBrowserDistribution")
+    from(layout.buildDirectory.dir("dist/js/productionExecutable")) {
+        include("viewer.js")
+        rename("viewer.js", "asn1-viewer.js")
+    }
+    into(rootProject.layout.projectDirectory.dir("docs/docs/javascripts"))
+}

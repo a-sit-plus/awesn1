@@ -31,9 +31,11 @@ val alibi by matrixSuite {
         coloredHex(decoded.element).first.map { it.value }.toByteArray().toList() shouldBe decoded.bytes.toList()
         coloredHex(decoded.element).first.map { it.path } shouldBe listOf("0", "0", "0.0", "0.0", "0.0")
         genericAsn1Lines(decoded.element).mapNotNull { it.path } shouldBe listOf("0", "0.0")
+        genericAsn1Lines(decoded.element)[1].text shouldBe "1  tag=2 (=02) (INTEGER), length=1"
 
         val encapsulated = decodeInput("04 03 02 01 01", InputFormat.HEX).element
         genericAsn1Lines(encapsulated).mapNotNull { it.path } shouldBe listOf("0", "0.0")
+        genericAsn1Lines(encapsulated).first().text.startsWith("(3 bytes, 1 elem)") shouldBe true
         coloredHex(encapsulated).first.map { it.path } shouldBe listOf("0", "0", "0.0", "0.0", "0.0")
     }
 

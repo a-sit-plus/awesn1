@@ -98,15 +98,13 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
             }
         }
         val metadataStart = line.indexOf("  tag=")
-        val contentStart = line.indexOf("  ")
         val tagStart = line.indexOf("tag=")
         val tagEnd = if (tagStart >= 0) line.indexOf(',', tagStart).let { if (it < 0) line.length else it } else -1
         val lengthStart = line.indexOf("length=", maxOf(tagEnd, 0))
         val lengthEnd = if (lengthStart >= 0) line.indexOf(',', lengthStart).let { if (it < 0) line.length else it } else -1
         var cursor = 0
         val coloredRanges = buildList {
-            if (contentStart >= 0) add(0 to contentStart to "hex-tag")
-            if (contentStart in 0 until metadataStart) add(contentStart + 2 to metadataStart to "hex-content")
+            if (rendered.hasPrimitiveContent && metadataStart > 0) add(0 to metadataStart to "hex-content")
             add(tagStart to tagEnd to "hex-tag")
             add(lengthStart to lengthEnd to "hex-length")
         }
