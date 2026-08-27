@@ -1,6 +1,5 @@
 import at.asitplus.gradle.awesn1Targets
 import at.asitplus.gradle.awesn1Conventions
-import at.asitplus.gradle.serialization
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
 
 plugins {
@@ -31,7 +30,6 @@ kotlin {
         commonMain.dependencies {
             api(project(":crypto"))
             api(project(":oids"))
-            implementation(serialization("json"))
         }
     }
 }

@@ -10,6 +10,14 @@ import at.asitplus.awesn1.Asn1Structure
 enum class HexByteKind { TAG, LENGTH, VALUE }
 
 data class ColoredHexByte(val value: Byte, val kind: HexByteKind, val depth: Int, val path: String)
+data class GenericAsn1Line(
+    val text: String,
+    val depth: Int,
+    val path: String? = null,
+    val byteOffset: Int? = null,
+    val byteLength: Int? = null,
+    val memberName: String? = null,
+)
 
 private const val MAX_RENDERED_HEX_BYTES = 64 * 1024
 
@@ -32,15 +40,39 @@ fun coloredHex(element: Asn1Element): Pair<List<ColoredHexByte>, Boolean> {
     return result.take(MAX_RENDERED_HEX_BYTES) to (element.overallLength > MAX_RENDERED_HEX_BYTES)
 }
 
-fun elementPaths(element: Asn1Element): List<String> = buildList {
-    val stack = ArrayDeque<Pair<Asn1Element, String>>().apply { addLast(element to "0") }
+fun genericAsn1Lines(element: Asn1Element, memberNames: Map<String, String> = emptyMap()): List<GenericAsn1Line> = buildList {
+    data class Pending(val element: Asn1Element, val depth: Int, val path: String, val offset: Int)
+    val stack = ArrayDeque<Pending>().apply { addLast(Pending(element, 0, "0", 0)) }
     while (stack.isNotEmpty()) {
-        val (current, path) = stack.removeLast()
-        add(path)
-        (current as? Asn1Structure)?.children?.let { children ->
-            for (index in children.indices.reversed()) stack.addLast(children[index] to "$path.$index")
+        val (current, depth, path, offset) = stack.removeLast()
+        add(GenericAsn1Line(current.friendlyHeader(), depth, path, offset, current.overallLength, memberNames[path]))
+        current.childrenOrNull()?.let { children ->
+            var childOffset = offset + current.tag.encodedTag.size + current.encodedLength.size
+            val offsets = children.map { child -> childOffset.also { childOffset += child.overallLength } }
+            for (index in children.indices.reversed()) {
+                stack.addLast(Pending(children[index], depth + 2, "$path.$index", offsets[index]))
+            }
         }
     }
+}
+
+private fun Asn1Element.friendlyHeader(): String {
+    val children = childrenOrNull()
+    val type = when {
+        this is Asn1EncapsulatingOctetString -> "OCTET STRING (${contentLengthLong} byte${if (contentLengthLong == 1L) "" else "s"})"
+        children != null && tag == Asn1Element.Tag.SEQUENCE -> "SEQUENCE (${children.size} elem)"
+        children != null && tag == Asn1Element.Tag.SET -> "SET (${children.size} elem)"
+        children != null -> "[${tag.tagValue}] (${children.size} elem)"
+        else -> tag.toString().substringAfterLast('(').substringBefore(')') + primitiveValue()
+    }
+    return "$type  tag=$tag, length=$contentLengthLong"
+}
+
+private fun Asn1Element.primitiveValue(): String {
+    val rendered = prettyPrint(limit = 240).substringBefore('\n')
+    val marker = rendered.indexOf(')', rendered.indexOf("overallLength="))
+    return rendered.substring(if (marker < 0) rendered.length else marker + 1).trim()
+        .takeIf { it.isNotEmpty() }?.let { "  $it" } ?: ""
 }
 
 private fun Asn1Element.childrenOrNull() = when (this) {
