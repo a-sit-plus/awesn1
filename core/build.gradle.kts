@@ -35,17 +35,13 @@ kotlin {
             kotlin.srcDir("src/sharedTest")
             dependencies {
                 implementation(project(":oids"))
-                implementation("at.asitplus.signum:indispensable:3.19.3")
-                implementation("at.asitplus.signum:indispensable-oids:3.19.3")
             }
         }
         jvmTest {
             dependencies {
                 implementation(project(":kxs"))
                 implementation(serialization("json"))
-                // for the interactive memory probe (NestingMemory.kt): compare raw awesn1 parsing, awesn1's typed
-                // X509Certificate model, and Bouncy-Castle-as-JCA-provider parsing of the same cert corpus.
-                // A test-only dependency on :crypto is cycle-free (crypto's main depends on core's main, not core's test).
+                implementation("at.asitplus.signum:indispensable:3.26.0")
                 implementation(project(":crypto"))
                 implementation(libs.bouncycastle.prov) // BouncyCastle JCA provider
             }
