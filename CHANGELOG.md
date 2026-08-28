@@ -1,5 +1,7 @@
 # Changelog
 
+## NEXT
+
 ## 0.8.0
 * Moved the faux-constructor extensions on `SubjectPublicKeyInfo` to `from` extensions
     * This avoids pathological autocomplete behavior
