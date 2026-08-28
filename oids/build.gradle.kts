@@ -35,7 +35,7 @@ tasks.register<DefaultTask>("regenerateKnownOIDs") {
  * in generated/commonMain/kotlin/at/asitplus/crypto/datatypes/asn1.
  *
  * This object contains the contents declared in src/commonMain/resources/dumpasn1.cfg,
- * which is taken from Peter Gutmann's [dumpasn1](https://www.cs.auckland.ac.nz/~pgut001/dumpasn1.cfg).
+ * which is taken from Peter Gutmann's / Lapo Lichini's [dumpasn1](https://github.com/cryptlib/dumpasn1/blob/main/dumpasn1.cfg).
  *
  * Internally, it iterates over the config file, collecting a tuple of OID, Description and optional Comment.
  * When the next OID is encountered, the previously collected tuple ist added to a map
@@ -98,6 +98,7 @@ fun generateKnownOIDs() {
                     .replace("#", "")
                     .replace("\"", "")
                     .replace(' ', '_')
+                    .replace('.', '_')
                     .replace('-', '_')
                     .replace(",", "").let {
                         it.ifBlank { oid!!.replace(" ", "_") }
