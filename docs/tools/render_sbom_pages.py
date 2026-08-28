@@ -15,29 +15,31 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def display_title(module_name: str) -> str:
+    return " ".join(part.capitalize() for part in module_name.split("-"))
+
+
 def render_rows(entries: list[dict[str, str]]) -> str:
     def sort_key(item: dict[str, str]) -> tuple[int, str]:
         publication = item["publication"]
         return (0 if publication == "kotlinMultiplatform" else 1, publication)
 
-    def publication_type(item: dict[str, str]) -> str:
-        return "metadata" if item["publication"] == "kotlinMultiplatform" else "target"
-
-    def artifact_link(label: str, path: str, sig_path: str) -> str:
-        link = f"[{label}](../{path})"
-        if sig_path:
-            link += f" ([sig](../{sig_path}))"
+    def artifact_link(label: str, url: str, sig_url: str) -> str:
+        link = f"[{label}]({url})"
+        if sig_url:
+            link += f" ([sig]({sig_url}))"
         return link
 
     rows = []
     for entry in sorted(entries, key=sort_key):
+        coordinates = f"`{entry['groupId']}:{entry['artifactId']}:{entry['version']}`"
         rows.append(
-            "| `{publication}` | `{type}` | {json_link} | {xml_link} | `{version}` |".format(
+            "| `{publication}` | `{kind}` | {coordinates} | {json_link} | {xml_link} |".format(
                 publication=entry["publication"],
-                type=publication_type(entry),
+                kind=entry["kind"],
+                coordinates=coordinates,
                 json_link=artifact_link("JSON", entry["json"], entry.get("jsonSig", "")),
                 xml_link=artifact_link("XML", entry["xml"], entry.get("xmlSig", "")),
-                version=entry["version"],
             )
         )
     return "\n".join(rows)
@@ -57,7 +59,7 @@ def main() -> None:
     for module_name, entries in entries_by_module.items():
         rendered = template
         rendered = rendered.replace("{{ module_name }}", module_name)
-        rendered = rendered.replace("{{ module_title }}", module_name)
+        rendered = rendered.replace("{{ module_title }}", display_title(module_name))
         rendered = rendered.replace("{{ table_rows }}", render_rows(entries))
         (output_dir / f"{module_name}.md").write_text(rendered, encoding="utf-8")
 

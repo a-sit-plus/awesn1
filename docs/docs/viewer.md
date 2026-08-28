@@ -3,10 +3,13 @@ title: ASN.1 Viewer
 hide:
   - navigation
   - toc
-  - tabs
 ---
 
 # ASN.1 Viewer
+
+This ASN.1 viewer (a.k.a poor man's [asn1js.eu](https://asn1js.eu/)) demonstrates awesn1's parsing capabilities. It is not intended to compete with asn1js.eu, but rather to showcase that awesn1 indeed works on JS targets as advertised.
+No server-side logic is involved. All processing happens in a single 650KB JavaScript file.
+**Do not treat the viewer's structural rendering as authoritative output!** awesn1 is solid, but the glue code to facilitate HTML rendering is 50 shades of AI slop!
 
 <div class="asn1-viewer">
   <textarea id="input" spellcheck="false" aria-label="ASN.1 input" placeholder="Paste PEM, Base64, or hexadecimal DER here"></textarea>

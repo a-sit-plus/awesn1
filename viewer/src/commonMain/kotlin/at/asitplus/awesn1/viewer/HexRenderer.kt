@@ -9,11 +9,13 @@ import at.asitplus.awesn1.Asn1Structure
 
 enum class HexByteKind { TAG, LENGTH, VALUE }
 
-data class ColoredHexByte(val value: Byte, val kind: HexByteKind, val depth: Int, val path: String)
+typealias Asn1Path = List<Int>
+
+data class ColoredHexByte(val value: Byte, val kind: HexByteKind, val depth: Int, val path: Asn1Path)
 data class GenericAsn1Line(
     val text: String,
     val depth: Int,
-    val path: String? = null,
+    val path: Asn1Path? = null,
     val byteOffset: Int? = null,
     val byteLength: Int? = null,
     val memberName: String? = null,
@@ -24,7 +26,7 @@ private const val MAX_RENDERED_HEX_BYTES = 64 * 1024
 
 fun coloredHex(element: Asn1Element): Pair<List<ColoredHexByte>, Boolean> {
     val result = ArrayList<ColoredHexByte>(minOf(element.overallLength, MAX_RENDERED_HEX_BYTES))
-    val stack = ArrayDeque<Triple<Asn1Element, Int, String>>().apply { addLast(Triple(element, 0, "0")) }
+    val stack = ArrayDeque<Triple<Asn1Element, Int, Asn1Path>>().apply { addLast(Triple(element, 0, listOf(0))) }
     while (stack.isNotEmpty() && result.size < MAX_RENDERED_HEX_BYTES) {
         val (current, depth, path) = stack.removeLast()
         current.tag.encodedTag.forEach { result.add(ColoredHexByte(it, HexByteKind.TAG, depth, path)) }
@@ -33,17 +35,15 @@ fun coloredHex(element: Asn1Element): Pair<List<ColoredHexByte>, Boolean> {
         if (children == null) {
             val headerSize = current.tag.encodedTag.size + current.encodedLength.size
             current.derEncoded.drop(headerSize).forEach { result.add(ColoredHexByte(it, HexByteKind.VALUE, depth, path)) }
-        } else {
-            for (index in children.indices.reversed()) stack.addLast(Triple(children[index], depth + 1, "$path.$index"))
-        }
+        } else for (index in children.indices.reversed()) stack.addLast(Triple(children[index], depth + 1, path + index))
     }
     // ponytail: cap DOM nodes; use canvas rendering if full multi-megabyte hex output becomes necessary.
     return result.take(MAX_RENDERED_HEX_BYTES) to (element.overallLength > MAX_RENDERED_HEX_BYTES)
 }
 
-fun genericAsn1Lines(element: Asn1Element, memberNames: Map<String, String> = emptyMap()): List<GenericAsn1Line> = buildList {
-    data class Pending(val element: Asn1Element, val depth: Int, val path: String, val offset: Int)
-    val stack = ArrayDeque<Pending>().apply { addLast(Pending(element, 0, "0", 0)) }
+fun genericAsn1Lines(element: Asn1Element, memberNames: Map<Asn1Path, String> = emptyMap()): List<GenericAsn1Line> = buildList {
+    data class Pending(val element: Asn1Element, val depth: Int, val path: Asn1Path, val offset: Int)
+    val stack = ArrayDeque<Pending>().apply { addLast(Pending(element, 0, listOf(0), 0)) }
     while (stack.isNotEmpty()) {
         val (current, depth, path, offset) = stack.removeLast()
         add(GenericAsn1Line(
@@ -54,7 +54,7 @@ fun genericAsn1Lines(element: Asn1Element, memberNames: Map<String, String> = em
             var childOffset = offset + current.tag.encodedTag.size + current.encodedLength.size
             val offsets = children.map { child -> childOffset.also { childOffset += child.overallLength } }
             for (index in children.indices.reversed()) {
-                stack.addLast(Pending(children[index], depth + 2, "$path.$index", offsets[index]))
+                stack.addLast(Pending(children[index], depth + 2, path + index, offsets[index]))
             }
         }
     }

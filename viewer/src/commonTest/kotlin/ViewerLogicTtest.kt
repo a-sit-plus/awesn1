@@ -29,14 +29,16 @@ val alibi by matrixSuite {
         KnownOIDs[ObjectIdentifier("2.5.4.3")]?.isNotBlank() shouldBe true
         val decoded = decodeInput("30 03 02 01 01", InputFormat.HEX)
         coloredHex(decoded.element).first.map { it.value }.toByteArray().toList() shouldBe decoded.bytes.toList()
-        coloredHex(decoded.element).first.map { it.path } shouldBe listOf("0", "0", "0.0", "0.0", "0.0")
-        genericAsn1Lines(decoded.element).mapNotNull { it.path } shouldBe listOf("0", "0.0")
+        coloredHex(decoded.element).first.map { it.path } shouldBe
+                listOf(listOf(0), listOf(0), listOf(0, 0), listOf(0, 0), listOf(0, 0))
+        genericAsn1Lines(decoded.element).mapNotNull { it.path } shouldBe listOf(listOf(0), listOf(0, 0))
         genericAsn1Lines(decoded.element)[1].text shouldBe "1  tag=2 (=02) (INTEGER), length=1"
 
         val encapsulated = decodeInput("04 03 02 01 01", InputFormat.HEX).element
-        genericAsn1Lines(encapsulated).mapNotNull { it.path } shouldBe listOf("0", "0.0")
+        genericAsn1Lines(encapsulated).mapNotNull { it.path } shouldBe listOf(listOf(0), listOf(0, 0))
         genericAsn1Lines(encapsulated).first().text.startsWith("(3 bytes, 1 elem)") shouldBe true
-        coloredHex(encapsulated).first.map { it.path } shouldBe listOf("0", "0", "0.0", "0.0", "0.0")
+        coloredHex(encapsulated).first.map { it.path } shouldBe
+                listOf(listOf(0), listOf(0), listOf(0, 0), listOf(0, 0), listOf(0, 0))
     }
 
     "maps nested CSR elements to their exact DER range" {
@@ -54,14 +56,14 @@ val alibi by matrixSuite {
         tagged.byteOffset shouldBe 114
         coloredHex(csr.element).first[114].path shouldBe tagged.path
         coloredHex(csr.element).first.slice(114..136).all {
-            it.path == tagged.path || it.path.startsWith("${tagged.path}.")
+            it.path.take(tagged.path!!.size) == tagged.path
         } shouldBe true
         val names = schemaMemberNames(csr.bytes, csr.element)
-        names["0.0"] shouldBe "certificationRequestInfo"
-        names["0.0.2"] shouldBe "subjectPKInfo"
-        names["0.1"] shouldBe "signatureAlgorithm"
-        names["0.2"] shouldBe "signature"
-        genericAsn1Lines(csr.element, names).single { it.path == "0.0.2" }.memberName shouldBe "subjectPKInfo"
+        names[listOf(0, 0)] shouldBe "certificationRequestInfo"
+        names[listOf(0, 0, 2)] shouldBe "subjectPKInfo"
+        names[listOf(0, 1)] shouldBe "signatureAlgorithm"
+        names[listOf(0, 2)] shouldBe "signature"
+        genericAsn1Lines(csr.element, names).single { it.path == listOf(0, 0, 2) }.memberName shouldBe "subjectPKInfo"
     }
 
     "names every supported crypto structure" {
@@ -74,7 +76,7 @@ val alibi by matrixSuite {
             "30 0E 02 01 00 30 05 06 03 2B 65 70 04 02 04 00" to "PrivateKeyInfo",
         ).forEach { (hex, rootName) ->
             val decoded = decodeInput(hex, InputFormat.HEX)
-            schemaMemberNames(decoded.bytes, decoded.element)["0"] shouldBe rootName
+            schemaMemberNames(decoded.bytes, decoded.element)[listOf(0)] shouldBe rootName
         }
     }
 }

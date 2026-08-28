@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>awesn1 viewer</title>
   <style>
-    :root { font: 16px system-ui, sans-serif; color-scheme: light dark; }
+    :root { --awesn-amber-2: #ffd169; font: 16px system-ui, sans-serif; color-scheme: light dark; }
     body { margin: 2rem 0; padding: 0 1rem; }
     textarea, #output, select, button { font: .95rem ui-monospace, monospace; }
+    select, button { min-height: 1.6rem; padding-block: .2rem; }
     textarea { width: 100%; min-height: 12rem; box-sizing: border-box; }
     .controls { display: flex; gap: .5rem; margin: .75rem 0; flex-wrap: wrap; }
     #output { white-space: pre-wrap; }
@@ -17,9 +18,9 @@
     .primary-output { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 3fr); gap: 1.5rem; }
     .primary-output > section { min-width: 0; }
     @media (max-width: 800px) { .primary-output { grid-template-columns: 1fr; } }
-    .hex-tag { color: #e05252; font-weight: 700; }
+    .hex-tag { color: var(--awesn-amber-2); font-weight: 700; }
     .hex-length { color: #9b59b6; font-weight: 700; }
-    .hex-content { color: #16856b; overflow-wrap: anywhere; word-break: break-all; }
+    .hex-content { color: #16856b; overflow-wrap: normal; word-break: normal; }
     .asn1-line { display: inline-block; min-width: 100%; box-sizing: border-box; }
     .asn1-member { color: CanvasText; font-weight: 650; }
     .asn1-highlight { background: #ffe08a; border-radius: 2px; }

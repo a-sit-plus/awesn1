@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block announce %}
+  {% if not page or not page.file or page.file.src_uri != "viewer.md" %}
+  <a class="md-banner__viewer-link" href="{{ 'viewer/' | url }}">
+    Try out the new ASN.1 viewer
+    (<span class="md-banner__viewer-icon" aria-hidden="true">{% include ".icons/branch-solid.svg" %}</span>)<br>
+    <span class="md-banner__arrows" aria-hidden="true">↓ ↓ ↓</span>
+  </a>
+  {% endif %}
+{% endblock %}

@@ -168,12 +168,13 @@ private fun renderHex(
 }
 
 private fun org.w3c.dom.Element.linkToAsn1Path(
-    path: String, includeDescendants: Boolean, view: String, detail: String,
+    path: Asn1Path, includeDescendants: Boolean, view: String, detail: String,
 ) {
-    setAttribute("data-asn1-path", path)
+    val encodedPath = path.joinToString(".")
+    setAttribute("data-asn1-path", encodedPath)
     setAttribute("data-asn1-view", view)
     setAttribute("data-hover-detail", detail)
-    addEventListener("mouseenter", { highlightAsn1Path(path, includeDescendants) })
+    addEventListener("mouseenter", { highlightAsn1Path(encodedPath, includeDescendants) })
     addEventListener("mouseleave", { highlightAsn1Path(null, false) })
 }
 

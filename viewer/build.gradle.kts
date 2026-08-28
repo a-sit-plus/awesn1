@@ -1,29 +1,15 @@
-import at.asitplus.gradle.awesn1Targets
-import at.asitplus.gradle.awesn1Conventions
-import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
+import org.gradle.api.publish.maven.tasks.PublishToMavenLocal
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository
 
 plugins {
     id("at.asitplus.awesn1.buildlogic")
 }
 
-
-awesn1Conventions {
-    android("at.asitplus.awesn1.viewer")
-    mavenPublish(
-        name = "awesn1 Viewer",
-        description = "Awesome Syntax Notation One - JS Viewer"
-    )
-}
-
-
 kotlin {
-    awesn1Targets()
-    targets.named("js") {
-        (this as KotlinJsIrTarget).binaries.executable()
-    }
-    //we cannot currently test this, so it is only enabled for publishing
-    project.gradle.startParameter.taskNames.firstOrNull { it.contains("publish") }?.let {
-        watchosDeviceArm64()
+    js {
+        browser { testTask { enabled = false } }
+        nodejs()
+        binaries.executable()
     }
 
     sourceSets {
@@ -33,6 +19,9 @@ kotlin {
         }
     }
 }
+
+tasks.withType<PublishToMavenLocal>().configureEach { enabled = false }
+tasks.withType<PublishToMavenRepository>().configureEach { enabled = false }
 
 tasks.register<Copy>("copyViewerToDocs") {
     group = "documentation"

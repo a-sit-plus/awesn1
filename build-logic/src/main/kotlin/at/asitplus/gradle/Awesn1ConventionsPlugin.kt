@@ -42,7 +42,7 @@ class Awesn1ConventionsPlugin : Plugin<Project> {
         logger.info("awesn1 Conventions Plugin applied to project: ${'$'}{target.path}")
         pluginManager.apply("org.jetbrains.kotlin.multiplatform")
         pluginManager.apply("org.jetbrains.kotlin.plugin.serialization")
-        if (target.hasAndroidSdk()) pluginManager.apply("com.android.kotlin.multiplatform.library")
+        if (target.name != "viewer" && target.hasAndroidSdk()) pluginManager.apply("com.android.kotlin.multiplatform.library")
         pluginManager.apply("signing")
         pluginManager.apply("at.asitplus.gradle.conventions")
         pluginManager.apply("at.asitplus.gradle.sbombastic")

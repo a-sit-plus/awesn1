@@ -113,7 +113,80 @@
 .md-header__title {
   font-family: "Press Start 2P", monospace;
   letter-spacing: 0;
+  position: relative;
   text-transform: none;
+}
+
+.md-header__viewer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  transform: translate(-50%, -50%);
+}
+
+.md-header__viewer svg {
+  width: 1rem;
+  height: 1rem;
+  fill: var(--awesn-amber-2);
+  filter: drop-shadow(0 0 0.12rem var(--awesn-amber-2));
+  transform: rotate(90deg);
+  animation: viewer-pulse 2.4s ease-out infinite;
+}
+
+.md-header__viewer:focus-visible {
+  outline: 2px solid var(--awesn-amber-2);
+  outline-offset: 2px;
+}
+
+.md-banner__viewer-link {
+  display: block;
+  text-align: center;
+}
+
+.md-banner__viewer-icon svg {
+  width: 1em;
+  height: 1em;
+  fill: currentcolor;
+  vertical-align: -0.12em;
+  transform: rotate(90deg);
+}
+
+.md-banner__arrows {
+  display: inline-block;
+  padding-left: 1.5rem;
+}
+
+.md-banner__inner {
+  position: relative;
+}
+
+.md-banner__button {
+  position: absolute;
+  top: 50%;
+  right: 0.8rem;
+  float: none;
+  transform: translateY(-50%);
+}
+
+@keyframes viewer-pulse {
+  50% {
+    filter: drop-shadow(0 0 0.35rem var(--awesn-amber-2));
+  }
+
+  100% {
+    filter: drop-shadow(0 0 0.12rem var(--awesn-amber-2));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-header__viewer svg {
+    animation: none;
+  }
 }
 
 [data-md-color-scheme="slate"] a,
@@ -145,6 +218,8 @@ body {
       #000000 330px
     ),
     #000000;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
   position: relative;
   min-height: 100vh;
   isolation: isolate;
@@ -212,6 +287,12 @@ body::after {
 .md-footer__inner,
 .md-search__form {
   background: transparent !important;
+}
+
+.md-footer,
+.md-footer-meta,
+.md-footer__inner {
+  background: #000000 !important;
 }
 
 .md-header,
@@ -857,7 +938,8 @@ h6,
 
 .asn1-viewer select,
 .asn1-viewer button {
-  padding: 0.35rem 0.55rem;
+  min-height: 1.6rem;
+  padding: 0.2rem 0.55rem;
   border: 1px solid var(--awesn-line);
   background: rgb(7 27 30 / 0.9);
   color: var(--awesn-text);
@@ -896,19 +978,19 @@ h6,
 }
 
 .asn1-viewer .hex-tag {
-  color: #e05252;
+  color: var(--awesn-amber-2);
   font-weight: 600;
 }
 
 .asn1-viewer .hex-length {
   color: #c792ea;
-  font-weight: 500;
+  font-weight: 100;
 }
 
 .asn1-viewer .hex-content {
   color: var(--awesn-teal-3);
-  overflow-wrap: anywhere;
-  word-break: break-all;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .asn1-viewer .asn1-line {
