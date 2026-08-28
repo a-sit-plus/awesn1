@@ -33,6 +33,7 @@ kotlin {
             dependencies {
                 implementation(project(":crypto"))
                 implementation(project(":oids"))
+                implementation(serialization("json"))
             }
         }
     }

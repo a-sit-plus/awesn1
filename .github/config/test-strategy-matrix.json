@@ -6,7 +6,7 @@
       "testCommand": "./gradlew linuxX64Test --scan"
     },
     {
-      "os": "macos-latest",
+      "os": "ubuntu-latest",
       "name": "jvmRunner",
       "testCommand": "./gradlew jvmTest --scan"
     },
@@ -19,7 +19,7 @@
     {
       "os": "ubuntu-latest",
       "name": "jsRunner",
-      "testCommand": "NODE_OPTIONS=\"--max-old-space-size=8192\" ./gradlew jsTest --scan"
+      "testCommand": "NODE_OPTIONS=\"--max-old-space-size=8192\" ./gradlew jsTest wasmJsTest --scan"
     },
     {
       "os": "windows-latest",
@@ -39,7 +39,7 @@
     {
       "os": "macos-latest",
       "name": "macRunner",
-      "testCommand": "./gradlew allTests -x iosSimulatorArm64Test -x tvosSimulatorArm64Test -x watchosSimulatorArm64Test -x macosArm64Test -x jvmTest -x jsTest --scan"
+      "testCommand": "./gradlew allTests -x iosSimulatorArm64Test -x tvosSimulatorArm64Test -x watchosSimulatorArm64Test -x macosArm64Test -x jvmTest -x jsTest -x wasmJsTest -x wasmJsNodeTest --scan"
     }
   ]
 }
