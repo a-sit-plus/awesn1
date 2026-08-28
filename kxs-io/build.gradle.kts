@@ -32,8 +32,6 @@ kotlin {
             dependencies {
                 implementation(serialization("json"))
                 implementation(project(":oids"))
-                implementation("at.asitplus.signum:indispensable:3.19.3")
-                implementation("at.asitplus.signum:indispensable-oids:3.19.3")
             }
         }
     }
