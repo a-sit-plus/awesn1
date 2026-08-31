@@ -51,6 +51,7 @@ private val computeContentLength: DeepRecursiveFunction<Asn1Structure, Unit> = D
 @InternalAwesn1Api
 const val MAX_RENDER_CHARS: Long = (1 shl 20).toLong()
 private const val RENDER_TRUNCATION_MARKER = " … (output truncated)"
+private const val INTEGER_DECIMAL_RENDER_LIMIT_BYTES = 512
 
 /**
  * Base ASN.1 data class. Can either be a primitive (holding a value), or a structure (holding other ASN.1 elements)
@@ -80,6 +81,15 @@ sealed class Asn1Element(
          */
         @Throws(Throwable::class)
         fun parseFromDerHexString(derEncoded: String, limit: Long? = null): Asn1Element {
+            return Asn1Element.parse(decodeDerHexString(derEncoded, limit), limit)
+        }
+
+        /** Parses all concatenated DER elements in a hexadecimal string. Ignores colons and whitespace. */
+        @Throws(Throwable::class)
+        fun parseAllFromDerHexString(derEncoded: String, limit: Long? = null): List<Asn1Element> =
+            Asn1Element.parseAll(decodeDerHexString(derEncoded, limit), limit)
+
+        private fun decodeDerHexString(derEncoded: String, limit: Long?): ByteArray {
             // Single-pass strip (':' and whitespace) + uppercase, enforcing `limit` *while* cleaning so the
             // decoded ByteArray can never exceed it. Old one causd quadratic memory growth
             val cleaned = StringBuilder(
@@ -92,8 +102,7 @@ sealed class Asn1Element(
                 if (limit != null && cleaned.length.toLong() > limit * 2)
                     throw Asn1Exception("Hex input decodes to more than the $limit-byte limit")
             }
-            val byteArray = cleaned.toString().hexToByteArray(HexFormat.UpperCase)
-            return Asn1Element.parse(byteArray, limit)
+            return cleaned.toString().hexToByteArray(HexFormat.UpperCase)
         }
     }
 
@@ -1366,7 +1375,11 @@ open class Asn1Primitive private constructor(
         when (tag) {
             Tag.NULL -> ""
             Tag.BOOL -> decodeToBoolean().toString()
-            Tag.INT -> decodeToInt().toString()
+            Tag.INT -> decodeToAsn1Integer().let {
+                if (content.size <= INTEGER_DECIMAL_RENDER_LIMIT_BYTES)
+                    it.toDecimalString(INTEGER_DECIMAL_RENDER_LIMIT_BYTES)
+                else it.toString()
+            }
             Tag.REAL -> decodeToFloat().toString()
             Tag.OID -> ObjectIdentifier.decodeFromAsn1ContentBytes(content).let { oid ->
                 KnownOIDs[oid]?.let { "$it ($oid)" } ?: oid.toString()

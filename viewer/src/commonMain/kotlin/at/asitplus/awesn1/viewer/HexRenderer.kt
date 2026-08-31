@@ -20,13 +20,19 @@ data class GenericAsn1Line(
     val byteLength: Int? = null,
     val memberName: String? = null,
     val hasPrimitiveContent: Boolean = false,
+    val isRoot: Boolean = false,
 )
 
 private const val MAX_RENDERED_HEX_BYTES = 64 * 1024
 
-fun coloredHex(element: Asn1Element): Pair<List<ColoredHexByte>, Boolean> {
-    val result = ArrayList<ColoredHexByte>(minOf(element.overallLength, MAX_RENDERED_HEX_BYTES))
-    val stack = ArrayDeque<Triple<Asn1Element, Int, Asn1Path>>().apply { addLast(Triple(element, 0, listOf(0))) }
+fun coloredHex(element: Asn1Element): Pair<List<ColoredHexByte>, Boolean> = coloredHex(listOf(element))
+
+fun coloredHex(elements: List<Asn1Element>): Pair<List<ColoredHexByte>, Boolean> {
+    val totalLength = elements.sumOf(Asn1Element::overallLength)
+    val result = ArrayList<ColoredHexByte>(minOf(totalLength, MAX_RENDERED_HEX_BYTES))
+    val stack = ArrayDeque<Triple<Asn1Element, Int, Asn1Path>>().apply {
+        for (index in elements.indices.reversed()) addLast(Triple(elements[index], 0, listOf(index)))
+    }
     while (stack.isNotEmpty() && result.size < MAX_RENDERED_HEX_BYTES) {
         val (current, depth, path) = stack.removeLast()
         current.tag.encodedTag.forEach { result.add(ColoredHexByte(it, HexByteKind.TAG, depth, path)) }
@@ -38,17 +44,36 @@ fun coloredHex(element: Asn1Element): Pair<List<ColoredHexByte>, Boolean> {
         } else for (index in children.indices.reversed()) stack.addLast(Triple(children[index], depth + 1, path + index))
     }
     // ponytail: cap DOM nodes; use canvas rendering if full multi-megabyte hex output becomes necessary.
-    return result.take(MAX_RENDERED_HEX_BYTES) to (element.overallLength > MAX_RENDERED_HEX_BYTES)
+    return result.take(MAX_RENDERED_HEX_BYTES) to (totalLength > MAX_RENDERED_HEX_BYTES)
 }
 
-fun genericAsn1Lines(element: Asn1Element, memberNames: Map<Asn1Path, String> = emptyMap()): List<GenericAsn1Line> = buildList {
+fun genericAsn1Lines(
+    element: Asn1Element,
+    memberNames: Map<Asn1Path, String> = emptyMap(),
+    valueNames: Map<Asn1Path, String> = emptyMap(),
+): List<GenericAsn1Line> = genericAsn1Lines(listOf(element), memberNames, valueNames)
+
+fun genericAsn1Lines(
+    elements: List<Asn1Element>,
+    memberNames: Map<Asn1Path, String> = emptyMap(),
+    valueNames: Map<Asn1Path, String> = emptyMap(),
+): List<GenericAsn1Line> = buildList {
     data class Pending(val element: Asn1Element, val depth: Int, val path: Asn1Path, val offset: Int)
-    val stack = ArrayDeque<Pending>().apply { addLast(Pending(element, 0, listOf(0), 0)) }
+    var rootOffset = 0
+    val rootOffsets = elements.map { root -> rootOffset.also { rootOffset += root.overallLength } }
+    val stack = ArrayDeque<Pending>().apply {
+        for (index in elements.indices.reversed()) addLast(Pending(elements[index], 0, listOf(index), rootOffsets[index]))
+    }
     while (stack.isNotEmpty()) {
         val (current, depth, path, offset) = stack.removeLast()
+        val isRoot = path.size == 1
+        val memberName = memberNames[path].let { name ->
+            if (!isRoot || elements.size == 1) name
+            else listOfNotNull(name, "(${path.single() + 1}/${elements.size})").joinToString(" ")
+        }
         add(GenericAsn1Line(
-            current.friendlyHeader(), depth, path, offset, current.overallLength, memberNames[path],
-            current.childrenOrNull() == null,
+            current.friendlyHeader(valueNames[path]), depth, path, offset, current.overallLength, memberName,
+            current.childrenOrNull() == null, isRoot,
         ))
         current.childrenOrNull()?.let { children ->
             var childOffset = offset + current.tag.encodedTag.size + current.encodedLength.size
@@ -60,13 +85,13 @@ fun genericAsn1Lines(element: Asn1Element, memberNames: Map<Asn1Path, String> = 
     }
 }
 
-private fun Asn1Element.friendlyHeader(): String {
+private fun Asn1Element.friendlyHeader(valueName: String? = null): String {
     val children = childrenOrNull()
     val summary = when {
         this is Asn1EncapsulatingOctetString ->
             "(${contentLengthLong} byte${if (contentLengthLong == 1L) "" else "s"}, ${children!!.size} elem)"
         children != null -> "(${children.size} elem)"
-        else -> primitiveValue()
+        else -> valueName ?: primitiveValue()
     }
     return listOf(summary, "tag=$tag, length=$contentLengthLong").filter { it.isNotEmpty() }.joinToString("  ")
 }

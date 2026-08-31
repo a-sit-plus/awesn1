@@ -21,8 +21,21 @@
     .hex-tag { color: var(--awesn-amber-2); font-weight: 700; }
     .hex-length { color: #9b59b6; font-weight: 700; }
     .hex-content { color: #16856b; overflow-wrap: normal; word-break: normal; }
-    .asn1-line { display: inline-block; min-width: 100%; box-sizing: border-box; }
+    .asn1-line { display: flex; min-width: 100%; box-sizing: border-box; }
+    .asn1-root:not(:first-child) { margin-top: 1.5em; }
+    .asn1-line-content { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .asn1-tree-guide { position: relative; flex: 0 0 1.25em; }
+    .asn1-tree-through::before, .asn1-tree-branch::before, .asn1-tree-branch::after { position: absolute; content: ""; border-color: #8887; }
+    .asn1-tree-through::before { inset: 0 auto 0 50%; border-left: 1px solid; }
+    .asn1-tree-branch::before { inset: 0 auto 50% 50%; border-left: 1px solid; }
+    .asn1-tree-branch::after { inset: 50% 0 auto 50%; border-top: 1px solid; }
     .asn1-member { color: CanvasText; font-weight: 650; }
+    .asn1-share { position: relative; display: inline-block; margin-left: .15em; vertical-align: baseline; }
+    .asn1-share[hidden], #share-popup[hidden] { display: none; }
+    #share { display: inline-flex; align-items: center; justify-content: center; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; line-height: 1; vertical-align: -.38em; }
+    #share svg { display: block; width: 1.75em; height: 1.75em; fill: currentColor; }
+    #share-popup { position: absolute; left: 50%; bottom: calc(100% + .55rem); z-index: 2; transform: translateX(-50%); padding: .35rem .55rem; border: 1px solid #8886; border-radius: .45rem; background: Canvas; color: CanvasText; box-shadow: 0 .2rem 1rem #0004; white-space: nowrap; font: .75rem ui-monospace, monospace; }
+    #share-popup::after { position: absolute; top: 100%; left: 50%; content: ""; transform: translateX(-50%); border: .35rem solid transparent; border-top-color: #888; }
     .asn1-highlight { background: #ffe08a; border-radius: 2px; }
     @media (prefers-color-scheme: dark) { .asn1-highlight { background: #654f00; } }
     #hex-context-menu {
@@ -50,7 +63,7 @@
   <div id="status" role="status"></div>
   <div class="primary-output">
     <section>
-      <h2>ASN.1 structure</h2>
+      <h2>ASN.1 structure <span id="share-control" class="asn1-share" hidden>(<button id="share" type="button" aria-label="Copy share URL" title="Copy share URL"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m20,9v-1h1v-2h1v-2h-1v-2h-1v-1h-5v1h-1v2h-1v2h-1v1h-1v1h-1v1h-1v-1h-5v1h-1v2h-1v2h1v2h1v1h5v-1h1v1h1v1h1v1h1v2h1v2h1v1h5v-1h1v-2h1v-2h-1v-2h-1v-1h-5v1h-2v-1h-1v-1h-1v-4h1v-1h1v-1h2v1h5Zm-11,4h-1v1h-3v-1h-1v-2h1v-1h3v1h1v2Zm6,5h1v-1h3v1h1v2h-1v1h-3v-1h-1v-2Zm0-14h1v-1h3v1h1v2h-1v1h-3v-1h-1v-2Z"/></svg></button>)<span id="share-popup" role="status" hidden>URL copied</span></span></h2>
       <pre id="output"></pre>
     </section>
     <section>

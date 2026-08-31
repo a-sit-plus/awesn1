@@ -31,7 +31,7 @@ For full details refer to the [A-SIT Plus Brand and Attribution Guidelines](http
 
 ---
 
-Icons for GitHub, globe, search, envelope, and the `branch-solid` icon for the ASN.1 viewer used from [Pixel Icon Library](https://pixeliconlibrary.com/) by [HackerNoon](https://hackernoon.com/).
+Icons for GitHub, globe, search, envelope, share, and the `branch-solid` icon for the ASN.1 viewer used from [Pixel Icon Library](https://pixeliconlibrary.com/) by [HackerNoon](https://hackernoon.com/).
 The branch icon has been rotated by 90 degrees, but left otherwise unchanged.
 {:.imprint-mono}
 

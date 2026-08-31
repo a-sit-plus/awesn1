@@ -915,7 +915,7 @@ h6,
 }
 
 .asn1-viewer #output {
-  font-size: 0.75rem;
+  font-size: 0.6rem;
 }
 
 .asn1-viewer textarea {
@@ -974,12 +974,12 @@ h6,
 }
 
 .asn1-viewer #hex-output {
-  font-size: 0.75rem;
+  font-size: 0.6rem;
 }
 
 .asn1-viewer .hex-tag {
   color: var(--awesn-amber-2);
-  font-weight: 600;
+  font-weight: 100;
 }
 
 .asn1-viewer .hex-length {
@@ -988,20 +988,119 @@ h6,
 }
 
 .asn1-viewer .hex-content {
-  color: var(--awesn-teal-3);
+  color: var(--awesn-text);
   overflow-wrap: normal;
   word-break: normal;
+  font-weight: 900;
 }
 
 .asn1-viewer .asn1-line {
-  display: inline-block;
+  display: flex;
   box-sizing: border-box;
   min-width: 100%;
 }
 
+.asn1-viewer .asn1-root:not(:first-child) {
+  margin-top: 1.5em;
+}
+
+.asn1-viewer .asn1-line-content {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.asn1-viewer .asn1-tree-guide {
+  position: relative;
+  flex: 0 0 1.25em;
+}
+
+.asn1-viewer .asn1-tree-through::before,
+.asn1-viewer .asn1-tree-branch::before,
+.asn1-viewer .asn1-tree-branch::after {
+  position: absolute;
+  content: "";
+  border-color: rgb(128 128 128 / 0.45);
+}
+
+.asn1-viewer .asn1-tree-through::before {
+  inset: 0 auto 0 50%;
+  border-left: 1px solid;
+}
+
+.asn1-viewer .asn1-tree-branch::before {
+  inset: 0 auto 50% 50%;
+  border-left: 1px solid;
+}
+
+.asn1-viewer .asn1-tree-branch::after {
+  inset: 50% 0 auto 50%;
+  border-top: 1px solid;
+}
+
 .asn1-viewer .asn1-member {
+  font-weight: 100;
+  color: var(--awesn-teal-3);
+}
+
+.asn1-viewer .asn1-share {
+  position: relative;
+  display: inline-block;
+  margin-left: 0.15em;
+  vertical-align: baseline;
+}
+
+.asn1-viewer .asn1-share[hidden],
+.asn1-viewer #share-popup[hidden] {
+  display: none;
+}
+
+.asn1-viewer #share {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  vertical-align: -0.3em;
+}
+
+.asn1-viewer #share svg {
+  display: block;
+  width: 1.75em;
+  height: 1.75em;
+  fill: currentcolor;
+}
+
+.asn1-viewer #share-popup {
+  position: absolute;
+  bottom: calc(100% + 0.55rem);
+  left: 50%;
+  z-index: 2;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--awesn-line);
+  border-radius: 0.45rem;
+  background: rgb(7 27 30 / 0.98);
+  box-shadow: 0 0.2rem 1rem rgb(0 0 0 / 0.35);
   color: var(--awesn-text);
-  font-weight: 200;
+  font: 0.75rem var(--md-code-font);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.asn1-viewer #share-popup::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  content: "";
+  border: 0.35rem solid transparent;
+  border-top-color: var(--awesn-line);
+  transform: translateX(-50%);
 }
 
 .asn1-viewer .asn1-highlight {

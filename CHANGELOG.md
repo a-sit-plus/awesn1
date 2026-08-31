@@ -2,6 +2,10 @@
 
 ## NEXT
 * Add an experimental ASN.1 JS viewer
+    * Render the full Android key attestation schema: KeyMint/Keymaster enumerations, packed version and
+      patch-level integers, date tags, identifier strings, and the nested `AttestationApplicationId`
+    * Schema hints are now strictly decorative: anything that parses as ASN.1 renders, falling back to the generic
+      tree when semantic enrichment does not apply or fails
 * Updates dumpasn1 Known OIDs to 8 January 2026 with oh-so-many-more OIDs
 
 ## 0.8.0

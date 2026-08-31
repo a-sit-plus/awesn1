@@ -15,6 +15,7 @@ import org.w3c.dom.events.MouseEvent
 
 fun main() {
     KnownOIDs.describeAll()
+    registerViewerOids()
     val input = document.getElementById("input") as HTMLTextAreaElement
     val format = document.getElementById("format") as HTMLSelectElement
     val output = document.getElementById("output")!!
@@ -22,7 +23,21 @@ fun main() {
     val hexMenu = document.getElementById("hex-context-menu") as HTMLElement
     val hexCopy = hexMenu.querySelector("button") as HTMLButtonElement
     val status = document.getElementById("status")!!
+    val shareControl = document.getElementById("share-control") as HTMLElement
+    val shareButton = document.getElementById("share") as HTMLButtonElement
+    val sharePopup = document.getElementById("share-popup") as HTMLElement
+    var sharePopupTimeout: Int? = null
     var pendingHex = ""
+    shareButton.onclick = {
+        copyText(window.location.href) { copied ->
+            if (copied) {
+                sharePopup.hidden = false
+                sharePopupTimeout?.let { window.clearTimeout(it) }
+                sharePopupTimeout = window.setTimeout({ sharePopup.hidden = true }, 2_000)
+            } else status.textContent = "Could not copy viewer URL."
+        }
+        null
+    }
     hexCopy.onclick = {
         copyText(pendingHex) { copied ->
             status.textContent = if (copied) "Copied ${pendingHex.count { it == ' ' } + 1} DER bytes as hex."
@@ -33,22 +48,47 @@ fun main() {
     }
     document.addEventListener("click", { hexMenu.hidden = true })
     fun decode() {
+        shareControl.hidden = true
+        sharePopup.hidden = true
         output.textContent = ""
         hexOutput.textContent = ""
+        // Only the parse is allowed to fail the render: bytes that are not ASN.1 have nothing to show.
+        val decoded = try {
+            decodeInput(input.value, InputFormat.entries[format.selectedIndex])
+        } catch (e: Throwable) {
+            status.textContent = "Could not decode: ${e.describe()}"
+            return
+        }
+        status.textContent = "Decoded ${decoded.bytes.size} bytes as ${decoded.detectedFormat}${decoded.pemLabel?.let { " ($it)" } ?: ""}" +
+                if (decoded.elements.size == 1) "." else " (${decoded.elements.size} root elements)."
         try {
-            val decoded = decodeInput(input.value, InputFormat.entries[format.selectedIndex])
-            status.textContent = "Decoded ${decoded.bytes.size} bytes as ${decoded.detectedFormat}${decoded.pemLabel?.let { " ($it)" } ?: ""}."
-            val genericLines = genericAsn1Lines(decoded.element, schemaMemberNames(decoded.bytes, decoded.element))
+            val memberNames = mutableMapOf<Asn1Path, String>()
+            val valueNames = mutableMapOf<Asn1Path, String>()
+            decoded.elements.forEachIndexed { index, element ->
+                val rootNames = schemaMemberNames(element.derEncoded, element)
+                rootNames.forEach { (path, name) ->
+                    memberNames[listOf(index) + path.drop(1)] = name
+                }
+                schemaValueNames(element, rootNames).forEach { (path, name) ->
+                    valueNames[listOf(index) + path.drop(1)] = name
+                }
+            }
+            val genericLines = genericAsn1Lines(decoded.elements, memberNames, valueNames)
             renderPrettyPrint(genericLines, decoded.bytes, output as HTMLElement)
-            renderHex(decoded.element, decoded.bytes, genericLines, hexOutput) { event, hex ->
+            renderHex(decoded.elements, decoded.bytes, genericLines, hexOutput) { event, hex ->
                 pendingHex = hex
                 hexMenu.hidden = false
                 hexMenu.style.left = "${minOf(event.clientX, window.innerWidth - hexMenu.offsetWidth - 8)}px"
                 hexMenu.style.top = "${minOf(event.clientY, window.innerHeight - hexMenu.offsetHeight - 8)}px"
             }
         } catch (e: Throwable) {
-            status.textContent = "Could not decode: ${e.message ?: e::class.simpleName ?: "unknown error"}"
+            // Anything that parsed as ASN.1 renders, even if the interactive renderer trips over it.
+            renderFallback(decoded, output as HTMLElement, hexOutput)
+            status.textContent += " Interactive rendering failed (${e.describe()}); showing the plain tree."
         }
+        val encodedInput = window.asDynamic().encodeURIComponent(input.value) as String
+        window.history.replaceState(null, "", "${window.location.pathname}#$encodedInput")
+        shareControl.hidden = false
     }
     (document.getElementById("decode") as HTMLButtonElement).onclick = { decode(); null }
     (document.getElementById("clear") as HTMLButtonElement).onclick = {
@@ -56,6 +96,9 @@ fun main() {
         output.textContent = ""
         hexOutput.textContent = ""
         status.textContent = ""
+        shareControl.hidden = true
+        sharePopup.hidden = true
+        window.history.replaceState(null, "", window.location.pathname + window.location.search)
         null
     }
     input.onkeydown = { event ->
@@ -65,6 +108,16 @@ fun main() {
         }
         null
     }
+    fun loadLinkedInput() {
+        val encoded = window.location.search.removePrefix("?").split('&')
+            .firstOrNull { it.substringBefore('=') == "data" }?.substringAfter('=', "")
+            ?: window.location.hash.removePrefix("#").takeIf { it.isNotEmpty() }
+            ?: return
+        input.value = runCatching { window.asDynamic().decodeURIComponent(encoded) as String }.getOrDefault(encoded)
+        decode()
+    }
+    window.addEventListener("hashchange", { loadLinkedInput() })
+    loadLinkedInput()
 }
 
 private fun copyText(text: String, completed: (Boolean) -> Unit) {
@@ -84,17 +137,49 @@ private fun copyText(text: String, completed: (Boolean) -> Unit) {
     else clipboard.writeText(text).then({ completed(true) }, { completed(fallback()) })
 }
 
+private fun Throwable.describe() = message ?: this::class.simpleName ?: "unknown error"
+
+/**
+ * Last-resort rendering for input that parsed but that the interactive renderer could not lay out: the plain tree
+ * from the core pretty-printer plus a raw hex dump. Both are bounded and free of schema knowledge.
+ */
+private fun renderFallback(decoded: DecodedInput, output: HTMLElement, hexOutput: HTMLElement) {
+    output.textContent = decoded.elements.joinToString("\n") { it.prettyPrint() }
+    hexOutput.textContent = decoded.bytes.take(MAX_FALLBACK_HEX_BYTES)
+        .joinToString(" ") { it.toUByte().toString(16).uppercase().padStart(2, '0') } +
+            if (decoded.bytes.size > MAX_FALLBACK_HEX_BYTES) "\n… hex display truncated after 64 KiB" else ""
+}
+
+private const val MAX_FALLBACK_HEX_BYTES = 64 * 1024
+
 private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, output: HTMLElement) {
+    val lastChildByParent = mutableMapOf<Asn1Path, Int>()
+    lines.mapNotNull { it.path }.filter { it.size > 1 }.forEach { path ->
+        val parent = path.dropLast(1)
+        lastChildByParent[parent] = maxOf(lastChildByParent[parent] ?: -1, path.last())
+    }
     lines.forEach { rendered ->
         val line = rendered.text
         val span = document.createElement("span")
-        span.className = "asn1-line"
-        span.appendChild(document.createTextNode("  ".repeat(rendered.depth / 2)))
+        span.className = "asn1-line" + if (rendered.isRoot) " asn1-root" else ""
+        rendered.path?.let { path ->
+            for (level in 1..path.lastIndex) document.createElement("span").also { guide ->
+                guide.className = "asn1-tree-guide " + when {
+                    level == path.lastIndex -> "asn1-tree-branch"
+                    path[level] < (lastChildByParent[path.take(level)] ?: path[level]) -> "asn1-tree-through"
+                    else -> ""
+                }
+                span.appendChild(guide)
+            }
+        }
+        val content = document.createElement("span")
+        content.className = "asn1-line-content"
+        span.appendChild(content)
         rendered.memberName?.let { name ->
             document.createElement("span").also {
                 it.className = "asn1-member"
                 it.textContent = "$name  "
-                span.appendChild(it)
+                content.appendChild(it)
             }
         }
         val metadataStart = line.indexOf("  tag=")
@@ -111,37 +196,39 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
         coloredRanges.forEach { (range, cssClass) ->
             val (start, end) = range
             if (start >= 0) {
-                span.appendChild(document.createTextNode(line.substring(cursor, start)))
+                content.appendChild(document.createTextNode(line.substring(cursor, start)))
                 document.createElement("span").also {
                     it.className = cssClass
                     it.textContent = line.substring(start, end)
-                    span.appendChild(it)
+                    content.appendChild(it)
                 }
                 cursor = end
             }
         }
-        span.appendChild(document.createTextNode(line.substring(cursor)))
+        content.appendChild(document.createTextNode(line.substring(cursor)))
         rendered.path?.let { path ->
             val offset = rendered.byteOffset!!
             val length = rendered.byteLength!!
-            val shown = der.copyOfRange(offset, minOf(offset + length, offset + 48)).toHexString()
+            // Clamped: a re-encoded element can report a range the raw input does not cover.
+            val start = offset.coerceIn(0, der.size)
+            val end = minOf(offset + length, offset + 48).coerceIn(start, der.size)
+            val shown = der.copyOfRange(start, end).toHexString()
             val suffix = if (length > 48) " …" else ""
             span.linkToAsn1Path(path, includeDescendants = true, view = "generic",
                 detail = "DER bytes $offset..${offset + length - 1} ($length bytes)\n$shown$suffix")
         }
         output.appendChild(span)
-        output.appendChild(document.createTextNode("\n"))
     }
 }
 
 private fun renderHex(
-    element: at.asitplus.awesn1.Asn1Element,
+    elements: List<at.asitplus.awesn1.Asn1Element>,
     der: ByteArray,
     lines: List<GenericAsn1Line>,
     output: HTMLElement,
     showContextMenu: (MouseEvent, String) -> Unit,
 ) {
-    val (bytes, truncated) = coloredHex(element)
+    val (bytes, truncated) = coloredHex(elements)
     val descriptions = lines.mapNotNull { line -> line.path?.let { it to line.text.trim() } }.toMap()
     val ranges = lines.mapNotNull { line -> line.path?.let { it to (line.byteOffset!! until line.byteOffset + line.byteLength!!) } }.toMap()
     bytes.forEachIndexed { index, byte ->
@@ -157,7 +244,8 @@ private fun renderHex(
         span.addEventListener("contextmenu", { event ->
             event.preventDefault()
             ranges[byte.path]?.let { range ->
-                showContextMenu(event as MouseEvent, der.sliceArray(range).joinToString(" ") {
+                val clamped = range.first.coerceIn(0, der.size) until (range.last + 1).coerceIn(0, der.size)
+                showContextMenu(event as MouseEvent, der.sliceArray(clamped).joinToString(" ") {
                     it.toUByte().toString(16).uppercase().padStart(2, '0')
                 })
             }
