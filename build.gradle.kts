@@ -1,4 +1,5 @@
 import at.asitplus.gradle.dokka
+import groovy.json.JsonSlurper
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.time.Duration
@@ -45,6 +46,8 @@ dokka {
 }
 subprojects {
     if(name=="benchmarks") return@subprojects
+    if(name=="viewer") return@subprojects
+    if(name=="internal-utils") return@subprojects
     rootProject.dependencies.add("dokka", this)
 }
 
@@ -83,14 +86,10 @@ spotless {
 }
 
 tasks.named("spotlessCheck") {
-    dependsOn(subprojects.filterNot { it.name=="benchmarks" }.map { "${it.path}:cyclonedxPublishedBom" })
+    dependsOn(subprojects.filterNot { it.name in setOf("benchmarks", "viewer") }.map { "${it.path}:cyclonedxPublishedBom" })
 }
 
-val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
-
-    val signLocalRepoArtefacts = System.getenv("SIGN_LOCAL_REPO_ARTEFACTS")?.ifBlank { "false" } == "true"
-
-
+val syncSbomDocs by tasks.register("syncSbomDocs") {
     group = "documentation"
     description = "Exports CycloneDX SBOMs for all published Maven publications into the docs tree."
 
@@ -98,55 +97,99 @@ val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
     val sbomIndexFile = rootProject.layout.projectDirectory.file("docs/docs/sbom/index.json")
     val sbomTemplateFile = rootProject.layout.projectDirectory.file("docs/templates/sbom-module.template.md")
     val sbomRendererFile = rootProject.layout.projectDirectory.file("docs/tools/render_sbom_pages.py")
-    val sortedProjects = subprojects.filterNot { it.name=="benchmarks" }.sortedBy { it.name }
-
-    dependsOn(sortedProjects.map { "${it.path}:cyclonedxPublishedBom" })
-
-    if (signLocalRepoArtefacts) {
-        dependsOn(sortedProjects.map { project ->
-            project.tasks.withType(Sign::class.java)
-        })
+    val sortedProjects = subprojects.filterNot { it.name in setOf("benchmarks", "viewer") }.sortedBy { it.name }
+    val publicationNames = listOf(
+        "android",
+        "androidNativeArm32",
+        "androidNativeArm64",
+        "androidNativeX64",
+        "androidNativeX86",
+        "js",
+        "jvm",
+        "kotlinMultiplatform",
+        "linuxArm64",
+        "linuxX64",
+        "mingwX64",
+        "wasmJs",
+    )
+    val bomJsonFiles = sortedProjects.flatMap { moduleProject ->
+        publicationNames.map { publicationName ->
+            moduleProject.layout.buildDirectory.file("reports/cyclonedx-publications/$publicationName/bom.json")
+        }
     }
+
+    dependsOn(sortedProjects.flatMap { moduleProject ->
+        publicationNames.map { publicationName ->
+            "${moduleProject.path}:cyclonedx${publicationName.replaceFirstChar { it.uppercase() }}PublicationBomNormalized"
+        }
+    })
+    inputs.files(bomJsonFiles)
     inputs.file(sbomTemplateFile)
     inputs.file(sbomRendererFile)
-
-    into(sbomDocsDir)
-    sortedProjects.forEach { moduleProject ->
-        from(moduleProject.layout.buildDirectory.dir("reports/cyclonedx-publications")) {
-            include("*/bom.json", "*/bom.xml", "*/bom.json.asc", "*/bom.xml.asc")
-            into("publications/${moduleProject.name}")
-        }
-    }
+    outputs.file(sbomIndexFile)
+    outputs.dir(sbomDocsDir.dir("modules"))
 
     doLast {
+        val mavenCentralBaseUrl = "https://repo1.maven.org/maven2"
         val entries = sortedProjects.flatMap { moduleProject ->
             val publicationRoot = moduleProject.layout.buildDirectory.dir("reports/cyclonedx-publications").get().asFile
-            publicationRoot
-                .listFiles { file -> file.isDirectory }
-                .orEmpty()
-                .sortedBy { it.name }
-                .map { publicationDir ->
-                    val jsonSig = publicationDir.resolve("bom.json.asc").takeIf { it.isFile }?.let {
-                        "publications/${moduleProject.name}/${publicationDir.name}/bom.json.asc"
-                    }
-                    val xmlSig = publicationDir.resolve("bom.xml.asc").takeIf { it.isFile }?.let {
-                        "publications/${moduleProject.name}/${publicationDir.name}/bom.xml.asc"
-                    }
-                    mapOf(
-                        "module" to moduleProject.name,
-                        "publication" to publicationDir.name,
-                        "kind" to "publication",
-                        "groupId" to rootProject.group.toString(),
-                        "version" to rootProject.version.toString(),
-                        "json" to "publications/${moduleProject.name}/${publicationDir.name}/bom.json",
-                        "xml" to "publications/${moduleProject.name}/${publicationDir.name}/bom.xml",
-                        "jsonSig" to (jsonSig ?: ""),
-                        "xmlSig" to (xmlSig ?: ""),
-                        "mavenCentralClassifier" to "cyclonedx",
-                    )
+            publicationNames.map { publicationName ->
+                val bomJsonFile = publicationRoot.resolve("$publicationName/bom.json")
+                check(bomJsonFile.isFile) {
+                    "Expected normalized CycloneDX SBOM at $bomJsonFile for ${moduleProject.path} publication " +
+                        "'$publicationName'"
                 }
+
+                @Suppress("UNCHECKED_CAST")
+                val bom = JsonSlurper().parse(bomJsonFile) as Map<String, Any?>
+                @Suppress("UNCHECKED_CAST")
+                val metadata = bom["metadata"] as? Map<String, Any?> ?: emptyMap()
+                @Suppress("UNCHECKED_CAST")
+                val component = metadata["component"] as? Map<String, Any?> ?: emptyMap()
+                val groupId = component["group"]?.toString().orEmpty()
+                val artifactId = component["name"]?.toString().orEmpty()
+                val version = component["version"]?.toString().orEmpty()
+                val purl = component["purl"]?.toString().orEmpty()
+                val packaging = Regex("[?&]type=([^&]+)").find(purl)?.groupValues?.get(1).orEmpty()
+                val artifactBase = buildString {
+                    append(mavenCentralBaseUrl)
+                    append("/")
+                    append(groupId.replace('.', '/'))
+                    append("/")
+                    append(artifactId)
+                    append("/")
+                    append(version)
+                    append("/")
+                    append(artifactId)
+                    append("-")
+                    append(version)
+                    append("-cyclonedx")
+                }
+                val jsonUrl = "$artifactBase.json"
+                val xmlUrl = "$artifactBase.xml"
+
+                linkedMapOf(
+                    "module" to moduleProject.name,
+                    "publication" to publicationName,
+                    "kind" to if (publicationName == "kotlinMultiplatform") "metadata" else "target",
+                    "groupId" to groupId,
+                    "artifactId" to artifactId,
+                    "version" to version,
+                    "packaging" to packaging,
+                    "json" to jsonUrl,
+                    "xml" to xmlUrl,
+                    "jsonSig" to "$jsonUrl.asc",
+                    "xmlSig" to "$xmlUrl.asc",
+                    "mavenCentralClassifier" to "cyclonedx",
+                )
+            }
+        }
+        check(entries.isNotEmpty()) {
+            "No normalized CycloneDX SBOMs were found; refusing to generate empty SBOM docs."
         }
         val sbomModulesDir = sbomDocsDir.dir("modules").asFile
+        sbomDocsDir.dir("publications").asFile.deleteRecursively()
+        sbomModulesDir.deleteRecursively()
         sbomModulesDir.mkdirs()
 
         val json = buildString {
@@ -158,8 +201,11 @@ val syncSbomDocs by tasks.register<Sync>("syncSbomDocs") {
                 val comma = if (index == entries.lastIndex) "" else ","
                 appendLine("    {")
                 entry.entries.forEachIndexed { fieldIndex, field ->
+                    val escapedValue = field.value
+                        .replace("\\", "\\\\")
+                        .replace("\"", "\\\"")
                     val fieldComma = if (fieldIndex == entry.size - 1) "" else ","
-                    appendLine("      \"${field.key}\": \"${field.value}\"$fieldComma")
+                    appendLine("      \"${field.key}\": \"$escapedValue\"$fieldComma")
                 }
                 appendLine("    }$comma")
             }
@@ -210,6 +256,7 @@ tasks.register<Copy>("copyChangelog") {
 tasks.register<Copy>("mkDocsPrepare") {
     dependsOn("dokkaGenerate")
     dependsOn("copyChangelog")
+    dependsOn(":viewer:copyViewerToDocs")
     dependsOn(syncSbomDocs)
     dependsOn("generateAsn1JsDocInputs")
     dependsOn(":core:generateAsn1JsManifest")

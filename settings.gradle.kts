@@ -36,4 +36,5 @@ include(":io")
 include(":kxs-io")
 include(":oids")
 include(":benchmarks")
+include(":viewer")
 rootProject.name = "awesn1"

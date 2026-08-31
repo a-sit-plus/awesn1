@@ -106,7 +106,7 @@ val decoded: ObjectIdentifier = DER.decodeFromSource(source)
 
 ## ![oids.svg](assets/oids.svg) {: #oids data-toc-label="OIDs" }
 
-The `oids` module is literally [Peter Gutmann](https://www.cs.auckland.ac.nz/~pgut001/#standards)'s `dumpasn1.cfg`
+The `oids` module is literally [Peter Gutmann](https://www.cs.auckland.ac.nz/~pgut001/#standards)'s / [dumpasn1](https://github.com/cryptlib/dumpasn1)'s `dumpasn1.cfg` 
 transformed into a Kotlin extensions on the awesn1 core module's `KnownOIDs` object.
 In fact, the ability to do just that is the reason this object is part of the core module at all.
 

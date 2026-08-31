@@ -10,6 +10,7 @@ metrics/
 /docs/site
 /docs/.cache/
 /docs/docs/dokka/
+/docs/docs/javascripts/asn1-viewer.js
 /docs/.css-audit/
 /oids/generated/
 /docs/docs/sbom/
