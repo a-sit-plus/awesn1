@@ -20,6 +20,7 @@ data class GenericAsn1Line(
     val byteLength: Int? = null,
     val memberName: String? = null,
     val hasPrimitiveContent: Boolean = false,
+    val hasChildren: Boolean = false,
     val isRoot: Boolean = false,
 )
 
@@ -73,7 +74,7 @@ fun genericAsn1Lines(
         }
         add(GenericAsn1Line(
             current.friendlyHeader(valueNames[path]), depth, path, offset, current.overallLength, memberName,
-            current.childrenOrNull() == null, isRoot,
+            current.childrenOrNull() == null, current.childrenOrNull()?.isNotEmpty() == true, isRoot,
         ))
         current.childrenOrNull()?.let { children ->
             var childOffset = offset + current.tag.encodedTag.size + current.encodedLength.size

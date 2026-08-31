@@ -1019,6 +1019,10 @@ h6,
   min-width: 100%;
 }
 
+.asn1-viewer .asn1-line[hidden] {
+  display: none;
+}
+
 .asn1-viewer .asn1-root:not(:first-child) {
   margin-top: 1.5em;
 }
@@ -1055,6 +1059,40 @@ h6,
 .asn1-viewer .asn1-tree-branch::after {
   inset: 50% 0 auto 50%;
   border-top: 1px solid;
+}
+
+.asn1-viewer .asn1-tree-toggle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 1.2em;
+  min-width: 1.2em;
+  height: 1.2em;
+  min-height: 1.2em;
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgb(128 128 128 / 0.75);
+  border-radius: 50%;
+  background: #071b1e;
+  color: var(--awesn-text);
+  transform: translate(-50%, -50%);
+}
+
+.asn1-viewer .asn1-tree-toggle::before,
+.asn1-viewer .asn1-tree-toggle::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.6em;
+  height: 1px;
+  content: "";
+  background: currentcolor;
+  transform: translate(-50%, -50%);
+}
+
+.asn1-viewer .asn1-tree-toggle[aria-expanded="false"]::after {
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .asn1-viewer .asn1-member {

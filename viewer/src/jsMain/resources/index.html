@@ -23,6 +23,7 @@
     .hex-length { color: #9b59b6; font-weight: 700; }
     .hex-content { color: #16856b; overflow-wrap: normal; word-break: normal; }
     .asn1-line { display: flex; min-width: 100%; box-sizing: border-box; }
+    .asn1-line[hidden] { display: none; }
     .asn1-root:not(:first-child) { margin-top: 1.5em; }
     .asn1-line-content { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
     .asn1-tree-guide { position: relative; flex: 0 0 1.25em; }
@@ -30,6 +31,9 @@
     .asn1-tree-through::before { inset: 0 auto 0 50%; border-left: 1px solid; }
     .asn1-tree-branch::before { inset: 0 auto 50% 50%; border-left: 1px solid; }
     .asn1-tree-branch::after { inset: 50% 0 auto 50%; border-top: 1px solid; }
+    .asn1-tree-toggle { position: absolute; z-index: 1; top: 50%; left: 50%; width: 1.2em; min-width: 1.2em; height: 1.2em; min-height: 1.2em; margin: 0; padding: 0; border: 1px solid #888; border-radius: 50%; background: Canvas; color: CanvasText; transform: translate(-50%, -50%); cursor: pointer; }
+    .asn1-tree-toggle::before, .asn1-tree-toggle::after { position: absolute; top: 50%; left: 50%; width: .6em; height: 1px; content: ""; background: currentColor; transform: translate(-50%, -50%); }
+    .asn1-tree-toggle[aria-expanded="false"]::after { transform: translate(-50%, -50%) rotate(90deg); }
     .asn1-member { color: CanvasText; font-weight: 650; }
     .asn1-share { position: relative; display: inline-block; margin-left: .15em; vertical-align: baseline; }
     .asn1-share[hidden], #share-popup[hidden] { display: none; }

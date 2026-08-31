@@ -42,6 +42,7 @@ val alibi by matrixSuite {
         coloredHex(decoded.element).first.map { it.path } shouldBe
                 listOf(listOf(0), listOf(0), listOf(0, 0), listOf(0, 0), listOf(0, 0))
         genericAsn1Lines(decoded.element).mapNotNull { it.path } shouldBe listOf(listOf(0), listOf(0, 0))
+        genericAsn1Lines(decoded.element).map { it.hasChildren } shouldBe listOf(true, false)
         genericAsn1Lines(decoded.element)[1].text shouldBe "1  tag=2 (=0x02) (INTEGER), length=1 (0x01)"
 
         val encapsulated = decodeInput("04 03 02 01 01", InputFormat.HEX).element
