@@ -1,8 +1,8 @@
 # Changelog
 
-## NEXT
+## 0.8.1
 * Add an experimental ASN.1 JS viewer
-* Updates dumpasn1 Known OIDs to 8 January 2026 with oh-so-many-more OIDs
+* Update dumpasn1 Known OIDs to 8 January 2026 with oh-so-many-more OIDs
 
 ## 0.8.0
 * Moved the faux-constructor extensions on `SubjectPublicKeyInfo` to `from` extensions
