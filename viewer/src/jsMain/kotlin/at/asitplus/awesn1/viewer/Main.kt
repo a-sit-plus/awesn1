@@ -190,6 +190,7 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
     val collapsedPaths = mutableSetOf<String>()
     val renderedLines = mutableListOf<Pair<String, HTMLElement>>()
     val toggles = mutableMapOf<String, HTMLButtonElement>()
+    val downwardConnectors = mutableMapOf<String, HTMLElement>()
     fun applyCollapsedState() {
         renderedLines.forEach { (path, line) ->
             line.hidden = collapsedPaths.any { collapsed -> path.startsWith("$collapsed.") }
@@ -199,6 +200,7 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
             toggle.setAttribute("aria-expanded", expanded.toString())
             toggle.setAttribute("aria-label", if (expanded) "Collapse subtree" else "Expand subtree")
             toggle.title = if (expanded) "Collapse subtree" else "Expand subtree"
+            downwardConnectors[path]?.hidden = !expanded
         }
     }
     val lastChildByParent = mutableMapOf<Asn1Path, Int>()
@@ -209,7 +211,8 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
     lines.forEach { rendered ->
         val line = rendered.text
         val span = document.createElement("span")
-        span.className = "asn1-line" + if (rendered.isRoot) " asn1-root" else ""
+        span.className = "asn1-line" + (if (rendered.isRoot) " asn1-root" else "") +
+                (if (rendered.hasChildren) " asn1-has-toggle" else "")
         rendered.path?.let { path ->
             var branchGuide: org.w3c.dom.Element? = null
             for (level in 1..path.lastIndex) document.createElement("span").also { guide ->
@@ -222,13 +225,13 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
                 if (level == path.lastIndex) branchGuide = guide
             }
             if (rendered.hasChildren) {
-                val toggleGuide = branchGuide ?: document.createElement("span").also {
-                    it.className = "asn1-tree-guide"
-                    span.appendChild(it)
-                }
                 val encodedPath = path.joinToString(".")
+                val toggleHost = branchGuide ?: span
+                val connector = document.createElement("span") as HTMLElement
+                connector.className = "asn1-tree-down" + if (branchGuide != null) " asn1-tree-down-branch" else ""
+                toggleHost.appendChild(connector)
                 val toggle = document.createElement("button") as HTMLButtonElement
-                toggle.className = "asn1-tree-toggle"
+                toggle.className = "asn1-tree-toggle" + if (branchGuide != null) " asn1-tree-toggle-branch" else ""
                 toggle.type = "button"
                 toggle.onclick = { event ->
                     event.stopPropagation()
@@ -236,8 +239,9 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
                     applyCollapsedState()
                     null
                 }
-                toggleGuide.appendChild(toggle)
+                toggleHost.appendChild(toggle)
                 toggles[encodedPath] = toggle
+                downwardConnectors[encodedPath] = connector
             }
         }
         val content = document.createElement("span")

@@ -11,7 +11,7 @@
     select, button { min-height: 1.6rem; padding-block: .2rem; }
     textarea { width: 100%; min-height: 12rem; box-sizing: border-box; }
     .controls { display: flex; gap: .5rem; margin: .75rem 0; flex-wrap: wrap; }
-    #output { white-space: pre-wrap; }
+    #output { padding-left: .65em; white-space: pre-wrap; line-height: 1.65; }
     #output, #hex-output { font-size: .85rem; line-height: 1.5;}
     #status { min-height: 1.5em; }
     #hex-output { font: .75rem ui-monospace, monospace;  line-height: 1.5;}
@@ -22,16 +22,20 @@
     .hex-tag { color: var(--awesn-amber-2); font-weight: 700; }
     .hex-length { color: #9b59b6; font-weight: 700; }
     .hex-content { color: #16856b; overflow-wrap: normal; word-break: normal; }
-    .asn1-line { display: flex; min-width: 100%; box-sizing: border-box; }
+    .asn1-line { position: relative; display: flex; min-width: 100%; box-sizing: border-box; }
     .asn1-line[hidden] { display: none; }
     .asn1-root:not(:first-child) { margin-top: 1.5em; }
     .asn1-line-content { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .asn1-tree-guide { position: relative; flex: 0 0 1.25em; }
+    .asn1-tree-guide { position: relative; flex: 0 0 1.5em; }
     .asn1-tree-through::before, .asn1-tree-branch::before, .asn1-tree-branch::after { position: absolute; content: ""; border-color: #8887; }
-    .asn1-tree-through::before { inset: 0 auto 0 50%; border-left: 1px solid; }
-    .asn1-tree-branch::before { inset: 0 auto 50% 50%; border-left: 1px solid; }
-    .asn1-tree-branch::after { inset: 50% 0 auto 50%; border-top: 1px solid; }
-    .asn1-tree-toggle { position: absolute; z-index: 1; top: 50%; left: 50%; width: 1.2em; min-width: 1.2em; height: 1.2em; min-height: 1.2em; margin: 0; padding: 0; border: 1px solid #888; border-radius: 50%; background: Canvas; color: CanvasText; transform: translate(-50%, -50%); cursor: pointer; }
+    .asn1-tree-through::before { inset: 0 auto 0 0; border-left: 1px solid; }
+    .asn1-tree-branch::before { inset: 0 auto 50% 0; border-left: 1px solid; }
+    .asn1-tree-branch::after { inset: 50% 0 auto 0; border-top: 1px solid; }
+    .asn1-has-toggle > .asn1-line-content { padding-left: .7em; }
+    .asn1-tree-down { position: absolute; z-index: 0; top: 50%; bottom: 0; left: 0; border-left: 1px solid #8887; }
+    .asn1-tree-down-branch { left: 100%; }
+    .asn1-tree-toggle { position: absolute; z-index: 1; top: 50%; left: 0; width: 1.1em; min-width: 1.1em; height: 1.1em; min-height: 1.1em; margin: 0; padding: 0; border: 1px solid #888; border-radius: 50%; background: Canvas; color: CanvasText; transform: translate(-50%, -50%); cursor: pointer; }
+    .asn1-tree-toggle-branch { left: 100%; }
     .asn1-tree-toggle::before, .asn1-tree-toggle::after { position: absolute; top: 50%; left: 50%; width: .6em; height: 1px; content: ""; background: currentColor; transform: translate(-50%, -50%); }
     .asn1-tree-toggle[aria-expanded="false"]::after { transform: translate(-50%, -50%) rotate(90deg); }
     .asn1-member { color: CanvasText; font-weight: 650; }

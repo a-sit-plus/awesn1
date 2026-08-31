@@ -978,7 +978,9 @@ h6,
 }
 
 .asn1-viewer #output {
+  padding-left: 0.65em;
   white-space: pre-wrap;
+  line-height: 1.65;
 }
 
 .asn1-viewer #hex-output {
@@ -1014,6 +1016,7 @@ h6,
 }
 
 .asn1-viewer .asn1-line {
+  position: relative;
   display: flex;
   box-sizing: border-box;
   min-width: 100%;
@@ -1035,7 +1038,7 @@ h6,
 
 .asn1-viewer .asn1-tree-guide {
   position: relative;
-  flex: 0 0 1.25em;
+  flex: 0 0 1.5em;
 }
 
 .asn1-viewer .asn1-tree-through::before,
@@ -1047,29 +1050,47 @@ h6,
 }
 
 .asn1-viewer .asn1-tree-through::before {
-  inset: 0 auto 0 50%;
+  inset: 0 auto 0 0;
   border-left: 1px solid;
 }
 
 .asn1-viewer .asn1-tree-branch::before {
-  inset: 0 auto 50% 50%;
+  inset: 0 auto 50% 0;
   border-left: 1px solid;
 }
 
 .asn1-viewer .asn1-tree-branch::after {
-  inset: 50% 0 auto 50%;
+  inset: 50% 0 auto 0;
   border-top: 1px solid;
+}
+
+.asn1-viewer .asn1-has-toggle > .asn1-line-content {
+  padding-left: 0.7em;
+}
+
+.asn1-viewer .asn1-tree-down {
+  position: absolute;
+  top: 50%;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  border-left: 1px solid;
+  border-color: rgb(128 128 128 / 0.45);
+}
+
+.asn1-viewer .asn1-tree-down-branch {
+  left: 100%;
 }
 
 .asn1-viewer .asn1-tree-toggle {
   position: absolute;
   top: 50%;
-  left: 50%;
+  left: 0;
   z-index: 1;
-  width: 1.2em;
-  min-width: 1.2em;
-  height: 1.2em;
-  min-height: 1.2em;
+  width: 1.1em;
+  min-width: 1.1em;
+  height: 1.1em;
+  min-height: 1.1em;
   margin: 0;
   padding: 0;
   border: 1px solid rgb(128 128 128 / 0.75);
@@ -1077,6 +1098,10 @@ h6,
   background: #071b1e;
   color: var(--awesn-text);
   transform: translate(-50%, -50%);
+}
+
+.asn1-viewer .asn1-tree-toggle-branch {
+  left: 100%;
 }
 
 .asn1-viewer .asn1-tree-toggle::before,
