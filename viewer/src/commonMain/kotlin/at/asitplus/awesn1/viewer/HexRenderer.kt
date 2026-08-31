@@ -96,7 +96,7 @@ private fun Asn1Element.friendlyHeader(valueName: String? = null): String {
     }
     val renderedTag = tag.toString().replaceFirst("(=", "(=0x")
     val renderedLength = encodedLength.toHexString(HexFormat.UpperCase)
-    return listOf(summary, "tag=$renderedTag, length=$contentLengthLong (0x$renderedLength)")
+    return listOf(summary, "tag=$renderedTag, length=$contentLengthLong (=0x$renderedLength)")
         .filter { it.isNotEmpty() }
         .joinToString("  ")
 }

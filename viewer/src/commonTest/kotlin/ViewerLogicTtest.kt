@@ -43,7 +43,7 @@ val alibi by matrixSuite {
                 listOf(listOf(0), listOf(0), listOf(0, 0), listOf(0, 0), listOf(0, 0))
         genericAsn1Lines(decoded.element).mapNotNull { it.path } shouldBe listOf(listOf(0), listOf(0, 0))
         genericAsn1Lines(decoded.element).map { it.hasChildren } shouldBe listOf(true, false)
-        genericAsn1Lines(decoded.element)[1].text shouldBe "1  tag=2 (=0x02) (INTEGER), length=1 (0x01)"
+        genericAsn1Lines(decoded.element)[1].text shouldBe "1  tag=2 (=0x02) (INTEGER), length=1 (=0x01)"
 
         val encapsulated = decodeInput("04 03 02 01 01", InputFormat.HEX).element
         genericAsn1Lines(encapsulated).mapNotNull { it.path } shouldBe listOf(listOf(0), listOf(0, 0))
@@ -79,7 +79,7 @@ val alibi by matrixSuite {
         values[listOf(0, 3)] shouldBe "StrongBox"
         values[listOf(0, 7, 0, 0, 2)] shouldBe "SelfSigned"
         genericAsn1Lines(decoded.element, names, values).single { it.path == listOf(0, 3) }.text shouldBe
-                "StrongBox  tag=10 (=0x0A) (ENUMERATED), length=1 (0x01)"
+                "StrongBox  tag=10 (=0x0A) (ENUMERATED), length=1 (=0x01)"
     }
 
     "names every Android key attestation enumeration, version and identifier" {
@@ -126,7 +126,7 @@ val alibi by matrixSuite {
         values[listOf(0, 7, 12, 0)] shouldBe "\"google\""
         values[listOf(0, 7, 13, 0)] shouldBe "2024-08-05"
         genericAsn1Lines(decoded.element, names, values).single { it.path == listOf(0, 7, 5, 0) }.text shouldBe
-                "P-256  tag=2 (=0x02) (INTEGER), length=1 (0x01)"
+                "P-256  tag=2 (=0x02) (INTEGER), length=1 (=0x01)"
     }
 
     "falls back to the generic tree when semantic enrichment does not apply" {
@@ -155,7 +155,7 @@ val alibi by matrixSuite {
         values[listOf(0, 7, 4, 0)] shouldBe null // osVersion 9999999, too wide to be MMmmss
         values[listOf(0, 7, 5, 0)] shouldBe null // osPatchLevel 1, neither YYYYMM nor YYYYMMDD
         genericAsn1Lines(decoded.element, names, values).single { it.path == listOf(0, 7, 0, 0, 0) }.text shouldBe
-                "99  tag=2 (=0x02) (INTEGER), length=1 (0x01)"
+                "99  tag=2 (=0x02) (INTEGER), length=1 (=0x01)"
     }
 
     "renders every node of any valid ASN.1, however unlike a known schema" {

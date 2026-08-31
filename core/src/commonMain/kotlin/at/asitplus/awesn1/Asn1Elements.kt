@@ -272,7 +272,7 @@ sealed class Asn1Element(
     protected abstract fun contentToString(): String
 
     protected open fun prettyPrintHeader(indent: Int) =
-        "(tag=${tag.toPrettyString()}" + ", length=${contentLengthLong} (${encodedLength.toPrefixedHexString()})" +
+        "(tag=${tag.toPrettyString()}" + ", length=${contentLengthLong} (=${encodedLength.toPrefixedHexString()})" +
                 ", overallLength=${overallLengthLong})"
 
     protected open fun prettyPrintTrailer(indent: Int) = ""
@@ -1071,7 +1071,7 @@ class Asn1CustomStructure internal constructor(
         (" " * indent) + tag.tagClass +
                 " ${tag.tagValue}" +
                 (if (!tag.isConstructed) " PRIMITIVE" else "") +
-                " (=${tag.encodedTag.toPrefixedHexString()}), length=${contentLengthLong} (${encodedLength.toPrefixedHexString()})" +
+                " (=${tag.encodedTag.toPrefixedHexString()}), length=${contentLengthLong} (=${encodedLength.toPrefixedHexString()})" +
                 ", overallLength=${overallLengthLong}" +
                 (content?.let { " ${it.toPrefixedHexString()}" } ?: "")
 

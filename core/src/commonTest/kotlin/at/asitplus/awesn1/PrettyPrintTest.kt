@@ -15,7 +15,7 @@ val PrettyPrintTest by matrixSuite {
             shouldBeSorted = false
         )
         structure.prettyPrint() shouldBe """
-        PRIVATE 0 (=0xE0), length=0 (0x00), overallLength=2
+        PRIVATE 0 (=0xE0), length=0 (=0x00), overallLength=2
         {
         
         }""".trimIndent()
@@ -33,11 +33,11 @@ val PrettyPrintTest by matrixSuite {
     "pretty print prefixes hexadecimal values and shows encoded lengths" {
         Asn1Element.parseFromDerHexString("0401AB").prettyPrint().also {
             it shouldContain "tag=4 (=0x04)"
-            it shouldContain "length=1 (0x01)"
+            it shouldContain "length=1 (=0x01)"
             it shouldContain " 0xAB"
         }
         Asn1Element.parseFromDerHexString("048180" + "00".repeat(128)).prettyPrint().also {
-            it shouldContain "length=128 (0x8180)"
+            it shouldContain "length=128 (=0x8180)"
         }
     }
 }
