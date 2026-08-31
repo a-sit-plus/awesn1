@@ -951,6 +951,7 @@ h6,
 
 .asn1-viewer #status {
   min-height: 1.5em;
+  margin-bottom: 0.5rem;
 }
 
 .asn1-viewer__output {
@@ -963,18 +964,36 @@ h6,
   min-width: 0;
 }
 
+.asn1-viewer__output h2 {
+  margin-top: 0;
+}
+
+.asn1-viewer__output > section:last-child {
+  position: sticky;
+  top: 0;
+  display: flex;
+  height: calc(100vh - var(--awesn-header-overlay-height) - var(--awesn-footer-reserve) - 1.5em - 0.5rem);
+  align-self: start;
+  flex-direction: column;
+}
+
 .asn1-viewer #output {
   white-space: pre-wrap;
 }
 
-.asn1-viewer #output,
 .asn1-viewer #hex-output {
-  max-height: 65vh;
-  overflow: auto;
+  height: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  font-size: 0.6rem;
 }
 
-.asn1-viewer #hex-output {
-  font-size: 0.6rem;
+.asn1-viewer .hex-tag,
+.asn1-viewer .hex-length,
+.asn1-viewer .hex-content {
+  display: inline-block;
+  padding-inline: 0.5ch;
 }
 
 .asn1-viewer .hex-tag {
@@ -1106,6 +1125,8 @@ h6,
 .asn1-viewer .asn1-highlight {
   border-radius: 2px;
   background: rgb(255 177 0 / 0.13);
+  outline: 1px solid var(--awesn-line);
+  outline-offset: -1px;
 }
 
 .asn1-viewer #hex-context-menu {

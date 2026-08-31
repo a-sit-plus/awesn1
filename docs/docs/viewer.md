@@ -18,6 +18,8 @@ The thing it has going for it, is built-in semantics for the [Android key attest
     <label for="format">Format</label>
     <select id="format"><option>Auto</option><option>PEM</option><option>Base64</option><option>Hex</option></select>
     <button id="decode" type="button">Decode</button>
+    <button id="open-file" type="button">Open from file</button>
+    <input id="file-input" type="file" hidden>
     <button id="clear" type="button">Clear</button>
   </div>
   <div id="status" role="status"></div>

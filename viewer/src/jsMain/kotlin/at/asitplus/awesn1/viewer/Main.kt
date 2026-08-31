@@ -7,17 +7,22 @@ import at.asitplus.awesn1.KnownOIDs
 import at.asitplus.awesn1.describeAll
 import kotlinx.browser.document
 import kotlinx.browser.window
+import org.khronos.webgl.ArrayBuffer
+import org.khronos.webgl.Int8Array
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLButtonElement
+import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLSelectElement
 import org.w3c.dom.HTMLTextAreaElement
 import org.w3c.dom.events.MouseEvent
+import org.w3c.files.FileReader
 
 fun main() {
     KnownOIDs.describeAll()
     registerViewerOids()
     val input = document.getElementById("input") as HTMLTextAreaElement
     val format = document.getElementById("format") as HTMLSelectElement
+    val fileInput = document.getElementById("file-input") as HTMLInputElement
     val output = document.getElementById("output")!!
     val hexOutput = document.getElementById("hex-output") as HTMLElement
     val hexMenu = document.getElementById("hex-context-menu") as HTMLElement
@@ -89,8 +94,37 @@ fun main() {
         val encodedInput = window.asDynamic().encodeURIComponent(input.value) as String
         window.history.replaceState(null, "", "${window.location.pathname}#$encodedInput")
         shareControl.hidden = false
+        status.asDynamic().scrollIntoView(js("({ behavior: 'smooth', block: 'start' })"))
     }
     (document.getElementById("decode") as HTMLButtonElement).onclick = { decode(); null }
+    (document.getElementById("open-file") as HTMLButtonElement).onclick = { fileInput.click(); null }
+    fileInput.onchange = {
+        val file = fileInput.files?.item(0)
+        fileInput.value = ""
+        if (file != null) {
+            val reader = FileReader()
+            reader.onload = {
+                val view = Int8Array(reader.result as ArrayBuffer)
+                val bytes = ByteArray(view.length) { index ->
+                    (view.asDynamic()[index] as Number).toByte()
+                }
+                val text = runCatching { bytes.decodeToString(throwOnInvalidSequence = true) }.getOrNull()
+                if (text != null && runCatching { decodeInput(text, InputFormat.AUTO) }.isSuccess) {
+                    input.value = text
+                    format.selectedIndex = InputFormat.AUTO.ordinal
+                } else {
+                    input.value = bytes.joinToString(" ") {
+                        it.toUByte().toString(16).uppercase().padStart(2, '0')
+                    }
+                    format.selectedIndex = InputFormat.HEX.ordinal
+                }
+                decode()
+            }
+            reader.onerror = { status.textContent = "Could not read ${file.name}." }
+            reader.readAsArrayBuffer(file)
+        }
+        null
+    }
     (document.getElementById("clear") as HTMLButtonElement).onclick = {
         input.value = ""
         output.textContent = ""
@@ -238,7 +272,7 @@ private fun renderHex(
             HexByteKind.LENGTH -> "hex-length"
             HexByteKind.VALUE -> "hex-content"
         }
-        span.textContent = byte.value.toUByte().toString(16).uppercase().padStart(2, '0') + " "
+        span.textContent = byte.value.toUByte().toString(16).uppercase().padStart(2, '0')
         span.linkToAsn1Path(byte.path, includeDescendants = true, view = "hex",
             detail = "DER byte $index\n${descriptions[byte.path].orEmpty()}")
         span.addEventListener("contextmenu", { event ->
