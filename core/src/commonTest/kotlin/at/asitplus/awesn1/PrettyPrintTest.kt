@@ -15,7 +15,7 @@ val PrettyPrintTest by matrixSuite {
             shouldBeSorted = false
         )
         structure.prettyPrint() shouldBe """
-        PRIVATE 0 (=E0), length=0, overallLength=2
+        PRIVATE 0 (=0xE0), length=0 (0x00), overallLength=2
         {
         
         }""".trimIndent()
@@ -27,6 +27,17 @@ val PrettyPrintTest by matrixSuite {
         Asn1Primitive(Asn1Element.Tag.INT, byteArrayOf(1) + ByteArray(512)).prettyPrint().also {
             it shouldContain "[truncated, 513 bytes total] 0x"
             it shouldNotContain "Non-compliant"
+        }
+    }
+
+    "pretty print prefixes hexadecimal values and shows encoded lengths" {
+        Asn1Element.parseFromDerHexString("0401AB").prettyPrint().also {
+            it shouldContain "tag=4 (=0x04)"
+            it shouldContain "length=1 (0x01)"
+            it shouldContain " 0xAB"
+        }
+        Asn1Element.parseFromDerHexString("048180" + "00".repeat(128)).prettyPrint().also {
+            it shouldContain "length=128 (0x8180)"
         }
     }
 }

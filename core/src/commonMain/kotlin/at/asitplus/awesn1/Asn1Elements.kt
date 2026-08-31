@@ -52,6 +52,8 @@ private val computeContentLength: DeepRecursiveFunction<Asn1Structure, Unit> = D
 const val MAX_RENDER_CHARS: Long = (1 shl 20).toLong()
 private const val RENDER_TRUNCATION_MARKER = " … (output truncated)"
 private const val INTEGER_DECIMAL_RENDER_LIMIT_BYTES = 512
+private fun ByteArray.toPrefixedHexString(): String = "0x" + toHexString(HexFormat.UpperCase)
+private fun Asn1Element.Tag.toPrettyString(): String = toString().replaceFirst("(=", "(=0x")
 
 /**
  * Base ASN.1 data class. Can either be a primitive (holding a value), or a structure (holding other ASN.1 elements)
@@ -258,7 +260,7 @@ sealed class Asn1Element(
                         emit(
                             if (content.size.toLong() * 2 <= buildRoom.toLong()) e.contentToString() // small: full (semantic) render
                             else content.copyOf(((buildRoom - 64) / 2).coerceIn(0, content.size))
-                                .toHexString(HexFormat.UpperCase) + "…(${content.size} bytes)"
+                                .toPrefixedHexString() + "…(${content.size} bytes)"
                         )
                         emit(e.prettyPrintTrailer(if (pretty) ind else 0))
                     }
@@ -270,7 +272,8 @@ sealed class Asn1Element(
     protected abstract fun contentToString(): String
 
     protected open fun prettyPrintHeader(indent: Int) =
-        "(tag=${tag}" + ", length=${contentLengthLong}" + ", overallLength=${overallLengthLong})"
+        "(tag=${tag.toPrettyString()}" + ", length=${contentLengthLong} (${encodedLength.toPrefixedHexString()})" +
+                ", overallLength=${overallLengthLong})"
 
     protected open fun prettyPrintTrailer(indent: Int) = ""
 
@@ -1068,9 +1071,9 @@ class Asn1CustomStructure internal constructor(
         (" " * indent) + tag.tagClass +
                 " ${tag.tagValue}" +
                 (if (!tag.isConstructed) " PRIMITIVE" else "") +
-                " (=${tag.encodedTag.toHexString(HexFormat.UpperCase)}), length=${contentLengthLong}" +
+                " (=${tag.encodedTag.toPrefixedHexString()}), length=${contentLengthLong} (${encodedLength.toPrefixedHexString()})" +
                 ", overallLength=${overallLengthLong}" +
-                (content?.let { " ${it.toHexString(HexFormat.UpperCase)}" } ?: "")
+                (content?.let { " ${it.toPrefixedHexString()}" } ?: "")
 
     companion object {
         /**
@@ -1229,7 +1232,7 @@ class Asn1EncapsulatingOctetString private constructor(
 
     override fun prettyPrintHeader(indent: Int) =
         (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent) + " " +
-                content.toHexString(HexFormat.UpperCase)
+                content.toPrefixedHexString()
 
     companion object {
         /**
@@ -1386,8 +1389,8 @@ open class Asn1Primitive private constructor(
             }
 
             Tag.ENUM -> decodeToEnumOrdinal().toString()
-            Tag.OCTET_STRING -> content.toHexString(HexFormat.UpperCase)
-            Tag.BIT_STRING -> content.toHexString(HexFormat.UpperCase)
+            Tag.OCTET_STRING -> content.toPrefixedHexString()
+            Tag.BIT_STRING -> content.toPrefixedHexString()
             Tag.STRING_UTF8 -> decodeToString()
             Tag.STRING_UNIVERSAL -> decodeToString()
             Tag.STRING_IA5 -> decodeToString()
@@ -1398,7 +1401,7 @@ open class Asn1Primitive private constructor(
             Tag.STRING_VISIBLE -> decodeToString()
             Tag.TIME_GENERALIZED -> decodeToInstant().toString()
             Tag.TIME_UTC -> decodeToInstant().toString()
-            else -> content.toHexString(HexFormat.UpperCase)
+            else -> content.toPrefixedHexString()
         }
     }.getOrElse { "Non-compliant content: 0x" + content.toHexString(HexFormat.UpperCase) }
 

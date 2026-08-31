@@ -296,8 +296,21 @@ private fun org.w3c.dom.Element.linkToAsn1Path(
     setAttribute("data-asn1-path", encodedPath)
     setAttribute("data-asn1-view", view)
     setAttribute("data-hover-detail", detail)
-    addEventListener("mouseenter", { highlightAsn1Path(encodedPath, includeDescendants) })
+    addEventListener("mouseenter", {
+        highlightAsn1Path(encodedPath, includeDescendants)
+        if (view == "generic") scrollHexToPath(encodedPath)
+    })
     addEventListener("mouseleave", { highlightAsn1Path(null, false) })
+}
+
+private fun scrollHexToPath(path: String) {
+    val hexOutput = document.getElementById("hex-output") as? HTMLElement ?: return
+    val target = document.querySelector("#hex-output [data-asn1-path=\"$path\"]") as? HTMLElement ?: return
+    val viewport = hexOutput.getBoundingClientRect()
+    val highlighted = target.getBoundingClientRect()
+    if (highlighted.top < viewport.top || highlighted.bottom > viewport.bottom) {
+        hexOutput.scrollTop += highlighted.top - viewport.top - (hexOutput.clientHeight - highlighted.height) / 2
+    }
 }
 
 private val highlightedElements = mutableListOf<org.w3c.dom.Element>()
