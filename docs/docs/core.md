@@ -10,7 +10,7 @@ hide:
     <a href="https://plus.a-sit.at/open-source.html"><img alt="A-SIT Plus Official" src="https://raw.githubusercontent.com/a-sit-plus/a-sit-plus.github.io/709e802b3e00cb57916cbb254ca5e1a5756ad2a8/A-SIT%20Plus_%20official_opt.svg"></a>
     <a href="http://www.apache.org/licenses/LICENSE-2.0"><img alt="GitHub licence" src="https://img.shields.io/badge/license-Apache%20License%202.0-brightgreen.svg"></a>
     <a href="http://kotlinlang.org"><img alt="Kotlin Multiplatform" src="https://img.shields.io/badge/kotlin-multiplatform-orange.svg?logo=kotlin"></a>
-    <a href="http://kotlinlang.org"><img alt="Kotlin 2.4.0" src="https://img.shields.io/badge/kotlin-2.4.0-blue.svg?logo=kotlin"></a>
+    <a href="http://kotlinlang.org"><img alt="Kotlin 2.4.10" src="https://img.shields.io/badge/kotlin-2.4.10-blue.svg?logo=kotlin"></a>
     <a href="https://www.oracle.com/java/technologies/downloads/#java17"><img alt="Java 17" src="https://img.shields.io/badge/java-17-blue.svg?logo=OPENJDK"></a>
     <a href="https://mvnrepository.com/artifact/at.asitplus.awesn1/core"><img alt="Maven Central" src="https://img.shields.io/maven-central/v/at.asitplus.awesn1/core"></a>
   </p>

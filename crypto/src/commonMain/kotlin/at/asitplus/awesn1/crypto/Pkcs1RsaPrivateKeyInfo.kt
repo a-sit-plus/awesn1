@@ -88,7 +88,6 @@ data class Pkcs1RsaPrivateKeyInfo(
                 privateKey: Pkcs1RsaPrivateKeyInfo, attributes: Set<Asn1Element>? = null, der: Der = DER
         ) = runRethrowing {
             Pkcs8PrivateKeyInfo(
-                version = Pkcs8PrivateKeyInfo.Version.V1,
                 privateKeyAlgorithm = X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, Asn1Null),
                 privateKey = Asn1OctetString(der.encodeToByteArray(privateKey)),
                 attributes = attributes,

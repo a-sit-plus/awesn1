@@ -113,7 +113,6 @@ data class Sec1EcPrivateKeyInfo internal constructor(
             attributes: Set<Asn1Element>? = null, der: Der = DER
         ) = runRethrowing {
             Pkcs8PrivateKeyInfo(
-                version = Pkcs8PrivateKeyInfo.Version.V1,
                 privateKeyAlgorithm = X509AlgorithmIdentifier(
                     EC_PUBLIC_KEY_OID,
                     curveOid?.encodeToTlv(),

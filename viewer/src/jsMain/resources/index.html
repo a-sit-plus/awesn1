@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>awesn1 viewer</title>
+  <style>
+    :root { --awesn-amber-2: #ffd169; font: 16px system-ui, sans-serif; color-scheme: light dark; }
+    body { margin: 2rem 0; padding: 0 1rem; }
+    textarea, #output, select, button { font: .95rem ui-monospace, monospace; }
+    select, button { min-height: 1.6rem; padding-block: .2rem; }
+    textarea { width: 100%; min-height: 12rem; box-sizing: border-box; }
+    .controls { display: flex; gap: .5rem; margin: .75rem 0; flex-wrap: wrap; }
+    #output { padding-left: .65em; white-space: pre-wrap; line-height: 1.65; }
+    #output, #hex-output { font-size: .85rem; line-height: 1.5;}
+    #status { min-height: 1.5em; }
+    #hex-output { font: .75rem ui-monospace, monospace;  line-height: 1.5;}
+    .primary-output { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 3fr); gap: 1.5rem; }
+    .primary-output > section { min-width: 0; }
+    @media (max-width: 800px) { .primary-output { grid-template-columns: 1fr; } }
+    .hex-tag, .hex-length, .hex-content { display: inline-block; padding-inline: .5ch; }
+    .hex-tag { color: var(--awesn-amber-2); font-weight: 700; }
+    .hex-length { color: #9b59b6; font-weight: 700; }
+    .hex-content { color: #16856b; overflow-wrap: normal; word-break: normal; }
+    .asn1-line { position: relative; display: flex; min-width: 100%; box-sizing: border-box; }
+    .asn1-line[hidden] { display: none; }
+    .asn1-root:not(:first-child) { margin-top: 1.5em; }
+    .asn1-line-content { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .asn1-tree-guide { position: relative; flex: 0 0 1.5em; }
+    .asn1-tree-through::before, .asn1-tree-branch::before, .asn1-tree-branch::after { position: absolute; content: ""; border-color: #8887; }
+    .asn1-tree-through::before { inset: 0 auto 0 0; border-left: 1px solid; }
+    .asn1-tree-branch::before { inset: 0 auto 50% 0; border-left: 1px solid; }
+    .asn1-tree-branch::after { inset: 50% 0 auto 0; border-top: 1px solid; }
+    .asn1-has-toggle > .asn1-line-content { padding-left: .7em; }
+    .asn1-tree-down { position: absolute; z-index: 0; top: 50%; bottom: 0; left: 0; border-left: 1px solid #8887; }
+    .asn1-tree-down-branch { left: 100%; }
+    .asn1-tree-toggle { position: absolute; z-index: 1; top: 50%; left: 0; width: 1.1em; min-width: 1.1em; height: 1.1em; min-height: 1.1em; margin: 0; padding: 0; border: 1px solid #888; border-radius: 50%; background: Canvas; color: CanvasText; transform: translate(-50%, -50%); cursor: pointer; }
+    .asn1-tree-toggle-branch { left: 100%; }
+    .asn1-tree-toggle::before, .asn1-tree-toggle::after { position: absolute; top: 50%; left: 50%; width: .6em; height: 1px; content: ""; background: currentColor; transform: translate(-50%, -50%); }
+    .asn1-tree-toggle[aria-expanded="false"]::after { transform: translate(-50%, -50%) rotate(90deg); }
+    .asn1-member { color: CanvasText; font-weight: 650; }
+    .asn1-share { position: relative; display: inline-block; margin-left: .15em; vertical-align: baseline; }
+    .asn1-share[hidden], #share-popup[hidden] { display: none; }
+    #share { display: inline-flex; align-items: center; justify-content: center; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; line-height: 1; vertical-align: -.38em; }
+    #share svg { display: block; width: 1.75em; height: 1.75em; fill: currentColor; }
+    #share-popup { position: absolute; left: 50%; bottom: calc(100% + .55rem); z-index: 2; transform: translateX(-50%); padding: .35rem .55rem; border: 1px solid #8886; border-radius: .45rem; background: Canvas; color: CanvasText; box-shadow: 0 .2rem 1rem #0004; white-space: nowrap; font: .75rem ui-monospace, monospace; }
+    #share-popup::after { position: absolute; top: 100%; left: 50%; content: ""; transform: translateX(-50%); border: .35rem solid transparent; border-top-color: #888; }
+    .asn1-highlight { background: #ffe08a; border-radius: 2px; }
+    @media (prefers-color-scheme: dark) { .asn1-highlight { background: #654f00; } }
+    #hex-context-menu {
+      position: fixed; z-index: 2; padding: .25rem; border: 1px solid #8886;
+      border-radius: .35rem; background: Canvas; box-shadow: 0 .2rem 1rem #0004;
+    }
+    #hex-context-menu button { border: 0; padding: .4rem .6rem; background: transparent; color: CanvasText; cursor: pointer; }
+    #hex-context-menu button:hover { background: #8882; }
+    [data-hover-detail]:hover::after {
+      content: attr(data-hover-detail); position: fixed; right: 1rem; bottom: 1rem; z-index: 1;
+      max-width: min(48rem, calc(100vw - 3rem)); padding: .55rem .7rem; border: 1px solid #8886;
+      border-radius: .35rem; background: Canvas; color: CanvasText; box-shadow: 0 .2rem 1rem #0004;
+      white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 400;
+    }
+  </style>
+</head>
+<body>
+  <h1>awesn1 ASN.1 viewer</h1>
+  <textarea id="input" spellcheck="false" placeholder="Paste PEM, Base64, or hexadecimal DER here"></textarea>
+  <div class="controls">
+    <label>Format <select id="format"><option>Auto</option><option>PEM</option><option>Base64</option><option>Hex</option></select></label>
+    <button id="decode" type="button">Decode</button>
+    <button id="open-file" type="button">Open from file</button>
+    <input id="file-input" type="file" hidden>
+    <button id="clear" type="button">Clear</button>
+  </div>
+  <div id="status" role="status"></div>
+  <div class="primary-output">
+    <section>
+      <h2>ASN.1 structure <span id="share-control" class="asn1-share" hidden>(<button id="share" type="button" aria-label="Copy share URL" title="Copy share URL"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m20,9v-1h1v-2h1v-2h-1v-2h-1v-1h-5v1h-1v2h-1v2h-1v1h-1v1h-1v1h-1v-1h-5v1h-1v2h-1v2h1v2h1v1h5v-1h1v1h1v1h1v1h1v2h1v2h1v1h5v-1h1v-2h1v-2h-1v-2h-1v-1h-5v1h-2v-1h-1v-1h-1v-4h1v-1h1v-1h2v1h5Zm-11,4h-1v1h-3v-1h-1v-2h1v-1h3v1h1v2Zm6,5h1v-1h3v1h1v2h-1v1h-3v-1h-1v-2Zm0-14h1v-1h3v1h1v2h-1v1h-3v-1h-1v-2Z"/></svg></button>)<span id="share-popup" role="status" hidden>URL copied</span></span></h2>
+      <pre id="output"></pre>
+    </section>
+    <section>
+      <h2>DER hex</h2>
+      <p><span class="hex-tag">tag</span> · <span class="hex-length">length</span> · <span class="hex-content">primitive content</span></p>
+      <div id="hex-output"></div>
+    </section>
+  </div>
+  <div id="hex-context-menu" role="menu" hidden><button type="button" role="menuitem">Copy segment as hex</button></div>
+  <script src="viewer.js"></script>
+</body>
+</html>

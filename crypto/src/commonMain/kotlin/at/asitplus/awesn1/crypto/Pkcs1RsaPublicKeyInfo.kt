@@ -44,10 +44,12 @@ data class Pkcs1RsaPublicKeyInfo(
                 { "SubjectPublicKeyInfo is not an RSA public key" }
             require(publicKeyInfo.algorithmParameters == Asn1Null)
                 { "RSA SubjectPublicKeyInfo must contain NULL params" }
+            require (publicKeyInfo.subjectPublicKey.numPaddingBits == 0.toByte())
+                { "RSA SubjectPublicKeyInfo must have full octets (no padding bits)" }
             der.decodeFromDer<Pkcs1RsaPublicKeyInfo>(publicKeyInfo.subjectPublicKey.bitCarryingBytes)
         }
 
-        operator fun SubjectPublicKeyInfo.Companion.invoke(publicKey: Pkcs1RsaPublicKeyInfo, der: Der = DER) = runRethrowing {
+        fun SubjectPublicKeyInfo.Companion.from(publicKey: Pkcs1RsaPublicKeyInfo, der: Der = DER) = runRethrowing {
             SubjectPublicKeyInfo(
                 X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, Asn1Null),
                 Asn1BitString(der.encodeToByteArray(publicKey))
@@ -55,6 +57,6 @@ data class Pkcs1RsaPublicKeyInfo(
         }
 
         fun SubjectPublicKeyInfo.Companion.rsa(modulus: Asn1Integer, exponent: Asn1Integer, der: Der = DER) =
-            runRethrowing { invoke(Pkcs1RsaPublicKeyInfo(modulus, exponent), der) }
+            runRethrowing { from(Pkcs1RsaPublicKeyInfo(modulus, exponent), der) }
     }
 }

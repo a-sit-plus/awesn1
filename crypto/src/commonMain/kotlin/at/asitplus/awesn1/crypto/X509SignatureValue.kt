@@ -14,7 +14,9 @@ import at.asitplus.awesn1.encoding.WrappedEncodable
 import at.asitplus.awesn1.encoding.decodeToAsn1Integer
 import at.asitplus.awesn1.encoding.parse
 import kotlinx.serialization.Serializable
+import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.jvm.JvmInline
+import kotlin.native.HiddenFromObjC
 
 /**
  *
@@ -28,15 +30,23 @@ import kotlin.jvm.JvmInline
 @JvmInline
 @Serializable
 value class X509SignatureValue(val rawBitString: Asn1BitString): WrappedEncodable<Asn1BitString> {
-    init {
-        if (rawBitString.numPaddingBits != 0.toByte()) {
-            throw Asn1Exception("The signature value must not have padding bits")
-        }
-    }
 
     override val value: Asn1BitString get() = rawBitString
 
     constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
-    val rawBytes: ByteArray get() = rawBitString.bitCarryingBytes
+    /**
+     * The bytes carried in the signature value.
+     * Throws if the signature value is not full octets.
+     * You should use [rawBitString] if this is possible.
+     */
+    @OptIn(ExperimentalObjCRefinement::class)
+    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
+    @get:Throws(Asn1Exception::class)
+    @HiddenFromObjC
+    @get:HiddenFromObjC
+    val rawBytes: ByteArray get() = rawBitString.also {
+        if (it.numPaddingBits != 0.toByte())
+            throw Asn1Exception("The signature value must not have padding bits")
+    }.bitCarryingBytes
 }

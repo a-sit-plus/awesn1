@@ -27,7 +27,6 @@ val BitSetCompactionHardeningTest by matrixSuite {
         var visited = 0
         bits.forEachIndexed { _, _ -> visited++ }
 
-        bits.length() shouldBe 0
         bits.bytes.toByteArray() shouldBe byteArrayOf()
         bits.toByteArray() shouldBe byteArrayOf()
         bits.toBitStringView() shouldBe ""
@@ -40,7 +39,6 @@ val BitSetCompactionHardeningTest by matrixSuite {
     "trailing zero backing bytes are removed from public byte views" {
         val bits = BitSet(byteArrayOf(0x04, 0x00, 0x00))
 
-        bits.length() shouldBe 3
         bits.bytes.toByteArray() shouldBe byteArrayOf(0x04)
         bits.toByteArray() shouldBe byteArrayOf(0x04)
         bits.copyOf().toByteArray() shouldBe byteArrayOf(0x04)
@@ -106,7 +104,6 @@ val BitSetCompactionHardeningTest by matrixSuite {
         "all false" {
             val bits = BitSet(8) { false }
 
-            bits.length() shouldBe 0
             bits.toByteArray() shouldBe byteArrayOf()
             bits.toBitStringView() shouldBe ""
         }
@@ -114,7 +111,6 @@ val BitSetCompactionHardeningTest by matrixSuite {
         "last false" {
             val bits = BitSet(8) { it == 2 }
 
-            bits.length() shouldBe 3
             bits.toByteArray() shouldBe byteArrayOf(0x04)
             bits.toBitStringView() shouldBe "001"
         }

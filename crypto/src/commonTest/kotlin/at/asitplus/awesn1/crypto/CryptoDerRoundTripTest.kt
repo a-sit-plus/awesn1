@@ -1,6 +1,8 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.*
+import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo.Companion.from
+import at.asitplus.awesn1.crypto.Sec1EcPublicKeyInfo.Companion.from
 import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.DER
@@ -272,6 +274,11 @@ private fun randomRsaPublicKey(random: Random) = Pkcs1RsaPublicKeyInfo(
     publicExponent = positiveAsn1Integer(random),
 )
 
+private fun randomEcdsaPublicKey(random: Random) = when (random.nextBoolean()) {
+    true -> Sec1EcPublicKeyInfo(randomOid(random), randomBytes(random, 64), random.nextBoolean())
+    false -> Sec1EcPublicKeyInfo(randomOid(random), randomBytes(random, 48), randomBytes(random, 48))
+}
+
 private fun randomSignatureAlgorithmIdentifier(random: Random) = X509AlgorithmIdentifier(
     oid = randomOid(random),
     parameters = randomRawElement(random),
@@ -279,9 +286,9 @@ private fun randomSignatureAlgorithmIdentifier(random: Random) = X509AlgorithmId
 
 private fun randomSubjectPublicKeyInfo(random: Random): SubjectPublicKeyInfo =
     if (random.nextBoolean()) {
-        SubjectPublicKeyInfo.rsa(randomRsaPublicKey(random))
+        SubjectPublicKeyInfo.from(randomRsaPublicKey(random))
     } else {
-        SubjectPublicKeyInfo.ec(randomOid(random), randomBytes(random, 65))
+        SubjectPublicKeyInfo.from(randomEcdsaPublicKey(random))
     }
 
 private fun randomX509CertificateExtension(random: Random): X509CertificateExtension {
@@ -327,7 +334,7 @@ private fun randomPrivateKeyInfo(random: Random): Pkcs8PrivateKeyInfo =
 private fun randomPkcs10CertificationRequestInfo(random: Random) = Pkcs10CertificationRequestInfo(
     subjectName = X500Name(List(random.nextInt(1, 3)) { randomRelativeDistinguishedName(random) }),
     publicKey = randomSubjectPublicKeyInfo(random),
-    attributes = (List(random.nextInt(0, 3)) { randomAttribute(random) }).toSet(),
+    attributes = List(random.nextInt(0, 3)) { randomAttribute(random) }.associateBy { it.oid }.values.toSet(),
 )
 
 private fun randomPkcs10CertificationRequest(random: Random) = Pkcs10CertificationRequest(

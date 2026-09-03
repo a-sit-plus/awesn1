@@ -38,6 +38,12 @@ data class Pkcs8PrivateKeyInfo(
     @Asn1Tag(tagNumber = 0u)
     val attributes: Set<Asn1Element>? = null,
 ) : WithPemLabel {
+
+    // default Version
+    constructor(
+        privateKeyAlgorithm: X509AlgorithmIdentifier, privateKey: Asn1OctetString, attributes: Set<Asn1Element>? = null)
+    : this(Version.V1, privateKeyAlgorithm, privateKey, attributes)
+
     val algorithmOid: ObjectIdentifier get() = privateKeyAlgorithm.oid
     val algorithmParameters: Asn1Element? get() = privateKeyAlgorithm.parameters
 

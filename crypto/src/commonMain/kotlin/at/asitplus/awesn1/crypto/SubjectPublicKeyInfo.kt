@@ -4,7 +4,8 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo.Companion.invoke
+import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo.Companion.from
+import at.asitplus.awesn1.crypto.Sec1EcPublicKeyInfo.Companion.from
 import kotlinx.serialization.Serializable
 
 /**
@@ -17,6 +18,7 @@ import kotlinx.serialization.Serializable
  * }
  * ```
  * @see Pkcs1RsaPublicKeyInfo.of
+ * @see Sec1EcPublicKeyInfo.of
  */
 @Serializable
 data class SubjectPublicKeyInfo(
@@ -24,11 +26,6 @@ data class SubjectPublicKeyInfo(
     val subjectPublicKey: Asn1BitString,
 ) : WithPemLabel {
 
-    init {
-        if (subjectPublicKey.numPaddingBits != 0.toByte()) {
-            throw Asn1Exception("Public key value must not have padding bits")
-        }
-    }
     val algorithmOid: ObjectIdentifier get() = algorithmIdentifier.oid
     val algorithmParameters: Asn1Element? get() = algorithmIdentifier.parameters
 
@@ -38,8 +35,6 @@ data class SubjectPublicKeyInfo(
     fun decodeRsaPublicKey() = Pkcs1RsaPublicKeyInfo.of(this)
 
     companion object : PemLabelSpec<SubjectPublicKeyInfo> {
-        private val EC_PUBLIC_KEY_OID = ObjectIdentifier("1.2.840.10045.2.1")
-
         const val PEM_LABEL_PUBLIC_KEY = "PUBLIC KEY"
         const val PEM_LABEL_RSA_PUBLIC_KEY = "RSA PUBLIC KEY"
 
@@ -48,12 +43,13 @@ data class SubjectPublicKeyInfo(
 
 
         @Deprecated("Moved to a more suitable location",
-            replaceWith = ReplaceWith("SubjectPublicKeyInfo.of(publicKey)"))
-        fun rsa(publicKey: Pkcs1RsaPublicKeyInfo) = this(publicKey)
+            replaceWith = ReplaceWith("SubjectPublicKeyInfo.from(publicKey)"))
+        fun rsa(publicKey: Pkcs1RsaPublicKeyInfo) = this.from(publicKey)
 
-        fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = SubjectPublicKeyInfo(
-            algorithmIdentifier = X509AlgorithmIdentifier(EC_PUBLIC_KEY_OID, curveOid.encodeToTlv()),
-            subjectPublicKey = Asn1BitString(ansiX963Key)
-        )
+        @Deprecated("Passing x/y separately is preferred")
+        fun ec(curveOid: ObjectIdentifier, ansiX963Key: ByteArray): SubjectPublicKeyInfo = runRethrowing {
+            from(Sec1EcPublicKeyInfo(curveOid, ansiX963Key))
+        }
+
     }
 }

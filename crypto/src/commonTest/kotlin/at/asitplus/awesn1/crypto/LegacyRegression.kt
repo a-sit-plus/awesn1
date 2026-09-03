@@ -87,7 +87,7 @@ private fun LegacyEncryptedPrivateKeyInfo.toCurrent() =
 
 private fun LegacyPkcs8PrivateKeyInfo.toCurrent() =
     Pkcs8PrivateKeyInfo(
-        Pkcs8PrivateKeyInfo.Version.V1,
+        version = Pkcs8PrivateKeyInfo.Version.V1,
         privateKeyAlgorithm = X509AlgorithmIdentifier(algorithmOid, algorithmParameters.singleOrNull()),
         privateKey = privateKey.asOctetString(),
         attributes = attributes?.toSet(),

@@ -2,6 +2,20 @@
 
 ## NEXT
 
+## 0.8.1
+* Add an experimental ASN.1 JS viewer
+* Update dumpasn1 Known OIDs to 8 January 2026 with oh-so-many-more OIDs
+
+## 0.8.0
+* Moved the faux-constructor extensions on `SubjectPublicKeyInfo` to `from` extensions
+    * This avoids pathological autocomplete behavior
+* Added `Sec1EcPublicKeyInfo` to match `Pkcs1RsaPublicKeyInfo`
+* Usability improvements to `Asn1BitString`
+    * Added indexing operators and size
+    * Added utility constructor from vararg bits
+* Usability improvements to `Pkcs8PrivateKeyInfo`
+    * Defaulted `version` to `V1` in the constructor
+
 ## 0.7.0
 * **Security Hardening:**
     * Harden INTEGER/OID decimal conversion against DoS [Hardening → Bounded Numeric Conversion](hardening.md):
