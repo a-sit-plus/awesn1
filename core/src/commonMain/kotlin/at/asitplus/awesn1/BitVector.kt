@@ -38,20 +38,37 @@ interface BitVector {
     fun highestSetIndex(): Long
 
     companion object {
+        /**
+         * Returns the backing-byte index containing logical [index] without constraining it to [Int] range.
+         *
+         * Read paths that compare the result against a known byte count use this, so that an index far beyond the
+         * vector answers "not present" instead of throwing.
+         */
+        @Throws(IndexOutOfBoundsException::class)
+        internal fun getByteIndexAsLong(index: Long): Long {
+            if (index < 0) throw IndexOutOfBoundsException("index = $index")
+            return index / 8
+        }
+
         /** Returns the backing-byte index containing logical [index]. */
         @Throws(IndexOutOfBoundsException::class)
         internal fun getByteIndex(index: Long): Int {
-            if (index < 0) throw IndexOutOfBoundsException("index = $index")
-            val byteIndex = index / 8
+            val byteIndex = getByteIndexAsLong(index)
             if (byteIndex > Int.MAX_VALUE) throw IndexOutOfBoundsException("byte index = $byteIndex")
             return byteIndex.toInt()
         }
 
+        /** Returns the position of logical [index] within its backing byte, counted from that byte's bit zero. */
+        internal fun getBitIndex(index: Long): Int = (index % 8).toInt()
+
+        /** Returns the logical index of bit [bitIndex] of byte [byteIndex]; the inverse of the two functions above. */
+        internal fun getLogicalIndex(byteIndex: Long, bitIndex: Int): Long = byteIndex * 8 + bitIndex
+
         /** Returns the mask for logical [index] when bit zero is the least-significant bit of its byte. */
-        internal fun getLsb0Mask(index: Long): Byte = (1 shl (index % 8).toInt()).toByte()
+        internal fun getLsb0Mask(index: Long): Byte = (1 shl getBitIndex(index)).toByte()
 
         /** Returns the mask for logical [index] when bit zero is the most-significant bit of its byte. */
-        internal fun getMsb0Mask(index: Long): Byte = (0x80 ushr (index % 8).toInt()).toByte()
+        internal fun getMsb0Mask(index: Long): Byte = (0x80 ushr getBitIndex(index)).toByte()
 
         /** Returns the minimum number of bytes required to store [logicalBitCount] bits. */
         internal fun getByteCount(logicalBitCount: Long): Int {
@@ -171,27 +188,37 @@ private fun BitVector.bitIterator(size: Long): Iterator<Boolean> = object : Iter
 /** Returns the LSB0 bit at [index], or `false` when [index] exceeds this array. */
 @Throws(IndexOutOfBoundsException::class)
 fun ByteArray.getLsb0Bit(index: Long): Boolean {
-    if (index < 0) throw IndexOutOfBoundsException("index = $index")
-    val byteIndex = index / 8
+    val byteIndex = BitVector.getByteIndexAsLong(index)
     return byteIndex < size && (this[byteIndex.toInt()] and BitVector.getLsb0Mask(index)) != 0.toByte()
 }
 
 /** Returns the MSB0 bit at [index], or `false` when [index] exceeds this array. */
 @Throws(IndexOutOfBoundsException::class)
 fun ByteArray.getMsb0Bit(index: Long): Boolean {
-    if (index < 0) throw IndexOutOfBoundsException("index = $index")
-    val byteIndex = index / 8
+    val byteIndex = BitVector.getByteIndexAsLong(index)
     return byteIndex < size && (this[byteIndex.toInt()] and BitVector.getMsb0Mask(index)) != 0.toByte()
 }
 
 /** Returns the LSB0 bit at [index], or `false` when [index] exceeds this list. */
 @Throws(IndexOutOfBoundsException::class)
 internal fun List<Byte>.getLsb0Bit(index: Long): Boolean {
-    if (index < 0) throw IndexOutOfBoundsException("index = $index")
-    val byteIndex = index / 8
+    val byteIndex = BitVector.getByteIndexAsLong(index)
     return byteIndex < size && (this[byteIndex.toInt()] and BitVector.getLsb0Mask(index)) != 0.toByte()
 }
 
+
+/**
+ * Returns the position of the lowest set LSB0 bit at or above [fromBitIndex], or `-1` when this byte has none.
+ *
+ * [fromBitIndex] must be in `0..7`.
+ */
+internal fun Byte.nextSetLsb0BitIndex(fromBitIndex: Int): Int {
+    val remaining = (toInt() and 0xFF) and (-1 shl fromBitIndex)
+    return if (remaining == 0) -1 else remaining.countTrailingZeroBits()
+}
+
+/** Returns the position of the highest set LSB0 bit of this byte, or `-1` when no bit is set. */
+internal fun Byte.highestSetLsb0BitIndex(): Int = 31 - (toInt() and 0xFF).countLeadingZeroBits()
 
 /** Returns this byte with the order of all eight bits reversed. */
 fun Byte.reverseBits(): Byte {
