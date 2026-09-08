@@ -796,10 +796,10 @@ significantly faster in absolute terms, but lacks the convenience and multiplatf
 ### Memory
 
 In memory, the typed `kxs` `X509Certificate` model is more compact than the raw `Asn1Element` tree (it collapses
-generic TLV wrappers into purpose-built data classes) and lands within ~1.45× of Bouncy Castle's hand-written X.509 model
-on the real-world certificate corpus. The margin over the raw tree is modest (~1.3×) on real certificates, where most
-bytes sit in large content blobs every representation must keep; it widens on element-dense input. See the full
-three-way comparison vs. raw DER bytes in [Low-Level → Memory](lowlevel.md#memory).
+generic TLV wrappers into purpose-built data classes) and lands between it and Bouncy Castle's hand-written X.509
+model. The margin over the raw tree is modest on real certificates, where most bytes sit in large content blobs every
+representation must keep; it widens on element-dense input. The measured three-way comparison against raw DER bytes
+lives in [Low-Level → Memory](lowlevel.md#memory).
 
 ## See Also
 

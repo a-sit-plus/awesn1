@@ -359,8 +359,10 @@ object ObjectIdentifierStringSerializer : BoundedFallbackSerializer<ObjectIdenti
 
     /**
      * maximum size (characters) for decoding. Defaults to [MAX_OID_STRING_CHARS], far tighter than the shared
-     * [BoundedFallbackSerializer.defaultDecodingLimit]: every node becomes a retained `VarUInt`, so a dotted string
-     * of nothing but `.1` costs ~224x its own size in transient allocation and ~22x retained.
+     * [BoundedFallbackSerializer.defaultDecodingLimit]: a dotted string declares a node every two characters and
+     * each one is parsed from decimal, so the decode churns a few hundred times its own size through the collector.
+     * What is built retains only content bytes, so this bounds GC pressure rather than the heap. Figures in
+     * [Hardening → Fallback decoding limits](https://a-sit-plus.github.io/awesn1/hardening/#fallback-decoding-limits).
      */
     override var decodingLimit: Int = ObjectIdentifier.MAX_OID_STRING_CHARS
 

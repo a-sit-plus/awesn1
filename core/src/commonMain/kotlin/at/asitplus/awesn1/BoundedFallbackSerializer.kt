@@ -42,21 +42,25 @@ const val DEFAULT_FALLBACK_DECODING_LIMIT: Int = 384 * 1024 * 1024
  *
  * ## Defaults differ per type, because the cost does
  *
- * Measured against 1 MiB of hostile input, decoding a value costs between 0.5x and 224x its own size in transient
- * allocation, and the expensive cases are expensive for different reasons — memory for an OBJECT IDENTIFIER's one
- * `VarUInt` per node, quadratic CPU for a decimal INTEGER. A single number cannot serve that spread, so each
- * serializer sets its own default:
+ * Decoding a value costs anywhere from a fraction of its own size to a few hundred times it, and the expensive cases
+ * are expensive for different reasons — GC churn for an OBJECT IDENTIFIER, whose every node is parsed from decimal,
+ * retained heap for an `Asn1Element` tree, quadratic CPU for a decimal INTEGER. A single number cannot serve that
+ * spread, so each serializer sets its own default:
  *
- * | Serializer                                | Default             | Why                                     |
- * |-------------------------------------------|---------------------|-----------------------------------------|
- * | [Asn1TimeSerializer]                      | 64                  | fixed-shape timestamp                   |
- * | [ObjectIdentifierStringSerializer]        | 4 KiB               | ~224x transient, ~22x retained          |
- * | [Asn1RealStringSerializer]                | 32 KiB              | ~9x transient                           |
- * | [Asn1IntegerDecimalStringSerializer]      | 32 KiB              | decimal conversion is quadratic         |
- * | everything else                           | 384 MiB             | <= 3x, so only the platform bounds it   |
+ * | Serializer                                | Default                                          |
+ * |-------------------------------------------|--------------------------------------------------|
+ * | [Asn1TimeSerializer]                      | 64 characters                                    |
+ * | [ObjectIdentifierStringSerializer]        | [ObjectIdentifier.MAX_OID_STRING_CHARS]          |
+ * | [Asn1RealStringSerializer]                | 32 KiB                                           |
+ * | [Asn1IntegerDecimalStringSerializer]      | 32 KiB                                           |
+ * | everything else                           | [DEFAULT_FALLBACK_DECODING_LIMIT]                |
  *
- * Each of those is a `var`: raise it where an application legitimately needs to, lower it wherever untrusted input
- * is a concern.
+ * The measured cost behind each of those lives in one place, so that re-measuring does not mean hunting through
+ * KDoc:
+ * [Hardening → Fallback decoding limits](https://a-sit-plus.github.io/awesn1/hardening/#fallback-decoding-limits).
+ *
+ * Each limit is a `var`: raise it where an application legitimately needs to, lower it wherever untrusted input is a
+ * concern.
  *
  * ## Setting the limit
  *

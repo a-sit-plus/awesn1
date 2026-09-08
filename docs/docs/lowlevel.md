@@ -497,14 +497,14 @@ the parsed representation of the whole real-world certificate/attestation corpus
 | Held representation                       | parsed | retained heap | vs raw DER |
 |-------------------------------------------|-------:|--------------:|-----------:|
 | awesn1 raw `Asn1Element` tree             |    690 |     ~5.5 MiB  |     ~8.7×  |
-| awesn1 typed `X509Certificate` (`kxs`)    |    667 |     ~4.2 MiB  |     ~6.9×  |
+| awesn1 typed `X509Certificate` (`kxs`)    |    667 |     ~4.2 MiB  |     ~6.8×  |
 | Bouncy Castle `X509Certificate` (JCA)     |    652 |     ~3.0 MiB  |     ~4.9×  |
 
 The generic `Asn1Element` tree is the heaviest representation — it keeps a node wrapper, a tag, and a child container
 per TLV element, which is the most flexible but least compact form. On this corpus that lands at roughly 100 bytes per
 TLV element across 57 690 elements; the certificates' own content bytes account for only about an eighth of it.
 awesn1's typed [`kxs`](kxs.md) model collapses the generic wrappers into purpose-built data classes (~1.3× leaner
-than the raw tree) and lands within ~1.45× of Bouncy Castle's hand-written X.509 model — the three forms are closer together than the raw
+than the raw tree) and lands within ~1.4× of Bouncy Castle's hand-written X.509 model — the three forms are closer together than the raw
 tree's flexibility suggests, because on real certificates the bulk of the bytes sit in a handful of large content blobs
 that every representation has to keep. Note that the peak memory consumption while parsing will be the sum of the raw
 tree's memory consumption and the typed `X509Certificate` model's.

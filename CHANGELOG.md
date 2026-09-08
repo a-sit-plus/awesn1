@@ -20,7 +20,7 @@
           the `@Serializable(with = …)` path — the only knob that reaches properties declared by awesn1 itself.
           Limits are read on every decode, so setting one is not ordering-sensitive.
         * Defaults differ per type because the decodes differ by two orders of magnitude:
-          `ObjectIdentifierStringSerializer` 4 KiB (one retained `VarUInt` per node, ~224x transient),
+          `ObjectIdentifierStringSerializer` 4 KiB (~226x transient, one decimal parse per node),
           `Asn1RealStringSerializer` and `Asn1IntegerDecimalStringSerializer` 32 KiB, `Asn1TimeSerializer` 64,
           everything else the shared default.
         * `Asn1IntegerDecimalStringSerializer.decodingLimit` is no longer increase-only; it can now be lowered.

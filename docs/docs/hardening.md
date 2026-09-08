@@ -173,22 +173,27 @@ The test harness includes:
 
 #### Fallback decoding limits
 
-The defaults differ per type, because the decodes do. Measured against 1 MiB of hostile input on JDK 17 / Apple M3:
+The defaults differ per type, because the decodes do. Measured against 1 MiB of hostile input on JDK 17 / Apple M3.
+
+**This table is the single source for these figures** — the KDoc on `BoundedFallbackSerializer` and the
+`FallbackAmplification` test suite link here rather than restating them, so re-measuring means editing one place:
 
 | Fallback decode                     | Transient | Retained | Default |
 |-------------------------------------|----------:|---------:|--------:|
-| OBJECT IDENTIFIER (dotted string)   |     ~224× |     ~22× |   4 KiB |
-| `Asn1Element` (Base64 DER)          |      ~76× |        — | 384 MiB |
-| REAL (`mantissa * 2^exponent`)      |      ~9×  |     ~0.5×|  32 KiB |
+| OBJECT IDENTIFIER (dotted string)   |     ~226× |    ~0.5× |   4 KiB |
+| `Asn1Element` (Base64 DER)          |      ~52× |    ~16.5×| 384 MiB |
+| REAL (`mantissa * 2^exponent`)      |      ~7×  |     ~0.5×|  32 KiB |
 | ASN.1 string types                  |      ~3×  |      ~2× | 384 MiB |
 | BIT STRING (`padding:base64`)       |     ~2.75×|    ~0.75×| 384 MiB |
 | INTEGER (hex)                       |     ~0.5× |    ~0.5× | 384 MiB |
 | INTEGER (decimal, opt-in)           |         — |        — |  32 KiB |
 
-An OBJECT IDENTIFIER retains one `VarUInt` per node and a dotted string declares a node every two characters, which
-is why it is bounded three orders of magnitude below the rest. The decimal INTEGER form converts in quadratic time,
-so it is opt-in and bounded on CPU cost rather than memory; the linear hex form is what `Asn1Integer` registers as
-its fallback. **384 MiB is a structural ceiling, not a budget** — it keeps a value below the platform's string and
+An OBJECT IDENTIFIER is bounded three orders of magnitude below the rest on **transient** cost: a dotted string
+declares a node every two characters, and each one is parsed from decimal into binary, so the decode churns ~226× the
+input through the collector even though an `ObjectIdentifier` retains nothing but its content bytes once built. The
+decimal INTEGER form converts in quadratic time, so it is opt-in and bounded on CPU cost rather than memory; the
+linear hex form is what `Asn1Integer` registers as its fallback. The `Asn1Element` fallback is the one whose cost is
+mostly *retained*, since it builds a tree that stays. **384 MiB is a structural ceiling, not a budget** — it keeps a value below the platform's string and
 array limits (Kotlin/JS caps strings near 512 MiB) so that an oversized value fails as a catchable
 `SerializationException` instead of an `OutOfMemoryError` or a `RangeError`. Lower it for untrusted decode.
 

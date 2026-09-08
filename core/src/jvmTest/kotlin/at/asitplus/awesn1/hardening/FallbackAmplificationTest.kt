@@ -11,9 +11,10 @@
  * limit instead; the defaults differ by two orders of magnitude because the decodes do, and this suite pins both
  * halves of that: the limits fire, and the cost model behind them still holds.
  *
- * The amplification numbers here are the ones quoted in `BoundedFallbackSerializer`'s KDoc and in
- * `docs/docs/hardening.md`. They are asserted as loose bands rather than exact values, so they survive JIT and JVM
- * differences but still fail if a decode grows a new copy of its input.
+ * The measured figures live in `docs/docs/hardening.md#fallback-decoding-limits` and nowhere else — this suite
+ * asserts the *cost model* those figures describe, as loose bands rather than exact values, so it survives JIT and
+ * JVM differences but still fails if a decode grows a new copy of its input. Note that a band this wide will not
+ * notice a figure in that table going stale: re-measure when the decode changes.
  */
 
 package at.asitplus.awesn1
@@ -120,9 +121,10 @@ val FallbackAmplification by matrixSuite {
 
     "amplification bands" - {
         /*
-         * Why OBJECT IDENTIFIER gets a 4 KiB default while hex INTEGER gets 384 MiB. One VarUInt is retained per
-         * node, and a dotted string declares a node every two characters; a hex INTEGER is half its input, once.
-         * Measured on JDK 17/M3: OID ~224x transient and ~22x retained, hex ~0.5x both.
+         * Why OBJECT IDENTIFIER gets a 4 KiB default while hex INTEGER gets 384 MiB. A dotted string declares a
+         * node every two characters and each is parsed from decimal; a hex INTEGER is half its input, once. The
+         * cost is transient — an ObjectIdentifier retains only its content bytes — so this guards GC pressure.
+         * See `docs/docs/hardening.md#fallback-decoding-limits` for the measured figures.
          */
         "an OID string costs orders of magnitude more per character than a hex INTEGER" {
             val chars = 128 * 1024
@@ -144,7 +146,7 @@ val FallbackAmplification by matrixSuite {
             hexResult shouldNotBe null
 
             (hexCost < chars.toLong()) shouldBe true          // ~0.5x
-            (oidCost > hexCost * 20) shouldBe true            // ~224x vs ~0.5x, asserted at 20x apart
+            (oidCost > hexCost * 20) shouldBe true            // two orders apart; asserted at 20x
             (oidCost < chars.toLong() * 400) shouldBe true    // ratchet: fails if the decode grows another copy
         }
     }
