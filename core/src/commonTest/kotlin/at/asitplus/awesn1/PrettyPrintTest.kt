@@ -14,6 +14,8 @@ val PrettyPrintTest by matrixSuite {
             sortChildren = false,
             shouldBeSorted = false
         )
+        // header format follows Asn1Element.prettyPrintHeader: prefixed hex for the tag bytes, and the encoded
+        // length alongside the decimal one. This fixture predated both.
         structure.prettyPrint() shouldBe """
         PRIVATE 0 (=0xE0), length=0 (=0x00), overallLength=2
         {

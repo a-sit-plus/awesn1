@@ -7,12 +7,9 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.encoding.parseAll
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -22,22 +19,33 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * Values are encoded as Base64 over DER bytes to keep cross-format support without requiring DER-specific runtimes.
  * When used with the `awesn1.kxs` DER format, this fallback representation is bypassed and native DER TLV
  * encoding/decoding is used.
+ *
+ * Decoding is bounded by [decodingLimit] characters of Base64, i.e. roughly 3/4 as many DER bytes. See
+ * [BoundedFallbackSerializer] for what that limit does and does not protect against, and use [bounded] to obtain an
+ * instance carrying a limit of its own.
+ *
+ * @param explicitLimit character limit for this instance; `null` tracks
+ * [BoundedFallbackSerializer.defaultDecodingLimit] instead of capturing it at initialisation.
  */
 @OptIn(ExperimentalEncodingApi::class)
 abstract class Asn1ElementFallbackBase64SerializerBase<T : Any>(
     private val decodeElement: (Asn1Element) -> T,
-    private val encodeElement: (T) -> Asn1Element
-) : KSerializer<T> {
+    private val encodeElement: (T) -> Asn1Element,
+    private val explicitLimit: Int? = null,
+) : BoundedFallbackSerializer<T> {
     override val descriptor: SerialDescriptor = ASN1_ELEMENT_FALLBACK_BASE64_DESCRIPTOR
+
+    override val decodingLimit: Int get() = explicitLimit ?: BoundedFallbackSerializer.defaultDecodingLimit
+
+    override fun bounded(decodingLimit: Int): Asn1ElementFallbackBase64SerializerBase<T> =
+        object : Asn1ElementFallbackBase64SerializerBase<T>(decodeElement, encodeElement, decodingLimit) {}
 
     fun decodeFromAsn1Element(element: Asn1Element): T = decodeElement(element)
 
-    override fun deserialize(decoder: Decoder): T =
-        decodeFromAsn1Element(Asn1Element.parse(Base64.decode(decoder.decodeString())))
+    override fun decodeBounded(encoded: String): T =
+        decodeFromAsn1Element(Asn1Element.parse(Base64.decode(encoded)))
 
-    override fun serialize(encoder: Encoder, value: T) {
-        encoder.encodeString(Base64.encode(encodeElement(value).derEncoded))
-    }
+    override fun encodeBounded(value: T): String = Base64.encode(encodeElement(value).derEncoded)
 }
 
 @OptIn(ExperimentalEncodingApi::class)

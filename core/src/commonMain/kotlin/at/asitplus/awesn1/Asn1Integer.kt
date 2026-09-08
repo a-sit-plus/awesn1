@@ -775,24 +775,36 @@ internal value class VarUInt private constructor(
  * The limits used by this serializer can be overridden (globally)
  *   using [decodingLimit]/[encodingLimit].
  * This only affects string serialization for non-DER formats.
+ *
+ * Not registered as [Asn1Integer]'s non-DER fallback — [Asn1IntegerHexStringSerializer] is. Decimal conversion is
+ * quadratic in the number of digits, which is why this one is opt-in and bounded far below the shared
+ * [BoundedFallbackSerializer.defaultDecodingLimit].
  */
-object Asn1IntegerDecimalStringSerializer : KSerializer<Asn1Integer> {
+object Asn1IntegerDecimalStringSerializer : BoundedFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
-    /** maximum size (characters) for decoding. can only be increased, not decreased. */
-    //@formatter:off
-    var decodingLimit = DEFAULT_MAX_INPUT_LENGTH; set(v) { field = maxOf(field, v) }
-    //@formatter:on
-    override fun deserialize(decoder: Decoder): Asn1Integer =
-        Asn1Integer.fromDecimalString(decoder.decodeString(), decodingLimit)
+    /** maximum size (characters) for decoding. */
+    override var decodingLimit = DEFAULT_MAX_INPUT_LENGTH
+
+    /**
+     * The character limit is a cheap pre-filter against the quadratic conversion; [encodingLimit] is what defines
+     * the value domain, so it is checked here too. Without that, the ~2.41 chars-per-byte derivation admits strings
+     * whose magnitude lands just past [encodingLimit] — values this serializer would accept and then refuse to
+     * render, breaking the round trip it promises.
+     */
+    override fun decodeBounded(encoded: String): Asn1Integer =
+        Asn1Integer.fromDecimalString(encoded, decodingLimit).also {
+            val magnitudeBytes = it.uint.words.size
+            if (magnitudeBytes > encodingLimit) throw Asn1Exception(
+                "Magnitude ($magnitudeBytes bytes) exceeds byte limit ($encodingLimit bytes)."
+            )
+        }
 
     /** maximum size (bytes) for encoding. can only be increased, not decreased. */
     //@formatter:off
     var encodingLimit = DEFAULT_MAX_MAGNITUDE_BYTES; set(v) { field = maxOf(field, v) }
     //@formatter:on
-    override fun serialize(encoder: Encoder, value: Asn1Integer) {
-        encoder.encodeString(value.toDecimalString(encodingLimit))
-    }
+    override fun encodeBounded(value: Asn1Integer): String = value.toDecimalString(encodingLimit)
 
 }
 
@@ -804,16 +816,19 @@ object Asn1IntegerDecimalStringSerializer : KSerializer<Asn1Integer> {
  * encoding/decoding is used.
  *
  * Serialization uses [Asn1Integer.toHexString]/[Asn1Integer.fromHexString].
+ *
+ * This is [Asn1Integer]'s registered non-DER fallback. Hex conversion is linear and costs ~0.5x its input, so the
+ * shared [BoundedFallbackSerializer.defaultDecodingLimit] is bound enough; the quadratic decimal form is the one
+ * that needs a tight limit, and it is opt-in.
  */
-object Asn1IntegerHexStringSerializer : KSerializer<Asn1Integer> {
+object Asn1IntegerHexStringSerializer : BoundedFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
-    override fun deserialize(decoder: Decoder): Asn1Integer =
-        Asn1Integer.fromHexString(decoder.decodeString())
+    override val decodingLimit: Int get() = BoundedFallbackSerializer.defaultDecodingLimit
 
-    override fun serialize(encoder: Encoder, value: Asn1Integer) {
-        encoder.encodeString(value.toHexString())
-    }
+    override fun decodeBounded(encoded: String): Asn1Integer = Asn1Integer.fromHexString(encoded)
+
+    override fun encodeBounded(value: Asn1Integer): String = value.toHexString()
 
 }
 

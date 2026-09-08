@@ -18,7 +18,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlin.concurrent.Volatile
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -31,25 +30,24 @@ import kotlin.uuid.Uuid
  */
 @Serializable(with = ObjectIdentifier.Companion::class)
 class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
-    bytes: ByteArray?,
-    nodes: List<VarUInt>?
+    /**
+     * The sole storage: DER content bytes, i.e. base-128 subidentifiers. Everything else — [nodes], [toString],
+     * [equals], [hashCode], [compareTo], [encodeToTlv] — is derived from these, so this class holds no other state
+     * and no caches: it is fully immutable and safe to share across threads and to use as a map key.
+     *
+     * Base-128 is also the most compact representation available: a subidentifier costs `ceil(bits / 7)` bytes, and
+     * measured across the ~2750 registered OIDs 85.8 % of subidentifiers fit in a single byte. Keeping decoded nodes
+     * instead costs ~44 bytes each, which is what this class used to do.
+     *
+     * **The array is never handed out.** [bytes] copies, because a write into it would corrupt every derived value
+     * at once. The private constructor adopts, so the internal paths that encode a fresh array — the [String],
+     * [Uuid] and vararg constructors — do not copy it again.
+     */
+    private val contentBytes: ByteArray
 ) : Asn1Encodable<Asn1Primitive>, Comparable<ObjectIdentifier> {
     init {
-        if ((bytes == null) == (nodes == null)) {
-            //we're not even declaring this, since this is an implementation error on our end
-            throw ImplementationError("either nodes or bytes required")
-        }
-        if (bytes?.isEmpty() == true || nodes?.isEmpty() == true)
-            throw Asn1Exception("Empty OIDs are not supported")
-
-        bytes?.validate() //as cheap as it gets: traverse once and fail early.
-        nodes?.apply {
-            if (size < 2) throw Asn1StructuralException("at least two nodes required!")
-            if (first() > 2u) throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
-            if (first() < 2u) {
-                if (get(1) > 39u) throw Asn1Exception("Second segment must be <40")
-            }
-        }
+        if (contentBytes.isEmpty()) throw Asn1Exception("Empty OIDs are not supported")
+        contentBytes.validate() //as cheap as it gets: traverse once and fail early.
     }
 
     private fun ByteArray.validate() {
@@ -75,55 +73,84 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
         }
     }
 
-    // Sentinel-cached instead of `orLazy` delegates (no per-OID Lazy/closure objects — OIDs are numerous in real
-    // input). For a parsed OID, `bytesCache` is set eagerly and `nodesCache` is decoded lazily from the bytes; for a
-    // programmatic OID built from nodes, `bytesCache` is encoded lazily, so `nodesForBytes` retains the source nodes
-    // only in that case. Benign idempotent race, same @Volatile posture as cachedContentLength/cachedHash.
-    private val nodesForBytes: List<VarUInt>? = if (bytes == null) nodes else null
-    @Volatile
-    private var bytesCache: ByteArray? = bytes
-    @Volatile
-    private var nodesCache: List<String>? = null // not initialized eagerly; it might throw
-
     /**
      * Efficient, but cursed encoding of OID nodes, see [Microsoft's KB entry on OIDs](https://learn.microsoft.com/en-us/windows/win32/seccertenroll/about-object-identifier)
      * for details.
-     * Lazily evaluated.
+     *
+     * Returns a **copy**: these bytes are this OID's only state, so handing out the live array would let a caller
+     * corrupt its identity, ordering and encoding. Use [nodeCount] if you only need the arity, since that reads the
+     * storage without copying it.
      */
-    val bytes: ByteArray get() = bytesCache ?: nodesForBytes!!.toOidBytes().also { bytesCache = it }
+    val bytes: ByteArray get() = contentBytes.copyOf()
 
     /**
-     * Lazily evaluated list of OID nodes (e.g. `[1, 2, 35, 4654]`)
+     * Number of nodes (arcs) in this OID, without materialising them.
+     *
+     * Every subidentifier ends on a byte with the high bit clear, and the first one encodes two arcs, so this is a
+     * single allocation-free pass over the content bytes — cheaper than `nodes.size`, which renders every node to a
+     * [String] first.
      */
-    val nodes: List<String> get() {
-        nodesCache?.let { return it }
-        nodesForBytes?.let { nodes ->
-            return nodes.map { it.toDecimalString(MAX_SUBIDENTIFIER_BYTES) }
-                .also { nodesCache = it }
+    val nodeCount: Int get() = contentBytes.count { it >= 0 } + 1
+
+    /**
+     * List of OID nodes in order (e.g. `["1", "2", "35", "4654"]`), decoded on demand.
+     *
+     * Not cached: nothing but the content bytes is retained (see [contentBytes]). Repeated access re-decodes, so
+     * hold the result if you need it more than once.
+     *
+     * @throws Asn1Exception if a subidentifier's magnitude exceeds [MAX_SUBIDENTIFIER_BYTES]
+     */
+    val nodes: List<String>
+        get() = ArrayList<String>(nodeCount).also { out ->
+            forEachNode(onSmall = { out += it.toString() }, onBig = { out += it.toDecimalString(MAX_SUBIDENTIFIER_BYTES) })
         }
-        val firstSubidentifierEndExclusive = this.bytes.indexOfFirst { it >= 0 } + 1
-        val (firstSubidentifier, firstTailIndex) =
-            this.bytes.decodeAsn1VarBigUIntValue(0, firstSubidentifierEndExclusive)
-        val (first, second) = firstSubidentifier.toOidRootArcs()
-        var index = firstTailIndex
-        val collected = mutableListOf(first, second)
-        while (index < this.bytes.size) {
-            if (this.bytes[index] >= 0) {
-                collected += VarUInt(this.bytes[index].toUInt())
-                index++
-            } else {
-                val nodeStart = index
-                while (this.bytes[index] < 0) {
-                    index++
-                }
-                val nodeEndExclusive = index + 1
-                val (decoded, nextIndex) = this.bytes.decodeAsn1VarBigUIntValue(nodeStart, nodeEndExclusive)
-                collected += decoded
-                index = nextIndex
+
+    /**
+     * Walks the subidentifiers in order, handing each node to [onSmall] when it fits a [Long] and to [onBig]
+     * otherwise. The first subidentifier carries two arcs, so it produces two invocations.
+     *
+     * Fused deliberately: decoding a node used to cost a boundary scan, a second scan inside the varint decoder, a
+     * third walk building a `UByteArray`, a boxed [VarUInt], and a base-10^9 decimal conversion — to render a number
+     * that is below 128 for 85.8 % of subidentifiers. [onSmall] takes the value rather than a rendered [String] so
+     * that [toString] can append digits straight into its builder without an intermediate allocation per node.
+     */
+    private inline fun forEachNode(onSmall: (Long) -> Unit, onBig: (VarUInt) -> Unit) {
+        var index = 0
+        while (index < contentBytes.size) {
+            // `validate` guarantees every run terminates within bounds; the check keeps this safe regardless,
+            // which matters on Kotlin/Wasm, where an out-of-bounds read traps instead of throwing.
+            var end = index
+            var accumulator = 0L
+            while (end < contentBytes.size && contentBytes[end] < 0) {
+                accumulator = (accumulator shl 7) or (contentBytes[end].toLong() and 0x7f)
+                end++
             }
+            accumulator = (accumulator shl 7) or (contentBytes[end].toLong() and 0x7f)
+            val length = end - index + 1
+
+            // a run of up to 8 base-128 bytes carries at most 56 bits, so the accumulator above is exact
+            val fitsLong = length <= 8
+            if (index == 0) {
+                // the first subidentifier encodes both root arcs as (arc0 * 40) + arc1
+                if (fitsLong) when {
+                    accumulator < 40 -> { onSmall(0); onSmall(accumulator) }
+                    accumulator < 80 -> { onSmall(1); onSmall(accumulator - 40) }
+                    else -> { onSmall(2); onSmall(accumulator - 80) }
+                } else {
+                    val (first, second) = decodeSubidentifier(index, end + 1).toOidRootArcs()
+                    onBig(first)
+                    onBig(second)
+                }
+            } else {
+                if (fitsLong) onSmall(accumulator) else onBig(decodeSubidentifier(index, end + 1))
+            }
+            index = end + 1
         }
-        return collected.map { it.toDecimalString(MAX_SUBIDENTIFIER_BYTES) }.also { nodesCache = it }
     }
+
+    /** Decodes the subidentifier in `[from, toExclusive)` as a [VarUInt]; only for runs too long for a [Long]. */
+    private fun decodeSubidentifier(from: Int, toExclusive: Int): VarUInt =
+        contentBytes.decodeAsn1VarBigUIntValue(from, toExclusive).first
 
     /**
      * Creates an OID in the 2.25 subtree that requires no formal registration.
@@ -132,18 +159,14 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
      */
     @OptIn(ExperimentalUuidApi::class)
     constructor(uuid: Uuid) : this(
-        bytes = null,
-        nodes = listOf(VarUInt(2u), VarUInt(25u), VarUInt(uuid.toByteArray()))
+        listOf(VarUInt(2u), VarUInt(25u), VarUInt(uuid.toByteArray())).toOidBytes()
     )
 
     /**
      * @param nodes OID Tree nodes passed in order (e.g. 1u, 2u, 96u, …)
      * @throws Asn1Exception if less than two nodes are supplied, the first node is >2 or the second node is >39
      */
-    constructor(vararg nodes: UInt) : this(
-        bytes = nodes.toOidBytes(),
-        nodes = null
-    )
+    constructor(vararg nodes: UInt) : this(nodes.toOidBytes())
 
     /**
      * @param oid OID string in human-readable format (e.g. "1.2.96" or "1 2 96")
@@ -151,19 +174,26 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
      */
     @Throws(Asn1Exception::class)
     constructor(oid: String) : this(
-        bytes = null,
-        nodes =
-            (oid.split(if (oid.contains('.')) '.' else ' '))
-                .map { VarUInt.fromDecimalString(it, maxInputLength = MAX_SUBIDENTIFIER_CHARS) }
+        (oid.split(if (oid.contains('.')) '.' else ' '))
+            .map { VarUInt.fromDecimalString(it, maxInputLength = MAX_SUBIDENTIFIER_CHARS) }
+            .toOidBytes()
     )
 
 
     /**
      * @return human-readable format (e.g. "1.2.96")
+     *
+     * Recomputed on every call, since only the content bytes are retained. The library's own OID rendering
+     * ([Asn1Primitive.prettyPrint]) decodes a throwaway [ObjectIdentifier] per element anyway, so an instance-level
+     * cache could never be hit there; hold the result yourself if you render the same OID repeatedly.
      */
-    override fun toString(): String {
-        return nodes.joinToString(".")
-    }
+    override fun toString(): String = StringBuilder(nodeCount * 3).apply {
+        var first = true
+        forEachNode(
+            onSmall = { if (first) first = false else append('.'); append(it) },
+            onBig = { if (first) first = false else append('.'); append(it.toDecimalString(MAX_SUBIDENTIFIER_BYTES)) },
+        )
+    }.toString()
 
     override fun equals(other: Any?): Boolean {
         if (other == null) return false
@@ -201,7 +231,10 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
         decodable = object : Asn1Decodable<Asn1Primitive, ObjectIdentifier> {
             override fun doDecode(src: Asn1Primitive): ObjectIdentifier {
                 if (src.contentLength < 1) throw Asn1StructuralException("Empty OIDs are not supported")
-                return ObjectIdentifier(bytes = src.content, nodes = null)
+                // copies for the same reason decodeFromAsn1ContentBytes does: `src.content` is the element's live
+                // array. Calls the constructor rather than that factory because the companion is not initialised
+                // yet at this point — this object is an argument to its own supertype constructor.
+                return ObjectIdentifier(src.content.copyOf())
             }
         },
         fallbackSerializer = ObjectIdentifierStringSerializer,
@@ -210,6 +243,13 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
 
         /** maximum characters per sub-identifier when decoding from string */
+        /**
+         * Maximum size (characters) of a dotted OID string accepted by [ObjectIdentifierStringSerializer].
+         * [MAX_SUBIDENTIFIER_CHARS] bounds a single node, but nothing bounds how many nodes a string declares, and
+         * each one is retained. 4 KiB admits ~2000 nodes, which is orders of magnitude past any registered OID.
+         */
+        const val MAX_OID_STRING_CHARS = 4 * 1024
+
         const val MAX_SUBIDENTIFIER_CHARS = 150
         /** maximum bytes per sub-identifier when encoding to string */
         const val MAX_SUBIDENTIFIER_BYTES = 64
@@ -226,7 +266,9 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
          */
         @Throws(Asn1Exception::class)
         fun decodeFromAsn1ContentBytes(bytes: ByteArray): ObjectIdentifier =
-            ObjectIdentifier(bytes = bytes, nodes = null)
+            // copies: [bytes] belongs to the caller (on the parse path it is the element's live content array), and
+            // it becomes this OID's only state, so sharing it would let a later write corrupt the OID's identity
+            ObjectIdentifier(bytes.copyOf())
 
         @OptIn(InternalAwesn1Api::class)
         private inline fun encodeOidBytes(writeRootNodes: (Sink) -> Unit, writeTailNodes: (Sink) -> Unit): ByteArray =
@@ -258,6 +300,13 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
         //only called on the slow path
         @OptIn(InternalAwesn1Api::class)
         private fun List<VarUInt>.toOidBytes(): ByteArray {
+            // these used to live in `init`, guarding the node-carrying construction path; encoding is now eager, so
+            // they guard it here instead, before anything is written
+            if (isEmpty()) throw Asn1Exception("Empty OIDs are not supported")
+            if (size < 2) throw Asn1StructuralException("at least two nodes required!")
+            if (first() > 2u) throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
+            if (first() < 2u && get(1) > 39u) throw Asn1Exception("Second segment must be <40")
+
             return encodeOidBytes({ sink ->
                 sink.writeAsn1VarInt(
                     if (first() < 2u) VarUInt((first().shortValue() * 40 + get(1).shortValue()).toUInt())
@@ -305,14 +354,18 @@ fun Asn1Primitive.readOid() = runRethrowing {
  * When used with the `awesn1.kxs` DER format, this fallback representation is bypassed and native OBJECT IDENTIFIER
  * DER TLV encoding/decoding is used.
  */
-object ObjectIdentifierStringSerializer : KSerializer<ObjectIdentifier> {
+object ObjectIdentifierStringSerializer : BoundedFallbackSerializer<ObjectIdentifier> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
 
-    override fun deserialize(decoder: Decoder): ObjectIdentifier =
-        ObjectIdentifier(decoder.decodeString())
+    /**
+     * maximum size (characters) for decoding. Defaults to [MAX_OID_STRING_CHARS], far tighter than the shared
+     * [BoundedFallbackSerializer.defaultDecodingLimit]: every node becomes a retained `VarUInt`, so a dotted string
+     * of nothing but `.1` costs ~224x its own size in transient allocation and ~22x retained.
+     */
+    override var decodingLimit: Int = ObjectIdentifier.MAX_OID_STRING_CHARS
 
-    override fun serialize(encoder: Encoder, value: ObjectIdentifier) {
-        encoder.encodeString(value.toString())
-    }
+    override fun decodeBounded(encoded: String): ObjectIdentifier = ObjectIdentifier(encoded)
+
+    override fun encodeBounded(value: ObjectIdentifier): String = value.toString()
 
 }

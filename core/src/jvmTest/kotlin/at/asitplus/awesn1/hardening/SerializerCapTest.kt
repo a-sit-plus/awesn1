@@ -8,6 +8,8 @@ import at.asitplus.awesn1.ObjectIdentifierStringSerializer
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 /**
@@ -21,7 +23,12 @@ val SerializerCapTest by matrixSuite {
         val overCap = Asn1Integer.fromUnsignedByteArray(
             ByteArray(Asn1IntegerDecimalStringSerializer.encodingLimit + 1).also { it[0] = 0x01 }
         )
-        shouldThrow<Asn1Exception> { Json.encodeToString(Asn1IntegerDecimalStringSerializer, overCap) }
+        // the refusal reaches the caller as the SerializationException a serializer owes it, with the Asn1Exception
+        // that enforced the cap as its cause
+        val thrown = shouldThrow<SerializationException> {
+            Json.encodeToString(Asn1IntegerDecimalStringSerializer, overCap)
+        }
+        thrown.cause.shouldBeInstanceOf<Asn1Exception>()
     }
 
     check(Asn1IntegerDecimalStringSerializer.decodingLimit >= 500)
@@ -36,10 +43,13 @@ val SerializerCapTest by matrixSuite {
     }
 
     "over-cap OIDs cannot be constructed, so string (de)serialization stays bounded by construction" {
-        // The serializer itself needs no cap check; deserializing an over-cap arc throws at construction.
-        shouldThrow<Asn1Exception> {
+        // A single over-cap arc is under the serializer's own character limit, so it is the construction that
+        // rejects it — surfacing as the SerializationException a decoder owes its caller, with the Asn1Exception
+        // that did the rejecting as its cause.
+        val thrown = shouldThrow<SerializationException> {
             Json.decodeFromString(ObjectIdentifierStringSerializer, "\"2.25.${"9".repeat(200)}\"")
         }
+        thrown.cause.shouldBeInstanceOf<Asn1Exception>()
     }
 
     "ObjectIdentifierStringSerializer round-trips a normal OID (incl. a UUID-scale 2.25 arc)" {

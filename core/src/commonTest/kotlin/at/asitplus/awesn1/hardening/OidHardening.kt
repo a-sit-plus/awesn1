@@ -212,4 +212,76 @@ val OidHardening by matrixSuite {
             }
         }
     }
+
+    /*
+     * Content bytes are the only state an ObjectIdentifier keeps, which makes them the single point of corruption:
+     * a write into them would change identity, ordering, encoding and every node at once. So `bytes` copies, and
+     * ingest copies too.
+     */
+    "content bytes are never shared" - {
+        "the bytes accessor hands out a copy" {
+            val oid = ObjectIdentifier("1.2.840.113549.1.1.11")
+            val first = oid.bytes
+            val second = oid.bytes
+            (first === second) shouldBe false
+
+            first[0] = 0x2B // would turn 1.2 into 1.3 if it were the live array
+            oid.toString() shouldBe "1.2.840.113549.1.1.11"
+            oid.bytes[0] shouldBe 0x2A.toByte()
+        }
+
+        "decodeFromAsn1ContentBytes copies its input" {
+            val content = ObjectIdentifier("1.2.840.113549.1.1.11").bytes
+            val oid = ObjectIdentifier.decodeFromAsn1ContentBytes(content)
+            content[0] = 0x2B
+            oid.toString() shouldBe "1.2.840.113549.1.1.11"
+        }
+
+        "encodeToTlv does not alias the OID into the element" {
+            val oid = ObjectIdentifier("1.2.3")
+            val primitive = oid.encodeToTlv()
+            primitive.content[0] = 0x2B
+            oid.toString() shouldBe "1.2.3"
+        }
+    }
+
+    "nodes and nodeCount" - {
+        /*
+         * nodeCount reads the storage without rendering anything: every subidentifier ends on a byte with the high
+         * bit clear, and the first one carries two arcs.
+         */
+        "nodeCount agrees with nodes.size without materialising them" {
+            for (oid in listOf(
+                "1.2.3",
+                "1.2.840.113549.1.1.11",
+                "2.25.340282366920938463463374607431768211455", // 128-bit arc
+                "2.999.1",                                      // multi-byte first subidentifier
+                "0.0",
+                "1.2" + ".1".repeat(64),
+            )) {
+                val parsed = ObjectIdentifier(oid)
+                parsed.nodeCount shouldBe parsed.nodes.size
+                parsed.nodes.joinToString(".") shouldBe parsed.toString()
+            }
+        }
+
+        "nodes decodes each arc, single-byte and big alike" {
+            ObjectIdentifier("1.2.840.113549.1.1.11").nodes shouldBe
+                    listOf("1", "2", "840", "113549", "1", "1", "11")
+            // the root arcs come out of one subidentifier: 2*40+25 = 105
+            ObjectIdentifier("2.25.1").nodes shouldBe listOf("2", "25", "1")
+            ObjectIdentifier("2.999.1").nodes shouldBe listOf("2", "999", "1")
+            ObjectIdentifier("2.25.340282366920938463463374607431768211455").nodes shouldBe
+                    listOf("2", "25", "340282366920938463463374607431768211455")
+        }
+
+        "repeated access re-decodes to the same value" {
+            val oid = ObjectIdentifier.decodeFromAsn1ContentBytes(ObjectIdentifier("1.2.840.10045.4.3.2").bytes)
+            val once = oid.nodes
+            val twice = oid.nodes
+            (once === twice) shouldBe false // nothing is cached
+            once shouldBe twice
+            oid.toString() shouldBe "1.2.840.10045.4.3.2"
+        }
+    }
 }

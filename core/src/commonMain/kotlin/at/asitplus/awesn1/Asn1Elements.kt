@@ -54,6 +54,25 @@ const val MAX_RENDER_CHARS: Long = (1 shl 20).toLong()
 private const val RENDER_TRUNCATION_MARKER = " … (output truncated)"
 private const val INTEGER_DECIMAL_RENDER_LIMIT_BYTES = 512
 private fun ByteArray.toPrefixedHexString(): String = "0x" + toHexString(HexFormat.UpperCase)
+
+/**
+ * Bytes rendered into a diagnostic — a `prettyPrint` header or an exception message — before truncation.
+ *
+ * A diagnostic identifies the offending bytes; it does not transcribe them. Rendering all of them makes the cost of
+ * *reporting* a problem proportional to the attacker-chosen size of the input that caused it, which is how a
+ * bounded `prettyPrint` and a graceful rejection both turn into an `OutOfMemoryError`.
+ */
+internal const val DIAGNOSTIC_HEX_BYTES: Int = 64
+
+/**
+ * Hex for a diagnostic: at most [maxBytes] bytes, with the full size appended when truncated. Unlike
+ * [toPrefixedHexString] the result is O(1) in the size of this array, so it is safe to embed in an exception
+ * message or a render header regardless of where the bytes came from.
+ */
+@OptIn(ExperimentalStdlibApi::class)
+internal fun ByteArray.toDiagnosticHexString(maxBytes: Int = DIAGNOSTIC_HEX_BYTES): String =
+    if (size <= maxBytes) "0x" + toHexString(HexFormat.UpperCase)
+    else "0x" + copyOf(maxBytes).toHexString(HexFormat.UpperCase) + "…($size bytes)"
 private fun Asn1Element.Tag.toPrettyString(): String = toString().replaceFirst("(=", "(=0x")
 
 /**
@@ -258,13 +277,19 @@ sealed class Asn1Element(
                         emit(e.prettyPrintHeader(if (pretty) ind else 0))
                         emit(" ")
                         // render content bounded to the remaining budget so a huge primitive never builds a giant String;
-                        // clamp the build budget to Int (a String is Int-bounded) and reserve headroom for the suffix
-                        val content = e.content
+                        // clamp the build budget to Int (a String is Int-bounded) and reserve headroom for the suffix.
+                        // The size decision reads `contentLengthLong`, never `content`: for an encapsulating OCTET
+                        // STRING, reading `content` re-encodes the whole subtree, which would defeat `limit` before
+                        // any of this could apply. When the content is over budget AND not yet materialized, even a
+                        // hex prefix would cost that re-encode, so the length alone is reported.
+                        val length = e.contentLengthLong
                         val buildRoom = (limit - emitted).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
                         emit(
-                            if (content.size.toLong() * 2 <= buildRoom.toLong()) e.contentToString() // small: full (semantic) render
-                            else content.copyOf(((buildRoom - 64) / 2).coerceIn(0, content.size))
-                                .toPrefixedHexString() + "…(${content.size} bytes)"
+                            if (length * 2 <= buildRoom.toLong()) e.contentToString() // small: full (semantic) render
+                            else if (e.isContentMaterialized) e.content
+                                .let { it.copyOf(((buildRoom - 64) / 2).coerceIn(0, it.size)).toPrefixedHexString() }
+                                    .plus("…($length bytes)")
+                            else "…($length bytes)"
                         )
                         emit(e.prettyPrintTrailer(if (pretty) ind else 0))
                     }
@@ -1143,8 +1168,9 @@ class Asn1CustomStructure internal constructor(
                 " ${tag.tagValue}" +
                 (if (!tag.isConstructed) " PRIMITIVE" else "") +
                 " (=${tag.encodedTagBytes.toPrefixedHexString()}), length=${contentLengthLong} (=${encodedLength.toPrefixedHexString()})" +
-                ", overallLength=${overallLengthLong}" +
-                (content?.let { " ${it.toPrefixedHexString()}" } ?: "")
+                ", overallLength=${overallLengthLong}"
+    // deliberately no content hex: for a primitive-tagged custom structure `content` re-encodes the whole subtree,
+    // and the children are rendered as children right after this header anyway. `length` says all a reader needs.
 
     companion object {
         /**
@@ -1301,9 +1327,12 @@ class Asn1EncapsulatingOctetString private constructor(
 
     override fun iterator(): Asn1Structure.Iterator = _sequence.iterator()
 
+    // Deliberately no content hex. Bounding the hex would not have been enough: `content` here is the re-encoding
+    // of the whole encapsulated subtree, materialised (and then cached) by the mere act of reading it — so the cost
+    // is paid before any bound could apply. `renderTo` cannot help either, since a header string is built before
+    // `emit` ever sees it. The children are rendered as children immediately after this line anyway.
     override fun prettyPrintHeader(indent: Int) =
-        (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent) + " " +
-                content.toPrefixedHexString()
+        (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent)
 
     companion object {
         /**
@@ -1422,6 +1451,15 @@ open class Asn1Primitive private constructor(
     val content: ByteArray
         get() = contentCache ?: contentProviderOrNull!!().shareIfEmpty()
             .also { /*order is important here!*/contentCache = it; contentProviderOrNull = null }
+
+    /**
+     * Whether [content] is already in hand, i.e. reading it allocates nothing.
+     *
+     * `false` only for an [Asn1EncapsulatingOctetString] that has not been forced yet: its content is the
+     * re-encoding of the whole encapsulated subtree, so merely *reading* it costs O(subtree) and caches the result.
+     * [renderTo] consults this to keep a bounded render bounded — see the primitive branch there.
+     */
+    internal val isContentMaterialized: Boolean get() = contentCache != null
 
     override val contentLengthLong: Long get() = content.size.toLong()
 

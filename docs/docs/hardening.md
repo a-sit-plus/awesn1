@@ -164,6 +164,33 @@ The test harness includes:
       bytes.
     - Via `kotlinx.serialization`, the cap is `DER { maxInputLength = … }` (default `Int.MAX_VALUE`); lower it for
       untrusted decode.
+    - Under **non-DER formats** (JSON, CBOR, …) awesn1's types decode through fallback serializers, which
+      `maxInputLength` does not reach. Every one of them implements `BoundedFallbackSerializer` and carries a
+      character limit, settable globally via `BoundedFallbackSerializer.defaultDecodingLimit` or per serializer, and
+      per call site via `<Serializer>.bounded(limit)`. The format still materialises the encoded string before the
+      serializer sees it, so bounding the document remains necessary. Whatever such a decode rejects surfaces as a
+      `SerializationException`, so `catch (e: Exception)` around `decodeFromString` contains it.
+
+#### Fallback decoding limits
+
+The defaults differ per type, because the decodes do. Measured against 1 MiB of hostile input on JDK 17 / Apple M3:
+
+| Fallback decode                     | Transient | Retained | Default |
+|-------------------------------------|----------:|---------:|--------:|
+| OBJECT IDENTIFIER (dotted string)   |     ~224× |     ~22× |   4 KiB |
+| `Asn1Element` (Base64 DER)          |      ~76× |        — | 384 MiB |
+| REAL (`mantissa * 2^exponent`)      |      ~9×  |     ~0.5×|  32 KiB |
+| ASN.1 string types                  |      ~3×  |      ~2× | 384 MiB |
+| BIT STRING (`padding:base64`)       |     ~2.75×|    ~0.75×| 384 MiB |
+| INTEGER (hex)                       |     ~0.5× |    ~0.5× | 384 MiB |
+| INTEGER (decimal, opt-in)           |         — |        — |  32 KiB |
+
+An OBJECT IDENTIFIER retains one `VarUInt` per node and a dotted string declares a node every two characters, which
+is why it is bounded three orders of magnitude below the rest. The decimal INTEGER form converts in quadratic time,
+so it is opt-in and bounded on CPU cost rather than memory; the linear hex form is what `Asn1Integer` registers as
+its fallback. **384 MiB is a structural ceiling, not a budget** — it keeps a value below the platform's string and
+array limits (Kotlin/JS caps strings near 512 MiB) so that an oversized value fails as a catchable
+`SerializationException` instead of an `OutOfMemoryError` or a `RangeError`. Lower it for untrusted decode.
 
 It is a deliberate decision to leave input bounding to the caller. Only the caller knows realistic, expected input's sizes and
 semantics. Take X.509 certificates as an example: ECDSA-signed certificates are usually small, issuer DNs are also usually bounded,

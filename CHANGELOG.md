@@ -13,6 +13,74 @@
           silently accepted as a partial value.
         * `ByteArray.decodeAsn1VarBigInt()` keeps its signature — the array is the bound — but also rejects
           unterminated input now.
+    * Bounded **every** non-DER fallback serializer
+      ([Hardening → Fallback decoding limits](hardening.md#fallback-decoding-limits)):
+        * Added `BoundedFallbackSerializer`, carrying a `decodingLimit` in characters, a `bounded(limit)` factory for
+          call sites that name their serializer, and `BoundedFallbackSerializer.defaultDecodingLimit` (384 MiB) for
+          the `@Serializable(with = …)` path — the only knob that reaches properties declared by awesn1 itself.
+          Limits are read on every decode, so setting one is not ordering-sensitive.
+        * Defaults differ per type because the decodes differ by two orders of magnitude:
+          `ObjectIdentifierStringSerializer` 4 KiB (one retained `VarUInt` per node, ~224x transient),
+          `Asn1RealStringSerializer` and `Asn1IntegerDecimalStringSerializer` 32 KiB, `Asn1TimeSerializer` 64,
+          everything else the shared default.
+        * `Asn1IntegerDecimalStringSerializer.decodingLimit` is no longer increase-only; it can now be lowered.
+        * Over-limit values fail with a `SerializationException` rather than a platform-level
+          `OutOfMemoryError`/`RangeError`, and the check runs before the decode allocates.
+    * Non-DER fallback decoding now honours the `kotlinx.serialization` error contract
+      ([Hardening → Fallback decoding limits](hardening.md#fallback-decoding-limits)): a malformed value fails with a
+      `SerializationException` carrying the original failure as its cause, instead of letting `Asn1Exception`,
+      `IllegalArgumentException`, `NumberFormatException` or `InstantFormatException` escape. `Asn1Exception` extends
+      `Throwable` rather than `Exception`, so these previously slipped past a host's `catch (e: Exception)` entirely.
+      Applies to every fallback — OBJECT IDENTIFIER, INTEGER (both forms), REAL, BIT STRING, the ASN.1 string types,
+      `Asn1Time` and the Base64 `Asn1Element` family. Fatal throwables still propagate untouched.
+    * Non-DER fallback **encoding** honours the same contract: a value the serializer refuses to render — a decimal
+      INTEGER past `encodingLimit`, say — now fails with a `SerializationException` instead of a raw `Asn1Exception`.
+    * `Asn1IntegerDecimalStringSerializer` no longer accepts decimal strings it cannot re-encode. `decodingLimit`
+      derives from `encodingLimit` at ~2.41 characters per byte, which overestimates `log10(256)` = 2.40824, so
+      strings in that band decoded to magnitudes of up to 32 792 bytes and then failed to render. The character
+      limit is now a pre-filter against the quadratic conversion, and the magnitude is checked on decode as well,
+      so accepted and re-encodable are the same set.
+    * `Asn1RealStringSerializer` no longer compiles a `Regex` on every decode, and skips the whitespace-stripping
+      copy entirely when there is no whitespace to strip.
+    * Diagnostics are bounded: an exception message or a `prettyPrint` header no longer renders attacker-sized
+      content in full, so the cost of *reporting* a problem is no longer proportional to the input that caused it.
+        * `Asn1Primitive.readNull()` and `Asn1Real`'s strict-minimality rejection embedded the full hex of the
+          offending content — and the REAL path did it for both the input and its re-encoding. Both now use a
+          bounded preview (`DIAGNOSTIC_HEX_BYTES`, 64 bytes, with the full size appended).
+        * `Asn1EncapsulatingOctetString.prettyPrintHeader` hex-dumped its whole content, and
+          `Asn1CustomStructure.prettyPrintHeader` did the same — re-encoding the entire subtree to do it, since for
+          a primitive-tagged custom structure `content` is derived. Neither renders content now: `renderTo` cannot
+          truncate a header (the string is built before it is emitted), and the children are rendered immediately
+          afterwards anyway. The header still reports the content length.
+        * `renderTo` no longer reads `Asn1Primitive.content` to decide how much of it to render; it uses
+          `contentLengthLong`. Reading `content` on an `Asn1EncapsulatingOctetString` re-encodes the encapsulated
+          subtree, which defeated the render `limit` before any bound could apply. When content is over budget and
+          not yet materialised, the length alone is reported, since obtaining even a hex prefix would cost that
+          re-encode. Ordinary primitives are unaffected — they always hold their content.
+        * **Output change:** `prettyPrint` of an encapsulating OCTET STRING or a custom structure no longer includes
+          a trailing content hex dump, and a very large lazily-derived primitive renders as `…(N bytes)` rather than
+          a hex prefix.
+* **`ObjectIdentifier` storage rework:**
+    * Keeps **only** its DER content bytes now; nodes and the dotted string are derived on demand and nothing is
+      cached. Base-128 is the most compact form available (85.8 % of subidentifiers across the ~2750 registered OIDs
+      fit in a single byte), and the class is fully immutable — no `@Volatile` caches, so it is unconditionally safe
+      to share and to use as a map key.
+        * Retained size, measured over all registered OIDs: **408 → 48 bytes** for an OID built from a string,
+          **857 → 48 bytes** once rendered, and **88 KiB → 2 KiB** for a pathological 2002-node OID. The
+          `KnownOIDs` description map drops from ~1.0 MiB to ~160 KiB.
+        * Decoding is a single fused pass with a fast path for single-byte subidentifiers, replacing three scans, a
+          `List<VarUInt>`, a `List<String>` and a base-10^9 conversion per node: parsing and rendering one OID
+          allocates **2632 → 152 bytes**.
+    * Added `ObjectIdentifier.nodeCount`: the number of nodes, read straight from the content bytes without
+      rendering any of them. Prefer it over `nodes.size`.
+    * **Breaking:** `ObjectIdentifier.bytes` returns a **copy**. Those bytes are the OID's only state, so handing out
+      the live array would let a caller corrupt its identity, ordering and encoding at once.
+    * **Breaking:** `ObjectIdentifier.decodeFromAsn1ContentBytes` copies its input instead of adopting it, for the
+      same reason: on the parse path it is handed the element's live content array. Costs ~20 bytes per parsed OID.
+    * **Behavioural:** `ObjectIdentifier.nodes` is no longer cached and re-decodes on every access (~408 bytes per
+      call, previously free after the first). `toString()` likewise (~104 bytes per call, down from 176). Hold the
+      result if you need it repeatedly — the library's own OID rendering decodes a throwaway `ObjectIdentifier` per
+      element, so an instance-level cache could never have served it anyway.
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer

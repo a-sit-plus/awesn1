@@ -21,6 +21,15 @@ import kotlin.math.sign
 
 private const val IEEE754_BIAS = 1023
 
+/** compiled once; [Asn1RealStringSerializer] used to build this per call, on strings of caller-chosen length */
+private val REGEX_WHITESPACE = Regex("\\s")
+
+/**
+ * Maximum size (characters) of a `mantissa * 2^exponent` string accepted by [Asn1RealStringSerializer]. Matches the
+ * decimal-INTEGER default: a REAL that needs more than this is not a number anyone meant to send.
+ */
+private const val MAX_REAL_STRING_CHARS = 32 * 1024
+
 /**
  * ASN.1 REAL number. Mind possible loss of precision compared to Kotlin's built-in types.
  * This type is irrelevant for PKI applications, but required for generic ASN.1 serialization
@@ -261,9 +270,11 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
                     else Asn1Real(Asn1Integer.Negative(mantissa), exponent)
 
                 if (!lenient && !decoded.encodeToAsn1ContentBytes().contentEquals(bytes))
+                    // bounded hex on both halves: this path used to render the input AND its re-encoding in full,
+                    // so rejecting a large REAL cost several times its own size
                     throw Asn1Exception(
-                        "ASN.1 REAL is not minimally encoded. Is: ${bytes.toHexString()}, shouldBe: ${
-                            decoded.encodeToAsn1ContentBytes().toHexString()
+                        "ASN.1 REAL is not minimally encoded. Is: ${bytes.toDiagnosticHexString()}, shouldBe: ${
+                            decoded.encodeToAsn1ContentBytes().toDiagnosticHexString()
                         }"
                     )
 
@@ -282,15 +293,19 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
  * When used with the `awesn1.kxs` DER format, this serializer is bypassed and native REAL DER TLV
  * encoding/decoding is used.
  */
-object Asn1RealStringSerializer : KSerializer<Asn1Real> {
+object Asn1RealStringSerializer : BoundedFallbackSerializer<Asn1Real> {
     override val descriptor: SerialDescriptor
         get() = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_REAL, PrimitiveKind.STRING)
 
-    override fun serialize(
-        encoder: Encoder,
-        value: Asn1Real
-    ) {
-        val serializedValue = when (value) {
+    /**
+     * maximum size (characters) for decoding. Tighter than the shared
+     * [BoundedFallbackSerializer.defaultDecodingLimit] because the `mantissa * 2^exponent` form is split and
+     * whitespace-stripped before either half is parsed, which costs ~9x the input in transient allocation.
+     */
+    override var decodingLimit: Int = MAX_REAL_STRING_CHARS
+
+    override fun encodeBounded(value: Asn1Real): String =
+        when (value) {
             //@formatter:off
             Asn1Real.PositiveZero       ->  "0.0"
             Asn1Real.NegativeZero       -> "-0.0"
@@ -304,28 +319,25 @@ object Asn1RealStringSerializer : KSerializer<Asn1Real> {
                 "$mantissa * 2^$exponent"
             }
         }
-        encoder.encodeString(serializedValue)
-    }
 
-    override fun deserialize(decoder: Decoder): Asn1Real {
-        val decodedString = decoder.decodeString()
-        return when {
-            //@formatter:off
-            decodedString ==    "0" -> Asn1Real.PositiveZero
-            decodedString ==  "0.0" -> Asn1Real.PositiveZero
-            decodedString ==   "-0" -> Asn1Real.NegativeZero
-            decodedString == "-0.0" -> Asn1Real.NegativeZero
-            decodedString ==  "INF" -> Asn1Real.PositiveInfinity
-            decodedString == "-INF" -> Asn1Real.NegativeInfinity
-            decodedString ==  "NaN" -> Asn1Real.NaN
-            //@formatter:on
-            else -> {
-                val parts = decodedString.replace("\\s".toRegex(), "").split("*2^")
-                require(parts.size == 2) { "Invalid format for Asn1Real" }
-                val mantissa = Asn1Integer.fromHexString(parts[0])
-                val exponent = parts[1].toLong(16)
-                Asn1Real(mantissa, exponent)
-            }
+    override fun decodeBounded(encoded: String): Asn1Real = when {
+        //@formatter:off
+        encoded ==    "0" -> Asn1Real.PositiveZero
+        encoded ==  "0.0" -> Asn1Real.PositiveZero
+        encoded ==   "-0" -> Asn1Real.NegativeZero
+        encoded == "-0.0" -> Asn1Real.NegativeZero
+        encoded ==  "INF" -> Asn1Real.PositiveInfinity
+        encoded == "-INF" -> Asn1Real.NegativeInfinity
+        encoded ==  "NaN" -> Asn1Real.NaN
+        //@formatter:on
+        else -> {
+            // only copy the string if there is whitespace to strip; the common case has none
+            val compacted = if (encoded.any(Char::isWhitespace)) encoded.replace(REGEX_WHITESPACE, "") else encoded
+            val parts = compacted.split("*2^")
+            require(parts.size == 2) { "Invalid format for Asn1Real" }
+            val mantissa = Asn1Integer.fromHexString(parts[0])
+            val exponent = parts[1].toLong(16)
+            Asn1Real(mantissa, exponent)
         }
     }
 

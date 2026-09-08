@@ -22,6 +22,17 @@ import at.asitplus.awesn1.encoding.decodeToAsn1Integer
 @OptIn(ExperimentalStdlibApi::class)
 internal fun base64(bytes: ByteArray): String = java.util.Base64.getEncoder().encodeToString(bytes)
 
+/**
+ * Swallows a value so that measuring a call does not trip the return-value checker, and so the optimiser cannot
+ * argue the call away.
+ */
+@Volatile
+private var blackhole: Any? = null
+
+internal fun consume(value: Any?) {
+    blackhole = value
+}
+
 internal fun measureMillis(block: () -> Unit): Long {
     val start = System.nanoTime()
     block()

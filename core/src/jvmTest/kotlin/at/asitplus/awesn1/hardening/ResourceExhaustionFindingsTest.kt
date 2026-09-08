@@ -27,6 +27,7 @@ import at.asitplus.awesn1.encoding.readNull
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 /**
@@ -35,6 +36,13 @@ import kotlinx.serialization.json.Json
  * ratchet rather than a target.
  */
 private const val MAX_DENSE_PARSE_AMPLIFICATION = 72
+
+/**
+ * Warm-up passes before an allocation measurement. Class init and the first JIT compilation of a code path cost
+ * far more than any bound asserted here, and they are paid by whichever case touches the path first — which makes
+ * an un-warmed case pass or fail depending on what else ran in the same JVM.
+ */
+private const val WARMUP_ITERATIONS = 50
 
 @OptIn(ExperimentalStdlibApi::class)
 val ResourceExhaustionFindings by matrixSuite {
@@ -55,21 +63,25 @@ val ResourceExhaustionFindings by matrixSuite {
             // transient allocation made while building the (discarded) header, so that is what is
             // measured here.
 
-            // Control (A): a small payload costs almost nothing.
             val small = Asn1CustomStructure.asPrimitive(
                 listOf(Asn1Primitive(Asn1Element.Tag.OCTET_STRING, ByteArray(8) { 0x41 })),
                 16u,
                 TagClass.CONTEXT_SPECIFIC,
             )
-            (allocatedBytes { small.toString(limit = 200) } < 1024 * 1024) shouldBe true
+            // Warm up first: the first render in the JVM pays class init and JIT for the whole render machinery,
+            // which costs more than the bound this case asserts and has nothing to do with the payload.
+            repeat(WARMUP_ITERATIONS) { consume(small.toString(limit = 200)) }
 
-            // Fault (B): an 8 MiB subtree is fully re-encoded and hex-dumped for a 200-char render.
+            // Control (A): a small payload costs almost nothing.
+            (allocatedBytes { consume(small.toString(limit = 200)) } < 1024 * 1024) shouldBe true
+
+            // Fault (B): an 8 MiB subtree used to be fully re-encoded and hex-dumped for a 200-char render.
             val big = Asn1CustomStructure.asPrimitive(
                 listOf(Asn1Primitive(Asn1Element.Tag.OCTET_STRING, ByteArray(8 * 1024 * 1024) { 0x41 })),
                 16u,
                 TagClass.CONTEXT_SPECIFIC,
             )
-            (allocatedBytes { big.toString(limit = 200) } < 1024 * 1024) shouldBe true
+            (allocatedBytes { consume(big.toString(limit = 200)) } < 1024 * 1024) shouldBe true
         }
 
         /*
@@ -87,11 +99,22 @@ val ResourceExhaustionFindings by matrixSuite {
             val raw = Asn1Primitive(Asn1Element.Tag.OCTET_STRING, ByteArray(8 * 1024 * 1024) { 0x41 })
             val encapsulating = Asn1EncapsulatingOctetString(listOf(filler))
 
-            // Control (A): the byte-identical RAW OCTET STRING renders within budget.
-            (allocatedBytes { raw.prettyPrint(limit = 100) } < 1024 * 1024) shouldBe true
+            // Warm up both shapes, for the same reason as the case above: the raw variant renders through the
+            // primitive branch and the encapsulating one through the structure branch, so warming one does not
+            // compile the other.
+            val smallEncapsulating = Asn1EncapsulatingOctetString(
+                listOf(Asn1Primitive(Asn1Element.Tag.OCTET_STRING, ByteArray(8) { 0x41 }))
+            )
+            repeat(WARMUP_ITERATIONS) {
+                consume(raw.prettyPrint(limit = 100))
+                consume(smallEncapsulating.prettyPrint(limit = 100))
+            }
 
-            // Fault (B): the encapsulating variant hex-dumps its whole content regardless.
-            (allocatedBytes { encapsulating.prettyPrint(limit = 100) } < 1024 * 1024) shouldBe true
+            // Control (A): the byte-identical RAW OCTET STRING renders within budget.
+            (allocatedBytes { consume(raw.prettyPrint(limit = 100)) } < 1024 * 1024) shouldBe true
+
+            // Fault (B): the encapsulating variant used to hex-dump its whole content regardless.
+            (allocatedBytes { consume(encapsulating.prettyPrint(limit = 100)) } < 1024 * 1024) shouldBe true
         }
 
         /*
@@ -158,7 +181,11 @@ val ResourceExhaustionFindings by matrixSuite {
 
             // Warm up first. Cold, the JIT has not yet scalar-replaced the parser's transient tuples, which roughly
             // doubles the measured allocation (~110x vs ~54x) and would drown the signal this bound is meant to carry.
-            repeat(3) { Asn1Element.parseAll(input, limit = input.size.toLong()) }
+            // Warming up on a small input rather than on `input` keeps this cheap while compiling the same paths, and
+            // makes the case self-sufficient rather than dependent on which other suites happened to run first.
+            val warmup = ByteArray(64).also { for (i in 0 until 32) it[i * 2] = 0x05 }
+            repeat(WARMUP_ITERATIONS) { consume(Asn1Element.parseAll(warmup, limit = warmup.size.toLong())) }
+            repeat(3) { consume(Asn1Element.parseAll(input, limit = input.size.toLong())) }
 
             var parsed: List<Asn1Element> = emptyList()
             val allocated = allocatedBytes { parsed = Asn1Element.parseAll(input, limit = input.size.toLong()) }
@@ -172,13 +199,20 @@ val ResourceExhaustionFindings by matrixSuite {
         /*
          * fallback_b64_serializer_api_no_limit_knob
          *
-         * BUG: Asn1ElementFallbackBase64SerializerBase.deserialize neither accepts nor propagates
-         * a byte limit, and the deferred asCustomPrimitiveStructure path re-parses primitive
-         * content with an UNBOUNDED parseAll. A host has no API surface at all with which to
-         * bound a base64 DER field, and heap grows 40-60x the wire size.
+         * BUG (fixed): Asn1ElementFallbackBase64SerializerBase.deserialize neither accepted nor
+         * propagated a limit, so a host had no API surface at all with which to bound a base64 DER
+         * field under a non-DER format. The amplification itself is the documented characteristic
+         * of deferred semantic parsing (see der_tree_memory_amplification_vs_limit above); what
+         * was missing was the knob, and the fallback path had none while `DER { maxInputLength }`
+         * and the streaming `limit` bounded every other route into the parser.
+         *
+         * The serializers now implement BoundedFallbackSerializer: `bounded(limit)` for call sites
+         * that name their serializer, and the global default for the `@Serializable(with = ...)`
+         * path, which is the only knob that reaches element-typed properties declared by awesn1
+         * itself. The check runs on the encoded string, before the Base64 decode allocates.
          *
          * TRIGGER: a context-tagged primitive whose content is 100_000 copies of the 2-byte TLV
-         * 80 00, delivered as a JSON base64 string.
+         * 80 00, delivered as a JSON base64 string, decoded through both knobs.
          */
         "fallback_b64_serializer_api_no_limit_knob" {
             val children = 100_000
@@ -191,10 +225,43 @@ val ResourceExhaustionFindings by matrixSuite {
                     ) + content
             val json = "\"" + base64(der) + "\""
 
-            var decoded: Asn1CustomStructure? = null
-            val allocated = allocatedBytes { decoded = Json.decodeFromString(Asn1CustomStructureFallbackBase64Serializer, json) }
-            decoded!!.children.size shouldBe children
-            (allocated < json.length.toLong() * 8) shouldBe true
+            // Control (A): within its limit the payload still decodes, deferred children and all. Measured
+            // twice, because the first pass pays class init and JIT warm-up, which would otherwise land on
+            // whichever leg runs first rather than on the tree.
+            var accepted = 0L
+            repeat(2) {
+                accepted = allocatedBytes {
+                    Json.decodeFromString(Asn1CustomStructureFallbackBase64Serializer, json)
+                        .children.size shouldBe children
+                }
+            }
+
+            // Fault (B1): an explicitly bounded instance refuses it, and refuses it before the Base64
+            // decode. Both legs pay the same JSON parse, so the difference between them is the tree that
+            // the rejected leg never builds.
+            val bounded = Asn1CustomStructureFallbackBase64Serializer.bounded(1024)
+            val rejected = allocatedBytes {
+                shouldThrow<SerializationException> { Json.decodeFromString(bounded, json) }
+            }
+            // measured ~20.4 MiB accepted vs ~273 KiB rejected, i.e. 74x; asserted at one order of magnitude
+            (rejected * 10 < accepted) shouldBe true
+
+            // Fault (B2): the global default reaches the singleton, i.e. the `@Serializable(with = ...)`
+            // path a host cannot otherwise get at. Read per decode, so ordering against class init
+            // does not matter.
+            val previous = BoundedFallbackSerializer.defaultDecodingLimit
+            try {
+                BoundedFallbackSerializer.defaultDecodingLimit = 1024
+                shouldThrow<SerializationException> {
+                    Json.decodeFromString(Asn1CustomStructureFallbackBase64Serializer, json)
+                }
+            } finally {
+                BoundedFallbackSerializer.defaultDecodingLimit = previous
+            }
+
+            // ...and restoring it restores the control.
+            Json.decodeFromString(Asn1CustomStructureFallbackBase64Serializer, json)
+                .children.size shouldBe children
         }
 
         /*
