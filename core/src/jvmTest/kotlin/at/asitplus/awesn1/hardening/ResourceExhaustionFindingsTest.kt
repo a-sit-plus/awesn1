@@ -15,9 +15,13 @@
  * under `findings/<harness>/submitted_humanreadable`.
  */
 
+@file:OptIn(at.asitplus.awesn1.InternalAwesn1Api::class)
+
 package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.decodeAsn1VarBigInt
+import at.asitplus.awesn1.encoding.internal.decodeAsn1VarBigInt
+import at.asitplus.awesn1.encoding.toAsn1VarInt
 import at.asitplus.awesn1.encoding.parseAll
 import at.asitplus.awesn1.encoding.readNull
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -196,16 +200,40 @@ val ResourceExhaustionFindings by matrixSuite {
         /*
          * varbig_source_decoder_unbounded_no_limit
          *
-         * BUG: decodeAsn1VarBigUIntValue(Source) caps neither the number of continuation bytes it
-         * accumulates nor exposes the `limit: Long` every sibling streaming API requires, and it
-         * silently ACCEPTS an unterminated varint at stream exhaustion instead of failing.
-         * Attacker-streamed continuation bytes drive ~3x allocation into a raw OutOfMemoryError.
+         * BUG (fixed): decodeAsn1VarBigUIntValue(Source) capped neither the number of continuation
+         * bytes it accumulated nor exposed the `limit: Long` every sibling streaming API requires,
+         * and it silently ACCEPTED an unterminated varint at stream exhaustion instead of failing.
+         * Attacker-streamed continuation bytes drove ~3x allocation into a raw OutOfMemoryError,
+         * which no `catch (Asn1Exception)` in the host app can contain.
+         *
+         * The decode now runs through a BoundedSource, so the bound is enforced BEFORE each read
+         * rather than after the heap is gone, and exhaustion without a terminator is an error.
          *
          * TRIGGER: 1024 unterminated 0xFF bytes — the capped siblings raise "Unterminated ASN.1
-         * unsigned varint"; this path returns a value.
+         * unsigned varint" and this path used to return a value — plus a 1 MiB stream of them
+         * against a 64-byte limit.
          */
         "varbig_source_decoder_unbounded_no_limit" {
-            shouldThrow<Throwable> { ByteArray(1024) { 0xFF.toByte() }.decodeAsn1VarBigInt() }
+            // Control (A): a well-formed varint still decodes, from both a ByteArray and a source.
+            val wellFormed = Asn1Integer.fromDecimalString("123456789012345678901234567890").toAsn1VarInt()
+            wellFormed.decodeAsn1VarBigInt().first.toDecimalString() shouldBe "123456789012345678901234567890"
+            wellFormed.wrapInUnsafeSource().decodeAsn1VarBigInt(wellFormed.size.toLong())
+                .first.toDecimalString() shouldBe "123456789012345678901234567890"
+
+            // Fault (B1): an unterminated varint is malformed input, not a partial value.
+            shouldThrow<IllegalArgumentException> { ByteArray(1024) { 0xFF.toByte() }.decodeAsn1VarBigInt() }
+
+            // Fault (B2): the streaming entry point takes a limit, and enforces it BEFORE reading rather
+            // than after the heap is gone — exactly `limit` bytes are consumed, and the rest of the
+            // attacker's stream is never touched, so the accumulator can never outgrow the bound.
+            val stream = ByteArray(4096) { 0xFF.toByte() }.wrapInUnsafeSource()
+            shouldThrow<IllegalArgumentException> { stream.decodeAsn1VarBigInt(64) }
+            var untouched = 0
+            while (!stream.exhausted()) {
+                stream.readByte()
+                untouched++
+            }
+            untouched shouldBe 4096 - 64
         }
     }
 }

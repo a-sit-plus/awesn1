@@ -1,6 +1,18 @@
 # Changelog
 
 ## NEXT
+* **Security Hardening:**
+    * Bounded the streaming big-varint decoder
+      ([Hardening → Input Bounding](hardening.md#input-bounding-as-the-callers-responsibility)):
+        * **Breaking:** `kotlinx.io.Source.decodeAsn1VarBigInt()` now takes a mandatory `limit: Long`, matching every
+          other streaming entry point. Unlike `decodeAsn1VarUInt`/`decodeAsn1VarULong`, which their target type caps at
+          5 resp. 9 continuation bytes, a big varint has no inherent size, so an attacker-controlled source could
+          previously drive unbounded allocation into a raw `OutOfMemoryError`.
+        * An unterminated varint (every byte carrying the continuation bit until the source runs dry) is now rejected
+          with `Unterminated ASN.1 unsigned varint`, as the fixed-width siblings already did, instead of being
+          silently accepted as a partial value.
+        * `ByteArray.decodeAsn1VarBigInt()` keeps its signature — the array is the bound — but also rejects
+          unterminated input now.
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer

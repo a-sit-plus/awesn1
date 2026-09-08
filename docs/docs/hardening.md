@@ -159,7 +159,9 @@ The test harness includes:
     - **`ByteArray`** parsing is bounded by the array's size — sanity-check that size before parsing untrusted data.
       Even a small blob of tiny nested elements can allocate a large object graph (but never causes a stack overflow).
     - **`Source`** (streaming) parsing takes a byte `limit` as a **mandatory** parameter; there is no unbounded
-      streaming overload.
+      streaming overload. The same holds for `Source.decodeAsn1VarBigInt(limit)`: a big varint has no inherent size
+      ceiling, unlike `decodeAsn1VarUInt`/`decodeAsn1VarULong`, which their target type caps at 5 resp. 9 continuation
+      bytes.
     - Via `kotlinx.serialization`, the cap is `DER { maxInputLength = … }` (default `Int.MAX_VALUE`); lower it for
       untrusted decode.
 

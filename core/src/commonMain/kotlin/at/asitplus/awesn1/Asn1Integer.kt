@@ -693,7 +693,7 @@ internal value class VarUInt private constructor(
         }
 
 
-        internal fun ByteArray.decodeAsn1VarBigUInt() = wrapInUnsafeSource().decodeAsn1VarBigUIntValue()
+        internal fun ByteArray.decodeAsn1VarBigUInt() = wrapInUnsafeSource().decodeAsn1VarBigUIntValue(size.toLong())
 
         internal fun ByteArray.decodeAsn1VarBigUIntValue(startIndex: Int, endIndex: Int = size): Pair<VarUInt, Int> {
             require(startIndex in 0..endIndex) { "Invalid bounds [$startIndex, $endIndex)" }
@@ -706,26 +706,35 @@ internal value class VarUInt private constructor(
             return decodeBase128Unsigned(startIndex, index) to index
         }
 
-        internal fun Source<*>.decodeAsn1VarBigUIntValue(): VarUInt {
-            val accumulator = ByteArrayBuffer()
-            while (!exhausted()) {
-                val current = readUByte()
-                accumulator.writeUByte(current)
-                if (current < 0x80.toUByte()) break
-            }
-            val encoded = accumulator.toByteArray()
-            return encoded.decodeAsn1VarBigUIntValue(0, encoded.size).first
-        }
+        internal fun Source<*>.decodeAsn1VarBigUIntValue(limit: Long?): VarUInt =
+            readAsn1VarBigUIntBytes(limit).let { it.decodeAsn1VarBigUIntValue(0, it.size).first }
 
-        internal fun Source<*>.decodeAsn1VarBigUInt(): Pair<VarUInt, ByteArray> {
-            val accumulator = ByteArrayBuffer()//TODO hog
-            while (!exhausted()) {
-                val current = readUByte()
+        internal fun Source<*>.decodeAsn1VarBigUInt(limit: Long?): Pair<VarUInt, ByteArray> =
+            readAsn1VarBigUIntBytes(limit).let { it.decodeAsn1VarBigUIntValue(0, it.size).first to it }
+
+        /**
+         * Consumes one big-varint encoding from this source and returns its raw bytes.
+         *
+         * Unlike the fixed-width [decodeAsn1VarUInt][at.asitplus.awesn1.encoding.decodeAsn1VarUInt] family, which is
+         * bounded by the target type's bit width (5 or 9 continuation bytes), a big varint has no inherent size, so
+         * the only thing standing between an attacker-controlled source and the heap is [limit]. It is enforced
+         * before every read, matching the convention of every other streaming entry point; `null` means unbounded and
+         * is only safe on a source that is already bounded, such as a wrapped [ByteArray].
+         *
+         * @param limit maximum number of bytes to consume, enforced before reading from the underlying source
+         * @throws IllegalArgumentException if the varint is unterminated at source exhaustion, or exceeds [limit]
+         */
+        private fun Source<*>.readAsn1VarBigUIntBytes(limit: Long?): ByteArray {
+            val bounded = BoundedSource(this, limit)
+            val accumulator = ByteArrayBuffer()
+            while (true) {
+                // an unterminated varint is malformed, not a partial value: the fixed-width siblings reject it too
+                if (bounded.exhausted()) throw IllegalArgumentException("Unterminated ASN.1 unsigned varint")
+                val current = bounded.readUByte()
                 accumulator.writeUByte(current)
                 if (current < 0x80.toUByte()) break
             }
-            val encoded = accumulator.toByteArray()
-            return encoded.decodeAsn1VarBigUIntValue(0, encoded.size).first to encoded
+            return accumulator.toByteArray()
         }
 
         //resurrect old hand-rolled variant from 2022 for efficiency
