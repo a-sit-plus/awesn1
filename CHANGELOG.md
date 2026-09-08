@@ -19,10 +19,9 @@
           call sites that name their serializer, and `BoundedFallbackSerializer.defaultDecodingLimit` (384 MiB) for
           the `@Serializable(with = …)` path — the only knob that reaches properties declared by awesn1 itself.
           Limits are read on every decode, so setting one is not ordering-sensitive.
-        * Defaults differ per type because the decodes differ by two orders of magnitude:
-          `ObjectIdentifierStringSerializer` 4 KiB (~226x transient, one decimal parse per node),
-          `Asn1RealStringSerializer` and `Asn1IntegerDecimalStringSerializer` 32 KiB, `Asn1TimeSerializer` 64,
-          everything else the shared default.
+        * Defaults differ per type because the decodes differ by orders of magnitude: `Asn1RealStringSerializer`
+          and `Asn1IntegerDecimalStringSerializer` 32 KiB (the decimal conversion is quadratic),
+          `Asn1TimeSerializer` 64, everything else the shared default.
         * `Asn1IntegerDecimalStringSerializer.decodingLimit` is no longer increase-only; it can now be lowered.
         * Over-limit values fail with a `SerializationException` rather than a platform-level
           `OutOfMemoryError`/`RangeError`, and the check runs before the decode allocates.
@@ -77,6 +76,14 @@
       the live array would let a caller corrupt its identity, ordering and encoding at once.
     * **Breaking:** `ObjectIdentifier.decodeFromAsn1ContentBytes` copies its input instead of adopting it, for the
       same reason: on the parse path it is handed the element's live content array. Costs ~20 bytes per parsed OID.
+    * The `String` constructor parses the dotted form straight into content bytes in a single pass, with a sliding
+      window over the input and a `Long` accumulator per arc. It previously split the string into a `List<String>`
+      and mapped that to a `List<VarUInt>` before encoding anything, allocating two objects per node purely to
+      discard them: **~226× → ~1.5×** the input in transient allocation for a node-dense string, and
+      **3624 → 441 bytes** for an ordinary OID. Only an arc longer than 18 digits takes the big-integer path.
+    * `ObjectIdentifierStringSerializer` consequently has no tighter limit of its own and tracks
+      `BoundedFallbackSerializer.defaultDecodingLimit`; the `ObjectIdentifier.MAX_OID_STRING_CHARS` constant added
+      earlier in this cycle is gone. `MAX_SUBIDENTIFIER_CHARS` still caps a single arc.
     * **Behavioural:** `ObjectIdentifier.nodes` is no longer cached and re-decodes on every access (~408 bytes per
       call, previously free after the first). `toString()` likewise (~104 bytes per call, down from 176). Hold the
       result if you need it repeatedly — the library's own OID rendering decodes a throwaway `ObjectIdentifier` per

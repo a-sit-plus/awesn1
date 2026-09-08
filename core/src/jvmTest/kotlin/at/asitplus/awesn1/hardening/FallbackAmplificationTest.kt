@@ -39,19 +39,23 @@ val FallbackAmplification by matrixSuite {
          * Each of these decodes is reachable from any non-DER format, and each is bounded by a limit of its own
          * rather than by the shared default, because its cost per input character differs by orders of magnitude.
          */
-        "OBJECT IDENTIFIER is bounded well below the shared default" {
-            ObjectIdentifierStringSerializer.decodingLimit shouldBe ObjectIdentifier.MAX_OID_STRING_CHARS
-            (ObjectIdentifierStringSerializer.decodingLimit < DEFAULT_FALLBACK_DECODING_LIMIT) shouldBe true
+        /*
+         * OBJECT IDENTIFIER carried a 4 KiB limit of its own while decoding built one String and one VarUInt per
+         * node. The dotted string is now parsed straight into content bytes, so the cost is in line with the cheap
+         * decodes and the limit went back to the shared default. What still bounds it is the per-node cap, which is
+         * what keeps the quadratic big-integer fallback within reach.
+         */
+        "OBJECT IDENTIFIER tracks the shared default, but still caps a single node" {
+            ObjectIdentifierStringSerializer.decodingLimit shouldBe DEFAULT_FALLBACK_DECODING_LIMIT
 
-            // within the limit: still an ordinary OID
             Json.decodeFromString(ObjectIdentifierStringSerializer, json("1.2.840.113549.1.1.11"))
                 .toString() shouldBe "1.2.840.113549.1.1.11"
 
-            // past it: rejected, and rejected before a single VarUInt is built
+            // one absurdly long arc is rejected regardless of how short the whole string is
             shouldThrow<SerializationException> {
                 Json.decodeFromString(
                     ObjectIdentifierStringSerializer,
-                    json(oidString(ObjectIdentifier.MAX_OID_STRING_CHARS + 2)),
+                    json("1.2." + "9".repeat(ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS + 1)),
                 )
             }
         }
@@ -121,33 +125,32 @@ val FallbackAmplification by matrixSuite {
 
     "amplification bands" - {
         /*
-         * Why OBJECT IDENTIFIER gets a 4 KiB default while hex INTEGER gets 384 MiB. A dotted string declares a
-         * node every two characters and each is parsed from decimal; a hex INTEGER is half its input, once. The
-         * cost is transient — an ObjectIdentifier retains only its content bytes — so this guards GC pressure.
+         * The ratchet that guards the single-pass dotted-string encode. The implementation this replaced allocated
+         * two objects per node — a String from `split` and a boxed VarUInt from `map` — before encoding anything,
+         * costing ~226x the input; the sliding window costs ~1.5x, which is the output bytes plus the buffer they
+         * are written through. A band this wide fails only if per-node materialisation comes back.
+         *
          * See `docs/docs/hardening.md#fallback-decoding-limits` for the measured figures.
          */
-        "an OID string costs orders of magnitude more per character than a hex INTEGER" {
+        "decoding an OID string allocates a small multiple of the string, not a multiple per node" {
             val chars = 128 * 1024
             val oid = oidString(chars)
-            val hex = "f".repeat(chars)
+            repeat(3) { ObjectIdentifier(oid) } // class init and JIT off the books
 
-            // warm up so class init and JIT do not land on whichever runs first
-            repeat(2) {
-                ObjectIdentifier(oid)
-                Asn1Integer.fromHexString(hex)
-            }
+            var parsed: ObjectIdentifier? = null
+            val cost = allocatedBytes { parsed = ObjectIdentifier(oid) }
+            parsed!!.nodeCount shouldBe (chars - 3) / 2 + 2
 
-            var oidResult: ObjectIdentifier? = null
-            val oidCost = allocatedBytes { oidResult = ObjectIdentifier(oid) }
-            oidResult!!.nodes.size shouldBe (chars - 3) / 2 + 2
+            (cost < chars.toLong() * 8) shouldBe true
+        }
 
-            var hexResult: Asn1Integer? = null
-            val hexCost = allocatedBytes { hexResult = Asn1Integer.fromHexString(hex) }
-            hexResult shouldNotBe null
-
-            (hexCost < chars.toLong()) shouldBe true          // ~0.5x
-            (oidCost > hexCost * 20) shouldBe true            // two orders apart; asserted at 20x
-            (oidCost < chars.toLong() * 400) shouldBe true    // ratchet: fails if the decode grows another copy
+        "a hex INTEGER stays half its input" {
+            val hex = "f".repeat(128 * 1024)
+            repeat(3) { Asn1Integer.fromHexString(hex) }
+            var parsed: Asn1Integer? = null
+            val cost = allocatedBytes { parsed = Asn1Integer.fromHexString(hex) }
+            parsed shouldNotBe null
+            (cost < (128 * 1024).toLong()) shouldBe true
         }
     }
 }

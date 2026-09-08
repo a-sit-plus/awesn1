@@ -173,11 +173,7 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
      * @throws Asn1Exception on illegal input
      */
     @Throws(Asn1Exception::class)
-    constructor(oid: String) : this(
-        (oid.split(if (oid.contains('.')) '.' else ' '))
-            .map { VarUInt.fromDecimalString(it, maxInputLength = MAX_SUBIDENTIFIER_CHARS) }
-            .toOidBytes()
-    )
+    constructor(oid: String) : this(encodeDottedOid(oid))
 
 
     /**
@@ -243,13 +239,7 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
 
         /** maximum characters per sub-identifier when decoding from string */
-        /**
-         * Maximum size (characters) of a dotted OID string accepted by [ObjectIdentifierStringSerializer].
-         * [MAX_SUBIDENTIFIER_CHARS] bounds a single node, but nothing bounds how many nodes a string declares, and
-         * each one is retained. 4 KiB admits ~2000 nodes, which is orders of magnitude past any registered OID.
-         */
-        const val MAX_OID_STRING_CHARS = 4 * 1024
-
+        /** maximum characters per sub-identifier when decoding from string */
         const val MAX_SUBIDENTIFIER_CHARS = 150
         /** maximum bytes per sub-identifier when encoding to string */
         const val MAX_SUBIDENTIFIER_BYTES = 64
@@ -295,6 +285,82 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
                     sink.writeAsn1VarInt(this[i])
                 }
             }
+        }
+
+        /** digits that always fit a [Long]: 10^18 < 2^63, so an 18-digit node needs no big arithmetic */
+        private const val MAX_LONG_DIGITS = 18
+
+        /**
+         * Encodes a dotted (or space-separated) OID string straight into content bytes, in a single pass.
+         *
+         * Deliberately materialises nothing: the previous implementation split the string into a `List<String>` and
+         * mapped that to a `List<VarUInt>` before encoding, so a string declaring one node every two characters
+         * allocated two objects per node — hundreds of times its own size — purely to throw them away. Here each node
+         * is a `[start, end)` window over [oid] that is validated, accumulated into a [Long] and written out before
+         * the next one is looked at. Only a node too large for a [Long] falls back to [VarUInt], and only that node
+         * gets a substring.
+         *
+         * Leading zeros are accepted and normalised (`01.02.000840` is `1.2.840`), matching the previous behaviour.
+         *
+         * @throws Asn1Exception on an empty OID, an empty or non-numeric node, a node longer than
+         * [MAX_SUBIDENTIFIER_CHARS], a first arc above 2, or a second arc above 39 under first arc 0 or 1
+         * @throws Asn1StructuralException if fewer than two nodes are given
+         */
+        @OptIn(InternalAwesn1Api::class)
+        @Throws(Asn1Exception::class)
+        private fun encodeDottedOid(oid: String): ByteArray {
+            if (oid.isEmpty()) throw Asn1Exception("Empty OIDs are not supported")
+            val separator = if (oid.contains('.')) '.' else ' '
+            var nodes = 0
+            var rootArc = 0L
+            val encoded = throughBuffer { sink ->
+                var index = 0
+                while (true) {
+                    val start = index
+                    while (index < oid.length && oid[index] != separator) index++
+                    if (index == start) throw Asn1Exception("Illegal input (empty OID node at index $start)")
+                    if (index - start > MAX_SUBIDENTIFIER_CHARS) throw Asn1Exception(
+                        "Decimal string of ${index - start} characters exceeds limit ($MAX_SUBIDENTIFIER_CHARS)."
+                    )
+                    for (i in start until index) if (oid[i] !in '0'..'9')
+                        throw Asn1Exception("Illegal input (not numerical)")
+
+                    // leading zeros carry no value, and skipping them first keeps the Long fast path usable for
+                    // a node like `000840`
+                    var digits = start
+                    while (digits < index && oid[digits] == '0') digits++
+                    val small = if (index - digits <= MAX_LONG_DIGITS) {
+                        var value = 0L
+                        for (i in digits until index) value = value * 10 + (oid[i] - '0')
+                        value
+                    } else null
+
+                    when (nodes) {
+                        // the first two arcs share one subidentifier, so arc 0 is only recorded here
+                        0 -> {
+                            if (small == null || small > 2L)
+                                throw Asn1Exception("OID top-level arc can only be number 0, 1 or 2")
+                            rootArc = small
+                        }
+
+                        1 -> if (small != null) {
+                            if (rootArc < 2L && small > 39L) throw Asn1Exception("Second segment must be <40")
+                            sink.writeAsn1VarInt((rootArc * 40 + small).toULong())
+                        } else {
+                            if (rootArc < 2L) throw Asn1Exception("Second segment must be <40")
+                            sink.writeAsn1VarInt(VarUInt.fromDecimalString(oid.substring(digits, index)) + 80u)
+                        }
+
+                        else -> if (small != null) sink.writeAsn1VarInt(small.toULong())
+                        else sink.writeAsn1VarInt(VarUInt.fromDecimalString(oid.substring(digits, index)))
+                    }
+                    nodes++
+                    if (index == oid.length) break
+                    index++ // skip the separator
+                }
+            }
+            if (nodes < 2) throw Asn1StructuralException("at least two nodes required!")
+            return encoded
         }
 
         //only called on the slow path
@@ -358,13 +424,17 @@ object ObjectIdentifierStringSerializer : BoundedFallbackSerializer<ObjectIdenti
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
 
     /**
-     * maximum size (characters) for decoding. Defaults to [MAX_OID_STRING_CHARS], far tighter than the shared
-     * [BoundedFallbackSerializer.defaultDecodingLimit]: a dotted string declares a node every two characters and
-     * each one is parsed from decimal, so the decode churns a few hundred times its own size through the collector.
-     * What is built retains only content bytes, so this bounds GC pressure rather than the heap. Figures in
+     * maximum size (characters) for decoding: the shared [BoundedFallbackSerializer.defaultDecodingLimit].
+     *
+     * This used to carry a far tighter limit of its own, because decoding built one `String` and one `VarUInt` per
+     * node before encoding anything. The dotted string is now parsed straight into content bytes in one pass, which
+     * costs about 1.5x its own size — cheaper than several decodes on the shared default — so there is no longer a
+     * cost that justifies singling OBJECT IDENTIFIER out. [ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS] still bounds an
+     * individual node, which is what keeps the big-integer fallback within reach.
+     * Figures in
      * [Hardening → Fallback decoding limits](https://a-sit-plus.github.io/awesn1/hardening/#fallback-decoding-limits).
      */
-    override var decodingLimit: Int = ObjectIdentifier.MAX_OID_STRING_CHARS
+    override val decodingLimit: Int get() = BoundedFallbackSerializer.defaultDecodingLimit
 
     override fun decodeBounded(encoded: String): ObjectIdentifier = ObjectIdentifier(encoded)
 

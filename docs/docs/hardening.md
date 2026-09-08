@@ -180,7 +180,7 @@ The defaults differ per type, because the decodes do. Measured against 1 MiB of 
 
 | Fallback decode                     | Transient | Retained | Default |
 |-------------------------------------|----------:|---------:|--------:|
-| OBJECT IDENTIFIER (dotted string)   |     ~226× |    ~0.5× |   4 KiB |
+| OBJECT IDENTIFIER (dotted string)   |     ~1.5× |    ~0.5× | 384 MiB |
 | `Asn1Element` (Base64 DER)          |      ~52× |    ~16.5×| 384 MiB |
 | REAL (`mantissa * 2^exponent`)      |      ~7×  |     ~0.5×|  32 KiB |
 | ASN.1 string types                  |      ~3×  |      ~2× | 384 MiB |
@@ -188,12 +188,13 @@ The defaults differ per type, because the decodes do. Measured against 1 MiB of 
 | INTEGER (hex)                       |     ~0.5× |    ~0.5× | 384 MiB |
 | INTEGER (decimal, opt-in)           |         — |        — |  32 KiB |
 
-An OBJECT IDENTIFIER is bounded three orders of magnitude below the rest on **transient** cost: a dotted string
-declares a node every two characters, and each one is parsed from decimal into binary, so the decode churns ~226× the
-input through the collector even though an `ObjectIdentifier` retains nothing but its content bytes once built. The
-decimal INTEGER form converts in quadratic time, so it is opt-in and bounded on CPU cost rather than memory; the
-linear hex form is what `Asn1Integer` registers as its fallback. The `Asn1Element` fallback is the one whose cost is
-mostly *retained*, since it builds a tree that stays. **384 MiB is a structural ceiling, not a budget** — it keeps a value below the platform's string and
+The `Asn1Element` fallback is the one whose cost is mostly *retained*, since it builds a tree that stays; everything
+else is transient. The decimal INTEGER form converts in quadratic time, so it is opt-in and bounded on CPU cost
+rather than memory; the linear hex form is what `Asn1Integer` registers as its fallback. An OBJECT IDENTIFIER used to
+sit three orders of magnitude above this table, because decoding built one `String` and one `VarUInt` per node before
+encoding anything; the dotted string is now parsed straight into content bytes in a single pass, so it carries no
+special limit any more. `ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS` still caps an individual arc at 150 characters,
+which is what keeps the quadratic big-integer path within reach. **384 MiB is a structural ceiling, not a budget** — it keeps a value below the platform's string and
 array limits (Kotlin/JS caps strings near 512 MiB) so that an oversized value fails as a catchable
 `SerializationException` instead of an `OutOfMemoryError` or a `RangeError`. Lower it for untrusted decode.
 

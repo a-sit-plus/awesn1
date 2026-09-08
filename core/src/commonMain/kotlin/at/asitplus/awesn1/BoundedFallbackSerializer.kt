@@ -50,7 +50,6 @@ const val DEFAULT_FALLBACK_DECODING_LIMIT: Int = 384 * 1024 * 1024
  * | Serializer                                | Default                                          |
  * |-------------------------------------------|--------------------------------------------------|
  * | [Asn1TimeSerializer]                      | 64 characters                                    |
- * | [ObjectIdentifierStringSerializer]        | [ObjectIdentifier.MAX_OID_STRING_CHARS]          |
  * | [Asn1RealStringSerializer]                | 32 KiB                                           |
  * | [Asn1IntegerDecimalStringSerializer]      | 32 KiB                                           |
  * | everything else                           | [DEFAULT_FALLBACK_DECODING_LIMIT]                |
