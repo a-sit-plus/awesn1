@@ -78,7 +78,7 @@ private class Frame(
     val numHeaderBytes: Int,
 ) {
     var bytesConsumed: Long = 0
-    val children = mutableListOf<Asn1Element>()
+    val children = ArrayList<Asn1Element>()
     val octetIndices = mutableListOf<Int>()
 
     // plusExact: a crafted contentLength near Long.MAX_VALUE must not silently wrap (it would corrupt the
@@ -86,11 +86,14 @@ private class Frame(
     val totalLength: Long get() = contentLength.plusExact(numHeaderBytes.toLong())
 
     /* Mirrors the constructed-element classification of the former recursive parser. */
-    fun buildStructure(): Asn1Structure = when {
-        tag.isSequence() -> Asn1Sequence.adopting(children)
-        tag.isSet() -> Asn1Set.fromPresorted(children)
-        tag.isExplicitlyTagged -> Asn1ExplicitlyTagged(tag.tagValue, children)
-        else -> Asn1CustomStructure(tag, children, sortChildren = false, shouldBeSorted = false)
+    fun buildStructure(): Asn1Structure {
+        children.trimToSize()
+        return when {
+            tag.isSequence() -> Asn1Sequence.adopting(children)
+            tag.isSet() -> Asn1Set.fromPresorted(children)
+            tag.isExplicitlyTagged -> Asn1ExplicitlyTagged(tag.tagValue, children)
+            else -> Asn1CustomStructure(tag, children, sortChildren = false, shouldBeSorted = false)
+        }
     }
 }
 
@@ -109,7 +112,7 @@ private class OctetSlot(val raw: Asn1OctetString, val replaceWith: (Asn1OctetStr
  */
 @InternalAwesn1Api
 private class ParseResult(
-    val roots: MutableList<Asn1Element>,
+    val roots: ArrayList<Asn1Element>,
     val bytesRead: Long,
     val octets: MutableList<OctetSlot>,
 )
@@ -138,7 +141,7 @@ private class ParseResult(
 private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult =
     runRethrowing {
         val rootSrc = BoundedSource(this, limit)
-        val roots = mutableListOf<Asn1Element>()
+        val roots = ArrayList<Asn1Element>()
         val stack = ArrayDeque<Frame>()
         var topBytesRead = 0L
         val octets = mutableListOf<OctetSlot>()
@@ -213,6 +216,7 @@ private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult
             }
         }
 
+        roots.trimToSize()
         ParseResult(roots, topBytesRead, octets)
     }
 
@@ -374,7 +378,8 @@ internal infix fun Byte.byteMask(mask: Int) = (this and mask.toUInt().toByte()).
 fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
     readByte().let { firstByte ->
         (firstByte byteMask 0x1F).let { tagNumber ->
-            if (tagNumber <= 30U) Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))
+            if (tagNumber <= 30U) Asn1Element.Tag.SINGLE_BYTE_TAGS[firstByte.toUByte().toInt()]
+                ?: Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))
             else decodeAsn1VarULong().let { (l, b) ->
                 Asn1Element.Tag(l.also {
                     if (it <= 30UL) throw Asn1Exception(

@@ -199,6 +199,13 @@ class ByteArraySink : Sink {
 }
 
 @InternalAwesn1Api
+/**
+ * The one zero-length [ByteArray] the library hands out. `byteArrayOf()` and `ByteArray(0)` both allocate a fresh
+ * object on every call, so every empty primitive used to carry its own 16-byte array; a zero-length array has nothing
+ * to write into, so sharing one carries none of the aliasing risk that a non-empty shared array would.
+ */
+val EMPTY_BYTE_ARRAY: ByteArray = ByteArray(0)
+
 interface Sink {
     fun writeByte(byte: Byte)
     fun write(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size)
@@ -298,6 +305,7 @@ class ByteArrayBuffer private constructor(
     override fun readByteArray(nBytes: Int): ByteArray {
         ensureValidPeek()
         require(nBytes >= 0) { "nBytes must be non-negative" }
+        if (nBytes == 0) return EMPTY_BYTE_ARRAY
         if (owner == null) invalidatePeeks()
         val endIndexExclusive = readIndex.toLong() + nBytes.toLong()
         require(endIndexExclusive <= limit.toLong()) { "Cannot read beyond available bytes" }

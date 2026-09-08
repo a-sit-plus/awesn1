@@ -53,7 +53,15 @@ import kotlin.time.Instant
  * ```
  */
 class Asn1TreeBuilder {
-    internal val elements = mutableListOf<Asn1Element>()
+    internal val elements = ArrayList<Asn1Element>()
+
+    /**
+     * Returns [elements] with its growth slack dropped, for the callers that *adopt* the list rather than copying it.
+     * A builder grows by doubling and its final size is only known when the block returns, so a three-element
+     * `Asn1.Sequence { }` would otherwise hand the structure a ten-slot backing array to retain for life. Shrinking in
+     * place keeps the list's identity, which the parser's deferred OCTET STRING slots depend on.
+     */
+    internal fun adoptable(): ArrayList<Asn1Element> = elements.also { it.trimToSize() }
 
     /**
      * appends a single [Asn1Element] to this ASN.1 structure
@@ -109,7 +117,7 @@ object Asn1 {
     fun Sequence(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
         val seq = Asn1TreeBuilder()
         seq.root()
-        return Asn1Sequence.adopting(seq.elements)
+        return Asn1Sequence.adopting(seq.adoptable())
     }
 
 
@@ -144,7 +152,7 @@ object Asn1 {
     fun SequenceOf(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
         val seq = Asn1TreeBuilder()
         seq.root()
-        return Asn1SequenceOf.adopting(seq.elements)
+        return Asn1SequenceOf.adopting(seq.adoptable())
     }
 
     /**

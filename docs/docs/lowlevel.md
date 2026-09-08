@@ -425,7 +425,10 @@ and measure the cost of the length walk, string rendering, and SET sorting.
 !!! note "Benchmark environment"
 
     JMH 1.37, average-time mode (**lower is better**), 1 thread, 3×10 s warmup + 5×10 s measurement, single fork, JDK 17
-    (Corretto 17.0.10). MacBook Pro (Apple **M3**, 12 cores: 6 performance + 6 efficiency), macOS 26.5.1, on AC power.
+    (Corretto 17.0.10), Bouncy Castle **1.85** (`bcprov-jdk18on`/`bcpkix-jdk18on`). MacBook Pro (Apple **M3**, 12 cores:
+    6 performance + 6 efficiency), macOS 26.6.2, on AC power. Three rows — `awesn1 decode` on **mixed**, `awesn1
+    derEncoded access`, and the corpus `awesn1 encode` — were re-measured in isolation across **three** forks, because a
+    single fork left them dominated by fork-to-fork variance (for two of them the error bar exceeded the score).
     These are microbenchmark figures — indicative, not contractual; re-run `./gradlew :benchmarks:jmh` on your own
     hardware. Bouncy Castle is a mature, hand-tuned baseline; awesn1 trades a little raw throughput for a fully
     iterative, hardened, multiplatform implementation.
@@ -437,12 +440,12 @@ Fixtures: **cert** = a real self-signed X.509 v3 certificate; **integers** = a `
 
 | Operation (µs/op)                          |        cert |    integers |       mixed |
 |--------------------------------------------|------------:|------------:|------------:|
-| awesn1 decode                              | 3.848 ±0.02 | 4.368 ±0.12 | 1.119 ±0.02 |
-| Bouncy Castle decode                       | 2.072 ±0.17 | 1.108 ±0.01 | 0.131 ±0.00 |
-| awesn1 encode (warm, recomputes each call) | 1.133 ±0.03 | 1.073 ±0.01 | 0.143 ±0.01 |
-| Bouncy Castle encode                       | 1.250 ±0.02 | 0.455 ±0.00 | 0.070 ±0.00 |
-| awesn1 round-trip (cold: parse + encode)   | 5.304 ±0.15 | 5.429 ±0.08 | 1.434 ±0.02 |
-| awesn1 `derEncoded` access (recomputes)    | 0.772 ±0.01 | 0.807 ±0.01 | 0.176 ±0.01 |
+| awesn1 decode                              | 3.727 ±0.01 | 2.711 ±0.01 | 1.212 ±0.00 |
+| Bouncy Castle decode                       | 2.357 ±0.01 | 1.130 ±0.02 | 0.126 ±0.00 |
+| awesn1 encode (warm, recomputes each call) | 0.824 ±0.06 | 0.853 ±0.02 | 0.110 ±0.00 |
+| Bouncy Castle encode                       | 1.288 ±0.01 | 0.457 ±0.00 | 0.071 ±0.00 |
+| awesn1 round-trip (cold: parse + encode)   | 5.324 ±0.09 | 3.833 ±0.12 | 1.394 ±0.10 |
+| awesn1 `derEncoded` access (recomputes)    | 0.949 ±0.09 | 0.873 ±0.10 | 0.168 ±0.00 |
 
 The raw parser decodes in the low-single-digit-microsecond range — roughly 1.5–2× Bouncy Castle on the realistic
 certificate fixture (more on the tiny integer/mixed fixtures, where fixed per-element overhead dominates a sub-microsecond
@@ -458,15 +461,16 @@ ASN.1 data during parsing.
 
 | Operation (µs/op)                                |         cert |    integers |       mixed |
 |--------------------------------------------------|-------------:|------------:|------------:|
-| `parse` only                                     |  3.814 ±0.11 | 4.700 ±0.07 | 1.235 ±0.01 |
-| `parse` + `overallLengthLong` (cold length walk) |  4.710 ±0.02 | 4.158 ±0.04 | 1.276 ±0.03 |
-| `toString()` (compact)                           | 11.141 ±0.68 | 8.357 ±0.05 | 1.042 ±0.01 |
-| `prettyPrint()`                                  | 12.566 ±0.39 | 8.491 ±0.12 | 1.105 ±0.01 |
+| `parse` only                                     |  3.238 ±0.00 |  2.846 ±0.02 | 1.097 ±0.01 |
+| `parse` + `overallLengthLong` (cold length walk) |  4.294 ±0.02 |  2.957 ±0.01 | 1.253 ±0.02 |
+| `toString()` (compact)                           | 14.044 ±0.08 | 11.109 ±0.03 | 1.290 ±0.01 |
+| `prettyPrint()`                                  | 15.346 ±0.33 | 11.870 ±0.68 | 1.339 ±0.01 |
 
-The content-length walk is a stack-safe post-order pass; `parseThenLength − parseOnly` puts it around one microsecond
-on the certificate and below a tenth of a microsecond on the mixed fixture. The separately measured integer result is
-lower with the length walk, so its subtraction is not meaningful. Rendering is uncached and bounded (see
-[Hardening → bounded rendering](hardening.md)).
+The content-length walk is a stack-safe post-order pass; `parseThenLength − parseOnly` puts it at roughly one
+microsecond on the certificate, a tenth of that on the 50-`INTEGER` fixture, and ~0.16 µs on the mixed one — it scales
+with element count, not with content size. Rendering is uncached and bounded (see
+[Hardening → bounded rendering](hardening.md)). Building a DER-sorted `SET` (the `SetSortBenchmark` fixture) costs
+1.241 ±0.07 µs/op.
 
 
 ### Real-World Corpus Sweep vs Bouncy Castle
@@ -477,10 +481,10 @@ comparison stays fair.
 
 | Operation (µs/op, full sweep) |            Score |
 |-------------------------------|-----------------:|
-| awesn1 decode                 | 4658.056 ± 34.28 |
-| Bouncy Castle decode          | 2690.705 ± 10.04 |
-| awesn1 encode                 | 1437.832 ± 17.93 |
-| Bouncy Castle encode          | 1232.552 ±129.85 |
+| awesn1 decode                 | 4514.775 ± 13.44 |
+| Bouncy Castle decode          | 2765.710 ±113.85 |
+| awesn1 encode                 | 1407.171 ± 23.09 |
+| Bouncy Castle encode          | 1264.991 ± 83.37 |
 
 ## Memory
 
@@ -492,24 +496,68 @@ the parsed representation of the whole real-world certificate/attestation corpus
 
 | Held representation                       | parsed | retained heap | vs raw DER |
 |-------------------------------------------|-------:|--------------:|-----------:|
-| awesn1 raw `Asn1Element` tree             |    690 |    ~15.0 MiB  |    ~23.8×  |
-| awesn1 typed `X509Certificate` (`kxs`)    |    664 |     ~5.9 MiB  |     ~9.6×  |
-| Bouncy Castle `X509Certificate` (JCA)     |    652 |     ~3.3 MiB  |     ~5.6×  |
+| awesn1 raw `Asn1Element` tree             |    690 |     ~5.5 MiB  |     ~8.7×  |
+| awesn1 typed `X509Certificate` (`kxs`)    |    667 |     ~4.2 MiB  |     ~6.9×  |
+| Bouncy Castle `X509Certificate` (JCA)     |    652 |     ~3.0 MiB  |     ~4.9×  |
 
 The generic `Asn1Element` tree is the heaviest representation — it keeps a node wrapper, a tag, and a child container
-per TLV element, which is the most flexible but least compact form. awesn1's typed [`kxs`](kxs.md) model collapses that
-into purpose-built data classes (~2.5× leaner than the raw tree) and lands within ~2× of Bouncy Castle's hand-written
-X.509 model. Note that the peak memory consumption while parsing will be the sum of the raw tree's memory consumption
-and the typed `X509Certificate` model's.
+per TLV element, which is the most flexible but least compact form. On this corpus that lands at roughly 100 bytes per
+TLV element across 57 690 elements; the certificates' own content bytes account for only about an eighth of it.
+awesn1's typed [`kxs`](kxs.md) model collapses the generic wrappers into purpose-built data classes (~1.3× leaner
+than the raw tree) and lands within ~1.45× of Bouncy Castle's hand-written X.509 model — the three forms are closer together than the raw
+tree's flexibility suggests, because on real certificates the bulk of the bytes sit in a handful of large content blobs
+that every representation has to keep. Note that the peak memory consumption while parsing will be the sum of the raw
+tree's memory consumption and the typed `X509Certificate` model's.
 Once the final certificate is constructed, the raw tree is free for garbage collection.
 
 !!! note "Method & caveats"
 
-    Each form is the **retained heap** (used heap after `System.gc()`,
-    cross-checked with VisualVM heap dumps) holding only the parsed objects — the raw input bytes are dropped before
-    measuring. awesn1's typed model and Bouncy Castle accept slightly different cert subsets (664 vs 652), so each ratio
-    uses its own parsed-byte denominator. Figures are indicative (GC/JIT/JVM-version sensitive). Reproduce with the
-    `NestingMemory` probe under `core/src/jvmTest`.
+    Each form is the **retained heap**: used heap (`totalMemory − freeMemory`) after repeated `System.gc()`, taken
+    once with only the input bytes live and once with the parsed objects additionally live, and subtracted. The input
+    bytes are therefore outside every figure. awesn1's typed model and Bouncy Castle accept slightly different cert
+    subsets (667 vs 652), so each ratio uses its own parsed-byte denominator. Each representation is built once and
+    discarded before measuring, so one-time decoder statics (serializer descriptors, OID name tables, Bouncy Castle's
+    provider internals) land outside the figures; each is then measured twice, and the two readings must agree.
+    Figures are indicative (GC/JIT/JVM-version sensitive) and were re-measured after the tag lookup table, shared empty
+    content arrays and right-sized child lists described below. Reproduce with `./gradlew :benchmarks:memoryProbe`.
+
+### Element density, and retained vs. transient
+
+The amplification is per *element*, not per byte, so the factor is governed by how small the elements are rather than by
+the wire size. The smallest legal TLV is two bytes (`05 00`, a `NULL`); a document of nothing else is the densest input
+that exists, and a byte limit of `L` therefore admits at most `L/2` elements. That is what makes `maxInputLength` a real
+heap bound rather than an advisory one.
+
+Two figures matter and they are not the same number:
+
+- **retained** — what the parsed tree keeps. This is governed by element count, so it spans a wide range: the
+  real-world certificate corpus above sits near 9× the wire size, while maximally dense input (nothing but two-byte
+  `NULL`s) reaches roughly 22×, the practical ceiling.
+- **transient** — what parsing allocates on the way, currently about double the retained figure. It never coexists with
+  the result, so it drives GC pressure rather than the heap ceiling.
+
+Size an untrusted-input budget against the retained figure, and expect the collector to see roughly twice that pass
+through it.
+
+### Tag sharing
+
+A tag number of `0..30` fits in a single octet, and that octet fully determines the tag's class, constructed bit and
+number. All 244 legal single-byte tags are therefore held in an exhaustive internal lookup table, indexed by the octet
+itself, built once at class-init. Parsing such an element allocates neither a `Tag` nor its one-byte backing array —
+every `NULL` in a document is literally the same `Asn1Element.Tag.NULL` instance, and the exported constants are entries
+of that same table. On element-dense input this removes about a quarter of the per-element parse allocation.
+
+This is a fixed table, not a cache: it cannot grow, so untrusted input cannot use it to drive memory growth.
+
+Because the instances are shared, `Tag.encodedTag` hands back a **fresh copy on every read** — otherwise one stray write
+into the returned array would corrupt every element carrying that tag. The copy is off the hot paths (encoding, equality,
+hashing and rendering all use the shared array internally), but if you are reading tag bytes in a loop, prefer
+`encodedTagLength` where only the size is needed, since that allocates nothing.
+
+**Tag numbers above 30 are not shared.** They use the long form, are decoded from the wire, and get a freshly allocated
+`Tag` plus encoded-tag array every time — deliberately, since interning them would mean a table keyed on attacker-chosen
+content. Elements carrying such tags cost several times more than single-byte-tagged ones, so a document built from high
+tag numbers sits well above the densities quoted above.
 
 ## Debugging and Inspection
 

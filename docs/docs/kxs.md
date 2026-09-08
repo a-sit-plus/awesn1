@@ -774,7 +774,8 @@ re-encodes a real self-signed X.509 v3 certificate through `DER.decodeFromByteAr
 ??? note "Benchmark environment"
 
     JMH 1.37, average-time mode (**lower is better**), 1 thread, 3×10 s warmup + 5×10 s measurement, single fork, JDK 17
-    (Corretto 17.0.10). MacBook Pro (Apple **M3**, 12 cores: 6 performance + 6 efficiency), macOS 26.5.1, on AC power.
+    (Corretto 17.0.10), Bouncy Castle **1.85** (`bcprov-jdk18on`/`bcpkix-jdk18on`). MacBook Pro (Apple **M3**, 12 cores:
+    6 performance + 6 efficiency), macOS 26.6.2, on AC power.
     These are microbenchmark figures - indicative, not contractual; re-run `./gradlew :benchmarks:jmh` on your own
     hardware. Bouncy Castle is a mature, hand-tuned baseline; `kxs` trades some speed for declarative,
     `kotlinx.serialization`-native modelling. For the raw-layer numbers underneath this, see
@@ -782,10 +783,10 @@ re-encodes a real self-signed X.509 v3 certificate through `DER.decodeFromByteAr
 
 | Operation (X.509 certificate)      | Score (µs/op) |
 |------------------------------------|--------------:|
-| awesn1 `kxs` decode → typed model  | 12.208 ±0.359 |
-| Bouncy Castle decode → typed model |  2.092 ±0.025 |
-| awesn1 `kxs` encode ← typed model  |  6.584 ±0.051 |
-| Bouncy Castle encode ← typed model |  1.277 ±0.024 |
+| awesn1 `kxs` decode → typed model  | 11.883 ±0.044 |
+| Bouncy Castle decode → typed model |  2.379 ±0.006 |
+| awesn1 `kxs` encode ← typed model  |  6.561 ±0.063 |
+| Bouncy Castle encode ← typed model |  1.283 ±0.004 |
 
 Reading the numbers: the declarative `kxs` model decodes a certificate in ~12 µs and re-encodes it in ~6.6 µs – single-
 digit-to-low-double-digit microseconds, i.e. tens of thousands of certificates per second per core, while letting you
@@ -794,10 +795,11 @@ significantly faster in absolute terms, but lacks the convenience and multiplatf
 
 ### Memory
 
-In memory, the typed `kxs` `X509Certificate` model is markedly more compact than the raw `Asn1Element` tree (it collapses
-generic TLV wrappers into purpose-built data classes) and lands within ~2× of Bouncy Castle's hand-written X.509 model
-on the real-world certificate corpus. See the full three-way comparison vs. raw DER bytes in
-[Low-Level → Memory](lowlevel.md#memory).
+In memory, the typed `kxs` `X509Certificate` model is more compact than the raw `Asn1Element` tree (it collapses
+generic TLV wrappers into purpose-built data classes) and lands within ~1.45× of Bouncy Castle's hand-written X.509 model
+on the real-world certificate corpus. The margin over the raw tree is modest (~1.3×) on real certificates, where most
+bytes sit in large content blobs every representation must keep; it widens on element-dense input. See the full
+three-way comparison vs. raw DER bytes in [Low-Level → Memory](lowlevel.md#memory).
 
 ## See Also
 
