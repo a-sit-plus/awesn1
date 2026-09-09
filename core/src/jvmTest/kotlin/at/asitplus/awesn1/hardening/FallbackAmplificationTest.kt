@@ -40,10 +40,8 @@ val FallbackAmplification by matrixSuite {
          * rather than by the shared default, because its cost per input character differs by orders of magnitude.
          */
         /*
-         * OBJECT IDENTIFIER carried a 4 KiB limit of its own while decoding built one String and one VarUInt per
-         * node. The dotted string is now parsed straight into content bytes, so the cost is in line with the cheap
-         * decodes and the limit went back to the shared default. What still bounds it is the per-node cap, which is
-         * what keeps the quadratic big-integer fallback within reach.
+         * OBJECT IDENTIFIER tracks the shared default; what bounds it independently is the per-node cap, which
+         * keeps the quadratic big-integer conversion within reach however short the whole string is.
          */
         "OBJECT IDENTIFIER tracks the shared default, but still caps a single node" {
             ObjectIdentifierStringSerializer.decodingLimit shouldBe DEFAULT_FALLBACK_DECODING_LIMIT
@@ -125,25 +123,11 @@ val FallbackAmplification by matrixSuite {
 
     "amplification bands" - {
         /*
-         * The ratchet that guards the single-pass dotted-string encode. The implementation this replaced allocated
-         * two objects per node — a String from `split` and a boxed VarUInt from `map` — before encoding anything,
-         * costing ~226x the input; the sliding window costs ~1.5x, which is the output bytes plus the buffer they
-         * are written through. A band this wide fails only if per-node materialisation comes back.
+         * A hex INTEGER is half its input, once — the cheapest decode in the family, and the reason it sits on the
+         * shared default rather than carrying a limit of its own.
          *
          * See `docs/docs/hardening.md#fallback-decoding-limits` for the measured figures.
          */
-        "decoding an OID string allocates a small multiple of the string, not a multiple per node" {
-            val chars = 128 * 1024
-            val oid = oidString(chars)
-            repeat(3) { ObjectIdentifier(oid) } // class init and JIT off the books
-
-            var parsed: ObjectIdentifier? = null
-            val cost = allocatedBytes { parsed = ObjectIdentifier(oid) }
-            parsed!!.nodeCount shouldBe (chars - 3) / 2 + 2
-
-            (cost < chars.toLong() * 8) shouldBe true
-        }
-
         "a hex INTEGER stays half its input" {
             val hex = "f".repeat(128 * 1024)
             repeat(3) { Asn1Integer.fromHexString(hex) }

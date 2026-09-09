@@ -180,7 +180,7 @@ The defaults differ per type, because the decodes do. Measured against 1 MiB of 
 
 | Fallback decode                     | Transient | Retained | Default |
 |-------------------------------------|----------:|---------:|--------:|
-| OBJECT IDENTIFIER (dotted string)   |     ~1.5× |    ~0.5× | 384 MiB |
+| OBJECT IDENTIFIER (dotted string)   |         — |        — | 384 MiB |
 | `Asn1Element` (Base64 DER)          |      ~52× |    ~16.5×| 384 MiB |
 | REAL (`mantissa * 2^exponent`)      |      ~7×  |     ~0.5×|  32 KiB |
 | ASN.1 string types                  |      ~3×  |      ~2× | 384 MiB |
@@ -190,11 +190,10 @@ The defaults differ per type, because the decodes do. Measured against 1 MiB of 
 
 The `Asn1Element` fallback is the one whose cost is mostly *retained*, since it builds a tree that stays; everything
 else is transient. The decimal INTEGER form converts in quadratic time, so it is opt-in and bounded on CPU cost
-rather than memory; the linear hex form is what `Asn1Integer` registers as its fallback. An OBJECT IDENTIFIER used to
-sit three orders of magnitude above this table, because decoding built one `String` and one `VarUInt` per node before
-encoding anything; the dotted string is now parsed straight into content bytes in a single pass, so it carries no
-special limit any more. `ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS` still caps an individual arc at 150 characters,
-which is what keeps the quadratic big-integer path within reach. **384 MiB is a structural ceiling, not a budget** — it keeps a value below the platform's string and
+rather than memory; the linear hex form is what `Asn1Integer` registers as its fallback. OBJECT IDENTIFIER is left
+unmeasured here on purpose: allocation counters measure throughput rather than footprint, and the figures this table
+once carried for it did not survive scrutiny. `ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS` caps an individual arc at
+150 characters, which is what keeps the quadratic big-integer path within reach whatever the whole string costs. **384 MiB is a structural ceiling, not a budget** — it keeps a value below the platform's string and
 array limits (Kotlin/JS caps strings near 512 MiB) so that an oversized value fails as a catchable
 `SerializationException` instead of an `OutOfMemoryError` or a `RangeError`. Lower it for untrusted decode.
 

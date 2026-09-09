@@ -59,35 +59,6 @@
         * **Output change:** `prettyPrint` of an encapsulating OCTET STRING or a custom structure no longer includes
           a trailing content hex dump, and a very large lazily-derived primitive renders as `…(N bytes)` rather than
           a hex prefix.
-* **`ObjectIdentifier` storage rework:**
-    * Keeps **only** its DER content bytes now; nodes and the dotted string are derived on demand and nothing is
-      cached. Base-128 is the most compact form available (85.8 % of subidentifiers across the ~2750 registered OIDs
-      fit in a single byte), and the class is fully immutable — no `@Volatile` caches, so it is unconditionally safe
-      to share and to use as a map key.
-        * Retained size, measured over all registered OIDs: **408 → 48 bytes** for an OID built from a string,
-          **857 → 48 bytes** once rendered, and **88 KiB → 2 KiB** for a pathological 2002-node OID. The
-          `KnownOIDs` description map drops from ~1.0 MiB to ~160 KiB.
-        * Decoding is a single fused pass with a fast path for single-byte subidentifiers, replacing three scans, a
-          `List<VarUInt>`, a `List<String>` and a base-10^9 conversion per node: parsing and rendering one OID
-          allocates **2632 → 152 bytes**.
-    * Added `ObjectIdentifier.nodeCount`: the number of nodes, read straight from the content bytes without
-      rendering any of them. Prefer it over `nodes.size`.
-    * **Breaking:** `ObjectIdentifier.bytes` returns a **copy**. Those bytes are the OID's only state, so handing out
-      the live array would let a caller corrupt its identity, ordering and encoding at once.
-    * **Breaking:** `ObjectIdentifier.decodeFromAsn1ContentBytes` copies its input instead of adopting it, for the
-      same reason: on the parse path it is handed the element's live content array. Costs ~20 bytes per parsed OID.
-    * The `String` constructor parses the dotted form straight into content bytes in a single pass, with a sliding
-      window over the input and a `Long` accumulator per arc. It previously split the string into a `List<String>`
-      and mapped that to a `List<VarUInt>` before encoding anything, allocating two objects per node purely to
-      discard them: **~226× → ~1.5×** the input in transient allocation for a node-dense string, and
-      **3624 → 441 bytes** for an ordinary OID. Only an arc longer than 18 digits takes the big-integer path.
-    * `ObjectIdentifierStringSerializer` consequently has no tighter limit of its own and tracks
-      `BoundedFallbackSerializer.defaultDecodingLimit`; the `ObjectIdentifier.MAX_OID_STRING_CHARS` constant added
-      earlier in this cycle is gone. `MAX_SUBIDENTIFIER_CHARS` still caps a single arc.
-    * **Behavioural:** `ObjectIdentifier.nodes` is no longer cached and re-decodes on every access (~408 bytes per
-      call, previously free after the first). `toString()` likewise (~104 bytes per call, down from 176). Hold the
-      result if you need it repeatedly — the library's own OID rendering decodes a throwaway `ObjectIdentifier` per
-      element, so an instance-level cache could never have served it anyway.
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer
