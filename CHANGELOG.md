@@ -2,63 +2,14 @@
 
 ## NEXT
 * **Security Hardening:**
-    * Bounded the streaming big-varint decoder
-      ([Hardening → Input Bounding](hardening.md#input-bounding-as-the-callers-responsibility)):
-        * **Breaking:** `kotlinx.io.Source.decodeAsn1VarBigInt()` now takes a mandatory `limit: Long`, matching every
-          other streaming entry point. Unlike `decodeAsn1VarUInt`/`decodeAsn1VarULong`, which their target type caps at
-          5 resp. 9 continuation bytes, a big varint has no inherent size, so an attacker-controlled source could
-          previously drive unbounded allocation into a raw `OutOfMemoryError`.
-        * An unterminated varint (every byte carrying the continuation bit until the source runs dry) is now rejected
-          with `Unterminated ASN.1 unsigned varint`, as the fixed-width siblings already did, instead of being
-          silently accepted as a partial value.
-        * `ByteArray.decodeAsn1VarBigInt()` keeps its signature — the array is the bound — but also rejects
-          unterminated input now.
-    * Bounded **every** non-DER fallback serializer
-      ([Hardening → Fallback decoding limits](hardening.md#fallback-decoding-limits)):
-        * Added `BoundedFallbackSerializer`, carrying a `decodingLimit` in characters, a `bounded(limit)` factory for
-          call sites that name their serializer, and `BoundedFallbackSerializer.defaultDecodingLimit` (384 MiB) for
-          the `@Serializable(with = …)` path — the only knob that reaches properties declared by awesn1 itself.
-          Limits are read on every decode, so setting one is not ordering-sensitive.
-        * Defaults differ per type because the decodes differ by orders of magnitude: `Asn1RealStringSerializer`
-          and `Asn1IntegerDecimalStringSerializer` 32 KiB (the decimal conversion is quadratic),
-          `Asn1TimeSerializer` 64, everything else the shared default.
-        * `Asn1IntegerDecimalStringSerializer.decodingLimit` is no longer increase-only; it can now be lowered.
-        * Over-limit values fail with a `SerializationException` rather than a platform-level
-          `OutOfMemoryError`/`RangeError`, and the check runs before the decode allocates.
-    * Non-DER fallback decoding now honours the `kotlinx.serialization` error contract
-      ([Hardening → Fallback decoding limits](hardening.md#fallback-decoding-limits)): a malformed value fails with a
-      `SerializationException` carrying the original failure as its cause, instead of letting `Asn1Exception`,
-      `IllegalArgumentException`, `NumberFormatException` or `InstantFormatException` escape. `Asn1Exception` extends
-      `Throwable` rather than `Exception`, so these previously slipped past a host's `catch (e: Exception)` entirely.
-      Applies to every fallback — OBJECT IDENTIFIER, INTEGER (both forms), REAL, BIT STRING, the ASN.1 string types,
-      `Asn1Time` and the Base64 `Asn1Element` family. Fatal throwables still propagate untouched.
-    * Non-DER fallback **encoding** honours the same contract: a value the serializer refuses to render — a decimal
-      INTEGER past `encodingLimit`, say — now fails with a `SerializationException` instead of a raw `Asn1Exception`.
-    * `Asn1IntegerDecimalStringSerializer` no longer accepts decimal strings it cannot re-encode. `decodingLimit`
-      derives from `encodingLimit` at ~2.41 characters per byte, which overestimates `log10(256)` = 2.40824, so
-      strings in that band decoded to magnitudes of up to 32 792 bytes and then failed to render. The character
-      limit is now a pre-filter against the quadratic conversion, and the magnitude is checked on decode as well,
-      so accepted and re-encodable are the same set.
-    * `Asn1RealStringSerializer` no longer compiles a `Regex` on every decode, and skips the whitespace-stripping
-      copy entirely when there is no whitespace to strip.
-    * Diagnostics are bounded: an exception message or a `prettyPrint` header no longer renders attacker-sized
-      content in full, so the cost of *reporting* a problem is no longer proportional to the input that caused it.
-        * `Asn1Primitive.readNull()` and `Asn1Real`'s strict-minimality rejection embedded the full hex of the
-          offending content — and the REAL path did it for both the input and its re-encoding. Both now use a
-          bounded preview (`DIAGNOSTIC_HEX_BYTES`, 64 bytes, with the full size appended).
-        * `Asn1EncapsulatingOctetString.prettyPrintHeader` hex-dumped its whole content, and
-          `Asn1CustomStructure.prettyPrintHeader` did the same — re-encoding the entire subtree to do it, since for
-          a primitive-tagged custom structure `content` is derived. Neither renders content now: `renderTo` cannot
-          truncate a header (the string is built before it is emitted), and the children are rendered immediately
-          afterwards anyway. The header still reports the content length.
-        * `renderTo` no longer reads `Asn1Primitive.content` to decide how much of it to render; it uses
-          `contentLengthLong`. Reading `content` on an `Asn1EncapsulatingOctetString` re-encodes the encapsulated
-          subtree, which defeated the render `limit` before any bound could apply. When content is over budget and
-          not yet materialised, the length alone is reported, since obtaining even a hex prefix would cost that
-          re-encode. Ordinary primitives are unaffected — they always hold their content.
-        * **Output change:** `prettyPrint` of an encapsulating OCTET STRING or a custom structure no longer includes
-          a trailing content hex dump, and a very large lazily-derived primitive renders as `…(N bytes)` rather than
-          a hex prefix.
+    * **Breaking:** `Source.decodeAsn1VarBigInt()` now requires a byte limit; all big-varint decoders reject
+      unterminated input.
+    * Non-DER fallback serializers now have configurable input limits and report failures as
+      `SerializationException`.
+    * Diagnostic messages and `prettyPrint` no longer materialize unbounded content.
+* Reduced `Asn1Element` allocation through tag and empty-array sharing, trimmed child lists, and allocation-free
+  hashing.
+* Avoid repeated regex compilation and unnecessary string copies when decoding `Asn1Real`.
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer

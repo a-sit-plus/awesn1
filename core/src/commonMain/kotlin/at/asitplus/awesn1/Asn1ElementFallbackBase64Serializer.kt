@@ -19,13 +19,7 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * Values are encoded as Base64 over DER bytes to keep cross-format support without requiring DER-specific runtimes.
  * When used with the `awesn1.kxs` DER format, this fallback representation is bypassed and native DER TLV
  * encoding/decoding is used.
- *
- * Decoding is bounded by [decodingLimit] characters of Base64, i.e. roughly 3/4 as many DER bytes. See
- * [BoundedFallbackSerializer] for what that limit does and does not protect against, and use [bounded] to obtain an
- * instance carrying a limit of its own.
- *
- * @param explicitLimit character limit for this instance; `null` tracks
- * [BoundedFallbackSerializer.defaultDecodingLimit] instead of capturing it at initialisation.
+ * Decoding is bounded by [decodingLimit] Base64 characters.
  */
 @OptIn(ExperimentalEncodingApi::class)
 abstract class Asn1ElementFallbackBase64SerializerBase<T : Any>(

@@ -173,29 +173,9 @@ The test harness includes:
 
 #### Fallback decoding limits
 
-The defaults differ per type, because the decodes do. Measured against 1 MiB of hostile input on JDK 17 / Apple M3.
-
-**This table is the single source for these figures** — the KDoc on `BoundedFallbackSerializer` and the
-`FallbackAmplification` test suite link here rather than restating them, so re-measuring means editing one place:
-
-| Fallback decode                     | Transient | Retained | Default |
-|-------------------------------------|----------:|---------:|--------:|
-| OBJECT IDENTIFIER (dotted string)   |         — |        — | 384 MiB |
-| `Asn1Element` (Base64 DER)          |      ~52× |    ~16.5×| 384 MiB |
-| REAL (`mantissa * 2^exponent`)      |      ~7×  |     ~0.5×|  32 KiB |
-| ASN.1 string types                  |      ~3×  |      ~2× | 384 MiB |
-| BIT STRING (`padding:base64`)       |     ~2.75×|    ~0.75×| 384 MiB |
-| INTEGER (hex)                       |     ~0.5× |    ~0.5× | 384 MiB |
-| INTEGER (decimal, opt-in)           |         — |        — |  32 KiB |
-
-The `Asn1Element` fallback is the one whose cost is mostly *retained*, since it builds a tree that stays; everything
-else is transient. The decimal INTEGER form converts in quadratic time, so it is opt-in and bounded on CPU cost
-rather than memory; the linear hex form is what `Asn1Integer` registers as its fallback. OBJECT IDENTIFIER is left
-unmeasured here on purpose: allocation counters measure throughput rather than footprint, and the figures this table
-once carried for it did not survive scrutiny. `ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS` caps an individual arc at
-150 characters, which is what keeps the quadratic big-integer path within reach whatever the whole string costs. **384 MiB is a structural ceiling, not a budget** — it keeps a value below the platform's string and
-array limits (Kotlin/JS caps strings near 512 MiB) so that an oversized value fails as a catchable
-`SerializationException` instead of an `OutOfMemoryError` or a `RangeError`. Lower it for untrusted decode.
+The default is 32 KiB for decimal INTEGER and REAL strings, 64 characters for timestamps, and 384 MiB for other
+fallbacks. These are safety ceilings, not application budgets; lower them for untrusted input. The format has already
+materialized the string before the serializer sees it, so the surrounding document still needs its own limit.
 
 It is a deliberate decision to leave input bounding to the caller. Only the caller knows realistic, expected input's sizes and
 semantics. Take X.509 certificates as an example: ECDSA-signed certificates are usually small, issuer DNs are also usually bounded,
@@ -204,19 +184,11 @@ Also, when parsing CMS or CRLs, the expected input sizes are orders of magnitude
 
 **Hence, callers must bound the input size themselves!**
 
-### Memory Amplification — Deep Nesting as Worst Case
+### Memory amplification
 
-A parsed tree is an in-memory object graph several times larger than the DER bytes it came from, and **deeply nested
-structures amplify the most**. A real-world certificate/attestation corpus parses at roughly **24×** its DER size as a
-raw `Asn1Element` tree (see [Low-Level → Memory](lowlevel.md#memory)). A *degenerate* chain of nested empty structures
-is far worse per input byte: a tree of **50 000** single-child empty `SEQUENCE`s — only a few bytes per level on the
-wire — materialises to about **9 MiB** of heap, i.e. roughly **190 bytes per nesting level** (one structure object, its
-child list, and the list's backing array).
-
-The iterative parser guarantees this never *crashes* the stack — but the heap cost still grows with input. This
-is precisely why input bounding is mandatory: a small but pathologically nested blob can still exhaust memory, and 
-worst-case amplification far above the ~24× of normal input means your byte cap must be chosen with the *amplified*
-in-memory size in mind, not just the wire size.
+Parsed elements require more memory than their wire representation, especially when input contains many tiny nested
+elements. The iterative parser prevents stack overflow, but callers must still choose input limits appropriate for
+their workload.
 
 ### Constructing Huge Data Programmatically
 

@@ -19,12 +19,16 @@ import kotlinx.serialization.json.Json
  */
 val SerializerCapTest by matrixSuite {
 
+    "bounded fallback serializer rejects oversized input" {
+        shouldThrow<SerializationException> {
+            Json.decodeFromString(ObjectIdentifierStringSerializer.bounded(4), "\"1.2.840\"")
+        }
+    }
+
     "Asn1IntegerDecimalStringSerializer throws for an over-cap magnitude (never truncates)" {
         val overCap = Asn1Integer.fromUnsignedByteArray(
             ByteArray(Asn1IntegerDecimalStringSerializer.encodingLimit + 1).also { it[0] = 0x01 }
         )
-        // the refusal reaches the caller as the SerializationException a serializer owes it, with the Asn1Exception
-        // that enforced the cap as its cause
         val thrown = shouldThrow<SerializationException> {
             Json.encodeToString(Asn1IntegerDecimalStringSerializer, overCap)
         }
@@ -38,14 +42,20 @@ val SerializerCapTest by matrixSuite {
         Json.decodeFromString(Asn1IntegerDecimalStringSerializer, json) shouldBe v
     }
 
+    "Asn1IntegerDecimalStringSerializer rejects values it cannot re-encode" {
+        shouldThrow<SerializationException> {
+            Json.decodeFromString(
+                Asn1IntegerDecimalStringSerializer,
+                "\"${"9".repeat(Asn1IntegerDecimalStringSerializer.decodingLimit)}\"",
+            )
+        }
+    }
+
     "ObjectIdentifier construction rejects an excessive sub-identifier" {
         shouldThrow<Asn1Exception> { ObjectIdentifier("2.25." + "9".repeat(ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS+1)) }
     }
 
     "over-cap OIDs cannot be constructed, so string (de)serialization stays bounded by construction" {
-        // A single over-cap arc is under the serializer's own character limit, so it is the construction that
-        // rejects it — surfacing as the SerializationException a decoder owes its caller, with the Asn1Exception
-        // that did the rejecting as its cause.
         val thrown = shouldThrow<SerializationException> {
             Json.decodeFromString(ObjectIdentifierStringSerializer, "\"2.25.${"9".repeat(200)}\"")
         }

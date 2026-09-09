@@ -232,10 +232,6 @@ private fun fromUtc(content: ByteArray): Asn1Time =
  * In non-DER formats this serializer stores only nanosecond precision, and the
  * UTC-vs-Generalized choice is not preserved.
  */
-/**
- * Maximum size (characters) of a timestamp string accepted by [Asn1TimeSerializer]. An ISO-8601 instant with offset
- * and nanosecond precision fits comfortably; anything longer is not a timestamp.
- */
 private const val MAX_TIME_STRING_CHARS = 64
 
 internal object Asn1TimeSerializer : BoundedFallbackSerializer<Asn1Time> {
@@ -244,10 +240,6 @@ internal object Asn1TimeSerializer : BoundedFallbackSerializer<Asn1Time> {
 
     override fun encodeBounded(value: Asn1Time): String = value.instant.toString()
 
-    /**
-     * maximum size (characters) for decoding. An ISO-8601 instant has a fixed shape, so the limit only keeps a
-     * hostile string from reaching [Instant.parse] at all; the parse itself rejects garbage without allocating.
-     */
     override var decodingLimit: Int = MAX_TIME_STRING_CHARS
 
     override fun decodeBounded(encoded: String): Asn1Time = Asn1Time(Instant.parse(encoded))

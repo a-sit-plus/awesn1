@@ -254,9 +254,6 @@ fun Asn1Integer.toAsn1VarInt(): ByteArray = throughBuffer { it.writeAsn1VarInt(t
  * Decodes an unsigned [Asn1Integer] from bytes using varint encoding as used within ASN.1: groups of seven bits are encoded into a byte,
  * while the highest bit indicates if more bytes are to come. Trailing bytes are ignored.
  *
- * No limit parameter is needed here: this array is the bound. For the streaming counterpart, which is not bounded by
- * anything the caller has already materialised, see `kotlinx.io.Source.decodeAsn1VarBigInt(limit)` in the `io` module.
- *
  * @return the decoded unsigned BigInteger and the underlying varint-encoded bytes as `ByteArray`
  * @throws IllegalArgumentException if the varint is unterminated, i.e. every byte has its continuation bit set
  */

@@ -138,18 +138,7 @@ fun kotlinx.io.Source.decodeAsn1VarULong(): Pair<ULong, ByteArray> =
 fun kotlinx.io.Source.decodeAsn1VarUInt(): Pair<UInt, ByteArray> =
     KxIoSource(this).decodeAsn1VarUInt()
 
-/**
- * Decodes an ASN.1 unsigned varint of arbitrary size from this source.
- *
- * The fixed-width siblings [decodeAsn1VarUInt] and [decodeAsn1VarULong] are bounded by their target type (they reject
- * anything past 5 resp. 9 continuation bytes), but a big varint has no such ceiling, so [limit] is what bounds the
- * decode against an attacker-controlled source.
- *
- * @param limit The maximum allowed number of varint-encoded bytes to consume.
- * This limit is enforced before reading from the underlying source.
- * @return the decoded [at.asitplus.awesn1.Asn1Integer] and the underlying varint-encoded bytes as `ByteArray`
- * @throws IllegalArgumentException if the varint is unterminated at source exhaustion, or exceeds [limit]
- */
+/** Decodes one arbitrary-size ASN.1 varint, consuming at most [limit] bytes. */
 @Throws(IllegalArgumentException::class)
 fun kotlinx.io.Source.decodeAsn1VarBigInt(limit: Long) = KxIoSource(this).decodeAsn1VarBigInt(limit)
 

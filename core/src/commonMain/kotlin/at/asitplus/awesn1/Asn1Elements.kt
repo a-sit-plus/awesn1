@@ -55,20 +55,10 @@ private const val RENDER_TRUNCATION_MARKER = " … (output truncated)"
 private const val INTEGER_DECIMAL_RENDER_LIMIT_BYTES = 512
 private fun ByteArray.toPrefixedHexString(): String = "0x" + toHexString(HexFormat.UpperCase)
 
-/**
- * Bytes rendered into a diagnostic — a `prettyPrint` header or an exception message — before truncation.
- *
- * A diagnostic identifies the offending bytes; it does not transcribe them. Rendering all of them makes the cost of
- * *reporting* a problem proportional to the attacker-chosen size of the input that caused it, which is how a
- * bounded `prettyPrint` and a graceful rejection both turn into an `OutOfMemoryError`.
- */
+/** Maximum bytes included in a diagnostic hex preview. */
 internal const val DIAGNOSTIC_HEX_BYTES: Int = 64
 
-/**
- * Hex for a diagnostic: at most [maxBytes] bytes, with the full size appended when truncated. Unlike
- * [toPrefixedHexString] the result is O(1) in the size of this array, so it is safe to embed in an exception
- * message or a render header regardless of where the bytes came from.
- */
+/** Bounded hex preview with the full byte count when truncated. */
 @OptIn(ExperimentalStdlibApi::class)
 internal fun ByteArray.toDiagnosticHexString(maxBytes: Int = DIAGNOSTIC_HEX_BYTES): String =
     if (size <= maxBytes) "0x" + toHexString(HexFormat.UpperCase)
@@ -276,12 +266,7 @@ sealed class Asn1Element(
                     is Asn1Primitive -> {
                         emit(e.prettyPrintHeader(if (pretty) ind else 0))
                         emit(" ")
-                        // render content bounded to the remaining budget so a huge primitive never builds a giant String;
-                        // clamp the build budget to Int (a String is Int-bounded) and reserve headroom for the suffix.
-                        // The size decision reads `contentLengthLong`, never `content`: for an encapsulating OCTET
-                        // STRING, reading `content` re-encodes the whole subtree, which would defeat `limit` before
-                        // any of this could apply. When the content is over budget AND not yet materialized, even a
-                        // hex prefix would cost that re-encode, so the length alone is reported.
+                        // Do not force lazy content merely to truncate it.
                         val length = e.contentLengthLong
                         val buildRoom = (limit - emitted).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
                         emit(
@@ -450,9 +435,6 @@ sealed class Asn1Element(
     final override fun hashCode(): Int {
         var h = cachedHash
         if (h == 0) {
-            // Hash straight through the iterative encoder rather than materialising `derEncoded`: identical result
-            // (same bytes, same fold as ByteArray.contentHashCode), but a structure no longer builds a transient copy
-            // of its whole subtree and a primitive no longer populates its permanent derEncoded cache just to be hashed.
             h = HashingSink().also { encodeTreeTo(it) }.hash
             if (h == 0) h = 1 // don't re-derive when the real hash legitimately is 0
             cachedHash = h
@@ -461,27 +443,11 @@ sealed class Asn1Element(
     }
 
 
-    /**
-     * Deliberately **not** a `data class`. The generated `copy()` would let a caller pair an arbitrary [tagValue] with
-     * unrelated [encodedTagBytes], producing a tag whose number disagrees with its own encoding — and it would expose
-     * the shared backing array. Use the [copy] extension instead: it re-encodes, so the two can never drift apart.
-     * `equals`, `hashCode` and `toString` are all hand-written below, so nothing else is lost.
-     */
     class Tag internal constructor(
         val tagValue: ULong,
         internal val encodedTagBytes: ByteArray
     ) : Comparable<Tag> {
 
-        /**
-         * The DER-encoded bytes of this tag.
-         *
-         * Returns a **fresh copy on every read**. Tag instances are shared — the 244 legal single-byte tags come from
-         * [SINGLE_BYTE_TAGS], so every `NULL` in a document is one and the same object — and handing out the live array
-         * would let a single write corrupt every element carrying that tag. The copy is what makes the sharing safe.
-         *
-         * The copy is not on any hot path: encoding, equality, hashing and rendering all use the shared array directly
-         * inside the library. Use [encodedTagLength] when only the size is needed, so no array is produced at all.
-         */
         val encodedTag: ByteArray get() = encodedTagBytes.copyOf()
 
         /**
@@ -531,52 +497,27 @@ sealed class Asn1Element(
                 return derEncoded
             }
 
-            /**
-             * Every legal single-byte DER tag, indexed by that byte's own numeric value.
-             *
-             * A single-byte tag encodes its class, its constructed bit and a tag number of `0..30` in one octet, so the
-             * byte *is* the identity of the tag and the array index gives the lookup for free — no map, no hashing.
-             * Because the domain is finite and tiny, this is an exhaustive table rather than a cache: it is built once
-             * and never grows, so it cannot be used to drive unbounded memory growth from the wire.
-             *
-             * Twelve of the 256 slots stay `null`, because those bytes are not legal single-byte tags:
-             * - the eight with low five bits `11111`, which are the long-form escape announcing that the tag number
-             *   continues in the following bytes, and
-             * - universal `0` (end-of-contents) and universal `15` in both primitive and constructed form, which [init]
-             *   rejects outright.
-             *
-             * The instances are shared, so the backing [encodedTagBytes] must never be handed out or written to; the
-             * public [encodedTag] accessor copies for exactly that reason.
-             */
             internal val SINGLE_BYTE_TAGS: Array<Tag?> = Array(256) { byte ->
                 if (byte and 0b0001_1111 == 0b0001_1111) null
                 else try {
-                    Tag(tagValue = (byte and 0b0001_1111).toULong(), encodedTagBytes = byteArrayOf(byte.toByte()))
+                    Tag((byte and 0b0001_1111).toULong(), byteArrayOf(byte.toByte()))
                 } catch (_: Asn1Exception) {
                     null
                 }
             }
 
-            /**
-             * Returns the shared [SINGLE_BYTE_TAGS] entry when the tag encodes to a single byte, and a fresh [Tag]
-             * otherwise. An illegal single-byte combination finds a `null` slot and falls through to the constructor,
-             * which raises the same exception it always did.
-             */
             internal fun of(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL): Tag {
                 if (tagValue <= 30uL) {
                     val byte = tagValue.toInt() or
-                            (if (constructed) BERTags.CONSTRUCTED.toInt() else 0) or
-                            tagClass.berTag.toInt()
+                            (if (constructed) BERTags.CONSTRUCTED.toInt() else 0) or tagClass.berTag.toInt()
                     SINGLE_BYTE_TAGS[byte]?.let { return it }
                 }
                 return Tag(tagValue, constructed, tagClass)
             }
 
-            /** Returns the shared [SINGLE_BYTE_TAGS] entry for a universal tag; only ever called with legal tags. */
-            private fun universal(tagValue: UByte, constructed: Boolean = false): Tag {
-                val byte = tagValue.toInt() or (if (constructed) BERTags.CONSTRUCTED.toInt() else 0)
-                return checkNotNull(SINGLE_BYTE_TAGS[byte]) { "No single-byte tag for 0x${byte.toString(16)}" }
-            }
+            private fun universal(tagValue: UByte, constructed: Boolean = false): Tag =
+                checkNotNull(SINGLE_BYTE_TAGS[tagValue.toInt() or
+                        (if (constructed) BERTags.CONSTRUCTED.toInt() else 0)])
 
             val SET = universal(BERTags.SET, constructed = true)
             val SEQUENCE = universal(BERTags.SEQUENCE, constructed = true)
@@ -1169,8 +1110,7 @@ class Asn1CustomStructure internal constructor(
                 (if (!tag.isConstructed) " PRIMITIVE" else "") +
                 " (=${tag.encodedTagBytes.toPrefixedHexString()}), length=${contentLengthLong} (=${encodedLength.toPrefixedHexString()})" +
                 ", overallLength=${overallLengthLong}"
-    // deliberately no content hex: for a primitive-tagged custom structure `content` re-encodes the whole subtree,
-    // and the children are rendered as children right after this header anyway. `length` says all a reader needs.
+    // Content is rendered through the children below.
 
     companion object {
         /**
@@ -1327,10 +1267,7 @@ class Asn1EncapsulatingOctetString private constructor(
 
     override fun iterator(): Asn1Structure.Iterator = _sequence.iterator()
 
-    // Deliberately no content hex. Bounding the hex would not have been enough: `content` here is the re-encoding
-    // of the whole encapsulated subtree, materialised (and then cached) by the mere act of reading it — so the cost
-    // is paid before any bound could apply. `renderTo` cannot help either, since a header string is built before
-    // `emit` ever sees it. The children are rendered as children immediately after this line anyway.
+    // Reading content here would encode the entire subtree before render limits apply.
     override fun prettyPrintHeader(indent: Int) =
         (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent)
 
@@ -1452,13 +1389,7 @@ open class Asn1Primitive private constructor(
         get() = contentCache ?: contentProviderOrNull!!().shareIfEmpty()
             .also { /*order is important here!*/contentCache = it; contentProviderOrNull = null }
 
-    /**
-     * Whether [content] is already in hand, i.e. reading it allocates nothing.
-     *
-     * `false` only for an [Asn1EncapsulatingOctetString] that has not been forced yet: its content is the
-     * re-encoding of the whole encapsulated subtree, so merely *reading* it costs O(subtree) and caches the result.
-     * [renderTo] consults this to keep a bounded render bounded — see the primitive branch there.
-     */
+    /** Whether reading [content] avoids materializing lazy content. */
     internal val isContentMaterialized: Boolean get() = contentCache != null
 
     override val contentLengthLong: Long get() = content.size.toLong()
@@ -1533,14 +1464,8 @@ private inline fun lengthEncodedSize(len: Long): Int =
 
 @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 @kotlin.internal.InlineOnly
-/** Returns [EMPTY_BYTE_ARRAY] for a zero-length array, so empty primitives all share one instance. */
 internal fun ByteArray.shareIfEmpty(): ByteArray = if (isEmpty()) EMPTY_BYTE_ARRAY else this
 
-/**
- * A [Sink] that folds everything written into it into a hash instead of storing it, using exactly the fold
- * `ByteArray.contentHashCode` uses. Lets [Asn1Element.hashCode] hash an element's DER encoding without ever
- * materialising it.
- */
 private class HashingSink : Sink {
     var hash: Int = 1
         private set
@@ -1559,11 +1484,6 @@ private class HashingSink : Sink {
     }
 }
 
-/**
- * Returns a tag equal to this one except where overridden. Replaces the `copy()` that [Asn1Element.Tag] would have
- * generated as a data class: this one re-encodes, so [Asn1Element.Tag.tagValue] and the encoded bytes can never
- * disagree, and single-byte results come from the shared lookup table rather than being allocated.
- */
 fun Asn1Element.Tag.copy(
     tagValue: ULong = this.tagValue,
     constructed: Boolean = this.isConstructed,

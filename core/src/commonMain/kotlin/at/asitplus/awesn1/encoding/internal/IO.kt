@@ -199,11 +199,6 @@ class ByteArraySink : Sink {
 }
 
 @InternalAwesn1Api
-/**
- * The one zero-length [ByteArray] the library hands out. `byteArrayOf()` and `ByteArray(0)` both allocate a fresh
- * object on every call, so every empty primitive used to carry its own 16-byte array; a zero-length array has nothing
- * to write into, so sharing one carries none of the aliasing risk that a non-empty shared array would.
- */
 val EMPTY_BYTE_ARRAY: ByteArray = ByteArray(0)
 
 interface Sink {

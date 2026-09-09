@@ -712,23 +712,11 @@ internal value class VarUInt private constructor(
         internal fun Source<*>.decodeAsn1VarBigUInt(limit: Long?): Pair<VarUInt, ByteArray> =
             readAsn1VarBigUIntBytes(limit).let { it.decodeAsn1VarBigUIntValue(0, it.size).first to it }
 
-        /**
-         * Consumes one big-varint encoding from this source and returns its raw bytes.
-         *
-         * Unlike the fixed-width [decodeAsn1VarUInt][at.asitplus.awesn1.encoding.decodeAsn1VarUInt] family, which is
-         * bounded by the target type's bit width (5 or 9 continuation bytes), a big varint has no inherent size, so
-         * the only thing standing between an attacker-controlled source and the heap is [limit]. It is enforced
-         * before every read, matching the convention of every other streaming entry point; `null` means unbounded and
-         * is only safe on a source that is already bounded, such as a wrapped [ByteArray].
-         *
-         * @param limit maximum number of bytes to consume, enforced before reading from the underlying source
-         * @throws IllegalArgumentException if the varint is unterminated at source exhaustion, or exceeds [limit]
-         */
+        /** Reads one complete big-varint, bounded before each source read. */
         private fun Source<*>.readAsn1VarBigUIntBytes(limit: Long?): ByteArray {
             val bounded = BoundedSource(this, limit)
             val accumulator = ByteArrayBuffer()
             while (true) {
-                // an unterminated varint is malformed, not a partial value: the fixed-width siblings reject it too
                 if (bounded.exhausted()) throw IllegalArgumentException("Unterminated ASN.1 unsigned varint")
                 val current = bounded.readUByte()
                 accumulator.writeUByte(current)
@@ -775,10 +763,7 @@ internal value class VarUInt private constructor(
  * The limits used by this serializer can be overridden (globally)
  *   using [decodingLimit]/[encodingLimit].
  * This only affects string serialization for non-DER formats.
- *
- * Not registered as [Asn1Integer]'s non-DER fallback — [Asn1IntegerHexStringSerializer] is. Decimal conversion is
- * quadratic in the number of digits, which is why this one is opt-in and bounded far below the shared
- * [BoundedFallbackSerializer.defaultDecodingLimit].
+ * Decimal conversion is quadratic, so this opt-in serializer has a tighter limit than the default hex serializer.
  */
 object Asn1IntegerDecimalStringSerializer : BoundedFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
@@ -786,12 +771,6 @@ object Asn1IntegerDecimalStringSerializer : BoundedFallbackSerializer<Asn1Intege
     /** maximum size (characters) for decoding. */
     override var decodingLimit = DEFAULT_MAX_INPUT_LENGTH
 
-    /**
-     * The character limit is a cheap pre-filter against the quadratic conversion; [encodingLimit] is what defines
-     * the value domain, so it is checked here too. Without that, the ~2.41 chars-per-byte derivation admits strings
-     * whose magnitude lands just past [encodingLimit] — values this serializer would accept and then refuse to
-     * render, breaking the round trip it promises.
-     */
     override fun decodeBounded(encoded: String): Asn1Integer =
         Asn1Integer.fromDecimalString(encoded, decodingLimit).also {
             val magnitudeBytes = it.uint.words.size
@@ -816,10 +795,7 @@ object Asn1IntegerDecimalStringSerializer : BoundedFallbackSerializer<Asn1Intege
  * encoding/decoding is used.
  *
  * Serialization uses [Asn1Integer.toHexString]/[Asn1Integer.fromHexString].
- *
- * This is [Asn1Integer]'s registered non-DER fallback. Hex conversion is linear and costs ~0.5x its input, so the
- * shared [BoundedFallbackSerializer.defaultDecodingLimit] is bound enough; the quadratic decimal form is the one
- * that needs a tight limit, and it is opt-in.
+ * This is [Asn1Integer]'s registered non-DER fallback.
  */
 object Asn1IntegerHexStringSerializer : BoundedFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)

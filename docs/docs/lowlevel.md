@@ -488,76 +488,9 @@ comparison stays fair.
 
 ## Memory
 
-A parsed ASN.1 value is an in-memory object graph, so it occupies several times the DER bytes it was decoded from. That
-**amplification factor** — not the wire size — is what to keep in mind when sizing untrusted input
-(see [Hardening → input bounding](hardening.md#input-bounding-as-the-callers-responsibility)). The figures below hold
-the parsed representation of the whole real-world certificate/attestation corpus
-(`crypto/src/jvmTest/resources`, **690 DER blobs ≈ 0.63 MiB**) and compare the retained heap across three forms.
-
-| Held representation                       | parsed | retained heap | vs raw DER |
-|-------------------------------------------|-------:|--------------:|-----------:|
-| awesn1 raw `Asn1Element` tree             |    690 |     ~5.5 MiB  |     ~8.7×  |
-| awesn1 typed `X509Certificate` (`kxs`)    |    667 |     ~4.2 MiB  |     ~6.8×  |
-| Bouncy Castle `X509Certificate` (JCA)     |    652 |     ~3.0 MiB  |     ~4.9×  |
-
-The generic `Asn1Element` tree is the heaviest representation — it keeps a node wrapper, a tag, and a child container
-per TLV element, which is the most flexible but least compact form. On this corpus that lands at roughly 100 bytes per
-TLV element across 57 690 elements; the certificates' own content bytes account for only about an eighth of it.
-awesn1's typed [`kxs`](kxs.md) model collapses the generic wrappers into purpose-built data classes (~1.3× leaner
-than the raw tree) and lands within ~1.4× of Bouncy Castle's hand-written X.509 model — the three forms are closer together than the raw
-tree's flexibility suggests, because on real certificates the bulk of the bytes sit in a handful of large content blobs
-that every representation has to keep. Note that the peak memory consumption while parsing will be the sum of the raw
-tree's memory consumption and the typed `X509Certificate` model's.
-Once the final certificate is constructed, the raw tree is free for garbage collection.
-
-!!! note "Method & caveats"
-
-    Each form is the **retained heap**: used heap (`totalMemory − freeMemory`) after repeated `System.gc()`, taken
-    once with only the input bytes live and once with the parsed objects additionally live, and subtracted. The input
-    bytes are therefore outside every figure. awesn1's typed model and Bouncy Castle accept slightly different cert
-    subsets (667 vs 652), so each ratio uses its own parsed-byte denominator. Each representation is built once and
-    discarded before measuring, so one-time decoder statics (serializer descriptors, OID name tables, Bouncy Castle's
-    provider internals) land outside the figures; each is then measured twice, and the two readings must agree.
-    Figures are indicative (GC/JIT/JVM-version sensitive) and were re-measured after the tag lookup table, shared empty
-    content arrays and right-sized child lists described below. Reproduce with `./gradlew :benchmarks:memoryProbe`.
-
-### Element density, and retained vs. transient
-
-The amplification is per *element*, not per byte, so the factor is governed by how small the elements are rather than by
-the wire size. The smallest legal TLV is two bytes (`05 00`, a `NULL`); a document of nothing else is the densest input
-that exists, and a byte limit of `L` therefore admits at most `L/2` elements. That is what makes `maxInputLength` a real
-heap bound rather than an advisory one.
-
-Two figures matter and they are not the same number:
-
-- **retained** — what the parsed tree keeps. This is governed by element count, so it spans a wide range: the
-  real-world certificate corpus above sits near 9× the wire size, while maximally dense input (nothing but two-byte
-  `NULL`s) reaches roughly 22×, the practical ceiling.
-- **transient** — what parsing allocates on the way, currently about double the retained figure. It never coexists with
-  the result, so it drives GC pressure rather than the heap ceiling.
-
-Size an untrusted-input budget against the retained figure, and expect the collector to see roughly twice that pass
-through it.
-
-### Tag sharing
-
-A tag number of `0..30` fits in a single octet, and that octet fully determines the tag's class, constructed bit and
-number. All 244 legal single-byte tags are therefore held in an exhaustive internal lookup table, indexed by the octet
-itself, built once at class-init. Parsing such an element allocates neither a `Tag` nor its one-byte backing array —
-every `NULL` in a document is literally the same `Asn1Element.Tag.NULL` instance, and the exported constants are entries
-of that same table. On element-dense input this removes about a quarter of the per-element parse allocation.
-
-This is a fixed table, not a cache: it cannot grow, so untrusted input cannot use it to drive memory growth.
-
-Because the instances are shared, `Tag.encodedTag` hands back a **fresh copy on every read** — otherwise one stray write
-into the returned array would corrupt every element carrying that tag. The copy is off the hot paths (encoding, equality,
-hashing and rendering all use the shared array internally), but if you are reading tag bytes in a loop, prefer
-`encodedTagLength` where only the size is needed, since that allocates nothing.
-
-**Tag numbers above 30 are not shared.** They use the long form, are decoded from the wire, and get a freshly allocated
-`Tag` plus encoded-tag array every time — deliberately, since interning them would mean a table keyed on attacker-chosen
-content. Elements carrying such tags cost several times more than single-byte-tagged ones, so a document built from high
-tag numbers sits well above the densities quoted above.
+A parsed ASN.1 value is an object graph and can require substantially more memory than its DER representation,
+especially when it contains many tiny elements. Bound untrusted input and profile representative application data;
+runtime heap deltas are not stable enough to provide a portable amplification factor.
 
 ## Debugging and Inspection
 

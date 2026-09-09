@@ -243,9 +243,7 @@ fun Sink.writeAsn1VarInt(number: Asn1Integer): Int {
 /**
  * Decodes an ASN.1 unsigned varint to a [Asn1Integer], copying all bytes from the source into a [ByteArray].
  *
- * @param limit the maximum allowed number of varint-encoded bytes to consume.
- * This limit is enforced before reading from the underlying source. `null` means unbounded, which is only safe on a
- * source that is already bounded.
+ * @param limit maximum bytes to consume, or `null` for an already bounded source
  * @return the decoded [Asn1Integer] and the underlying varint-encoded bytes as [ByteArray]
  * @throws IllegalArgumentException if the varint is unterminated at source exhaustion, or exceeds [limit]
  */

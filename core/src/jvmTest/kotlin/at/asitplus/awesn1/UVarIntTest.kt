@@ -10,6 +10,7 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.Sign
 import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
@@ -66,6 +67,17 @@ val UVarIntTest by matrixSuite {
     }
 
     compact("BigInts") - {
+        "streaming decode is bounded" {
+            val source = ByteArray(128) { 0xff.toByte() }.wrapInUnsafeSource()
+            shouldThrow<IllegalArgumentException> { source.decodeAsn1VarBigInt(16) }
+            var remaining = 0
+            while (!source.exhausted()) {
+                source.readByte()
+                remaining++
+            }
+            remaining shouldBe 112
+        }
+
         property("long-capped", Arb.uLong(), iterations = 100) test { long ->
             val uLongVarInt = long.toAsn1VarInt()
             val bigInteger = BigInteger.fromULong(long)

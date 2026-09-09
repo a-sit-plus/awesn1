@@ -547,7 +547,6 @@ fun Asn1Primitive.asAsn1BitString(assertTag: Asn1Element.Tag = Asn1Element.Tag.B
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.readNull() =
     decode(Asn1Element.Tag.NULL) {
-        // bounded hex: rejecting an attacker-sized NULL must not cost a multiple of its content
         if (it.isNotEmpty()) throw Asn1Exception("ASN.1 NULL must not have content! Found: ${it.toDiagnosticHexString()}")
     }
 

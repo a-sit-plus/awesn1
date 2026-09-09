@@ -21,13 +21,8 @@ import kotlin.math.sign
 
 private const val IEEE754_BIAS = 1023
 
-/** compiled once; [Asn1RealStringSerializer] used to build this per call, on strings of caller-chosen length */
 private val REGEX_WHITESPACE = Regex("\\s")
 
-/**
- * Maximum size (characters) of a `mantissa * 2^exponent` string accepted by [Asn1RealStringSerializer]. Matches the
- * decimal-INTEGER default: a REAL that needs more than this is not a number anyone meant to send.
- */
 private const val MAX_REAL_STRING_CHARS = 32 * 1024
 
 /**
@@ -270,8 +265,6 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
                     else Asn1Real(Asn1Integer.Negative(mantissa), exponent)
 
                 if (!lenient && !decoded.encodeToAsn1ContentBytes().contentEquals(bytes))
-                    // bounded hex on both halves: this path used to render the input AND its re-encoding in full,
-                    // so rejecting a large REAL cost several times its own size
                     throw Asn1Exception(
                         "ASN.1 REAL is not minimally encoded. Is: ${bytes.toDiagnosticHexString()}, shouldBe: ${
                             decoded.encodeToAsn1ContentBytes().toDiagnosticHexString()
@@ -297,11 +290,6 @@ object Asn1RealStringSerializer : BoundedFallbackSerializer<Asn1Real> {
     override val descriptor: SerialDescriptor
         get() = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_REAL, PrimitiveKind.STRING)
 
-    /**
-     * maximum size (characters) for decoding. Tighter than the shared
-     * [BoundedFallbackSerializer.defaultDecodingLimit] because the `mantissa * 2^exponent` form is split and
-     * whitespace-stripped before either half is parsed, which costs ~9x the input in transient allocation.
-     */
     override var decodingLimit: Int = MAX_REAL_STRING_CHARS
 
     override fun encodeBounded(value: Asn1Real): String =
@@ -331,7 +319,6 @@ object Asn1RealStringSerializer : BoundedFallbackSerializer<Asn1Real> {
         encoded ==  "NaN" -> Asn1Real.NaN
         //@formatter:on
         else -> {
-            // only copy the string if there is whitespace to strip; the common case has none
             val compacted = if (encoded.any(Char::isWhitespace)) encoded.replace(REGEX_WHITESPACE, "") else encoded
             val parts = compacted.split("*2^")
             require(parts.size == 2) { "Invalid format for Asn1Real" }

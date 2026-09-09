@@ -308,7 +308,6 @@ fun Asn1Primitive.readOid() = runRethrowing {
 object ObjectIdentifierStringSerializer : BoundedFallbackSerializer<ObjectIdentifier> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
 
-    /** maximum size (characters) for decoding: the shared [BoundedFallbackSerializer.defaultDecodingLimit] */
     override val decodingLimit: Int get() = BoundedFallbackSerializer.defaultDecodingLimit
 
     override fun decodeBounded(encoded: String): ObjectIdentifier = ObjectIdentifier(encoded)
