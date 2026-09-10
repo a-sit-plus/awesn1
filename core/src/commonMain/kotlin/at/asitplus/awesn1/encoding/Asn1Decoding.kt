@@ -602,8 +602,11 @@ inline fun <reified T> Asn1Primitive.decodeOrNull(tag: ULong, transform: (conten
  */
 @Throws(Asn1Exception::class)
 fun Instant.Companion.decodeUtcTimeFromAsn1ContentBytes(input: ByteArray): Instant = runRethrowing {
+    require(input.size == 13) { "UTC TIME must contain exactly 13 octets" }
+    require(input.last() == 'Z'.code.toByte() || input.last() == 'z'.code.toByte()) {
+        "UTC TIME must end with 'Z' or compatibility 'z'"
+    }
     val s = input.decodeToString()
-    if (s.length != 13) throw IllegalArgumentException("Input too short: $input")
     val year = "${s[0]}${s[1]}".toInt()
     val century = if (year <= 49) "20" else "19" // RFC 5280 4.1.2.5 Validity
     val isoString = "$century${s[0]}${s[1]}" + // year
