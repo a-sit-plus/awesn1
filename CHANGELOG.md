@@ -20,6 +20,7 @@
     * Preserve compatibility UTC TIME values ending in lowercase `z` when decoding and re-encoding, while programmatically constructed values continue to emit canonical uppercase `Z`.
     * Preserve the UTC/GENERALIZED TIME subtype and exact fractional seconds in non-DER `Asn1Time` serialization; the former ISO-8601 input remains accepted.
     * Normalize failures from non-DER ASN.1 serializers to `SerializationException`, including Base64 fallback, numeric, string, OID, and time serializers.
+    * Corrected integer text/magnitude and varint edge cases and lenient empty INTEGER decoding.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**
