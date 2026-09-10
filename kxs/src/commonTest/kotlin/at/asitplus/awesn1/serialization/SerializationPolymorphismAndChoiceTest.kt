@@ -6,6 +6,7 @@ import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
@@ -137,6 +138,12 @@ val SerializationTestPolymorphismAndChoice by matrixSuite(
         shouldThrow<SerializationException> {
             DER.decodeFromByteArray<AmbiguousChoice>(encoded)
         }
+    }
+
+    "Choice rejects a tag matching no alternative" {
+        shouldThrow<SerializationException> {
+            DER.decodeFromByteArray<ChoiceContainer>("30030101ff".hexToByteArray())
+        }.message.shouldContain("No CHOICE alternative")
     }
 }
 

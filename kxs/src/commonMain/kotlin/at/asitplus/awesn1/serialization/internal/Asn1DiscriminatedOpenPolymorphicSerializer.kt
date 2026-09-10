@@ -3,6 +3,7 @@
 
 package at.asitplus.awesn1.serialization.internal
 
+import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.serialization.Asn1LeadingTagsDescriptor
 import at.asitplus.awesn1.serialization.withDynamicAsn1LeadingTags
 import kotlinx.serialization.DeserializationStrategy
@@ -13,6 +14,17 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+
+internal data class DerEncodeSelection<T : Any>(
+    val serializer: KSerializer<out T>,
+    val discriminatorOid: ObjectIdentifier? = null,
+)
+
+internal data class DerDecodeSelection<T : Any>(
+    val deserializer: DeserializationStrategy<T>,
+    val acceptWireTag: Boolean = false,
+    val discriminatorOid: ObjectIdentifier? = null,
+)
 
 /**
  * Shared base for ASN.1 open-polymorphic serializers that dispatch by a discriminator.
@@ -31,9 +43,9 @@ internal abstract class Asn1DiscriminatedOpenPolymorphicSerializer<T : Any>(
             .withDynamicAsn1LeadingTags { leadingTags }
 
     @Throws(SerializationException::class)
-    protected abstract fun serializerForEncode(encoder: DerEncoder, value: T): KSerializer<out T>
+    protected abstract fun selectionForEncode(value: T): DerEncodeSelection<T>
     @Throws(SerializationException::class)
-    protected abstract fun serializerForDecode(decoder: DerDecoder): DeserializationStrategy<T>
+    protected abstract fun selectionForDecode(decoder: DerDecoder): DerDecodeSelection<T>
 
     /**
      * Serializes [value] using discriminator-based subtype selection.
@@ -43,9 +55,7 @@ internal abstract class Asn1DiscriminatedOpenPolymorphicSerializer<T : Any>(
     @Throws(SerializationException::class)
     override fun serialize(encoder: Encoder, value: T) {
         val derEncoder = encoder.requireDerEncoder(descriptor.serialName)
-        val selected = serializerForEncode(derEncoder, value)
-        @Suppress("UNCHECKED_CAST")
-        derEncoder.encodeSerializableValue(selected as KSerializer<Any?>, value as Any?)
+        derEncoder.encodeSelectedValue(selectionForEncode(value), value)
     }
 
     /**
@@ -56,7 +66,6 @@ internal abstract class Asn1DiscriminatedOpenPolymorphicSerializer<T : Any>(
     @Throws(SerializationException::class)
     final override fun deserialize(decoder: Decoder): T {
         val derDecoder = decoder.requireDerDecoder(descriptor.serialName)
-        val selected = serializerForDecode(derDecoder)
-        return derDecoder.decodeCurrentElementWith(selected)
+        return derDecoder.decodeCurrentElementWith(selectionForDecode(derDecoder))
     }
 }

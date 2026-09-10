@@ -4,7 +4,6 @@
 package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.Asn1Element
-import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encoding.Encoder
@@ -32,8 +31,8 @@ internal class Asn1TagDiscriminatedOpenPolymorphicSerializer<T : Any>(
         dispatch.registerSubtype(registration)
     }
 
-    override fun serializerForEncode(encoder: DerEncoder, value: T): KSerializer<out T> =
-        dispatch.serializerForEncode(value)
+    override fun selectionForEncode(value: T): DerEncodeSelection<T> =
+        DerEncodeSelection(dispatch.serializerForEncode(value))
 
     override fun serialize(encoder: Encoder, value: T) {
         val derEncoder = encoder.requireDerEncoder(descriptor.serialName)
@@ -57,12 +56,14 @@ internal class Asn1TagDiscriminatedOpenPolymorphicSerializer<T : Any>(
      * @throws SerializationException when no current element exists or no subtype matches the tag
      */
     @Throws(SerializationException::class)
-    override fun serializerForDecode(decoder: DerDecoder): DeserializationStrategy<T> {
+    override fun selectionForDecode(decoder: DerDecoder): DerDecodeSelection<T> {
         val tag = decoder.peekCurrentElementTagOrNull()
             ?: throw SerializationException("No ASN.1 element left while decoding ${descriptor.serialName}")
         val selected = dispatch.serializerForDecode(tag)
-        decoder.acceptDispatchedTagForNextValue()
         @Suppress("UNCHECKED_CAST")
-        return selected as DeserializationStrategy<T>
+        return DerDecodeSelection(
+            deserializer = selected as KSerializer<T>,
+            acceptWireTag = true,
+        )
     }
 }
