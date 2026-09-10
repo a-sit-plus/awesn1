@@ -253,11 +253,6 @@ class DerDecoder internal constructor(
                     isTrailing = currentDescriptorIndex >= descriptor.elementsCount - 1,
                 )
                 val propertyContext = requireNotNull(currentSlot).property
-                val nullEncodingAnalysis = analysis.analyzeNullable(
-                    descriptor = propertyContext.propertyDescriptor,
-                    propertyAsn1Tag = propertyContext.propertyAsn1Tag,
-                    propertyAsBitString = propertyContext.propertyAsBitString,
-                )
                 if (descriptor.isElementOptional(currentDescriptorIndex) &&
                     !propertyContext.propertyDescriptor.isNullable &&
                     !cursor.isAtEnd
@@ -268,15 +263,11 @@ class DerDecoder internal constructor(
                         propertyAsn1Tag = propertyContext.propertyAsn1Tag,
                         propertyAsBitString = propertyContext.propertyAsBitString,
                     )
-                    if (expectedTags is Asn1LeadingTagsResolution.Exact &&
-                        actualTag !in expectedTags.tags &&
-                        !(nullEncodingAnalysis.encodeNullEnabled && cursor.current().isAsn1NullElement())
-                    ) {
+                    if (expectedTags is Asn1LeadingTagsResolution.Exact && actualTag !in expectedTags.tags) {
                         return decodeElementIndex(descriptor)
                     }
                 }
-                val couldBeAbsent = propertyContext.propertyDescriptor.isNullable &&
-                        !nullEncodingAnalysis.encodeNullEnabled
+                val couldBeAbsent = propertyContext.propertyDescriptor.isNullable && !analysis.explicitNulls
                 currentSlot = requireNotNull(currentSlot).copy(couldBeAbsent = couldBeAbsent)
 
                 if (cursor.isAtEnd && !couldBeAbsent) {
@@ -468,13 +459,8 @@ class DerDecoder internal constructor(
         )
 
         if (element.isAsn1NullElement()) {
-            val propertyEncodesNull = property != null && analysis.analyzeNullable(
-                descriptor = property.propertyDescriptor,
-                propertyAsn1Tag = property.propertyAsn1Tag,
-                propertyAsBitString = property.propertyAsBitString,
-            ).encodeNullEnabled
             val descriptorEncodesNull = analysis.analyzeNullable(deserializer.descriptor).encodeNullEnabled
-            val encodedNull = effectiveNullEncoding.encodeNullEnabled || propertyEncodesNull || descriptorEncodesNull
+            val encodedNull = effectiveNullEncoding.encodeNullEnabled || descriptorEncodesNull
             if (!encodedNull) {
                 if (deserializer.descriptor.serialName.removeSuffix("?") == ASN1_DESCRIPTOR_ELEMENT_TREE) {
                     return false

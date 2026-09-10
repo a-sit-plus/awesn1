@@ -14,7 +14,7 @@ import kotlinx.serialization.descriptors.StructureKind
 
 /** Format-aware descriptor analysis shared by one DER encode/decode operation. */
 internal class DerAnalysisContext(
-    private val explicitNulls: Boolean,
+    internal val explicitNulls: Boolean,
 ) {
     private val validatedOptionalLayouts = mutableSetOf<IdentityKey<SerialDescriptor>>()
 
