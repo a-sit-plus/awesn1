@@ -2,6 +2,7 @@
 
 ## NEXT
 * **Fixes:**
+    * Fixed DER null and optional handling: null sentinels round-trip without swallowing data or colliding with empty values, defaulted fields are detected by tag, enum/SET tag inference is accurate, and layout checks keep distinct annotated descriptors separate.
     * Fixed tag-discriminated open polymorphism to emit registered subtype tags, preserve them through enclosing properties, resolve nullable/nested dispatch correctly, and avoid leaking tag state to later fields.
     * Fixed OID-discriminated open polymorphism to prefer exact subtype registrations, emit the registered discriminator, survive canonical SET sorting, and reject non-leading selectors that cannot be decoded losslessly.
     * Fixed sealed CHOICE serialization so selected serializers are honored, inline wrappers retain CHOICE tag inference, and ambiguous nullable layouts are rejected.
