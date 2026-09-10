@@ -22,6 +22,8 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalStdlibApi::class)
@@ -113,9 +115,12 @@ val StringEncodingFindings by matrixSuite {
             ) shouldBe "\"héllo\""
 
             // Fault (B): a lone surrogate is silently rewritten to '?' instead of being rejected.
-            shouldThrow<Asn1Exception> {
+            // The JSON path surfaces the rejection as SerializationException, per the format
+            // contract in StringFallbackSerializer; the Asn1Exception is retained as its cause.
+            val thrown = shouldThrow<SerializationException> {
                 Json.decodeFromString(Asn1Utf8StringSerializer, "\"a\\ud800b\"")
             }
+            thrown.cause.shouldBeInstanceOf<Asn1Exception>()
         }
     }
 
