@@ -13,7 +13,16 @@ private const val FENCE_PREFIX_BEGIN = "-----BEGIN "
 private const val FENCE_PREFIX_END = "-----END "
 private const val FENCE_SUFFIX = "-----"
 
-data class PemHeader(val name: String, val value: String)
+data class PemHeader(val name: String, val value: String) {
+    init {
+        require(FENCE_PREFIX_BEGIN !in name && FENCE_PREFIX_END !in name) {
+            "PEM header names must not contain PEM fences"
+        }
+        require(FENCE_PREFIX_BEGIN !in value && FENCE_PREFIX_END !in value) {
+            "PEM header values must not contain PEM fences"
+        }
+    }
+}
 
 interface WithPemLabel {
     val pemLabel: String
