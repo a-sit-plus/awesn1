@@ -10,7 +10,7 @@ import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerDepthGuard
-import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
+import at.asitplus.awesn1.serialization.internal.DerAnalysisContext
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
@@ -53,13 +53,14 @@ class Der internal constructor(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
     ): T = runWrappingAs(a = ::SerializationException) {
-        val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
+        val analysis = DerAnalysisContext(configuration.explicitNulls)
+            .also { it.validateDescriptorTree(deserializer.descriptor) }
         val decoder = DerDecoder(
             if (bytes.isEmpty()) emptyList() else listOf(
                 Asn1Element.parse(source = bytes, limit = configuration.maxInputLength)
             ),
             der = this,
-            layoutPlan = layoutPlan,
+            analysis = analysis,
         )
         return decoder.decodeSerializableValue(deserializer)
     }
@@ -95,10 +96,11 @@ class Der internal constructor(
         @Throws(SerializationException::class, ImplementationError::class)
         fun <T> encodeToTlv(der: Der, serializer: SerializationStrategy<T>, value: T): Asn1Element? =
             runWrappingAs(a = ::SerializationException) {
-                val layoutPlan = DerLayoutPlanContext(der.configuration).also { it.prime(serializer.descriptor) }
+                val analysis = DerAnalysisContext(der.configuration.explicitNulls)
+                    .also { it.validateDescriptorTree(serializer.descriptor) }
                 val encoder = DerEncoder(
                     der = der,
-                    layoutPlan = layoutPlan,
+                    analysis = analysis,
                 )
                 encoder.encodeSerializableValue(serializer, value)
                 val elements = encoder.encodeToTLV()
@@ -124,11 +126,12 @@ class Der internal constructor(
     @Throws(SerializationException::class, ImplementationError::class)
     fun <T> decodeFromTlv(deserializer: DeserializationStrategy<T>, source: Asn1Element): T =
         runWrappingAs(a = ::SerializationException) {
-            val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
+            val analysis = DerAnalysisContext(configuration.explicitNulls)
+                .also { it.validateDescriptorTree(deserializer.descriptor) }
             val decoder = DerDecoder(
                 listOf(source),
                 der = this,
-                layoutPlan = layoutPlan,
+                analysis = analysis,
             )
             return decoder.decodeSerializableValue(deserializer)
         }
