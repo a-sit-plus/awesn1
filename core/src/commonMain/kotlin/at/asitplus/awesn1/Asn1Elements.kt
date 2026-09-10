@@ -657,6 +657,9 @@ sealed class Asn1Element(
          */
         class Template(val tagValue: ULong, val tagClass: TagClass?, val constructed: Boolean?) {
 
+            override fun toString(): String =
+                "${tagClass ?: "INFER"}:$tagValue/${constructed?.let { if (it) "C" else "P" } ?: "INFER"}"
+
             /**
              * Creates a new tag template from this template, negating the passed property
              */

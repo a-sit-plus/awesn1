@@ -151,7 +151,7 @@ val SerializationPolymorphismFindings by matrixSuite {
          *
          * BUG: for a tag-discriminated open-polymorphic property carrying a property-level
          * @Asn1Tag, DerEncoder propagates that tag onto the primitive payload of an inline
-         * value-class subtype (pendingBeginStructureTagTemplate). Decode dispatch, however, keys
+         * value-class subtype (pendingStructure). Decode dispatch, however, keys
          * purely on each subtype's NATURAL leading tag, so the emitted [0] tag matches no subtype:
          * the library cannot decode its own output, and every primitive-backed subtype collapses
          * onto the same wire tag.
@@ -212,8 +212,8 @@ val SerializationPolymorphismFindings by matrixSuite {
         /*
          * stale_inherited_openpoly_tag
          *
-         * BUG: DerDecoder sets `inheritedOpenPolymorphicTag` for an open-polymorphic property and
-         * never restores it (no try/finally, unlike the encoder's pendingBeginStructureTagTemplate).
+         * BUG: DerDecoder sets `polymorphicHandoff.inheritedPropertyTag` for an open-polymorphic property and
+         * never restores it (no try/finally, unlike the encoder's pendingStructure).
          * The polymorphic property's tag therefore leaks onto EVERY subsequent non-primitive
          * property on the same structure level: the decoder rejects its own canonical output and
          * ACCEPTS attacker-retagged wire instead — a malleability hole.
@@ -282,7 +282,7 @@ val SerializationPolymorphismFindings by matrixSuite {
          * custom_oidselector_drop_misalignment
          *
          * BUG: a custom oidSelector may read the discriminator from ANY child, but
-         * serializerForDecode sets the position-less `dropFirstChildInNextStructure` flag, so
+         * serializerForDecode sets the position-less `polymorphicHandoff.discriminatorOid` flag, so
          * beginStructure always discards child[0]. With a selector reading child[1] the marker
          * element is silently deleted, every payload binding shifts onto the discriminator, and
          * decode -> re-encode diverges from the wire.

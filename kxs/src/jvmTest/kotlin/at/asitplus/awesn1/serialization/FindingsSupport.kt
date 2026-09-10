@@ -72,6 +72,13 @@ internal fun nestedSequenceDer(levels: Int): ByteArray {
     return body
 }
 
+internal fun withClue(clue: String, block: () -> Unit) =
+    try {
+        block()
+    } catch (t: AssertionError) {
+        throw AssertionError("${t.message}\n--- probe output ---\n$clue", t)
+    }
+
 internal fun buildRecursiveGraph(depth: Int): DsPlainRecursive {
     var node = DsPlainRecursive(null)
     repeat(depth - 1) { node = DsPlainRecursive(node) }
@@ -88,7 +95,7 @@ data class DsPlainRecursive(val child: DsPlainRecursive? = null)
 
 /**
  * Recursion through an Asn1Serializable companion — the path DerDecoder routes to
- * decodeAsn1SerializableValue, which never calls DerDepthGuard.enter().
+ * decodeConcreteValue, which calls DerDepthGuard.ensureElementTreeFits().
  */
 @Serializable(with = DsSerializableRecursive.Companion::class)
 class DsSerializableRecursive(val child: DsSerializableRecursive?) : Asn1Encodable<Asn1Sequence> {
@@ -173,34 +180,6 @@ interface DsP
 @Serializable
 @Asn1Tag(tagNumber = 3uL, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
 data class DsPImpl(val next: DsP? = null) : DsP
-
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
-internal fun withClue(clue: String, block: () -> Unit) =
-    try {
-        block()
-    } catch (t: AssertionError) {
-        throw AssertionError("${t.message}\n--- probe output ---\n$clue", t)
-    }
-
-internal fun glDerLength(length: Int): ByteArray {
-    if (length < 0x80) return byteArrayOf(length.toByte())
-    var remaining = length
-    val octets = mutableListOf<Byte>()
-    while (remaining > 0) {
-        octets.add(0, (remaining and 0xFF).toByte())
-        remaining = remaining ushr 8
-    }
-    return byteArrayOf((0x80 or octets.size).toByte()) + octets.toByteArray()
-}
-
-internal fun glNestedSequenceDer(levels: Int): ByteArray {
-    var body = ByteArray(0)
-    repeat(levels) { body = byteArrayOf(0x30) + glDerLength(body.size) + body }
-    return body
-}
 
 // ---------------------------------------------------------------------------
 // models

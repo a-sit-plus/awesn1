@@ -236,9 +236,7 @@ class DerDecoder internal constructor(
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
         return when (descriptor.kind) {
             is StructureKind.CLASS, is StructureKind.OBJECT -> {
-                if (descriptorIndex == 0) {
-                    analysis.validateOptionalLayout(descriptor)
-                }
+                analysis.validateOptionalLayout(descriptor)
                 if (descriptorIndex >= descriptor.elementsCount) {
                     if (!cursor.isAtEnd) {
                         throw SerializationException(
@@ -292,9 +290,6 @@ class DerDecoder internal constructor(
             else -> {
                 // list-like descriptors always have elementCount = 1 because
                 // they can never know how long the list actually is
-                val max = maxOf(descriptor.elementsCount, cursor.size)
-                if (cursor.position >= max) return CompositeDecoder.DECODE_DONE
-
                 if (cursor.isAtEnd) return CompositeDecoder.DECODE_DONE
                 applyCurrentPropertyContext(
                     ownerDescriptor = descriptor,
@@ -302,7 +297,7 @@ class DerDecoder internal constructor(
                     isTrailing = true,
                     safePropertyNameLookup = true,
                 )
-                if (!cursor.isAtEnd) cursor.position else CompositeDecoder.DECODE_DONE
+                cursor.position
             }
         }
     }
@@ -703,7 +698,7 @@ class DerDecoder internal constructor(
             },
         )
         val selected = dispatch.serializerForDecodeOrNull(currentAnnotatedElement.tag)
-            ?: throw Asn1ChoiceNoMatchingAlternativeException(
+            ?: throw SerializationException(
                 "No CHOICE alternative of ${deserializer.descriptor.serialName} matches tag ${currentAnnotatedElement.tag}"
             )
 
@@ -711,5 +706,3 @@ class DerDecoder internal constructor(
     }
 
 }
-
-private class Asn1ChoiceNoMatchingAlternativeException(message: String) : SerializationException(message)

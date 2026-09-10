@@ -88,7 +88,7 @@ val SerializationNullAndOptionalFindings by matrixSuite {
         /*
          * inline_nullable_null_sentinel_undecodable
          *
-         * BUG: the inline fast path in decodeSerializableValue returns before the isEncodedNull
+         * BUG: the inline fast path in decodeSerializableValue returns before the tryConsumeEncodedNull
          * block, so the tagged null sentinel that encodeNull emits for a nullable value-class
          * property (30 02 85 00) reaches the primitive decode path as a zero-length Int and is
          * rejected. The encoder's own output is unconditionally undecodable.
@@ -226,7 +226,7 @@ val SerializationNullAndOptionalFindings by matrixSuite {
         /*
          * gate_certifies_undecodable_defaulted_optional_layouts
          *
-         * BUG: DerDecoder.decodeElementIndex derives `couldBeNull` from NULLABILITY only, so a
+         * BUG: DerDecoder.decodeElementIndex derives `couldBeAbsent` from NULLABILITY only, so a
          * non-nullable kotlinx-OPTIONAL (defaulted) property has no tag-based presence
          * resolution: it unconditionally binds the next wire element and then fails tag
          * validation. Meanwhile ensureNoAsn1AmbiguousOptionalLayout certifies exactly these
