@@ -28,6 +28,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.StructureKind
 
+/** Descriptor-derived wire shape used by DER layout analysis. */
 private data class Asn1FieldShape(
     val index: Int,
     val name: String,
@@ -62,6 +63,12 @@ internal data class Asn1NullEncodingAnalysis(
         get() = encodeNullEnabled &&
                 usesImplicitNullSentinel &&
                 baseIsConstructed
+
+    fun matchesEncodedNull(element: Asn1Element): Boolean = encodeNullEnabled && (
+            element.isAsn1NullElement() ||
+                    canDecodeNullByZeroLength && element.contentLength == 0 ||
+                    canDecodeNullByConstructedBit && !element.tag.isConstructed && element.contentLength == 0
+            )
 }
 
 private val Asn1StringTags: Set<Asn1Element.Tag> = setOf(

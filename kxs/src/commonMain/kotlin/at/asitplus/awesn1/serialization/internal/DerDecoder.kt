@@ -350,65 +350,45 @@ class DerDecoder internal constructor(
         deserializer: DeserializationStrategy<T>,
         previousValue: T?
     ): T {
-
         val slot = currentSlot
-        val propertyContext = slot?.property
-        val nullableCouldBeAbsent = slot?.couldBeAbsent == true
-        val descriptorNullEncodingAnalysis = analysis.analyzeNullable(deserializer.descriptor)
-        if (nullableCouldBeAbsent) {
-            val nullableProperty = requireNotNull(propertyContext)
-            val pendingInlineHints = inlineHintState.peek()
-            if (cursor.isAtEnd) {
-                return nullDecoded()
-            }
-
-            val openSerializer = resolveOpenPolymorphicAsn1SerializerOrNull(deserializer, serializersModule)
-            val tagDispatched = openSerializer is Asn1TagDiscriminatedOpenPolymorphicSerializer<*>
-            when (val expectedLeadingTags = analysis.possibleLeadingTags(
-                descriptor = openSerializer?.descriptor ?: nullableProperty.propertyDescriptor,
-                propertyAsn1Tag = nullableProperty.propertyAsn1Tag.takeUnless { tagDispatched },
-                inlineAsn1Tag = pendingInlineHints.tag,
-                propertyAsBitString = nullableProperty.propertyAsBitString,
-                inlineAsBitString = pendingInlineHints.asBitString,
-            )) {
-                is Asn1LeadingTagsResolution.Exact -> {
-                    val actualTag = cursor.current().tag
-                    if (actualTag !in expectedLeadingTags.tags) {
-                        return nullDecoded()
-                    }
-                }
-
-                Asn1LeadingTagsResolution.UnknownInfer -> {
-                    if (!slot.isTrailing) {
-                        throw SerializationException(
-                            undecidableAsn1NullableDecodingMessage(
-                                ownerSerialName = nullableProperty.ownerSerialName,
-                                propertyName = nullableProperty.propertyName
-                                    ?: nullableProperty.propertyDescriptor.serialName,
-                                propertyIndex = nullableProperty.index,
-                                reason = expectedLeadingTags.reason(),
-                            )
-                        )
-                    }
-                }
-            }
-        }
-        val currentAnnotatedElement = cursor.current()
-        if (currentAnnotatedElement.isAsn1NullElement() &&
-            deserializer.descriptor.serialName.removeSuffix("?") != ASN1_DESCRIPTOR_ELEMENT_TREE
-        ) {
-            val propertyDescriptorEncodesNull = propertyContext != null &&
-                    analysis.analyzeNullable(
-                        descriptor = propertyContext.propertyDescriptor,
-                        propertyAsn1Tag = propertyContext.propertyAsn1Tag,
-                        propertyAsBitString = propertyContext.propertyAsBitString,
-                    ).encodeNullEnabled
-            if (!propertyDescriptorEncodesNull && !descriptorNullEncodingAnalysis.encodeNullEnabled) {
-                throw SerializationException("Null value found, but target value should not have been present!")
-            }
-            return cursor.consume { nullDecoded() }
+        if (slot?.couldBeAbsent == true && isCurrentNullableValueAbsent(deserializer, slot)) {
+            return nullDecoded()
         }
         return decodeSerializableValue(deserializer)
+    }
+
+    private fun <T> isCurrentNullableValueAbsent(
+        deserializer: DeserializationStrategy<T>,
+        slot: DerDecodeSlot,
+    ): Boolean {
+        if (cursor.isAtEnd) return true
+
+        val property = slot.property
+        val inlineHints = inlineHintState.peek()
+        val openSerializer = resolveOpenPolymorphicAsn1SerializerOrNull(deserializer, serializersModule)
+        val tagDispatched = openSerializer is Asn1TagDiscriminatedOpenPolymorphicSerializer<*>
+        return when (val expectedLeadingTags = analysis.possibleLeadingTags(
+            descriptor = openSerializer?.descriptor ?: property.propertyDescriptor,
+            propertyAsn1Tag = property.propertyAsn1Tag.takeUnless { tagDispatched },
+            inlineAsn1Tag = inlineHints.tag,
+            propertyAsBitString = property.propertyAsBitString,
+            inlineAsBitString = inlineHints.asBitString,
+        )) {
+            is Asn1LeadingTagsResolution.Exact -> cursor.current().tag !in expectedLeadingTags.tags
+            Asn1LeadingTagsResolution.UnknownInfer -> {
+                if (!slot.isTrailing) {
+                    throw SerializationException(
+                        undecidableAsn1NullableDecodingMessage(
+                            ownerSerialName = property.ownerSerialName,
+                            propertyName = property.propertyName ?: property.propertyDescriptor.serialName,
+                            propertyIndex = property.index,
+                            reason = expectedLeadingTags.reason(),
+                        )
+                    )
+                }
+                false
+            }
+        }
     }
 
     @OptIn(InternalSerializationApi::class)
@@ -420,40 +400,9 @@ class DerDecoder internal constructor(
     @Throws(SerializationException::class)
     override fun <T> decodeSerializableValue(deserializer: DeserializationStrategy<T>): T {
         if (cursor.size == 0 && deserializer.descriptor.isNullable) return nullDecoded()
+        if (tryConsumeEncodedNull(deserializer)) return nullDecoded()
+
         val propertyContext = currentSlot?.property
-        val pendingInlineHints = inlineHintState.peek()
-        val pendingPropertyTag = polymorphicHandoff.inheritedPropertyTag ?: propertyContext?.propertyAsn1Tag
-        val pendingNullAnalysis = analysis.analyzeNullable(
-            descriptor = propertyContext?.propertyDescriptor ?: deserializer.descriptor,
-            propertyAsn1Tag = pendingPropertyTag,
-            inlineAsn1Tag = pendingInlineHints.tag,
-            propertyAsBitString = propertyContext?.propertyAsBitString == true,
-            inlineAsBitString = pendingInlineHints.asBitString,
-        )
-        val pendingElement = cursor.current()
-        if (pendingNullAnalysis.matchesEncodedNull(pendingElement)) {
-            if (!pendingElement.isAsn1NullElement()) {
-                val template = resolveAsn1TagTemplate(
-                    inlineAsn1Tag = pendingInlineHints.tag,
-                    propertyAsn1Tag = pendingPropertyTag,
-                    classAsn1Tag = deserializer.descriptor.asn1Tag,
-                )
-                if (template != null) {
-                    val expectedTag = Asn1Element.Tag(
-                        template.tagValue,
-                        template.constructed ?: pendingElement.tag.isConstructed,
-                        template.tagClass ?: TagClass.CONTEXT_SPECIFIC,
-                    )
-                    if (pendingElement.tag.tagValue != expectedTag.tagValue ||
-                        pendingElement.tag.tagClass != expectedTag.tagClass
-                    ) {
-                        throw SerializationException(Asn1TagMismatchException(expectedTag, pendingElement.tag))
-                    }
-                }
-            }
-            inlineHintState.clear()
-            return cursor.consume { nullDecoded() }
-        }
         if (deserializer.descriptor.isInline) {
             // Let the framework do its inline-class magic **before consuming pending inline hints.**
             return deserializer.deserialize(this)
@@ -508,6 +457,57 @@ class DerDecoder internal constructor(
         }
 
         return decodeConcreteValue(deserializer, currentAnnotatedElement, valueSite)
+    }
+
+    private fun tryConsumeEncodedNull(deserializer: DeserializationStrategy<*>): Boolean {
+        val element = cursor.currentOrNull() ?: return false
+        val property = currentSlot?.property
+        val inlineHints = inlineHintState.peek()
+        val propertyTag = polymorphicHandoff.inheritedPropertyTag ?: property?.propertyAsn1Tag
+        val effectiveNullEncoding = analysis.analyzeNullable(
+            descriptor = property?.propertyDescriptor ?: deserializer.descriptor,
+            propertyAsn1Tag = propertyTag,
+            inlineAsn1Tag = inlineHints.tag,
+            propertyAsBitString = property?.propertyAsBitString == true,
+            inlineAsBitString = inlineHints.asBitString,
+        )
+
+        if (element.isAsn1NullElement()) {
+            val propertyEncodesNull = property != null && analysis.analyzeNullable(
+                descriptor = property.propertyDescriptor,
+                propertyAsn1Tag = property.propertyAsn1Tag,
+                propertyAsBitString = property.propertyAsBitString,
+            ).encodeNullEnabled
+            val descriptorEncodesNull = analysis.analyzeNullable(deserializer.descriptor).encodeNullEnabled
+            val encodedNull = effectiveNullEncoding.encodeNullEnabled || propertyEncodesNull || descriptorEncodesNull
+            if (!encodedNull) {
+                if (deserializer.descriptor.serialName.removeSuffix("?") == ASN1_DESCRIPTOR_ELEMENT_TREE) {
+                    return false
+                }
+                throw SerializationException("Null value found, but target value should not have been present!")
+            }
+        } else {
+            if (!effectiveNullEncoding.matchesEncodedNull(element)) return false
+            val template = resolveAsn1TagTemplate(
+                inlineAsn1Tag = inlineHints.tag,
+                propertyAsn1Tag = propertyTag,
+                classAsn1Tag = deserializer.descriptor.asn1Tag,
+            )
+            if (template != null) {
+                val expectedTag = Asn1Element.Tag(
+                    template.tagValue,
+                    template.constructed ?: element.tag.isConstructed,
+                    template.tagClass ?: TagClass.CONTEXT_SPECIFIC,
+                )
+                if (element.tag.tagValue != expectedTag.tagValue || element.tag.tagClass != expectedTag.tagClass) {
+                    throw SerializationException(Asn1TagMismatchException(expectedTag, element.tag))
+                }
+            }
+        }
+
+        inlineHintState.clear()
+        cursor.consume { Unit }
+        return true
     }
 
     private fun <T> decodeConcreteValue(
