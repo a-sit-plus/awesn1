@@ -15,16 +15,21 @@ private interface Asn1SetSerialDescriptor {
     val sortChildren: Boolean
 }
 
+private class Asn1SetAnnotation : Annotation
+
 private class NamedAsn1SetSerialDescriptor(
     private val name: String,
     private val delegate: SerialDescriptor,
     override val sortChildren: Boolean,
 ) : SerialDescriptor by delegate, Asn1SetSerialDescriptor {
     override val serialName: String get() = name
+    override val annotations: List<Annotation> get() = delegate.annotations + Asn1SetAnnotation()
 }
 
 internal val SerialDescriptor.isSetDescriptor: Boolean
-    get() = this is Asn1SetSerialDescriptor || setDescriptor::class.isInstance(this)
+    get() = this is Asn1SetSerialDescriptor ||
+            annotations.any { it is Asn1SetAnnotation } ||
+            setDescriptor::class.isInstance(this)
 
 internal val SerialDescriptor.isKotlinSetDescriptor: Boolean
     get() = setDescriptor::class.isInstance(this)

@@ -331,13 +331,13 @@ private fun possibleBaseLeadingTags(
         PrimitiveKind.CHAR,
         PrimitiveKind.STRING -> Asn1StringTags
 
-        SerialKind.ENUM -> setOf(Asn1Element.Tag.INT)
+        SerialKind.ENUM -> setOf(Asn1Element.Tag.ENUM)
 
         is StructureKind.CLASS,
         is StructureKind.OBJECT -> setOf(if (descriptor.isSetDescriptor) Asn1Element.Tag.SET else Asn1Element.Tag.SEQUENCE)
 
         is StructureKind.LIST,
-        is StructureKind.MAP -> setOf(Asn1Element.Tag.SEQUENCE)
+        is StructureKind.MAP -> setOf(if (descriptor.isSetDescriptor) Asn1Element.Tag.SET else Asn1Element.Tag.SEQUENCE)
 
         is PolymorphicKind.OPEN -> setOf(Asn1Element.Tag.SEQUENCE)
         is PolymorphicKind.SEALED -> {
