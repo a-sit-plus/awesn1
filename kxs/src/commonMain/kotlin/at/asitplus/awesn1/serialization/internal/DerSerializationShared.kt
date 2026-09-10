@@ -11,7 +11,6 @@ import at.asitplus.awesn1.Asn1TagMismatchException
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Asn1OpenPolymorphicWithDefaultSerializer
 import at.asitplus.awesn1.serialization.asn1Tag
-import at.asitplus.awesn1.serialization.isAsn1BitString
 import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.InternalSerializationApi
@@ -26,95 +25,6 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.internal.AbstractPolymorphicSerializer
 import kotlinx.serialization.modules.SerializersModule
-
-/**
- * Inline annotation hints captured by [DerEncoder]/[DerDecoder] from [SerialDescriptor]s.
- */
-internal data class DerInlineHints(
-    val tag: Asn1Tag?,
-    val asBitString: Boolean,
-)
-
-internal data class DerPropertyContext(
-    val ownerDescriptor: SerialDescriptor,
-    val index: Int,
-    val propertyDescriptor: SerialDescriptor,
-    val propertyAsn1Tag: Asn1Tag?,
-    val propertyAsBitString: Boolean,
-    val propertyName: String?,
-) {
-    val ownerSerialName: String
-        get() = ownerDescriptor.serialName
-}
-
-internal fun Asn1NullEncodingAnalysis.matchesEncodedNull(element: Asn1Element): Boolean =
-    encodeNullEnabled && (
-            element.isAsn1NullElement() ||
-                    canDecodeNullByZeroLength && element.contentLength == 0 ||
-                    canDecodeNullByConstructedBit && !element.tag.isConstructed && element.contentLength == 0
-            )
-
-/**
- * Mutable holder for pending inline hints with explicit consume/peek semantics.
- */
-internal class DerInlineHintState {
-    private var inlineAsn1Tag: Asn1Tag? = null
-    private var inlineAsBitString: Boolean = false
-
-    /**
-     * Captures inline ASN.1 hints from [descriptor] for later consumption.
-     */
-    fun captureInlineHintsFrom(descriptor: SerialDescriptor) {
-        descriptor.requireNoAsn1TagOnInlineBackingProperty()
-        inlineAsn1Tag = inlineAsn1Tag ?: descriptor.annotations.asn1Tag
-        inlineAsBitString = inlineAsBitString || descriptor.isAsn1BitString
-    }
-
-    /**
-     * Returns currently pending inline hints without consuming them.
-     */
-    fun peek(): DerInlineHints = DerInlineHints(
-        tag = inlineAsn1Tag,
-        asBitString = inlineAsBitString,
-    )
-
-    /**
-     * Returns currently pending inline hints and resets internal state.
-     */
-    fun consume(): DerInlineHints = peek().also {
-        clear()
-    }
-
-    fun clear() {
-        inlineAsn1Tag = null
-        inlineAsBitString = false
-    }
-}
-
-/**
- * Resolves property-level ASN.1 context from a `(descriptor, index)` pair.
- *
- * @throws IndexOutOfBoundsException when [safePropertyNameLookup] is false and [index] is outside descriptor bounds
- */
-@Throws(IndexOutOfBoundsException::class)
-internal fun Pair<SerialDescriptor, Int>.toDerPropertyContext(
-    safePropertyNameLookup: Boolean = false,
-): DerPropertyContext {
-    val (ownerDescriptor, index) = this
-    val propertyName = if (safePropertyNameLookup) {
-        runCatching { ownerDescriptor.getElementName(index) }.getOrNull()
-    } else {
-        ownerDescriptor.getElementName(index)
-    }
-    return DerPropertyContext(
-        ownerDescriptor = ownerDescriptor,
-        index = index,
-        propertyDescriptor = ownerDescriptor.getElementDescriptor(index),
-        propertyAsn1Tag = ownerDescriptor.asn1Tag(index),
-        propertyAsBitString = ownerDescriptor.isAsn1BitString(index),
-        propertyName = propertyName,
-    )
-}
 
 private val byteArrayDescriptor = ByteArraySerializer().descriptor
 private val byteArraySerialName = byteArrayDescriptor.serialName.removeSuffix("?")
