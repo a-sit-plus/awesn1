@@ -6,6 +6,8 @@ import at.asitplus.testballoon.matrix.matrixConfig
 import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
+import io.kotest.assertions.throwables.shouldThrow
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
@@ -19,5 +21,15 @@ val SerializationTestAsn1String by matrixSuite(
 
         DER.decodeFromByteArray<Asn1String>(serialized) shouldBe str
         DER.decodeFromByteArray<Asn1String.UTF8>(serialized) shouldBe str
+    }
+
+    "generic decoding preserves malformed strings while concrete decoding is strict" {
+        val malformed = "1e0100".hexToByteArray()
+        val generic = DER.decodeFromByteArray<Asn1String>(malformed)
+
+        generic.isValid shouldBe false
+        DER.encodeToByteArray<Asn1String>(generic).contentEquals(malformed) shouldBe true
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<Asn1String.BMP>(malformed) }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray<String>(malformed) }
     }
 }
