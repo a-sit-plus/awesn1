@@ -116,7 +116,7 @@ class DerDecoder internal constructor(
             val structureDecoder = serializer as? Asn1Decodable<Asn1Structure, *>
                 ?: throw SerializationException(
                     "Serializer ${serializer.descriptor.serialName} cannot decode ASN.1 structure values"
-            )
+                )
             structureDecoder.decodeFromTlv(processedElement, expectedTag)
         }
     } }
@@ -541,7 +541,7 @@ class DerDecoder internal constructor(
             val previousInheritedTag = inheritedOpenPolymorphicTag
             //@formatter:off
             inheritedOpenPolymorphicTag = if (openSerializer is Asn1TagDiscriminatedOpenPolymorphicSerializer<*>) null
-                                        else previousInheritedTag ?: inlineHints.tag ?: propertyAsn1Tag
+            else previousInheritedTag ?: inlineHints.tag ?: propertyAsn1Tag
             //@formatter:on
             @Suppress("UNCHECKED_CAST")
             return try {
@@ -961,7 +961,6 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
         String.decodeFromAsn1ContentBytes(content)
     }
 
-//cleaned up in follow-up PR
 private fun ByteArray.decodeBmpString(): String {
     if (size % 2 != 0) throw SerializationException("BMPString content length must be divisible by 2")
     return CharArray(size / 2) { index ->
@@ -972,7 +971,6 @@ private fun ByteArray.decodeBmpString(): String {
     }.concatToString()
 }
 
-//cleaned up in follow-up PR
 private fun ByteArray.decodeUniversalString(): String {
     if (size % 4 != 0) throw SerializationException("UniversalString content length must be divisible by 4")
     val result = StringBuilder(size / 4)
@@ -994,14 +992,12 @@ private fun ByteArray.decodeUniversalString(): String {
     return result.toString()
 }
 
-//cleaned up in follow-up PR
 private fun ByteArray.decodeSupportedTeletexString(): String {
     if (any { it.toInt() and 0x80 != 0 }) {
         throw SerializationException("Non-ASCII TeletexString content is unsupported; use Asn1String to preserve raw bytes")
     }
     return decodeToString()
 }
-
 private fun Int.toStrictByte(): Byte =
     if (this in Byte.MIN_VALUE..Byte.MAX_VALUE) toByte()
     else throw SerializationException("ASN.1 INTEGER value $this is out of range for Byte")
