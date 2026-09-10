@@ -16,7 +16,7 @@ import kotlinx.serialization.descriptors.StructureKind
 internal class DerAnalysisContext(
     internal val explicitNulls: Boolean,
 ) {
-    private val validatedOptionalLayouts = mutableSetOf<IdentityKey<SerialDescriptor>>()
+    private val validatedOptionalLayouts = mutableMapOf<IdentityKey<SerialDescriptor>, Asn1StructureShape>()
 
     /** Validates the static descriptor graph eagerly, including recursive graphs. */
     fun validateDescriptorTree(descriptor: SerialDescriptor) {
@@ -28,7 +28,7 @@ internal class DerAnalysisContext(
         visited: MutableSet<IdentityKey<SerialDescriptor>>,
     ) {
         if (!visited.add(IdentityKey(descriptor))) return
-        validateOptionalLayout(descriptor)
+        validateOptionalLayout(descriptor)?.let { }
         for (index in 0 until descriptor.elementsCount) {
             validateDescriptorTree(descriptor.getElementDescriptor(index), visited)
         }
@@ -36,10 +36,22 @@ internal class DerAnalysisContext(
 
     /** Validates runtime-resolved structures once per operation. */
     @Throws(SerializationException::class)
-    fun validateOptionalLayout(descriptor: SerialDescriptor) {
-        if (descriptor.kind !is StructureKind.CLASS && descriptor.kind !is StructureKind.OBJECT) return
-        if (!validatedOptionalLayouts.add(IdentityKey(descriptor))) return
-        descriptor.ensureNoAsn1AmbiguousOptionalLayout(formatExplicitNulls = explicitNulls)
+    fun validateOptionalLayout(descriptor: SerialDescriptor): Asn1StructureShape? {
+        if (descriptor.kind !is StructureKind.CLASS && descriptor.kind !is StructureKind.OBJECT) return null
+        return validatedOptionalLayouts.getOrPut(IdentityKey(descriptor)) {
+            descriptor.ensureNoAsn1AmbiguousOptionalLayout(formatExplicitNulls = explicitNulls)
+        }
+    }
+
+    fun <T : Any> choiceDispatch(
+        descriptor: SerialDescriptor,
+        build: () -> Asn1TagDiscriminatedDispatch<T>,
+    ): Asn1TagDiscriminatedDispatch<T> {
+        val shape = validatedOptionalLayouts.getOrPut(IdentityKey(descriptor)) {
+            Asn1StructureShape(emptyList())
+        }
+        @Suppress("UNCHECKED_CAST")
+        return (shape.choiceDispatch ?: build().also { shape.choiceDispatch = it }) as Asn1TagDiscriminatedDispatch<T>
     }
 
     fun analyzeNullable(

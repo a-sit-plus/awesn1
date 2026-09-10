@@ -23,6 +23,7 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.SerializationException
@@ -246,6 +247,36 @@ val SerializationNullAndOptionalFindings by matrixSuite {
             // Fault (B): the defaulted variant rejects the DER-mandated omitted form.
             DER.decodeFromByteArray<GlModelDefaultedOpt>(optOmitted) shouldBe
                     GlModelDefaultedOpt(GlInner(5), GlInner(7), GlInner(9))
+        }
+
+        /*
+         * gate_skips_nullable_defaulted_fields_under_explicit_nulls
+         *
+         * REGRESSION: a property can be omitted from the wire for two independent reasons —
+         * it is nullable and nulls are omitted, or it is kotlinx-OPTIONAL and encodeDefaults is
+         * false. The layout gate must treat a field as omittable if EITHER holds, because
+         * ensureNoAsn1AmbiguousOptionalLayout never sees encodeDefaults and so cannot rule the
+         * second reason out. A presence model that lets nullability shadow the defaulted axis
+         * certifies a layout whose fields can still both vanish.
+         *
+         * TRIGGER: two nullable defaulted Int properties sharing @Asn1Tag(5) under
+         * explicitNulls = true and encodeDefaults = false. Int cannot encode empty content, so the
+         * per-field null-encoding guard does not fire and the layout gate is the only check left.
+         * Control (A): the same layout under the default explicitNulls = false, where the nullable
+         * axis alone already makes both fields omittable.
+         */
+        "gate_skips_nullable_defaulted_fields_under_explicit_nulls" {
+            // Control (A): explicitNulls = false — both fields omittable via the nullable axis.
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(GlNullableDefaultedCollision(a = 1))
+            }.message shouldContain "Ambiguous ASN.1 layout"
+
+            // Fault (B): explicitNulls = true — the nullable axis no longer omits, but
+            // encodeDefaults = false still can, so the collision is unchanged and must be caught.
+            val der = DER { explicitNulls = true; encodeDefaults = false }
+            shouldThrow<SerializationException> {
+                der.encodeToByteArray(GlNullableDefaultedCollision(a = 1))
+            }.message shouldContain "Ambiguous ASN.1 layout"
         }
 
         /*

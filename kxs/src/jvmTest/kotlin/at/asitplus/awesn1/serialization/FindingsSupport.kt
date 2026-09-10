@@ -549,3 +549,16 @@ data class GlContainer(
     val ext: GlPolyOidBase,
     val metadata: GlMetadata,
 )
+
+/**
+ * Two nullable, kotlinx-OPTIONAL properties sharing one implicit tag.
+ *
+ * `Int` cannot encode empty content, so the tagged null sentinel is unambiguous and the
+ * per-field null-encoding guard stays silent under `explicitNulls = true` — which leaves the
+ * layout gate as the only thing standing between this shape and a collision.
+ */
+@Serializable
+data class GlNullableDefaultedCollision(
+    @Asn1Tag(tagNumber = 5uL) val a: Int? = null,
+    @Asn1Tag(tagNumber = 5uL) val b: Int? = null,
+)

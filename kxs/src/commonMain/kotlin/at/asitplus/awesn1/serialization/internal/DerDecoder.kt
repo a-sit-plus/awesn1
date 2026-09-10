@@ -29,11 +29,19 @@ private data class DerDecodeSlot(
     val property: DerPropertyContext,
     val isTrailing: Boolean,
     val couldBeAbsent: Boolean = false,
+    val possibleLeadingTags: Asn1LeadingTagsResolution = Asn1LeadingTagsResolution.UnknownInfer,
 ) {
     companion object {
-        fun forProperty(context: DerPropertyContext, isTrailing: Boolean) = DerDecodeSlot(
+        fun forProperty(
+            context: DerPropertyContext,
+            isTrailing: Boolean,
+            couldBeAbsent: Boolean,
+            possibleLeadingTags: Asn1LeadingTagsResolution = Asn1LeadingTagsResolution.UnknownInfer,
+        ) = DerDecodeSlot(
             property = context,
             isTrailing = isTrailing,
+            couldBeAbsent = couldBeAbsent,
+            possibleLeadingTags = possibleLeadingTags,
         )
 
         fun standalone(descriptor: SerialDescriptor) = DerDecodeSlot(
@@ -235,7 +243,7 @@ class DerDecoder internal constructor(
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
         return when (descriptor.kind) {
             is StructureKind.CLASS, is StructureKind.OBJECT -> {
-                analysis.validateOptionalLayout(descriptor)
+                val shape = requireNotNull(analysis.validateOptionalLayout(descriptor))
                 if (descriptorIndex >= descriptor.elementsCount) {
                     if (!cursor.isAtEnd) {
                         throw SerializationException(
@@ -247,28 +255,22 @@ class DerDecoder internal constructor(
                     return CompositeDecoder.DECODE_DONE
                 }
                 val currentDescriptorIndex = descriptorIndex++
+                val fieldShape = shape.fields[currentDescriptorIndex]
                 applyCurrentPropertyContext(
                     ownerDescriptor = descriptor,
                     propertyIndex = currentDescriptorIndex,
                     isTrailing = currentDescriptorIndex >= descriptor.elementsCount - 1,
+                    couldBeAbsent = fieldShape.presence is Asn1Presence.OmittedWhenNull,
+                    possibleLeadingTags = fieldShape.possibleLeadingTags,
                 )
-                val propertyContext = requireNotNull(currentSlot).property
-                if (descriptor.isElementOptional(currentDescriptorIndex) &&
-                    !propertyContext.propertyDescriptor.isNullable &&
-                    !cursor.isAtEnd
-                ) {
+                if (fieldShape.presence is Asn1Presence.Defaulted && !cursor.isAtEnd) {
                     val actualTag = cursor.current().tag
-                    val expectedTags = analysis.possibleLeadingTags(
-                        descriptor = propertyContext.propertyDescriptor,
-                        propertyAsn1Tag = propertyContext.propertyAsn1Tag,
-                        propertyAsBitString = propertyContext.propertyAsBitString,
-                    )
+                    val expectedTags = fieldShape.possibleLeadingTags
                     if (expectedTags is Asn1LeadingTagsResolution.Exact && actualTag !in expectedTags.tags) {
                         return decodeElementIndex(descriptor)
                     }
                 }
-                val couldBeAbsent = propertyContext.propertyDescriptor.isNullable && !analysis.explicitNulls
-                currentSlot = requireNotNull(currentSlot).copy(couldBeAbsent = couldBeAbsent)
+                val couldBeAbsent = fieldShape.presence is Asn1Presence.OmittedWhenNull
 
                 if (cursor.isAtEnd && !couldBeAbsent) {
                     CompositeDecoder.DECODE_DONE
@@ -353,13 +355,18 @@ class DerDecoder internal constructor(
         val inlineHints = inlineHintState.peek()
         val openSerializer = resolveOpenPolymorphicAsn1SerializerOrNull(deserializer, serializersModule)
         val tagDispatched = openSerializer is Asn1TagDiscriminatedOpenPolymorphicSerializer<*>
-        return when (val expectedLeadingTags = analysis.possibleLeadingTags(
-            descriptor = openSerializer?.descriptor ?: property.propertyDescriptor,
-            propertyAsn1Tag = property.propertyAsn1Tag.takeUnless { tagDispatched },
-            inlineAsn1Tag = inlineHints.tag,
-            propertyAsBitString = property.propertyAsBitString,
-            inlineAsBitString = inlineHints.asBitString,
-        )) {
+        val expectedLeadingTags = if (openSerializer == null && inlineHints.tag == null && !inlineHints.asBitString) {
+            slot.possibleLeadingTags
+        } else {
+            analysis.possibleLeadingTags(
+                descriptor = openSerializer?.descriptor ?: property.propertyDescriptor,
+                propertyAsn1Tag = property.propertyAsn1Tag.takeUnless { tagDispatched },
+                inlineAsn1Tag = inlineHints.tag,
+                propertyAsBitString = property.propertyAsBitString,
+                inlineAsBitString = inlineHints.asBitString,
+            )
+        }
+        return when (expectedLeadingTags) {
             is Asn1LeadingTagsResolution.Exact -> cursor.current().tag !in expectedLeadingTags.tags
             Asn1LeadingTagsResolution.UnknownInfer -> {
                 if (!slot.isTrailing) {
@@ -638,6 +645,8 @@ class DerDecoder internal constructor(
         ownerDescriptor: SerialDescriptor,
         propertyIndex: Int,
         isTrailing: Boolean,
+        couldBeAbsent: Boolean = false,
+        possibleLeadingTags: Asn1LeadingTagsResolution = Asn1LeadingTagsResolution.UnknownInfer,
         safePropertyNameLookup: Boolean = false,
     ) {
         val context = try {
@@ -647,7 +656,12 @@ class DerDecoder internal constructor(
         } catch (t: IndexOutOfBoundsException) {
             throw SerializationException(t.toString())
         }
-        currentSlot = DerDecodeSlot.forProperty(context, isTrailing)
+        currentSlot = DerDecodeSlot.forProperty(
+            context = context,
+            isTrailing = isTrailing,
+            couldBeAbsent = couldBeAbsent,
+            possibleLeadingTags = possibleLeadingTags,
+        )
     }
 
     @OptIn(InternalSerializationApi::class)
@@ -675,13 +689,15 @@ class DerDecoder internal constructor(
             ?: throw SerializationException(
                 "Could not inspect sealed CHOICE alternatives for ${deserializer.descriptor.serialName}"
             )
-        val dispatch = buildSealedChoiceDispatch<Any>(
-            ownerSerialName = deserializer.descriptor.serialName,
-            alternativesDescriptor = alternativesDescriptor,
-            resolveSerializerByName = { serialName ->
-                sealedSerializer.findPolymorphicSerializerOrNull(this, serialName) as? KSerializer<out Any>
-            },
-        )
+        val dispatch = analysis.choiceDispatch(deserializer.descriptor) {
+            buildSealedChoiceDispatch<Any>(
+                ownerSerialName = deserializer.descriptor.serialName,
+                alternativesDescriptor = alternativesDescriptor,
+                resolveSerializerByName = { serialName ->
+                    sealedSerializer.findPolymorphicSerializerOrNull(this, serialName) as? KSerializer<out Any>
+                },
+            )
+        }
         val selected = dispatch.serializerForDecodeOrNull(currentAnnotatedElement.tag)
             ?: throw SerializationException(
                 "No CHOICE alternative of ${deserializer.descriptor.serialName} matches tag ${currentAnnotatedElement.tag}"
