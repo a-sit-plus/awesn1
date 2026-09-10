@@ -9,6 +9,7 @@ import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
+import at.asitplus.awesn1.serialization.internal.DerDepthGuard
 import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
@@ -18,6 +19,8 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlin.jvm.JvmName
 import kotlin.reflect.typeOf
 
+private const val DEFAULT_MAX_NESTING_DEPTH = 32
+private const val MAX_NESTING_DEPTH = 65_536
 
 /**
  * Marker format type for ASN.1 DER serialization via kotlinx.serialization.
@@ -98,9 +101,16 @@ class Der internal constructor(
                     layoutPlan = layoutPlan,
                 )
                 encoder.encodeSerializableValue(serializer, value)
-                return encoder.encodeToTLV()
+                val elements = encoder.encodeToTLV()
                     .also { if (it.size > 1) throw ImplementationError("DER serializer multiple elements") }
-                    .firstOrNull()
+                elements.forEach {
+                    DerDepthGuard().ensureElementTreeFits(
+                        it,
+                        der.configuration.maxNestingDepth,
+                        serializer.descriptor.serialName,
+                    )
+                }
+                return elements.firstOrNull()
             }
 
     }
@@ -133,29 +143,40 @@ class Der internal constructor(
  * @property explicitNulls if `true`, nullable properties are encoded as ASN.1 `NULL` by default.
  * If `false`, nullable `null` values are omitted by default.
  * exactly as originally decoded.
- * @property maxInputLength maximum allowed total number of encoded DER bytes to consume before refusing to parse and
- * throwing. This limit is enforced before reading or peeking from the underlying source.
- * Defaults to [Int.MAX_VALUE] so that all element lengths produced under the default fit in `Int` and parsing /
- * re-encoding stay fully `Int`-based; raise it only if you deliberately handle multi-gigabyte input (which also
- * requires a `Source`, since a `ByteArray` cannot exceed [Int.MAX_VALUE] bytes anyway).
+ * @property maxInputLength maximum allowed DER byte-array size. Defaults to the platform's conservative array ceiling;
+ * lower it when the application or protocol has a smaller bound. Streaming `Source` APIs may use a tighter per-call
+ * limit.
  * @property maxNestingDepth maximum structural nesting depth the **typed** encoder/decoder will descend before
  * throwing a [kotlinx.serialization.SerializationException]. The raw parser/encoder are iterative and stack-safe, but
  * kotlinx.serialization's encode/decode contract is recursive descent (`deserialize` -> `decodeSerializableElement` ->
  * `deserialize` -> ...; and the mirror on encode), so a *self-referential* `@Serializable` type that is deeply nested
  * (decoded from deeply nested input, or serialized from a deeply nested in-memory value) would otherwise overflow the
- * call stack with an unrecoverable [StackOverflowError]. This guard converts that into a clean, catchable exception.
- * The default (128) is far above any realistic ASN.1/PKI structure (typically < ~40 levels) and below the depth at
- * which the JVM call stack overflows. Lower it on very small thread stacks; raise it only if you knowingly process
- * deeply nested recursive models.
+ * call stack with an unrecoverable [StackOverflowError]. A limit chosen within the runtime's actual stack headroom
+ * rejects the input with a clean, catchable exception before exhaustion.
+ * The default is 32, which is conservative across supported runtimes. Values up to 65,536 are accepted for callers
+ * that deliberately provide a larger stack; the caller is responsible for ensuring sufficient platform stack space.
+ *
+ * **IMPORTANT:** this limit applies only to recursion driven through kotlinx.serialization's encoder/decoder callbacks.
+ * Recursion performed inside trusted custom code, including [Asn1Serializable.doDecode], is outside the format's
+ * control and is **not bounded by `maxNestingDepth`**. Custom implementations must enforce their own limits.
  * @property serializersModule serializers used for contextual/open-polymorphic resolution.
  */
 data class DerConfiguration(
     val encodeDefaults: Boolean = true,
     val explicitNulls: Boolean = false,
-    val maxInputLength: Long = Int.MAX_VALUE.toLong(),
-    val maxNestingDepth: Int = 128,
+    val maxInputLength: Long = defaultMaxByteArrayInputLength,
+    val maxNestingDepth: Int = DEFAULT_MAX_NESTING_DEPTH,
     val serializersModule: SerializersModule = EmptySerializersModule(),
-)
+) {
+    init {
+        require(maxInputLength in 0..defaultMaxByteArrayInputLength) {
+            "maxInputLength must be between 0 and the platform ByteArray ceiling $defaultMaxByteArrayInputLength"
+        }
+        require(maxNestingDepth in 1..MAX_NESTING_DEPTH) {
+            "maxNestingDepth must be between 1 and $MAX_NESTING_DEPTH"
+        }
+    }
+}
 
 /**
  * Builder for [DerConfiguration], used by `DER { ... }`.
@@ -163,27 +184,27 @@ data class DerConfiguration(
  * - [encodeDefaults]: include/exclude default-valued properties.
  * - [explicitNulls]: encode `null` as ASN.1 `NULL` or omit nullable values.
  * - [serializersModule]: module used for contextual/open-polymorphic serializers.
- * - [maxInputLength] maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
- *   This limit is enforced before reading or peeking from the underlying source. Defaults to [Int.MAX_VALUE].
+ * - [maxInputLength] maximum allowed DER byte-array size. The default is platform-specific.
  */
 class DerBuilder internal constructor() {
     var encodeDefaults: Boolean = true
     var explicitNulls: Boolean = false
 
     /**
-     * Maximum allowed total number of encoded DER bytes to consume before refusing to parse and throwing.
+     * Maximum allowed DER byte-array size before parsing is refused.
      *
-     * This limit is enforced before reading or peeking from the underlying source. Defaults to [Int.MAX_VALUE] so
-     * that parsing and re-encoding stay fully `Int`-based; raise it only to deliberately handle multi-gigabyte input.
+     * Defaults to a platform-specific conservative ceiling. Streaming `Source` APIs may apply a tighter limit.
      */
-    var maxInputLength: Long = Int.MAX_VALUE.toLong()
+    var maxInputLength: Long = defaultMaxByteArrayInputLength
 
     /**
      * Maximum structural nesting depth the typed encoder/decoder will descend before throwing a
      * [kotlinx.serialization.SerializationException], instead of overflowing the call stack on a deeply nested
-     * recursive `@Serializable` type. Defaults to 128. See [DerConfiguration.maxNestingDepth].
+     * recursive `@Serializable` type. Defaults to 32 and can be raised to 65,536 when the runtime stack permits. See
+     * [DerConfiguration.maxNestingDepth].
+     * This does not bound recursion inside custom serializers or [Asn1Serializable.doDecode].
      */
-    var maxNestingDepth: Int = 128
+    var maxNestingDepth: Int = DEFAULT_MAX_NESTING_DEPTH
     var serializersModule: SerializersModule = EmptySerializersModule()
 
     internal fun build() = DerConfiguration(
@@ -269,12 +290,15 @@ fun DER(config: DerBuilder.() -> Unit = {}) =
 @ExperimentalSerializationApi
 object DefaultDer {
     /**
-     * Maximum allowed total number of encoded DER bytes to consume for the default [DER] instance.
+     * Maximum allowed DER byte-array size for the default [DER] instance.
      *
-     * This limit is enforced before reading or peeking from the underlying source. Defaults to [Int.MAX_VALUE].
+     * Defaults to a platform-specific conservative ceiling.
      */
-    var maxInputLength: Long = Int.MAX_VALUE.toLong()
+    var maxInputLength: Long = defaultMaxByteArrayInputLength
         set(value) {
+            require(value in 0..defaultMaxByteArrayInputLength) {
+                "maxInputLength must be between 0 and the platform ByteArray ceiling $defaultMaxByteArrayInputLength"
+            }
             check(!consumed) {
                 "Default DER limit has already been set during default DER initialization"
             }

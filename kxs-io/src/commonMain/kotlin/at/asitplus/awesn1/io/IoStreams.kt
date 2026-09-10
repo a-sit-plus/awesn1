@@ -13,10 +13,9 @@ import kotlin.reflect.typeOf
 /**
  * Decodes a DER value from [source] using the inferred deserializer for [T].
  *
- * [limit] is the maximum allowed total number of encoded DER bytes to consume; it defaults to and is **clamped to**
- * the configured [maxInputLength][at.asitplus.awesn1.serialization.DerConfiguration.maxInputLength] — a smaller [limit]
- * tightens the bound, but it can never exceed the configured maximum (mirroring how a shorter `ByteArray` lowers the
- * effective bound when decoding from bytes). The limit is enforced before reading or peeking from the underlying source.
+ * [limit] is the per-call maximum number of encoded DER bytes to consume. It defaults to and cannot exceed
+ * [DerConfiguration.maxInputLength][at.asitplus.awesn1.serialization.DerConfiguration.maxInputLength], whose default
+ * is the target's `ByteArray` ceiling. The effective limit is enforced before reading or peeking from [source].
  *
  * @throws SerializationException if the input does not parse as DER or violates descriptor/tag/nullability constraints.
  */
@@ -34,10 +33,9 @@ inline fun <reified T> Der.decodeFromSource(
 /**
  * Decodes a DER value from [source] using [deserializer].
  *
- * [limit] is the maximum allowed total number of encoded DER bytes to consume; it defaults to and is **clamped to**
- * the configured [maxInputLength][at.asitplus.awesn1.serialization.DerConfiguration.maxInputLength] — a smaller [limit]
- * tightens the bound, but it can never exceed the configured maximum (mirroring how a shorter `ByteArray` lowers the
- * effective bound when decoding from bytes). The limit is enforced before reading or peeking from the underlying source.
+ * [limit] is the per-call maximum number of encoded DER bytes to consume. It defaults to and cannot exceed
+ * [DerConfiguration.maxInputLength][at.asitplus.awesn1.serialization.DerConfiguration.maxInputLength], whose default
+ * is the target's `ByteArray` ceiling. The effective limit is enforced before reading or peeking from [source].
  *
  * @throws SerializationException if the input does not parse as DER or violates descriptor/tag/nullability constraints.
  */
@@ -51,10 +49,7 @@ fun <T> Der.decodeFromSource(
         // Keep nullable top-level semantics consistent with Der.decodeFromByteArray(empty).
         return decodeFromByteArray(deserializer, byteArrayOf())
     }
-    val element = Asn1Element.parse(
-        source,
-        minOf(limit, configuration.maxInputLength) // never overshoot the configured maximum
-    )
+    val element = Asn1Element.parse(source, minOf(limit, configuration.maxInputLength))
     if (!source.exhausted()) {
         throw SerializationException("Expected a single ASN.1 value in source")
     }

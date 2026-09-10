@@ -592,6 +592,9 @@ class DerDecoder internal constructor(
         }
 
         if (deserializer == Asn1ElementSerializer) {
+            depthGuard.ensureElementTreeFits(
+                processedElement, der.configuration.maxNestingDepth, deserializer.descriptor.serialName
+            )
             expectedTag?.let { ex ->
                 if (processedElement.tag != ex) {
                     throw SerializationException(Asn1TagMismatchException(ex, processedElement.tag))
@@ -603,6 +606,9 @@ class DerDecoder internal constructor(
 
         when (deserializer.descriptor.serialName.removeSuffix("?")) {
             ASN1_DESCRIPTOR_ELEMENT_TREE -> {
+                depthGuard.ensureElementTreeFits(
+                    processedElement, der.configuration.maxNestingDepth, deserializer.descriptor.serialName
+                )
                 expectedTag?.let { ex ->
                     if (processedElement.tag != ex) {
                         throw SerializationException(Asn1TagMismatchException(ex, processedElement.tag))
@@ -619,6 +625,9 @@ class DerDecoder internal constructor(
         }
 
         if (deserializer is Asn1Serializable<*, *>) {
+            depthGuard.ensureElementTreeFits(
+                processedElement, der.configuration.maxNestingDepth, deserializer.descriptor.serialName
+            )
             val encodable = decodeAsn1SerializableValue(deserializer, processedElement, expectedTag)
             elementIndex++
             return castDecoded(encodable)
@@ -826,8 +835,8 @@ class DerDecoder internal constructor(
  * Guards against deep structural nesting [DerDecoder]/[DerEncoder] and all of its
  * child encoders/decoders. [enter] is called once per `beginStructure` (a descent into a nested structure) and
  * balanced by [exit] in `endStructure`, so [depth] reflects the current live nesting depth. When it would exceed the
- * configured `maxNestingDepth`, [enter] throws — converting a would-be `StackOverflowError` into a catchable
- * [SerializationException]. A guard is needed because kotlinx.serialization's encode/decode
+ * configured `maxNestingDepth`, [enter] throws a catchable [SerializationException] before stack exhaustion, provided
+ * the configured limit fits the runtime's actual stack. A guard is needed because kotlinx.serialization's encode/decode
  * contract is recursive descent through `serialize`/`deserialize` frames the format cannot flatten or trampoline.
  */
 internal class DerDepthGuard(private var depth: Int = 0) {
@@ -837,14 +846,35 @@ internal class DerDepthGuard(private var depth: Int = 0) {
             throw SerializationException(
                 "ASN.1 nesting depth exceeded the configured maxNestingDepth=$maxNestingDepth while " +
                         "processing '$serialName'. This usually means a recursive @Serializable type is being " +
-                        "encoded/decoded at extreme depth; raise DerConfiguration.maxNestingDepth only if this " +
-                        "nesting is expected."
+                        "encoded/decoded at extreme depth; reduce the nesting or raise maxNestingDepth within its " +
+                        "supported range."
             )
         }
     }
 
     fun exit() {
         depth--
+    }
+
+    fun ensureElementTreeFits(element: Asn1Element, maxNestingDepth: Int, serialName: String) {
+        val pending = ArrayDeque<Pair<Asn1Element, Int>>()
+        pending += element to depth
+        while (pending.isNotEmpty()) {
+            val (current, parentDepth) = pending.removeFirst()
+            val children = when (current) {
+                is Asn1Structure -> current.children
+                is Asn1EncapsulatingOctetString -> current.children
+                else -> continue
+            }
+            val currentDepth = parentDepth + 1
+            if (currentDepth > maxNestingDepth) {
+                throw SerializationException(
+                    "ASN.1 nesting depth exceeded the configured maxNestingDepth=$maxNestingDepth while " +
+                            "processing '$serialName'."
+                )
+            }
+            children.forEach { pending += it to currentDepth }
+        }
     }
 }
 
