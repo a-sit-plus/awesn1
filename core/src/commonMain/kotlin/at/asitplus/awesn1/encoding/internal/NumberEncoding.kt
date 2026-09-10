@@ -102,6 +102,10 @@ private fun Source<*>.decodeAsn1VarInt(bits: Int): Pair<ULong, ByteArray> {
         if (exhausted()) throw IllegalArgumentException("Unterminated ASN.1 unsigned varint")
         val current = readUByte()
         accumulator.writeUByte(current)
+        // Overflow guard: the accumulated value is about to be shifted left by 7 and OR-ed with the
+        // current payload, so it must still fit once widened. bits - 7 is exact -- a 64-bit varint
+        // legitimately spans 10 octets, the last of which carries a full 7-bit payload.
+        if (result.bitLength > bits - 7) throw IllegalArgumentException("Number too large to decode into $bits bits")
         result = (current and UVARINT_MASK_UBYTE).toULong() or (result shl 7)
 
         //only relevant for int
@@ -172,6 +176,7 @@ fun Source<*>.readTwosComplementULong(nBytes: Int, lenient: Boolean): ULong {
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
 fun Source<*>.readTwosComplementLong(nBytes: Int, lenient: Boolean): Long {
+    if (lenient && nBytes == 0) return 0
     require(nBytes in 1..Long.SIZE_BYTES) { "Input with size $nBytes is out of bounds for Long" }
     if(!lenient) validateDerIntConstraints()
     var value = readByte().toLong() // signed top byte, so sign extension is preserved
@@ -190,6 +195,7 @@ fun Source<*>.readTwosComplementLong(nBytes: Int, lenient: Boolean): Long {
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
 fun Source<*>.readTwosComplementInt(nBytes: Int, lenient: Boolean): Int {
+    if (lenient && nBytes == 0) return 0
     require(nBytes in 1..Int.SIZE_BYTES) { "Input with size $nBytes is out of bounds for Int" }
     if(!lenient) validateDerIntConstraints()
     var value = readByte().toInt() // signed top byte, so sign extension is preserved
@@ -222,7 +228,10 @@ fun Source<*>.readTwosComplementUInt(nBytes: Int, lenient: Boolean): UInt {
 @IgnorableReturnValue
 fun Sink.writeMagnitudeLong(number: Long): Int {
     require(number >= 0)
-    return number.toTwosComplementByteArray().let { appendUnsafe(it, if (it[0] == 0.toByte()) 1 else 0) }
+    return number.toTwosComplementByteArray().let {
+        val start = if (it.size > 1 && it[0] == 0.toByte()) 1 else 0
+        appendUnsafe(it, start)
+    }
 }
 
 
