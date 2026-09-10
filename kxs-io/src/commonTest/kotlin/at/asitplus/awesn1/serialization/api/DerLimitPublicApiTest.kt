@@ -28,7 +28,8 @@ val KxsIoDerLimitPublicApiTest by matrixSuite {
                 belowLimit = DerLimitFixtures.singleIntegerBelowLimit,
                 expected = 1,
             ) { limit ->
-                DER { maxInputLength = limit }.decodeFromSource(Int.serializer(), DerLimitFixtures.singleIntegerDer.toBuffer())
+                DER { maxInputLength = limit }
+                    .decodeFromSource(Int.serializer(), DerLimitFixtures.singleIntegerDer.toBuffer())
             }
         }
     }
@@ -43,13 +44,11 @@ val KxsIoDerLimitPublicApiTest by matrixSuite {
         }
     }
 
-    "the limit parameter is clamped to the configured maxInputLength and can never exceed it" {
-        // a generous explicit limit cannot lift a too-small configured maximum
+    "the source limit cannot exceed the configured platform-safe limit" {
         shouldThrow<Throwable> {
             DER { maxInputLength = DerLimitFixtures.singleIntegerBelowLimit }
                 .decodeFromSource<Int>(DerLimitFixtures.singleIntegerDer.toBuffer(), limit = Long.MAX_VALUE)
         }
-        // but it still succeeds when the configured maximum is sufficient
         DER { maxInputLength = DerLimitFixtures.singleIntegerLimit }
             .decodeFromSource<Int>(DerLimitFixtures.singleIntegerDer.toBuffer(), limit = Long.MAX_VALUE) shouldBe 1
     }
