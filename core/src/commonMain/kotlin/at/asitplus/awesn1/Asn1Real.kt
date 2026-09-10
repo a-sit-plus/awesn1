@@ -23,7 +23,6 @@ private const val IEEE754_BIAS = 1023
 
 private val REGEX_WHITESPACE = Regex("\\s")
 
-private const val MAX_REAL_STRING_CHARS = 32 * 1024
 
 /**
  * ASN.1 REAL number. Mind possible loss of precision compared to Kotlin's built-in types.
@@ -286,13 +285,11 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
  * When used with the `awesn1.kxs` DER format, this serializer is bypassed and native REAL DER TLV
  * encoding/decoding is used.
  */
-object Asn1RealStringSerializer : BoundedFallbackSerializer<Asn1Real> {
+object Asn1RealStringSerializer : StringFallbackSerializer<Asn1Real> {
     override val descriptor: SerialDescriptor
         get() = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_REAL, PrimitiveKind.STRING)
 
-    override var decodingLimit: Int = MAX_REAL_STRING_CHARS
-
-    override fun encodeBounded(value: Asn1Real): String =
+    override fun encodeFallback(value: Asn1Real): String =
         when (value) {
             //@formatter:off
             Asn1Real.PositiveZero       ->  "0.0"
@@ -308,7 +305,7 @@ object Asn1RealStringSerializer : BoundedFallbackSerializer<Asn1Real> {
             }
         }
 
-    override fun decodeBounded(encoded: String): Asn1Real = when {
+    override fun decodeFallback(encoded: String): Asn1Real = when {
         //@formatter:off
         encoded ==    "0" -> Asn1Real.PositiveZero
         encoded ==  "0.0" -> Asn1Real.PositiveZero

@@ -760,18 +760,17 @@ internal value class VarUInt private constructor(
  *
  * Serialization uses [Asn1Integer.toDecimalString]/[Asn1Integer.fromDecimalString].
  * These functions are length limited.
- * The limits used by this serializer can be overridden (globally)
- *   using [decodingLimit]/[encodingLimit].
+ * The conversion limits used by this serializer can be overridden using [decodingLimit]/[encodingLimit].
  * This only affects string serialization for non-DER formats.
- * Decimal conversion is quadratic, so this opt-in serializer has a tighter limit than the default hex serializer.
+ * Decimal conversion is quadratic, so this opt-in serializer retains limits that the linear hex fallback does not need.
  */
-object Asn1IntegerDecimalStringSerializer : BoundedFallbackSerializer<Asn1Integer> {
+object Asn1IntegerDecimalStringSerializer : StringFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
     /** maximum size (characters) for decoding. */
-    override var decodingLimit = DEFAULT_MAX_INPUT_LENGTH
+    var decodingLimit = DEFAULT_MAX_INPUT_LENGTH
 
-    override fun decodeBounded(encoded: String): Asn1Integer =
+    override fun decodeFallback(encoded: String): Asn1Integer =
         Asn1Integer.fromDecimalString(encoded, decodingLimit).also {
             val magnitudeBytes = it.uint.words.size
             if (magnitudeBytes > encodingLimit) throw Asn1Exception(
@@ -783,7 +782,7 @@ object Asn1IntegerDecimalStringSerializer : BoundedFallbackSerializer<Asn1Intege
     //@formatter:off
     var encodingLimit = DEFAULT_MAX_MAGNITUDE_BYTES; set(v) { field = maxOf(field, v) }
     //@formatter:on
-    override fun encodeBounded(value: Asn1Integer): String = value.toDecimalString(encodingLimit)
+    override fun encodeFallback(value: Asn1Integer): String = value.toDecimalString(encodingLimit)
 
 }
 
@@ -797,14 +796,12 @@ object Asn1IntegerDecimalStringSerializer : BoundedFallbackSerializer<Asn1Intege
  * Serialization uses [Asn1Integer.toHexString]/[Asn1Integer.fromHexString].
  * This is [Asn1Integer]'s registered non-DER fallback.
  */
-object Asn1IntegerHexStringSerializer : BoundedFallbackSerializer<Asn1Integer> {
+object Asn1IntegerHexStringSerializer : StringFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
-    override val decodingLimit: Int get() = BoundedFallbackSerializer.defaultDecodingLimit
+    override fun decodeFallback(encoded: String): Asn1Integer = Asn1Integer.fromHexString(encoded)
 
-    override fun decodeBounded(encoded: String): Asn1Integer = Asn1Integer.fromHexString(encoded)
-
-    override fun encodeBounded(value: Asn1Integer): String = value.toHexString()
+    override fun encodeFallback(value: Asn1Integer): String = value.toHexString()
 
 }
 

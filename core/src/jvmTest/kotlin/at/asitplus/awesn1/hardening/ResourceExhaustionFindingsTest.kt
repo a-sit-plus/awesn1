@@ -9,7 +9,6 @@ import at.asitplus.awesn1.encoding.readNull
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 val ResourceExhaustionFindings by matrixSuite {
@@ -27,25 +26,12 @@ val ResourceExhaustionFindings by matrixSuite {
         (message.length < 4096) shouldBe true
     }
 
-    "base64 fallback honors local and global limits" {
+    "base64 fallback applies no hidden input limit" {
         val children = 100_000
         val content = ByteArray(children * 2).also { bytes -> repeat(children) { bytes[it * 2] = 0x80.toByte() } }
         val der = byteArrayOf(0x85.toByte(), 0x83.toByte(), 0x03, 0x0D, 0x40) + content
         val json = "\"${java.util.Base64.getEncoder().encodeToString(der)}\""
 
         Json.decodeFromString(Asn1CustomStructureFallbackBase64Serializer, json).children.size shouldBe children
-        shouldThrow<SerializationException> {
-            Json.decodeFromString(Asn1CustomStructureFallbackBase64Serializer.bounded(1024), json)
-        }
-
-        val previous = BoundedFallbackSerializer.defaultDecodingLimit
-        try {
-            BoundedFallbackSerializer.defaultDecodingLimit = 1024
-            shouldThrow<SerializationException> {
-                Json.decodeFromString(Asn1CustomStructureFallbackBase64Serializer, json)
-            }
-        } finally {
-            BoundedFallbackSerializer.defaultDecodingLimit = previous
-        }
     }
 }

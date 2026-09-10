@@ -232,17 +232,13 @@ private fun fromUtc(content: ByteArray): Asn1Time =
  * In non-DER formats this serializer stores only nanosecond precision, and the
  * UTC-vs-Generalized choice is not preserved.
  */
-private const val MAX_TIME_STRING_CHARS = 64
-
-internal object Asn1TimeSerializer : BoundedFallbackSerializer<Asn1Time> {
+internal object Asn1TimeSerializer : StringFallbackSerializer<Asn1Time> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_TIME, PrimitiveKind.STRING)
 
-    override fun encodeBounded(value: Asn1Time): String = value.instant.toString()
+    override fun encodeFallback(value: Asn1Time): String = value.instant.toString()
 
-    override var decodingLimit: Int = MAX_TIME_STRING_CHARS
-
-    override fun decodeBounded(encoded: String): Asn1Time = Asn1Time(Instant.parse(encoded))
+    override fun decodeFallback(encoded: String): Asn1Time = Asn1Time(Instant.parse(encoded))
 }
 
 /**

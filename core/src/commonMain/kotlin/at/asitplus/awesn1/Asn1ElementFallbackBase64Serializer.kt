@@ -19,27 +19,21 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * Values are encoded as Base64 over DER bytes to keep cross-format support without requiring DER-specific runtimes.
  * When used with the `awesn1.kxs` DER format, this fallback representation is bypassed and native DER TLV
  * encoding/decoding is used.
- * Decoding is bounded by [decodingLimit] Base64 characters.
+ * Input-size policy belongs to the caller or the surrounding serialization format.
  */
 @OptIn(ExperimentalEncodingApi::class)
 abstract class Asn1ElementFallbackBase64SerializerBase<T : Any>(
     private val decodeElement: (Asn1Element) -> T,
     private val encodeElement: (T) -> Asn1Element,
-    private val explicitLimit: Int? = null,
-) : BoundedFallbackSerializer<T> {
+) : StringFallbackSerializer<T> {
     override val descriptor: SerialDescriptor = ASN1_ELEMENT_FALLBACK_BASE64_DESCRIPTOR
-
-    override val decodingLimit: Int get() = explicitLimit ?: BoundedFallbackSerializer.defaultDecodingLimit
-
-    override fun bounded(decodingLimit: Int): Asn1ElementFallbackBase64SerializerBase<T> =
-        object : Asn1ElementFallbackBase64SerializerBase<T>(decodeElement, encodeElement, decodingLimit) {}
 
     fun decodeFromAsn1Element(element: Asn1Element): T = decodeElement(element)
 
-    override fun decodeBounded(encoded: String): T =
+    override fun decodeFallback(encoded: String): T =
         decodeFromAsn1Element(Asn1Element.parse(Base64.decode(encoded)))
 
-    override fun encodeBounded(value: T): String = Base64.encode(encodeElement(value).derEncoded)
+    override fun encodeFallback(value: T): String = Base64.encode(encodeElement(value).derEncoded)
 }
 
 @OptIn(ExperimentalEncodingApi::class)

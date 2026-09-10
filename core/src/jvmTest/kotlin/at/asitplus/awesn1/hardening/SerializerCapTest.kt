@@ -19,12 +19,6 @@ import kotlinx.serialization.json.Json
  */
 val SerializerCapTest by matrixSuite {
 
-    "bounded fallback serializer rejects oversized input" {
-        shouldThrow<SerializationException> {
-            Json.decodeFromString(ObjectIdentifierStringSerializer.bounded(4), "\"1.2.840\"")
-        }
-    }
-
     "Asn1IntegerDecimalStringSerializer throws for an over-cap magnitude (never truncates)" {
         val overCap = Asn1Integer.fromUnsignedByteArray(
             ByteArray(Asn1IntegerDecimalStringSerializer.encodingLimit + 1).also { it[0] = 0x01 }

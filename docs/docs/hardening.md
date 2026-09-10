@@ -164,18 +164,11 @@ The test harness includes:
       bytes.
     - Via `kotlinx.serialization`, the cap is `DER { maxInputLength = … }` (default `Int.MAX_VALUE`); lower it for
       untrusted decode.
-    - Under **non-DER formats** (JSON, CBOR, …) awesn1's types decode through fallback serializers, which
-      `maxInputLength` does not reach. Every one of them implements `BoundedFallbackSerializer` and carries a
-      character limit, settable globally via `BoundedFallbackSerializer.defaultDecodingLimit` or per serializer, and
-      per call site via `<Serializer>.bounded(limit)`. The format still materialises the encoded string before the
-      serializer sees it, so bounding the document remains necessary. Whatever such a decode rejects surfaces as a
-      `SerializationException`, so `catch (e: Exception)` around `decodeFromString` contains it.
-
-#### Fallback decoding limits
-
-The default is 32 KiB for decimal INTEGER and REAL strings, 64 characters for timestamps, and 384 MiB for other
-fallbacks. These are safety ceilings, not application budgets; lower them for untrusted input. The format has already
-materialized the string before the serializer sees it, so the surrounding document still needs its own limit.
+    - Under **non-DER formats** (JSON, CBOR, …), bound untrusted input through that format or before invoking it.
+      awesn1's fallback serializers receive values only after the format has materialised them, so a second generic
+      length check there would be too late to protect memory and would impose an arbitrary application policy.
+      The decimal INTEGER fallback is the exception: it retains explicit conversion limits because its radix
+      conversion is quadratic. Malformed fallback values surface as `SerializationException`.
 
 It is a deliberate decision to leave input bounding to the caller. Only the caller knows realistic, expected input's sizes and
 semantics. Take X.509 certificates as an example: ECDSA-signed certificates are usually small, issuer DNs are also usually bounded,
