@@ -11,6 +11,7 @@ import at.asitplus.awesn1.Asn1Encodable
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_OPAQUE
 import at.asitplus.awesn1.encoding.decodeFromDer
 import at.asitplus.awesn1.encoding.encodeToDer
+import at.asitplus.awesn1.runWrappingAs
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ByteArraySerializer
@@ -53,13 +54,11 @@ interface Asn1Serializable<A : Asn1Element, T : Asn1Encodable<A>> :
      * Override this when you need a non-DER fallback representation.
      */
     @Throws(SerializationException::class)
-    override fun deserialize(decoder: Decoder): T {
+    override fun deserialize(decoder: Decoder): T = runWrappingAs(a = ::SerializationException) {
         if (decoder !is Asn1DerDecoder) {
-            throw SerializationException(
-                "Serializer ${descriptor.serialName} requires an ASN.1 DER decoder."
-            )
+            throw SerializationException("Serializer ${descriptor.serialName} requires an ASN.1 DER decoder.")
         }
-        return ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
+        ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
     }
 
     /**
@@ -68,11 +67,9 @@ interface Asn1Serializable<A : Asn1Element, T : Asn1Encodable<A>> :
      * Override this when you need a non-DER fallback representation.
      */
     @Throws(SerializationException::class)
-    override fun serialize(encoder: Encoder, value: T) {
+    override fun serialize(encoder: Encoder, value: T) = runWrappingAs(a = ::SerializationException) {
         if (encoder !is Asn1DerEncoder) {
-            throw SerializationException(
-                "Serializer ${descriptor.serialName} requires an ASN.1 DER encoder."
-            )
+            throw SerializationException("Serializer ${descriptor.serialName} requires an ASN.1 DER encoder.")
         }
         encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
     }
@@ -87,24 +84,15 @@ abstract class Asn1Serializer<A : Asn1Element, T : Asn1Encodable<A>>(
     private val fallbackSerializer: KSerializer<T>? = null,
 ) : Asn1Serializable<A, T>, Asn1Decodable<A, T> by decodable {
 
-    override fun deserialize(decoder: Decoder): T {
-        if (decoder is Asn1DerDecoder) {
-            return ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
-        }
-        return fallbackSerializer?.deserialize(decoder)
-            ?: throw SerializationException(
-                "Serializer ${descriptor.serialName} requires an ASN.1 DER decoder."
-            )
+    override fun deserialize(decoder: Decoder): T = runWrappingAs(a = ::SerializationException) {
+        if (decoder is Asn1DerDecoder) ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
+        else fallbackSerializer?.deserialize(decoder)
+            ?: throw SerializationException("Serializer ${descriptor.serialName} requires an ASN.1 DER decoder.")
     }
 
-    override fun serialize(encoder: Encoder, value: T) {
-        if (encoder is Asn1DerEncoder) {
-            encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
-            return
-        }
-        fallbackSerializer?.serialize(encoder, value)
-            ?: throw SerializationException(
-                "Serializer ${descriptor.serialName} requires an ASN.1 DER encoder."
-            )
+    override fun serialize(encoder: Encoder, value: T) = runWrappingAs(a = ::SerializationException) {
+        if (encoder is Asn1DerEncoder) encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
+        else fallbackSerializer?.serialize(encoder, value)
+            ?: throw SerializationException("Serializer ${descriptor.serialName} requires an ASN.1 DER encoder.")
     }
 }
