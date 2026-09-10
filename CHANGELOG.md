@@ -19,6 +19,7 @@
     * Generic `Asn1String` DER decoding now preserves malformed content and reports tri-state validity without throwing; concrete subtype and Kotlin `String` decoding remain strict, and equality/hashing no longer interpret malformed bytes.
     * Preserve compatibility UTC TIME values ending in lowercase `z` when decoding and re-encoding, while programmatically constructed values continue to emit canonical uppercase `Z`.
     * Preserve the UTC/GENERALIZED TIME subtype and exact fractional seconds in non-DER `Asn1Time` serialization; the former ISO-8601 input remains accepted.
+    * Normalize failures from non-DER ASN.1 serializers to `SerializationException`, including Base64 fallback, numeric, string, OID, and time serializers.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**

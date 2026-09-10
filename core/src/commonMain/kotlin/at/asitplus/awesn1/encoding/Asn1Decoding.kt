@@ -40,8 +40,10 @@ import kotlin.time.Instant
  */
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Element {
-    if (limit != null) require(source.size <= limit) { "Byte array with size ${source.size} is too large to parse. (limit = $limit)" }
-    return parse(source.wrapInUnsafeSource(), source.size.toLong())
+    return runRethrowing {
+        if (limit != null) require(source.size <= limit) { "Byte array with size ${source.size} is too large to parse. (limit = $limit)" }
+        parse(source.wrapInUnsafeSource(), source.size.toLong())
+    }
 }
 
 /**
@@ -53,8 +55,10 @@ fun Asn1Element.Companion.parse(source: ByteArray, limit: Long? = null): Asn1Ele
  */
 @Throws(Asn1Exception::class)
 fun Asn1Element.Companion.parseAll(source: ByteArray, limit: Long? = null): List<Asn1Element> {
-    if (limit != null) require(source.size <= limit) { "Byte array with size ${source.size} is too large to parse. (limit = $limit)" }
-    return parseAll(source.wrapInUnsafeSource(), source.size.toLong())
+    return runRethrowing {
+        if (limit != null) require(source.size <= limit) { "Byte array with size ${source.size} is too large to parse. (limit = $limit)" }
+        parseAll(source.wrapInUnsafeSource(), source.size.toLong())
+    }
 }
 
 /**

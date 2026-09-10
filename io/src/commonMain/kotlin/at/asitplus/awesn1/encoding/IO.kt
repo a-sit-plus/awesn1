@@ -39,7 +39,7 @@ value class KxIoSink(internal val sink: kotlinx.io.Sink) : Sink {
     override fun write(bytes: ByteArray, startIndex: Int, endIndex: Int)=sink.write(bytes, startIndex, endIndex)
 
     override fun appendUnsafe(bytes: ByteArray, startIndex: Int, endIndex: Int): Int {
-        require(startIndex in 0..<endIndex) { "StartIndex must be between 0 and $endIndex" }
+        require(startIndex in 0..endIndex) { "StartIndex must be between 0 and $endIndex" }
         sink.writeToInternalBuffer {
             UnsafeBufferOperations.moveToTail(it, bytes, startIndex, endIndex)
         }
