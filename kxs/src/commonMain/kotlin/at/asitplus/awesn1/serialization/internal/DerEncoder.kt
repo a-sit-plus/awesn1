@@ -7,7 +7,6 @@ package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Der
@@ -140,38 +139,17 @@ class DerEncoder internal constructor(
         val element = when (value) {
             is Asn1Element -> value
             is Asn1Encodable<*> -> value.encodeToTlv()
-            is ByteArray -> ByteArrayShapePolicy.encodeByteArray(
-                value,
-                ByteArrayShapePolicy.shapeForByteArray(
+            else -> DerValueCodec.encodePrimitiveOrNull(
+                value = value,
+                byteArrayShape = ByteArrayShapePolicy.shapeForByteArray(
                     inlineHints.asBitString || propertyContext?.propertyAsBitString == true,
-                )
+                ),
             )
+        }
 
-            is Boolean -> value.encodeToAsn1Primitive()
-
-            is Byte -> value.toInt().encodeToAsn1Primitive()
-            is UByte -> value.toUInt().encodeToAsn1Primitive()
-
-            is Short -> value.toInt().encodeToAsn1Primitive()
-            is UShort -> value.toUInt().encodeToAsn1Primitive()
-
-            is Int -> value.encodeToAsn1Primitive()
-            is UInt -> value.encodeToAsn1Primitive()
-
-            is Float -> value.encodeToAsn1Primitive()
-
-            is Long -> value.encodeToAsn1Primitive()
-            is ULong -> value.encodeToAsn1Primitive()
-
-            is Double -> value.encodeToAsn1Primitive()
-
-            is String -> value.encodeToAsn1Primitive()
-            is Char -> value.toString().encodeToAsn1Primitive()
-
-            else -> {
-                super.encodeValue(value)
-                return
-            }
+        if (element == null) {
+            super.encodeValue(value)
+            return
         }
 
         appendElement(element, tagTemplate)
@@ -306,8 +284,7 @@ class DerEncoder internal constructor(
         valueSite: DerValueSite,
     ) {
         if (value is Instant && serializer.descriptor.isKotlinTimeInstantDescriptor()) {
-            val timeElement = Asn1Time(value).encodeToTlv()
-            appendElement(timeElement, valueSite.tagTemplate)
+            appendElement(DerValueCodec.encodeInstant(value), valueSite.tagTemplate)
             return
         }
 

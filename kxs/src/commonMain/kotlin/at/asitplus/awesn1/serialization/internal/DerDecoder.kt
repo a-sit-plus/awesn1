@@ -24,7 +24,6 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.internal.AbstractPolymorphicSerializer
 import kotlinx.serialization.modules.SerializersModule
-import kotlin.time.Instant
 
 private data class DerDecodeSlot(
     val property: DerPropertyContext,
@@ -123,30 +122,6 @@ class DerDecoder internal constructor(
 
     @Suppress("UNCHECKED_CAST")
     private fun <T> nullDecoded(): T = null as T
-
-    private fun decodeAsn1SerializableValue(
-        serializer: Asn1Serializable<*, *>,
-        processedElement: Asn1Element,
-        expectedTag: Asn1Element.Tag?,
-    ): Any = runWrappingAs(a = ::SerializationException) { when (processedElement) {
-        is Asn1Primitive -> {
-            @Suppress("UNCHECKED_CAST")
-            val primitiveDecoder = serializer as? Asn1Decodable<Asn1Primitive, *>
-                ?: throw SerializationException(
-                    "Serializer ${serializer.descriptor.serialName} cannot decode ASN.1 primitive values"
-                )
-            primitiveDecoder.decodeFromTlv(processedElement, expectedTag)
-        }
-
-        is Asn1Structure -> {
-            @Suppress("UNCHECKED_CAST")
-            val structureDecoder = serializer as? Asn1Decodable<Asn1Structure, *>
-                ?: throw SerializationException(
-                    "Serializer ${serializer.descriptor.serialName} cannot decode ASN.1 structure values"
-            )
-            structureDecoder.decodeFromTlv(processedElement, expectedTag)
-        }
-    } }
 
     /**
      * Decodes the current element in an isolated child decoder context.
@@ -356,66 +331,12 @@ class DerDecoder internal constructor(
                 classAsn1Tag = effectiveDescriptor.asn1Tag,
             )
 
-            val decoded = when (effectiveDescriptor.kind) {
-                PolymorphicKind.OPEN -> throw SerializationException(
-                    "Open polymorphic decoding is not supported via primitive decode path for ${effectiveDescriptor.serialName}. " +
-                            "Register an ASN.1 open-polymorphic serializer in DER { serializersModule = ... } " +
-                            "via polymorphicByTag(...) or polymorphicByOid(...)."
-                )
-
-                PolymorphicKind.SEALED -> throw SerializationException(
-                    "Sealed polymorphic decoding is not supported via primitive decode path for ${effectiveDescriptor.serialName}. " +
-                            "ASN.1 CHOICE is supported for sealed types in composite decoding paths."
-                )
-
-                PrimitiveKind.BOOLEAN -> processedElement.asPrimitive()
-                    .decodeToBoolean(expectedTag ?: Asn1Element.Tag.BOOL)
-
-                PrimitiveKind.BYTE -> processedElement.asPrimitive()
-                    .decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
-                    .let {
-                        if (propertyDescriptor.inlineChainContains("kotlin.UByte")) it.toStrictUByteBacking()
-                        else it.toStrictByte()
-                    }
-
-                PrimitiveKind.CHAR -> processedElement.asPrimitive().decodeString(expectedTag)
-                    .also { if (it.length != 1) throw SerializationException("String is not a char") }[0]
-
-                PrimitiveKind.DOUBLE -> processedElement.asPrimitive()
-                    .decodeToDouble(expectedTag ?: Asn1Element.Tag.REAL)
-
-                PrimitiveKind.FLOAT -> processedElement.asPrimitive()
-                    .decodeToFloat(expectedTag ?: Asn1Element.Tag.REAL)
-
-                PrimitiveKind.INT -> if (propertyDescriptor.inlineChainContains("kotlin.UInt")) {
-                    processedElement.asPrimitive().decodeToUInt(expectedTag ?: Asn1Element.Tag.INT).toInt()
-                } else {
-                    processedElement.asPrimitive().decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
-                }
-
-                PrimitiveKind.LONG -> if (propertyDescriptor.inlineChainContains("kotlin.ULong")) {
-                    processedElement.asPrimitive().decodeToULong(expectedTag ?: Asn1Element.Tag.INT).toLong()
-                } else {
-                    processedElement.asPrimitive().decodeToLong(expectedTag ?: Asn1Element.Tag.INT)
-                }
-
-                PrimitiveKind.SHORT -> processedElement.asPrimitive()
-                    .decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
-                    .let {
-                        if (propertyDescriptor.inlineChainContains("kotlin.UShort")) it.toStrictUShortBacking()
-                        else it.toStrictShort()
-                    }
-
-                PrimitiveKind.STRING -> processedElement.asPrimitive().decodeString(expectedTag)
-                SerialKind.ENUM -> processedElement.asPrimitive()
-                    .decodeToEnumOrdinal(expectedTag ?: Asn1Element.Tag.ENUM)
-
-                else -> throw SerializationException(
-                    "Unsupported descriptor kind ${propertyDescriptor.kind} for ${effectiveDescriptor.serialName} in decodeValue(). " +
-                            "Provide a custom serializer or use a supported ASN.1 mapping shape."
-                )
-            } as Any
-            decoded
+            DerValueCodec.decodePrimitive(
+                element = processedElement,
+                effectiveDescriptor = effectiveDescriptor,
+                declaredDescriptor = propertyDescriptor,
+                expectedTag = expectedTag,
+            )
         }
     }
 
@@ -619,19 +540,7 @@ class DerDecoder internal constructor(
                     processedElement, der.configuration.maxNestingDepth, deserializer.descriptor.serialName
                 )
                 return cursor.consume {
-                    if (deserializer == Asn1OctetStringFallbackBase64Serializer) {
-                        if (expectedTag == null && processedElement.tag != Asn1Element.Tag.OCTET_STRING) {
-                            throw SerializationException(
-                                Asn1TagMismatchException(Asn1Element.Tag.OCTET_STRING, processedElement.tag)
-                            )
-                        }
-                        castDecoded(Asn1OctetString(processedElement.asPrimitive().content))
-                    } else {
-                        require(deserializer is Asn1ElementFallbackBase64SerializerBase<*>) {
-                            "Reserved SerialName for Asn1ElementFallbackBase64SerializerBase reused by: ${deserializer::class.simpleName}"
-                        }
-                        castDecoded(deserializer.decodeFromAsn1Element(processedElement))
-                    }
+                    castDecoded(DerValueCodec.decodeRawElement(deserializer, processedElement, expectedTag))
                 }
             }
         }
@@ -641,7 +550,7 @@ class DerDecoder internal constructor(
                 processedElement, der.configuration.maxNestingDepth, deserializer.descriptor.serialName
             )
             return cursor.consume {
-                castDecoded(decodeAsn1SerializableValue(deserializer, processedElement, expectedTag))
+                castDecoded(DerValueCodec.decodeAsn1Serializable(deserializer, processedElement, expectedTag))
             }
         }
 
@@ -651,7 +560,7 @@ class DerDecoder internal constructor(
                     "Expected ASN.1 primitive for kotlin.time.Instant, but got ${processedElement::class.simpleName}"
                 )
             return cursor.consume {
-                castDecoded(primitive.decodeInstantWithOptionalImplicitTag(expectedTag))
+                castDecoded(DerValueCodec.decodeInstant(primitive, expectedTag))
             }
         }
 
@@ -678,19 +587,9 @@ class DerDecoder internal constructor(
         }
 
         if (deserializer.descriptor.kind == SerialKind.ENUM) {
-            val ordinal = processedElement.asPrimitive()
-                .decodeToEnumOrdinal(expectedTag ?: Asn1Element.Tag.ENUM)
-                .let {
-                    if (it < 0) throw SerializationException("Negative ordinal $it cannot be auto-mapped to an enum value")
-                    if (it > Int.MAX_VALUE.toLong()) throw SerializationException("Ordinal $it too large!")
-                    it.toInt()
-                }
-            val enumDecoder = object : AbstractDecoder() {
-                override val serializersModule: SerializersModule = this@DerDecoder.serializersModule
-                override fun decodeEnum(enumDescriptor: SerialDescriptor): Int = ordinal
-                override fun decodeElementIndex(descriptor: SerialDescriptor): Int = CompositeDecoder.DECODE_DONE
+            return cursor.consume {
+                DerValueCodec.decodeEnum(deserializer, processedElement.asPrimitive(), expectedTag, serializersModule)
             }
-            return cursor.consume { deserializer.deserialize(enumDecoder) }
         }
 
         // (3) Primitive kinds → let deserializer consume primitive decoder APIs.
@@ -812,131 +711,4 @@ class DerDecoder internal constructor(
 
 }
 
-/**
- * Guards against deep structural nesting [DerDecoder]/[DerEncoder] and all of its
- * child encoders/decoders. [enter] is called once per `beginStructure` (a descent into a nested structure) and
- * balanced by [exit] in `endStructure`, so [depth] reflects the current live nesting depth. When it would exceed the
- * configured `maxNestingDepth`, [enter] throws a catchable [SerializationException] before stack exhaustion, provided
- * the configured limit fits the runtime's actual stack. A guard is needed because kotlinx.serialization's encode/decode
- * contract is recursive descent through `serialize`/`deserialize` frames the format cannot flatten or trampoline.
- */
-internal class DerDepthGuard(private var depth: Int = 0) {
-    fun enter(maxNestingDepth: Int, serialName: String) {
-        depth++
-        if (depth > maxNestingDepth) {
-            throw SerializationException(
-                "ASN.1 nesting depth exceeded the configured maxNestingDepth=$maxNestingDepth while " +
-                        "processing '$serialName'. This usually means a recursive @Serializable type is being " +
-                        "encoded/decoded at extreme depth; reduce the nesting or raise maxNestingDepth within its " +
-                        "supported range."
-            )
-        }
-    }
-
-    fun exit() {
-        depth--
-    }
-
-    fun ensureElementTreeFits(element: Asn1Element, maxNestingDepth: Int, serialName: String) {
-        val pending = ArrayDeque<Pair<Asn1Element, Int>>()
-        pending += element to depth
-        while (pending.isNotEmpty()) {
-            val (current, parentDepth) = pending.removeFirst()
-            val children = when (current) {
-                is Asn1Structure -> current.children
-                is Asn1EncapsulatingOctetString -> current.children
-                else -> continue
-            }
-            val currentDepth = parentDepth + 1
-            if (currentDepth > maxNestingDepth) {
-                throw SerializationException(
-                    "ASN.1 nesting depth exceeded the configured maxNestingDepth=$maxNestingDepth while " +
-                            "processing '$serialName'."
-                )
-            }
-            children.forEach { pending += it to currentDepth }
-        }
-    }
-}
-
 private class Asn1ChoiceNoMatchingAlternativeException(message: String) : SerializationException(message)
-
-/**
- * Decodes ASN.1 TIME content into [Instant], optionally under an implicit tag override.
- *
- * @throws SerializationException if content is neither UTCTime nor GeneralizedTime
- */
-@Throws(SerializationException::class)
-private fun Asn1Primitive.decodeInstantWithOptionalImplicitTag(expectedTag: Asn1Element.Tag?): Instant {
-    if (expectedTag == null) return decodeToInstant()
-
-    if (expectedTag == Asn1Element.Tag.TIME_UTC) {
-        return catchingUnwrapped { Instant.decodeUtcTimeFromAsn1ContentBytes(content) }.getOrElse {
-            throw SerializationException(it)
-        }
-    }
-
-    if (expectedTag == Asn1Element.Tag.TIME_GENERALIZED) {
-        return catchingUnwrapped { Instant.decodeGeneralizedTimeFromAsn1ContentBytes(content) }.getOrElse {
-            throw SerializationException(it)
-        }
-    }
-
-    val utc = catchingUnwrapped { Instant.decodeUtcTimeFromAsn1ContentBytes(content) }.getOrNull()
-    if (utc != null) return utc
-
-    val generalized = catchingUnwrapped { Instant.decodeGeneralizedTimeFromAsn1ContentBytes(content) }.getOrNull()
-    if (generalized != null) return generalized
-
-    throw SerializationException(
-        "Failed to decode implicitly tagged ASN.1 TIME for kotlin.time.Instant: " +
-                "content is neither UTCTime nor GeneralizedTime"
-    )
-}
-
-/**
- * Decodes ASN.1 string content while honoring optional implicit tag override.
- *
- * @throws SerializationException if tag does not match expected string/override tag
- */
-@Throws(SerializationException::class)
-private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): String =
-    if (implicitTagOverride == null) {
-        when (tag) {
-            Asn1Element.Tag.STRING_UTF8,
-            Asn1Element.Tag.STRING_BMP,
-            Asn1Element.Tag.STRING_NUMERIC,
-            Asn1Element.Tag.STRING_T61,
-            Asn1Element.Tag.STRING_VISIBLE,
-            Asn1Element.Tag.STRING_UNIVERSAL,
-            Asn1Element.Tag.STRING_PRINTABLE,
-            Asn1Element.Tag.STRING_IA5,
-                -> when (tag) {
-                    Asn1Element.Tag.STRING_BMP -> decodeToBmpString().value
-                    Asn1Element.Tag.STRING_UNIVERSAL -> decodeToUniversalString().value
-                    Asn1Element.Tag.STRING_T61 -> decodeToTeletextString().value
-                    else -> decodeToString()
-                }
-
-            else -> throw SerializationException(Asn1TagMismatchException(Asn1Element.Tag.STRING_UTF8, tag))
-        }
-    } else {
-        if (tag != implicitTagOverride) throw SerializationException(Asn1TagMismatchException(implicitTagOverride, tag))
-        String.decodeFromAsn1ContentBytes(content)
-    }
-
-private fun Int.toStrictByte(): Byte =
-    if (this in Byte.MIN_VALUE..Byte.MAX_VALUE) toByte()
-    else throw SerializationException("ASN.1 INTEGER value $this is out of range for Byte")
-
-private fun Int.toStrictShort(): Short =
-    if (this in Short.MIN_VALUE..Short.MAX_VALUE) toShort()
-    else throw SerializationException("ASN.1 INTEGER value $this is out of range for Short")
-
-private fun Int.toStrictUByteBacking(): Byte =
-    if (this in 0..UByte.MAX_VALUE.toInt()) toByte()
-    else throw SerializationException("ASN.1 INTEGER value $this is out of range for UByte")
-
-private fun Int.toStrictUShortBacking(): Short =
-    if (this in 0..UShort.MAX_VALUE.toInt()) toShort()
-    else throw SerializationException("ASN.1 INTEGER value $this is out of range for UShort")
