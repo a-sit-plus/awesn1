@@ -541,7 +541,7 @@ class DerDecoder internal constructor(
             val previousInheritedTag = inheritedOpenPolymorphicTag
             //@formatter:off
             inheritedOpenPolymorphicTag = if (openSerializer is Asn1TagDiscriminatedOpenPolymorphicSerializer<*>) null
-            else previousInheritedTag ?: inlineHints.tag ?: propertyAsn1Tag
+                                        else previousInheritedTag ?: inlineHints.tag ?: propertyAsn1Tag
             //@formatter:on
             @Suppress("UNCHECKED_CAST")
             return try {
