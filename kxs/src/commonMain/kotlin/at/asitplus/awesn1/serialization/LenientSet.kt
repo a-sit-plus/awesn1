@@ -73,6 +73,7 @@ class LenientSet<T> private constructor(
                     decoder is DerDecoder && (!wireWasCanonical || uniqueElements.size != elements.size)
                 LenientSet(if (preserveWireOrder) elements else uniqueElements, preserveWireOrder)
             }
+            LenientSet(elements, preserveWireOrder = true)
         }
 
         private companion object {
