@@ -5,6 +5,7 @@
     * Fixed tag-discriminated open polymorphism to emit registered subtype tags, preserve them through enclosing properties, resolve nullable/nested dispatch correctly, and avoid leaking tag state to later fields.
     * Fixed OID-discriminated open polymorphism to prefer exact subtype registrations, emit the registered discriminator, survive canonical SET sorting, and reject non-leading selectors that cannot be decoded losslessly.
     * Fixed sealed CHOICE serialization so selected serializers are honored, inline wrappers retain CHOICE tag inference, and ambiguous nullable layouts are rejected.
+    * Made DER resource limits effective: `maxInputLength` now defaults to each target's `ByteArray` ceiling, built-in ASN.1 element trees are depth-checked on encode and decode, and unsafe nesting configurations are rejected without attempting to recover from stack exhaustion.
 * **Security Hardening:**
     * **Breaking:** `Source.decodeAsn1VarBigInt()` now requires a byte limit; all big-varint decoders reject
       unterminated input.
