@@ -6,6 +6,10 @@
     * Fixed OID-discriminated open polymorphism to prefer exact subtype registrations, emit the registered discriminator, survive canonical SET sorting, and reject non-leading selectors that cannot be decoded losslessly.
     * Fixed sealed CHOICE serialization so selected serializers are honored, inline wrappers retain CHOICE tag inference, and ambiguous nullable layouts are rejected.
     * Made DER resource limits effective: `maxInputLength` now defaults to each target's `ByteArray` ceiling, built-in ASN.1 element trees are depth-checked on encode and decode, and unsafe nesting configurations are rejected without attempting to recover from stack exhaustion.
+    * **Breaking:** Removed the generic builder unary-`+` serialization bridge because Kotlin member operators silently win for numeric operands; use the generic `append(value)` inside a `Der` context instead. Core `Asn1Element`/`Asn1Encodable` operands and wrappers now also support `append`, while retaining unary `+`.
+    * Rejected PEM labels containing non-printable ASCII characters, preventing newline-based fence injection.
+* **Known limitations:**
+    * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**
     * **Breaking:** `Source.decodeAsn1VarBigInt()` now requires a byte limit; all big-varint decoders reject
       unterminated input.

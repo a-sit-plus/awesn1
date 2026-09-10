@@ -57,18 +57,40 @@ class Asn1TreeBuilder {
 
     internal fun adoptable(): ArrayList<Asn1Element> = elements.also { it.trimToSize() }
 
+    /** Appends [element] to this ASN.1 structure. */
+    fun append(element: Asn1Element) {
+        elements += element
+    }
+
+    /** Appends the element exposed by [wrapped]. */
+    fun append(wrapped: WrappedElement<*>) {
+        append(wrapped.element)
+    }
+
+    /** Encodes [value] and appends the resulting element. */
+    @Throws(Asn1Exception::class)
+    fun append(value: Asn1Encodable<*>) {
+        append(value.encodeToTlv())
+    }
+
+    /** Encodes the value exposed by [wrapped] and appends the resulting element. */
+    @Throws(Asn1Exception::class)
+    fun append(wrapped: WrappedEncodable<*>) {
+        append(wrapped.value)
+    }
+
     /**
      * appends a single [Asn1Element] to this ASN.1 structure
      */
     operator fun Asn1Element.unaryPlus() {
-        elements += this
+        append(this)
     }
 
     /**
      * Appends the [Asn1Element] exposed by this transparent wrapper.
      */
     operator fun WrappedElement<*>.unaryPlus() {
-        elements += element
+        append(this)
     }
 
     /**
@@ -77,7 +99,7 @@ class Asn1TreeBuilder {
      */
     @Throws(Asn1Exception::class)
     operator fun Asn1Encodable<*>.unaryPlus() {
-        +encodeToTlv()
+        append(this)
     }
 
     /**
@@ -87,7 +109,7 @@ class Asn1TreeBuilder {
      */
     @Throws(Asn1Exception::class)
     operator fun WrappedEncodable<*>.unaryPlus() {
-        +(value.encodeToTlv())
+        append(this)
     }
 }
 

@@ -32,7 +32,6 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializer
 
 // ---------------------------------------------------------------------------
@@ -201,61 +200,6 @@ internal fun glNestedSequenceDer(levels: Int): ByteArray {
     var body = ByteArray(0)
     repeat(levels) { body = byteArrayOf(0x30) + glDerLength(body.size) + body }
     return body
-}
-
-/**
- * `DefaultDer` is a process-wide one-shot singleton: its freeze can only be raced in a JVM
- * that has never dereferenced `DER`. The two lifecycle findings are therefore exercised in a
- * freshly forked JVM running [main] below, on this test run's own classpath.
- */
-internal fun runDefaultDerProbe(mode: String): String {
-    val java = System.getProperty("java.home") + "/bin/java"
-    val process = ProcessBuilder(
-        java, "-cp", System.getProperty("java.class.path"),
-        "at.asitplus.awesn1.serialization.GlmSubmittedFindingsTestKt", mode,
-    ).redirectErrorStream(true).start()
-    val output = process.inputStream.bufferedReader().readText()
-    process.waitFor()
-    return output
-}
-
-@Volatile private var glConsumptionStarted = false
-
-fun main(args: Array<String>) {
-    when (args.firstOrNull()) {
-        // Registration hammer straddling the first `DER` dereference: consumeSerializers()
-        // iterates the plain contributor list live, so a concurrent append crashes the
-        // CONSUMING thread with a raw CME/NPE that escapes DerKt.getDER.
-        "brick" -> {
-            val hammers = (1..8).map {
-                Thread { repeat(400_000) { runCatching { DefaultDer.register(SerializersModule { }) } } }
-            }
-            hammers.forEach { it.start() }
-            Thread.sleep(1)
-            val verdict = runCatching { DER.configuration.maxInputLength }
-                .fold({ "OK" }, { it::class.simpleName ?: "Throwable" })
-            hammers.forEach { it.join() }
-            println("DER_INIT=$verdict")
-        }
-        // Limit-setter hammer: a set issued after consumption has begun must be rejected with
-        // IllegalStateException. The check-then-act on the non-volatile flag lets it through.
-        "freeze" -> {
-            var lateAccepted = false
-            val hammer = Thread {
-                repeat(5_000_000) { i ->
-                    val accepted = runCatching { DefaultDer.maxInputLength = 1_000_000L + i }.isSuccess
-                    if (accepted && glConsumptionStarted) lateAccepted = true
-                }
-            }
-            hammer.start()
-            Thread.sleep(2)
-            glConsumptionStarted = true
-            runCatching { DER.configuration.maxInputLength }
-            hammer.join()
-            println("LATE_SET_ACCEPTED=$lateAccepted")
-        }
-        else -> println("unknown probe mode")
-    }
 }
 
 // ---------------------------------------------------------------------------
