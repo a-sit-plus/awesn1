@@ -16,6 +16,7 @@ import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.asn1Tag
 import at.asitplus.awesn1.serialization.isAsn1BitString
+import at.asitplus.awesn1.serialization.isAsn1OctetStringEncapsulatedDescriptor
 import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ByteArraySerializer
@@ -180,11 +181,13 @@ class DerDecoder internal constructor(
             is StructureKind.OBJECT,
             is StructureKind.LIST,
             is StructureKind.MAP -> {
-                if (element is Asn1Structure || element is Asn1EncapsulatingOctetString) {
-                    val children = when(element){
+                if (element is Asn1Structure || element is Asn1EncapsulatingOctetString ||
+                    element is Asn1Primitive && descriptor.isAsn1OctetStringEncapsulatedDescriptor()
+                ) {
+                    val children = when (element) {
                         is Asn1Structure -> element.children
                         is Asn1EncapsulatingOctetString -> element.children
-                        else -> throw ImplementationError("OCTET STRING UNWRAPPING")
+                        is Asn1Primitive -> Asn1Element.parseAll(element.content)
                     }
 
                     val effectiveChildren = children.withoutPendingDiscriminatorOid()
@@ -332,7 +335,7 @@ class DerDecoder internal constructor(
             PrimitiveKind.BYTE -> processedElement.asPrimitive()
                 .decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
                 .let {
-                    if (propertyDescriptor.isKotlinUByteDescriptor()) it.toStrictUByteBacking()
+                    if (propertyDescriptor.inlineChainContains("kotlin.UByte")) it.toStrictUByteBacking()
                     else it.toStrictByte()
                 }
 
@@ -343,12 +346,12 @@ class DerDecoder internal constructor(
                 .decodeToDouble(expectedTag ?: Asn1Element.Tag.REAL)
 
             PrimitiveKind.FLOAT -> processedElement.asPrimitive().decodeToFloat(expectedTag ?: Asn1Element.Tag.REAL)
-            PrimitiveKind.INT -> if (propertyDescriptor.isKotlinUIntDescriptor()) {
+            PrimitiveKind.INT -> if (propertyDescriptor.inlineChainContains("kotlin.UInt")) {
                 processedElement.asPrimitive().decodeToUInt(expectedTag ?: Asn1Element.Tag.INT).toInt()
             } else {
                 processedElement.asPrimitive().decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
             }
-            PrimitiveKind.LONG -> if (propertyDescriptor.isKotlinULongDescriptor()) {
+            PrimitiveKind.LONG -> if (propertyDescriptor.inlineChainContains("kotlin.ULong")) {
                 processedElement.asPrimitive().decodeToULong(expectedTag ?: Asn1Element.Tag.INT).toLong()
             } else {
                 processedElement.asPrimitive().decodeToLong(expectedTag ?: Asn1Element.Tag.INT)
@@ -356,7 +359,7 @@ class DerDecoder internal constructor(
             PrimitiveKind.SHORT -> processedElement.asPrimitive()
                 .decodeToInt(expectedTag ?: Asn1Element.Tag.INT)
                 .let {
-                    if (propertyDescriptor.isKotlinUShortDescriptor()) it.toStrictUShortBacking()
+                    if (propertyDescriptor.inlineChainContains("kotlin.UShort")) it.toStrictUShortBacking()
                     else it.toStrictShort()
                 }
 
@@ -616,6 +619,11 @@ class DerDecoder internal constructor(
                 }
                 elementIndex++
                 if (deserializer == Asn1OctetStringFallbackBase64Serializer) {
+                    if (expectedTag == null && processedElement.tag != Asn1Element.Tag.OCTET_STRING) {
+                        throw SerializationException(
+                            Asn1TagMismatchException(Asn1Element.Tag.OCTET_STRING, processedElement.tag)
+                        )
+                    }
                     return castDecoded(Asn1OctetString(processedElement.asPrimitive().content))
                 }
                 require(deserializer is Asn1ElementFallbackBase64SerializerBase<*>) {
@@ -735,6 +743,14 @@ class DerDecoder internal constructor(
         ) {
             throw SerializationException(
                 "Duplicate elements cannot be decoded into ${deserializer.descriptor.serialName} without data loss"
+            )
+        }
+        if (deserializer.descriptor.kind is StructureKind.MAP &&
+            value is Map<*, *> &&
+            value.size * 2 != processedElement.asStructure().children.size
+        ) {
+            throw SerializationException(
+                "Duplicate keys cannot be decoded into ${deserializer.descriptor.serialName} without data loss"
             )
         }
         elementIndex++
@@ -945,7 +961,12 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
             Asn1Element.Tag.STRING_UNIVERSAL,
             Asn1Element.Tag.STRING_PRINTABLE,
             Asn1Element.Tag.STRING_IA5,
-                -> decodeToString()
+                -> when (tag) {
+                    Asn1Element.Tag.STRING_BMP -> content.decodeBmpString()
+                    Asn1Element.Tag.STRING_UNIVERSAL -> content.decodeUniversalString()
+                    Asn1Element.Tag.STRING_T61 -> content.decodeSupportedTeletexString()
+                    else -> decodeToString()
+                }
 
             else -> throw SerializationException(Asn1TagMismatchException(Asn1Element.Tag.STRING_UTF8, tag))
         }
@@ -953,6 +974,44 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
         if (tag != implicitTagOverride) throw SerializationException(Asn1TagMismatchException(implicitTagOverride, tag))
         String.decodeFromAsn1ContentBytes(content)
     }
+
+private fun ByteArray.decodeBmpString(): String {
+    if (size % 2 != 0) throw SerializationException("BMPString content length must be divisible by 2")
+    return CharArray(size / 2) { index ->
+        val offset = index * 2
+        val value = ((this[offset].toInt() and 0xff) shl 8) or (this[offset + 1].toInt() and 0xff)
+        if (value in 0xd800..0xdfff) throw SerializationException("BMPString contains surrogate U+${value.toString(16)}")
+        value.toChar()
+    }.concatToString()
+}
+
+private fun ByteArray.decodeUniversalString(): String {
+    if (size % 4 != 0) throw SerializationException("UniversalString content length must be divisible by 4")
+    val result = StringBuilder(size / 4)
+    for (offset in indices step 4) {
+        val codePoint = ((this[offset].toLong() and 0xff) shl 24) or
+                ((this[offset + 1].toLong() and 0xff) shl 16) or
+                ((this[offset + 2].toLong() and 0xff) shl 8) or
+                (this[offset + 3].toLong() and 0xff)
+        if (codePoint > 0x10ffffL || codePoint in 0xd800L..0xdfffL) {
+            throw SerializationException("Invalid UniversalString code point U+${codePoint.toString(16)}")
+        }
+        if (codePoint <= 0xffffL) result.append(codePoint.toInt().toChar())
+        else {
+            val supplementary = codePoint.toInt() - 0x10000
+            result.append(((supplementary ushr 10) + 0xd800).toChar())
+            result.append(((supplementary and 0x3ff) + 0xdc00).toChar())
+        }
+    }
+    return result.toString()
+}
+
+private fun ByteArray.decodeSupportedTeletexString(): String {
+    if (any { it.toInt() and 0x80 != 0 }) {
+        throw SerializationException("Non-ASCII TeletexString content is unsupported; use Asn1String to preserve raw bytes")
+    }
+    return decodeToString()
+}
 
 private fun Int.toStrictByte(): Byte =
     if (this in Byte.MIN_VALUE..Byte.MAX_VALUE) toByte()

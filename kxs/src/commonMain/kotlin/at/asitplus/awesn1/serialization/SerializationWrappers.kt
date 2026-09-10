@@ -60,6 +60,11 @@ fun <T> OctetStringEncapsulated<T>?.orValue(default: T): OctetStringEncapsulated
 
 private const val ExplicitlyTaggedSerialName =
     "at.asitplus.awesn1.serialization.ExplicitlyTagged"
+private const val OctetStringEncapsulatedSerialName =
+    "at.asitplus.awesn1.serialization.OctetStringEncapsulated"
 
 internal fun SerialDescriptor.isAsn1ExplicitWrapperDescriptor(): Boolean =
     serialName.removeSuffix("?").substringBefore('<').let { rawName -> rawName == ExplicitlyTaggedSerialName }
+
+internal fun SerialDescriptor.isAsn1OctetStringEncapsulatedDescriptor(): Boolean =
+    serialName.removeSuffix("?").substringBefore('<') == OctetStringEncapsulatedSerialName

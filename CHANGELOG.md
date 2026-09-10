@@ -8,6 +8,10 @@
     * Made DER resource limits effective: `maxInputLength` now defaults to each target's `ByteArray` ceiling, built-in ASN.1 element trees are depth-checked on encode and decode, and unsafe nesting configurations are rejected without attempting to recover from stack exhaustion.
     * **Breaking:** Removed the generic builder unary-`+` serialization bridge because Kotlin member operators silently win for numeric operands; use the generic `append(value)` inside a `Der` context instead. Core `Asn1Element`/`Asn1Encodable` operands and wrappers now also support `append`, while retaining unary `+`.
     * Rejected PEM labels containing non-printable ASCII characters, preventing newline-based fence injection.
+    * Reject contradictory primitive/constructed implicit tags, tags on raw `Asn1Element` values (including contextual serializers), ambiguous inline custom-serializer layouts, and nullable collection elements that cannot be represented when `explicitNulls` is disabled.
+    * Preserve inline enum tags, align `INFER` tag-class ambiguity analysis with its context-specific wire form, enforce the OCTET STRING tag for `Asn1OctetString`, and retain unsigned semantics through nested value-class decoding.
+    * Reject duplicate map keys during DER decoding; make `LenientSet` equality reflect retained wire order/multiplicity and prevent non-DER decoders from creating wire-preserving malformed SET states.
+    * Decode BMPString and UniversalString according to their wide-character encodings; reject unsupported non-ASCII TeletexString content instead of lossy UTF-8 replacement.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**

@@ -4,9 +4,9 @@
 /*
  * Value-fidelity findings: decode succeeds, but the value does not represent the wire.
  *
- * Nothing here throws. Duplicates are folded away, nulls vanish from collections, negative integers arrive as large
- * unsigned ones and distinct strings normalise to the same text. The damage shows up one layer up, where a consumer
- * compares, deduplicates or re-signs a value that no longer matches the bytes it came from.
+ * Before the fixes, duplicates were folded away, nulls vanished from collections, negative integers arrived as large
+ * unsigned ones and distinct strings normalised to the same text. Correct handling either preserves the value exactly
+ * or rejects an unrepresentable/unsupported input with SerializationException.
  *
  * Each case asserts the CORRECT (post-fix) behaviour, so it FAILS while the defect is present. Where the original
  * reproducer had an A/B shape ("this spelling works, that spelling breaks"), the working leg is kept as an in-test
@@ -195,13 +195,15 @@ val SerializationValueFidelityFindings by matrixSuite {
                     listOf(1, null, 3)
 
             // Fault (B1): under the default config the null vanishes into an identical encoding.
-            DER.encodeToByteArray(listSerializer, listOf(1, null, 3)).toHexString() shouldNotBe
-                    DER.encodeToByteArray(listSerializer, listOf(1, 3)).toHexString()
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(listSerializer, listOf(1, null, 3))
+            }
 
             // Fault (B2): the emitted map form is not decodable by the library itself.
             val mapSerializer = MapSerializer(Int.serializer(), serializer<String?>())
-            val encodedMap = DER.encodeToByteArray(mapSerializer, mapOf(1 to null))
-            DER.decodeFromByteArray(mapSerializer, encodedMap) shouldBe mapOf(1 to null)
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(mapSerializer, mapOf(1 to null))
+            }
         }
     }
 
@@ -241,20 +243,16 @@ val SerializationValueFidelityFindings by matrixSuite {
          * to U+FFFD), and re-encoding rewrites both tag and content, so a tampered byte is
          * invisible to value comparison AND to re-encode-based verification.
          *
-         * TRIGGER: TeletexString 0xE9 vs 0xEA. They must not collide, and an accepted input must
-         * re-encode to the bytes it came from.
+         * TRIGGER: TeletexString 0xE9 vs 0xEA. The format has no complete T.61 codec, so these
+         * values must be rejected rather than lossy-decoded as UTF-8. Callers requiring raw wire
+         * preservation can model Asn1String.
          */
         "decodestring_lenient_lossy_string_normalization" {
             val wireE9 = "30031401e9".hexToByteArray()
             val wireEA = "30031401ea".hexToByteArray()
 
-            val a = DER.decodeFromByteArray<GlStringHolder>(wireE9)
-            val b = DER.decodeFromByteArray<GlStringHolder>(wireEA)
-
-            // Fault (B1): distinct accepted wires must not decode to the same value.
-            a shouldNotBe b
-            // Fault (B2): an accepted input must survive decode -> re-encode unchanged.
-            DER.encodeToByteArray(a).toHexString() shouldBe wireE9.toHexString()
+            shouldThrow<SerializationException> { DER.decodeFromByteArray<GlStringHolder>(wireE9) }
+            shouldThrow<SerializationException> { DER.decodeFromByteArray<GlStringHolder>(wireEA) }
         }
 
         /*

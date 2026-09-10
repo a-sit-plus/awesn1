@@ -52,8 +52,9 @@ val SerializationTagBindingFindings by matrixSuite {
             DER.decodeFromByteArray<GlOctetPrimitive>(DER.encodeToByteArray(ok)) shouldBe ok
 
             // Fault (B): the CONSTRUCTED template encodes but can never be decoded.
-            val broken = GlOctetConstructed(byteArrayOf(9, 9))
-            DER.decodeFromByteArray<GlOctetConstructed>(DER.encodeToByteArray(broken)) shouldBe broken
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(GlOctetConstructed(byteArrayOf(9, 9)))
+            }
         }
 
         /*
@@ -70,11 +71,12 @@ val SerializationTagBindingFindings by matrixSuite {
          * ConstructedTaggedInt(7).
          */
         "constructed_tag_template_primitive_valued_silently_undecodable" {
-            val bytes = GlConstructedTaggedBytes(byteArrayOf(1, 2, 3))
-            DER.decodeFromByteArray<GlConstructedTaggedBytes>(DER.encodeToByteArray(bytes)) shouldBe bytes
-
-            val int = GlConstructedTaggedInt(7)
-            DER.decodeFromByteArray<GlConstructedTaggedInt>(DER.encodeToByteArray(int)) shouldBe int
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(GlConstructedTaggedBytes(byteArrayOf(1, 2, 3)))
+            }
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(GlConstructedTaggedInt(7))
+            }
         }
 
         /*
@@ -88,8 +90,9 @@ val SerializationTagBindingFindings by matrixSuite {
          * TRIGGER: round-trip ConstructedHost(Mode.OFF).
          */
         "enum_constructed_bit_roundtrip_v2" {
-            val value = GlConstructedEnumHost(GlMode.OFF)
-            DER.decodeFromByteArray<GlConstructedEnumHost>(DER.encodeToByteArray(value)) shouldBe value
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(GlConstructedEnumHost(GlMode.OFF))
+            }
         }
 
         /*
@@ -110,8 +113,9 @@ val SerializationTagBindingFindings by matrixSuite {
             DER.decodeFromByteArray<GlConsTaggedHolder>(DER.encodeToByteArray(ok)) shouldBe ok
 
             // Fault (B): PRIMITIVE on a structure is silently accepted and never decodable.
-            val broken = GlPrimTaggedHolder(GlInner(5))
-            DER.decodeFromByteArray<GlPrimTaggedHolder>(DER.encodeToByteArray(broken)) shouldBe broken
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(GlPrimTaggedHolder(GlInner(5)))
+            }
         }
 
         /*
@@ -167,17 +171,16 @@ val SerializationTagBindingFindings by matrixSuite {
          * BUG: possibleBaseLeadingTags recurses through an inline value class BEFORE consulting
          * serializer-declared leading tags (withAsn1LeadingTags), so a value-class-backed custom
          * serializer's declared tag set is dropped. The ambiguity checker then certifies a
-         * genuinely ambiguous layout, and decode nullifies the property WITHOUT consuming its
-         * element — which shifts into the following property.
+         * genuinely ambiguous layout instead of rejecting it.
          *
-         * TRIGGER: P4(t = Token(7)) encodes to SEQ{ UTF8 "7" } and decodes back as
-         * P4(t = null, note = "7"). Control: the same layout with a non-inline delegate is
-         * correctly rejected as "Ambiguous ASN.1 layout".
+         * TRIGGER: both nullable `t` and following `note` lead with UTF8String. The declared tag
+         * must be considered before inline unwrapping so the collision is rejected loudly.
          */
         "inline_declared_leading_tags_dropped" {
             val der = DER { encodeDefaults = false }
-            val value = GlP4(GlToken(7))
-            der.decodeFromByteArray<GlP4>(der.encodeToByteArray(value)) shouldBe value
+            shouldThrow<SerializationException> {
+                der.encodeToByteArray(GlP4(GlToken(7)))
+            }
         }
 
         /*
@@ -257,9 +260,10 @@ val SerializationTagBindingFindings by matrixSuite {
                 DER.encodeToByteArray(GlBothContext(a = "ab"))
             }
 
-            // Fault (B): with INFER the same collision is certified and silently misbinds.
-            val value = GlInferClass(a = "ab")
-            DER.decodeFromByteArray<GlInferClass>(DER.encodeToByteArray(value)) shouldBe value
+            // Fault (B): INFER still emits a context-specific tag, so this is the same collision.
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(GlInferClass(a = "ab"))
+            }
         }
     }
 }
