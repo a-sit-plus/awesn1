@@ -23,41 +23,8 @@ internal enum class ByteArrayShape {
 internal object ByteArrayShapePolicy {
     private val byteArrayDescriptor = ByteArraySerializer().descriptor
 
-    private fun isBitStringRequested(
-        inlineAsBitString: Boolean = false,
-        propertyAsBitString: Boolean = false,
-        descriptor: SerialDescriptor? = null,
-    ): Boolean = inlineAsBitString || propertyAsBitString || (descriptor?.isAsn1BitString == true)
-
-    private fun shapeForRuntimeValue(
-        value: Any,
-        bitStringRequested: Boolean,
-    ): ByteArrayShape = when (value) {
-        is ByteArray -> if (bitStringRequested) ByteArrayShape.BIT_STRING else ByteArrayShape.OCTET_STRING
-        else -> ByteArrayShape.NOT_APPLICABLE
-    }
-
-    /**
-     * Resolves byte-array shape from a runtime [value] and bit-string hints.
-     *
-     * @throws SerializationException if `@Asn1BitString` is requested for a non-ByteArray runtime value
-     */
-    @Throws(SerializationException::class)
-    fun resolveRuntimeValueShape(
-        value: Any,
-        inlineAsBitString: Boolean = false,
-        propertyAsBitString: Boolean = false,
-    ): ByteArrayShape {
-        val bitStringRequested = isBitStringRequested(
-            inlineAsBitString = inlineAsBitString,
-            propertyAsBitString = propertyAsBitString,
-        )
-        requireBitStringCompatibleValue(bitStringRequested, value)
-        return shapeForRuntimeValue(
-            value = value,
-            bitStringRequested = bitStringRequested,
-        )
-    }
+    fun shapeForByteArray(bitStringRequested: Boolean): ByteArrayShape =
+        if (bitStringRequested) ByteArrayShape.BIT_STRING else ByteArrayShape.OCTET_STRING
 
     fun shapeForDescriptor(
         descriptor: SerialDescriptor,
@@ -82,62 +49,17 @@ internal object ByteArrayShapePolicy {
         propertyAsBitString: Boolean = false,
         includeDescriptorAsBitString: Boolean = false,
     ): ByteArrayShape {
-        val bitStringRequested = if (includeDescriptorAsBitString) {
-            isBitStringRequested(
-                inlineAsBitString = inlineAsBitString,
-                propertyAsBitString = propertyAsBitString,
-                descriptor = descriptor,
-            )
-        } else {
-            isBitStringRequested(
-                inlineAsBitString = inlineAsBitString,
-                propertyAsBitString = propertyAsBitString,
-            )
-        }
-        requireBitStringCompatibleSerializer(
-            bitStringRequested = bitStringRequested,
-            descriptor = descriptor,
-            layoutPlan = layoutPlan,
-        )
-        return shapeForDescriptor(
-            descriptor = descriptor,
-            bitStringRequested = bitStringRequested,
-        )
-    }
-
-    /**
-     * Ensures bit-string hint usage is compatible with runtime [value].
-     *
-     * @throws SerializationException if bit-string mode is requested for non-ByteArray runtime values
-     */
-    @Throws(SerializationException::class)
-    fun requireBitStringCompatibleValue(
-        bitStringRequested: Boolean,
-        value: Any,
-    ) {
-        if (bitStringRequested && value !is ByteArray) {
-            throw SerializationException(
-                "@Asn1BitString can only be used with ByteArray-compatible values, but got ${value::class}"
-            )
-        }
-    }
-
-    /**
-     * Ensures bit-string hint usage is compatible with serializer [descriptor].
-     *
-     * @throws SerializationException if bit-string mode is requested for a non-byte-array-compatible descriptor
-     */
-    @Throws(SerializationException::class)
-    fun requireBitStringCompatibleSerializer(
-        bitStringRequested: Boolean,
-        descriptor: SerialDescriptor,
-        layoutPlan: DerLayoutPlanContext,
-    ) {
+        val bitStringRequested = inlineAsBitString || propertyAsBitString ||
+                (includeDescriptorAsBitString && descriptor.isAsn1BitString)
         if (bitStringRequested && !layoutPlan.isBitStringCompatible(descriptor)) {
             throw SerializationException(
                 "@Asn1BitString can only be used with ByteArray-compatible serializers, but got ${descriptor.serialName}"
             )
         }
+        return shapeForDescriptor(
+            descriptor = descriptor,
+            bitStringRequested = bitStringRequested,
+        )
     }
 
     /**
