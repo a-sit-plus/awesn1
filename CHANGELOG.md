@@ -1,6 +1,10 @@
 # Changelog
 
 ## NEXT
+* **Fixes:**
+    * Fixed tag-discriminated open polymorphism to emit registered subtype tags, preserve them through enclosing properties, resolve nullable/nested dispatch correctly, and avoid leaking tag state to later fields.
+    * Fixed OID-discriminated open polymorphism to prefer exact subtype registrations, emit the registered discriminator, survive canonical SET sorting, and reject non-leading selectors that cannot be decoded losslessly.
+    * Fixed sealed CHOICE serialization so selected serializers are honored, inline wrappers retain CHOICE tag inference, and ambiguous nullable layouts are rejected.
 * **Security Hardening:**
     * **Breaking:** `Source.decodeAsn1VarBigInt()` now requires a byte limit; all big-varint decoders reject
       unterminated input.

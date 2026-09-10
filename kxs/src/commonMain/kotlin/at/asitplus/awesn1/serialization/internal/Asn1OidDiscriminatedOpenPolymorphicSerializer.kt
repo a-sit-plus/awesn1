@@ -36,7 +36,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
         // Exact subtypes carry no OID of their own → inject the discriminator as the leading element.
         // The catch-all (fallback) carries its OID as its own first field, so injecting would write it
         // twice; emit it exactly once and let the fallback round-trip it into that property.
-        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) encoder.prependOidToNextStructure(value.oid)
+        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) encoder.prependOidToNextStructure(reg.oid)
         return reg.serializer
     }
 
@@ -56,7 +56,20 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
         val reg = dispatch.registrationForDecode(oid)
         // Mirror of encode: drop the injected discriminator only for exact subtypes. For the catch-all
         // the leading OID IS the fallback's own `oid` field — keep it so the fallback reads it back.
-        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) decoder.dropOidFromNextStructure()
+        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) {
+            val discriminatorIndex = (element as? Asn1Structure)?.children?.indexOfFirst {
+                it is Asn1Primitive && it.tag == Asn1Element.Tag.OID &&
+                        runCatching { it.readOid() }.getOrNull() == oid
+            } ?: -1
+            if (discriminatorIndex < 0 ||
+                discriminatorIndex > 0 && element.tag != Asn1Element.Tag.SET) {
+                throw SerializationException(
+                    "OID discriminator for ${descriptor.serialName} must be the first child; " +
+                            "custom selector resolved child index $discriminatorIndex"
+                )
+            }
+            decoder.dropOidFromNextStructure(oid)
+        }
         @Suppress("UNCHECKED_CAST")
         return reg.serializer as DeserializationStrategy<T>
     }
@@ -74,7 +87,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
         val reg = dispatch.registrationForEncode(value)
         // See serializerForEncode: inject the discriminator only for exact (sans-OID) subtypes; the
         // catch-all already carries its OID as its first field, so it is encoded exactly once.
-        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) derEncoder.prependOidToNextStructure(value.oid)
+        if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) derEncoder.prependOidToNextStructure(reg.oid)
 
         @Suppress("UNCHECKED_CAST")
         val ser = reg.serializer as KSerializer<T>
@@ -87,19 +100,16 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
 /**
  * Default OID selector for OID-discriminated open polymorphism.
  *
- * This covers the common shape `SEQUENCE { OBJECT IDENTIFIER, ... }`
+ * This covers the common shape `SEQUENCE { OBJECT IDENTIFIER, ... }` and canonical SET sorting.
  */
 internal fun oidFrom(element: Asn1Element): ObjectIdentifier? {
 
     val structure = element as? Asn1Structure ?: return null
 
-    val primitive = structure.firstOrNull() as? Asn1Primitive
-    if (primitive?.tag == Asn1Element.Tag.OID) {
-        return runCatching { primitive.readOid() }.getOrNull()
-    }
-
-
-    return null
+    return structure.children.asSequence()
+        .filterIsInstance<Asn1Primitive>()
+        .firstOrNull { it.tag == Asn1Element.Tag.OID }
+        ?.let { runCatching { it.readOid() }.getOrNull() }
 }
 
 internal fun inferOpenPolymorphicSubtypeLeadingTagsOrNull(

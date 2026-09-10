@@ -93,6 +93,8 @@ internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
      */
     @Throws(SerializationException::class)
     fun registrationForEncode(value: T): Asn1OidDiscriminatedSubtypeRegistration<T> {
+        serializersByOid.values.firstOrNull { it.runtimeClass == value::class }?.let { return it }
+
         serializersByOid[value.oid]?.let { exactRegistration ->
             if (exactRegistration.runtimeClass.isInstance(value)) {
                 return exactRegistration
