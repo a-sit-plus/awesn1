@@ -12,6 +12,7 @@ import at.asitplus.awesn1.readOid
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Encoder
 
 internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
     serialName: String,
@@ -29,7 +30,13 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
     override val leadingTags: Set<Asn1Element.Tag>
         get() = dispatch.leadingTags
 
-    override fun selectionForEncode(value: T): DerEncodeSelection<T> {
+    @Throws(SerializationException::class)
+    override fun serialize(encoder: Encoder, value: T) {
+        val derEncoder = encoder.requireDerEncoder(descriptor.serialName)
+        derEncoder.encodeSelectedValue(selectionForEncode(value), value)
+    }
+
+    private fun selectionForEncode(value: T): DerEncodeSelection<T> {
         val reg = dispatch.registrationForEncode(value)
         // Exact subtypes carry no OID of their own → inject the discriminator as the leading element.
         // The catch-all (fallback) carries its OID as its own first field, so injecting would write it
