@@ -38,7 +38,10 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
     /** Converts this Asn1Real to a [Double]. **Beware of possible loss of precision!** */
     @Throws(Asn1Exception::class)
     fun toDouble() = when (this) {
-        is Finite -> (normalizedMantissa.toDouble() * 2.0.pow(normalizedExponent.toDouble()))
+        is Finite -> {
+            val scaled = normalizedMantissa.uint.toDoubleScaled(normalizedExponent)
+            if (normalizedMantissa.sign == Asn1Integer.Sign.NEGATIVE) -scaled else scaled
+        }
         NegativeInfinity -> Double.NEGATIVE_INFINITY
         PositiveInfinity -> Double.POSITIVE_INFINITY
         PositiveZero -> 0.0
@@ -255,13 +258,17 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
                 val exponentSlice = bytes.copyOfRange(exponentOffset, mantissaOffset)
                 val exponent = when (exponentLength) {
                     1 -> exponentSlice[0].toLong()
-                    else -> Long.fromTwosComplementByteArray(exponentSlice)
+                    else -> Long.fromTwosComplementByteArray(exponentSlice, lenient)
                 }
                 val mantissa = VarUInt(bytes.copyOfRange(mantissaOffset, bytes.size))
 
+                val baseBits = (identifierOctet ushr 4) and 0x03
+                val factorBits = (identifierOctet ushr 2) and 0x03
+                val baseExponent = when (baseBits) { 0 -> 1; 1 -> 3; 2 -> 4; else -> 1 }
+                val adjustedExponent = exponent * baseExponent + factorBits
                 val decoded =
-                    if (sign == Asn1Integer.Sign.POSITIVE) Asn1Real(Asn1Integer.Positive(mantissa), exponent)
-                    else Asn1Real(Asn1Integer.Negative(mantissa), exponent)
+                    if (sign == Asn1Integer.Sign.POSITIVE) Asn1Real(Asn1Integer.Positive(mantissa), adjustedExponent)
+                    else Asn1Real(Asn1Integer.Negative(mantissa), adjustedExponent)
 
                 if (!lenient && !decoded.encodeToAsn1ContentBytes().contentEquals(bytes))
                     throw Asn1Exception(
