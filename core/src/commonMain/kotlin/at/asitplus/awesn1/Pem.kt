@@ -172,9 +172,10 @@ fun <T> PemDecodable<T>.decodeFromPemBlock(src: PemBlock): T =
 fun <A : Asn1Element, T : Asn1Encodable<A>> Asn1PemDecodable<A, T>.decodeFromDerWithPemHeaders(
     pemHeaders: Iterable<PemHeader>,
     der: ByteArray
-) =
+) = runWrappingAs(a = ::IllegalArgumentException) {
     @Suppress("UNCHECKED_CAST")
     decodeFromTlvWithPemHeaders(pemHeaders, Asn1Element.parse(der) as A)
+}
 
 @Throws(IllegalArgumentException::class)
 fun PemEncodable.encodeToPem(): String = encodeToPemBlock().encodeToPem()
