@@ -51,6 +51,48 @@ internal data class DerPropertyContext(
         get() = ownerDescriptor.serialName
 }
 
+internal data class DerValuePlan(
+    val tagTemplate: Asn1Element.Tag.Template?,
+    val byteArrayShape: ByteArrayShape,
+    val nullEncoding: Asn1NullEncodingAnalysis,
+)
+
+internal fun DerLayoutPlanContext.planValue(
+    descriptor: SerialDescriptor,
+    nullAnalysisDescriptor: SerialDescriptor,
+    inlineHints: DerInlineHints,
+    propertyAsn1Tag: Asn1Tag?,
+    propertyAsBitString: Boolean,
+    includeDescriptorAsBitString: Boolean = false,
+): DerValuePlan = DerValuePlan(
+    tagTemplate = resolveAsn1TagTemplate(
+        inlineAsn1Tag = inlineHints.tag,
+        propertyAsn1Tag = propertyAsn1Tag,
+        classAsn1Tag = descriptor.asn1Tag,
+    ),
+    byteArrayShape = ByteArrayShapePolicy.resolveSerializerShape(
+        descriptor = descriptor,
+        layoutPlan = this,
+        inlineAsBitString = inlineHints.asBitString,
+        propertyAsBitString = propertyAsBitString,
+        includeDescriptorAsBitString = includeDescriptorAsBitString,
+    ),
+    nullEncoding = analyzeNullable(
+        descriptor = nullAnalysisDescriptor,
+        propertyAsn1Tag = propertyAsn1Tag,
+        inlineAsn1Tag = inlineHints.tag,
+        propertyAsBitString = propertyAsBitString,
+        inlineAsBitString = inlineHints.asBitString,
+    ),
+)
+
+internal fun Asn1NullEncodingAnalysis.matchesEncodedNull(element: Asn1Element): Boolean =
+    encodeNullEnabled && (
+            element.isAsn1NullElement() ||
+                    canDecodeNullByZeroLength && element.contentLength == 0 ||
+                    canDecodeNullByConstructedBit && !element.tag.isConstructed && element.contentLength == 0
+            )
+
 /**
  * Mutable holder for pending inline hints with explicit consume/peek semantics.
  */
@@ -79,6 +121,10 @@ internal class DerInlineHintState {
      * Returns currently pending inline hints and resets internal state.
      */
     fun consume(): DerInlineHints = peek().also {
+        clear()
+    }
+
+    fun clear() {
         inlineAsn1Tag = null
         inlineAsBitString = false
     }
