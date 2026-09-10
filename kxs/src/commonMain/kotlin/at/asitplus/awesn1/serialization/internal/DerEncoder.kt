@@ -13,6 +13,7 @@ import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.asn1Tag
+import at.asitplus.awesn1.serialization.isAsn1OctetStringEncapsulatedDescriptor
 import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.PolymorphicKind
@@ -123,6 +124,12 @@ class DerEncoder internal constructor(
             classAsn1Tag = null
         )
 
+        if (value is Asn1Element && tagTemplate != null) {
+            throw SerializationException(
+                "Raw Asn1Element must not use @Asn1Tag; remove the override or use a strongly typed value/wrapper"
+            )
+        }
+
         val element = when (value) {
             is Asn1Element -> value
             is Asn1Encodable<*> -> value.encodeToTlv()
@@ -184,6 +191,7 @@ class DerEncoder internal constructor(
         val inlineHints = inlineHintState.consume()
         val propertyContext = consumePropertyContextOrNull() ?: return
         val propertyDescriptor = propertyContext.propertyDescriptor
+        requireRepresentableCollectionNull(propertyContext)
         val nullEncodingAnalysis = layoutPlan.analyzeNullable(
             descriptor = propertyDescriptor,
             propertyAsn1Tag = propertyContext.propertyAsn1Tag,
@@ -219,8 +227,11 @@ class DerEncoder internal constructor(
         der.configuration.encodeDefaults
 
     override fun encodeEnum(enumDescriptor: SerialDescriptor, index: Int) {
-        val propertyAnnotation = consumePropertyContextOrNull()?.propertyAsn1Tag
+        val propertyContext = consumePropertyContextOrNull()
+        val inlineAnnotation = inlineHintState.consume().tag ?: propertyContext?.propertyDescriptor?.asn1Tag
+        val propertyAnnotation = propertyContext?.propertyAsn1Tag
         val tagTemplate = resolveAsn1TagTemplate(
+            inlineAsn1Tag = inlineAnnotation,
             propertyAsn1Tag = propertyAnnotation,
             classAsn1Tag = enumDescriptor.asn1Tag,
         )
@@ -312,6 +323,7 @@ class DerEncoder internal constructor(
 
         if (value == null) {
             if (!nullEncodingAnalysis.encodeNullEnabled) {
+                propertyContext?.let(::requireRepresentableCollectionNull)
                 descriptorAndIndex = null
                 return
             }
@@ -544,8 +556,38 @@ class DerEncoder internal constructor(
         element: Asn1Element,
         tagTemplate: Asn1Element.Tag.Template? = null,
     ) {
-        val taggedElement = tagTemplate?.let { element.withImplicitTag(it) } ?: element
+        val taggedElement = tagTemplate?.let {
+            if (!element.isAsn1NullElement()) {
+                requireCompatibleConstructedBit(
+                    element.tag.isConstructed, it, element::class.simpleName ?: "ASN.1 element"
+                )
+            }
+            element.withImplicitTag(it)
+        } ?: element
         buffer += Asn1ElementHolder.Element(taggedElement)
+    }
+
+    private fun requireRepresentableCollectionNull(context: DerPropertyContext) {
+        if (!der.configuration.explicitNulls &&
+            (context.ownerDescriptor.kind is StructureKind.LIST || context.ownerDescriptor.kind is StructureKind.MAP)
+        ) {
+            throw SerializationException(
+                "Null collection elements cannot be omitted when explicitNulls=false; enable explicitNulls or reject the value"
+            )
+        }
+    }
+
+    private fun requireCompatibleConstructedBit(
+        actual: Boolean,
+        template: Asn1Element.Tag.Template,
+        valueKind: String,
+    ) {
+        val requested = template.constructed ?: return
+        if (requested != actual) {
+            throw SerializationException(
+                "@Asn1Tag constructed=$requested contradicts $valueKind constructed=$actual"
+            )
+        }
     }
 
     internal fun <T> encodeSingleElement(serializer: KSerializer<T>, value: T): Asn1Element {
@@ -584,7 +626,12 @@ class DerEncoder internal constructor(
                         shouldBeSorted = true,
                     )
                 }
-                holder.tagTemplate?.let { structureElement.withImplicitTag(it) } ?: structureElement
+                holder.tagTemplate?.let {
+                    if (!holder.descriptor.isAsn1OctetStringEncapsulatedDescriptor()) {
+                        requireCompatibleConstructedBit(true, it, "ASN.1 structure")
+                    }
+                    structureElement.withImplicitTag(it)
+                } ?: structureElement
             }
 
         }

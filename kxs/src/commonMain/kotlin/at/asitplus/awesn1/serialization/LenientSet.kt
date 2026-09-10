@@ -33,10 +33,15 @@ class LenientSet<T> private constructor(
         if (it.size != size) throw Asn1Exception("ASN.1 SET OF contains duplicate elements")
     }
 
-    override fun equals(other: Any?): Boolean =
-        this === other || other is LenientSet<*> && elements.toSet() == other.elements.toSet()
+    override fun equals(other: Any?): Boolean = when {
+        this === other -> true
+        other !is LenientSet<*> || preserveWireOrder != other.preserveWireOrder -> false
+        preserveWireOrder -> elements.toList() == other.elements.toList()
+        else -> elements.toSet() == other.elements.toSet()
+    }
 
-    override fun hashCode(): Int = elements.toSet().hashCode()
+    override fun hashCode(): Int = 31 * preserveWireOrder.hashCode() +
+            if (preserveWireOrder) elements.toList().hashCode() else elements.toSet().hashCode()
 
     class Serializer<T>(private val elementSerializer: KSerializer<T>) : KSerializer<LenientSet<T>> {
         private val listDescriptor = ListSerializer(elementSerializer).descriptor
@@ -58,7 +63,8 @@ class LenientSet<T> private constructor(
                 if (index == CompositeDecoder.DECODE_DONE) break
                 elements += decodeSerializableElement(descriptor, index, elementSerializer)
             }
-            LenientSet(elements, preserveWireOrder = true)
+            if (decoder is DerDecoder) LenientSet(elements, preserveWireOrder = true)
+            else LenientSet(elements.toSet(), preserveWireOrder = false)
         }
 
         private companion object {
