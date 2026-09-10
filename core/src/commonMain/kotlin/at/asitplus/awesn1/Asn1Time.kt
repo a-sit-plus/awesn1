@@ -61,9 +61,30 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
      * @param instant the timestamp to encode; any sub-second part is dropped
      * @param formatOverride force either GENERALIZED TIME or UTC TIME
      */
-    class SecondsCapped(instant: Instant, formatOverride: Format? = null) : Asn1Time() {
+    class SecondsCapped private constructor(
+        instant: Instant,
+        formatOverride: Format?,
+        private val preservedUtcContent: String?,
+    ) : Asn1Time() {
+        constructor(instant: Instant, formatOverride: Format? = null) : this(instant, formatOverride, null)
+
+        internal constructor(instant: Instant, preservedUtcContent: String) :
+                this(instant, Format.UTC, preservedUtcContent)
+
         override val instant: Instant = Instant.fromEpochSeconds(instant.epochSeconds)
         override val format: Format = formatOverride ?: pickFormat(this.instant)
+
+        internal fun encode() = preservedUtcContent?.let {
+            Asn1Primitive(Asn1Element.Tag.TIME_UTC, it.encodeToByteArray())
+        } ?: when (format) {
+            Format.UTC -> instant.encodeToAsn1UtcTimePrimitive()
+            Format.GENERALIZED -> instant.encodeToAsn1GeneralizedTimePrimitive()
+        }
+
+        override fun equals(other: Any?): Boolean =
+            super.equals(other) && other is SecondsCapped && preservedUtcContent == other.preservedUtcContent
+
+        override fun hashCode(): Int = super.hashCode() * 31 + preservedUtcContent.hashCode()
     }
 
 
@@ -131,10 +152,7 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
                 Asn1Primitive(Asn1Element.Tag.TIME_GENERALIZED, "${body}Z".encodeToByteArray())
             }
 
-            is SecondsCapped -> when (format) {
-                Format.UTC -> instant.encodeToAsn1UtcTimePrimitive()
-                Format.GENERALIZED -> instant.encodeToAsn1GeneralizedTimePrimitive()
-            }
+            is SecondsCapped -> encode()
         }
 
 
@@ -220,8 +238,12 @@ private fun pickFormat(instant: Instant): Asn1Time.Format =
     if (instant !in THRESHOLD_UTC_TIME..<THRESHOLD_GENERALIZED_TIME) Asn1Time.Format.GENERALIZED
     else Asn1Time.Format.UTC
 
-private fun fromUtc(content: ByteArray): Asn1Time =
-    Asn1Time.SecondsCapped(Instant.decodeUtcTimeFromAsn1ContentBytes(content), Asn1Time.Format.UTC)
+private fun fromUtc(content: ByteArray): Asn1Time {
+    val instant = Instant.decodeUtcTimeFromAsn1ContentBytes(content)
+    val encoded = content.decodeToString()
+    return if (encoded.endsWith('z')) Asn1Time.SecondsCapped(instant, encoded)
+    else Asn1Time.SecondsCapped(instant, Asn1Time.Format.UTC)
+}
 
 
 /**
@@ -236,9 +258,12 @@ internal object Asn1TimeSerializer : StringFallbackSerializer<Asn1Time> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_TIME, PrimitiveKind.STRING)
 
-    override fun encodeFallback(value: Asn1Time): String = value.instant.toString()
+    override fun encodeFallback(value: Asn1Time): String = value.encodeToTlv().content.decodeToString()
 
-    override fun decodeFallback(encoded: String): Asn1Time = Asn1Time(Instant.parse(encoded))
+    override fun decodeFallback(encoded: String): Asn1Time =
+        if ('T' in encoded) Asn1Time(Instant.parse(encoded))
+        else if (encoded.length == 13) fromUtc(encoded.encodeToByteArray())
+        else Asn1Time(encoded)
 }
 
 /**
