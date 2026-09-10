@@ -83,9 +83,13 @@ internal class Asn1TagDiscriminatedDispatch<T : Any>(
      */
     @Throws(SerializationException::class)
     fun serializerForEncode(value: T): KSerializer<out T> {
+        return registrationForEncode(value).serializer
+    }
+
+    fun registrationForEncode(value: T): Asn1TagDiscriminatedSubtypeRegistration<T> {
         val matches = registrations.filter { it.matches(value) }
         return when (matches.size) {
-            1 -> matches.single().serializer
+            1 -> matches.single()
             0 -> throw SerializationException(
                 "No registered open-polymorphic subtype matches runtime value ${value::class} for $serialName"
             )
