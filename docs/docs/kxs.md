@@ -69,14 +69,14 @@ materialization work out of the box.
     - `Asn1Integer` serializes as a signed hexadecimal string (`0x2A`, `-0x2A`)
     - `Asn1Real` (`PositiveZero`, `NegativeZero`, `PositiveInfinity`, `NegativeInfinity`, `NaN`, `Finite`) serializes as a string; finite values use hexadecimal mantissa and exponent (`0x3 * 2^4`)
     - `Asn1String` and concrete subtypes (`UTF8`, `Universal`, `Visible`, `IA5`, `Teletex`, `BMP`, `General`, `Graphic`, `Unrestricted`, `Videotex`, `Printable`, `Numeric`) serialize as plain string
-    - `Asn1Time` serializes as plain `Instant` string form
+    - `Asn1Time` serializes using its ASN.1 lexical form (`YYMMDDhhmmssZ` or `YYYYMMDDhhmmss[.fraction]Z`); the former
+      ISO-8601 `Instant` form remains accepted when decoding
     - `Asn1BitString` serializes as a string surrogate containing padding and Base64 payload
     - `BitSet` serializes as a bit-string view (`101001...`)
     - `Asn1Element`, `Asn1Structure`, `Asn1ExplicitlyTagged`, `Asn1CustomStructure`, `Asn1EncapsulatingOctetString`, `Asn1PrimitiveOctetString`, `Asn1Set`, `Asn1SetOf`, `Asn1Primitive`, and `Asn1OctetString` serialize as Base64-encoded DER bytes
 
-    **Warning**: Non-DER fallback serialization is intentionally lossy for `Asn1String` and `Asn1Time` for cross-format simplicity.
-    `Asn1String` deserializes to `UTF8` (original ASN.1 string subtype is not preserved), and `Asn1Time` deserializes
-    from `Instant` only (original UTC TIME vs GENERALIZED TIME choice is not preserved where ranges overlap).
+    **Warning**: Non-DER fallback serialization is intentionally lossy for `Asn1String` for cross-format simplicity.
+    `Asn1String` deserializes to `UTF8`, so its original ASN.1 string subtype is not preserved.
 
 !!! warning "Breaking representation change in awesn1 0.7"
 
