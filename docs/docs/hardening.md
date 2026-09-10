@@ -61,21 +61,23 @@ decapsulated iteratively and without per-layer byte copies, so nested octet stri
 - All length sums go through `plusExact`, and every attacker-influenced `Long`→`Int` narrowing goes through
   `toNonnegativeIntChecked` — so a size computation can never quietly turn a bounds check into a bypass.
 
-By default everything stays `Int`-based: `DerConfiguration.maxInputLength` defaults to `Int.MAX_VALUE`, so any input
-decoded with the defaults produces only `Int`-sized lengths and never trips the guards — the `…Long` accessors and
-`encodeTo(sink)` are only relevant once you deliberately raise that limit to work with multi-gigabyte structures.
+By default `DerConfiguration.maxInputLength` is the target's conservative `ByteArray` ceiling (`Int.MAX_VALUE - 8` on
+JVM/Android and `Int.MAX_VALUE` elsewhere). It prevents source parsing from attempting an impossible backing-array
+allocation; it is not a small application-level payload policy.
 
 ### Catchable Errors Only
 
 Every failure on hostile input surfaces as a catchable `Asn1Exception` (core), `SerializationException` (kxs), `NumberFormatException`, `IllegalArgumentException`, etc.
-but never a fatal VM error, *unless you forgt to bound your inputs*, in which case you can still run out of memory.
+but never a fatal VM error, *unless you forget to bound custom code or raise the built-in limits*, in which case you can
+still exhaust memory or the call stack.
 Decode/parse paths run inside `runRethrowing`/`runWrappingAs`, which catch non-fatal `Throwable`s and wrap them; only VM-fatal errors are rethrown.
 
 ### Bounded Depth and Collection Sizes
 
 - `kxs` shares a `DerDepthGuard` between `DerDecoder`/`DerEncoder` that throws `SerializationException` past
-  `DerConfiguration.maxNestingDepth` (default **128**). This means that if you ever expect more than 128 levels of
-  nesting in user-controlled input, **increase this cap**.
+  `DerConfiguration.maxNestingDepth` (default **32**, maximum **65,536**). Built-in ASN.1 element trees are checked
+  iteratively on both encode and decode. Raising the limit is supported for runtimes provisioned with a matching stack;
+  choosing a value beyond the available stack remains the caller's responsibility.
 - A `MAX_COLLECTION_SIZE` guard (`Int.MAX_VALUE - 8`, checked per append) turns an overfull child list into a catchable
   `Asn1Exception`. This is an addressability backstop, **not** a heap-DoS defense — see input bounding below.
 
@@ -153,16 +155,17 @@ The test harness includes:
 
 !!! danger "Always Bound Untrusted Input"
 
-    awesn1 parses into an in-memory tree, so **input size directly bounds memory**, and the library does **not** impose
-    a small default below `Int.MAX_VALUE`. **Hence, wherever denial-of-service is a concern, you must cap input yourself:**
+    awesn1 parses into an in-memory tree, so **input size directly bounds memory**. The `kxs` default only prevents
+    exceeding the target's `ByteArray` addressability; wherever denial-of-service is a concern, lower that cap to the
+    largest payload your protocol actually permits:
     
     - **`ByteArray`** parsing is bounded by the array's size — sanity-check that size before parsing untrusted data.
       Even a small blob of tiny nested elements can allocate a large object graph (but never causes a stack overflow).
-    - **`Source`** (streaming) parsing takes a byte `limit` as a **mandatory** parameter; there is no unbounded
-      streaming overload. The same holds for `Source.decodeAsn1VarBigInt(limit)`: a big varint has no inherent size
+    - **`Source`** (streaming) parsing is always bounded by `maxInputLength`; its optional per-call byte `limit` can
+      tighten that ceiling. The same holds for `Source.decodeAsn1VarBigInt(limit)`: a big varint has no inherent size
       ceiling, unlike `decodeAsn1VarUInt`/`decodeAsn1VarULong`, which their target type caps at 5 resp. 9 continuation
       bytes.
-    - Via `kotlinx.serialization`, the cap is `DER { maxInputLength = … }` (default `Int.MAX_VALUE`); lower it for
+    - Via `kotlinx.serialization`, the cap is `DER { maxInputLength = … }` (default: target `ByteArray` ceiling); lower it for
       untrusted decode.
     - Under **non-DER formats** (JSON, CBOR, …), bound untrusted input through that format or before invoking it.
       awesn1's fallback serializers receive values only after the format has materialised them, so a second generic
@@ -196,17 +199,22 @@ What cannot be hardened due to `kotlinx.serialization` intrinsics:
 The `kxs` module implements a `kotlinx.serialization` format, which means that some rather intricate details
 cannot be fully controlled by awesn1 during deserialization:
 
+!!! danger "Custom decoder recursion is not bounded"
+
+    **`maxNestingDepth` does not apply to recursion performed inside custom `KSerializer` code or
+    `Asn1Serializable.doDecode`.** Those functions are trusted application code: awesn1 receives control only before
+    and after the call, so it cannot observe or count recursive calls made inside it. Such implementations must
+    enforce their own depth and allocation limits.
+
 - **Pre-parsed `Asn1Element` trees bypass `maxInputLength`.** `maxInputLength` and the streaming byte `limit` bound the
-  *parse* step. If you parse a tree beforahand and feed the already-materialized
+  *parse* step. If you parse a tree beforehand and feed the already-materialized
   `Asn1Element` into `DER.decodeFromTlv`, the allocation already happened — the cap can no longer protect you. Bound
-  the bytes *before* you build the tree. What will still take is  `DerConfiguration.maxNestingDepth`.
+  the bytes *before* you build the tree. `DerConfiguration.maxNestingDepth` still applies.
 - **Custom `KSerializer`s drive the codec directly.** A hand-written serializer has full control over the sequence of
   `encode*`/`decode*`/`beginStructure` calls. `kxs` detects and rejects *recognizable* ambiguity at encode time, but it
   cannot stop a custom serializer from emitting structurally valid yet semantically wrong (or non-canonical) DER, or
   from driving the decoder in an order its descriptor does not describe. Custom serializers are trusted code — review
   them as such. See [Custom Serializers Re-Introducing Ambiguity](kxs.md#custom-serializers-re-introducing-ambiguity).
-- Consequently, **custom `KSerializer`s can exhibit recursive descent behaviour and inflate memore beyond reasonable limits.
-  Neither awesn1 nor the `kotlinx.serialization` framework can prevent this!
 - **The `@Serializable` descriptor is the only schema source.** `kotlinx.serialization` exposes a structural descriptor,
   not your runtime invariants. `kxs` cannot enforce constraints the descriptor cannot express — value ranges beyond the
   Kotlin type, cross-field relationships, or "this `Int` is really a constrained enumerated" — so validate those in
