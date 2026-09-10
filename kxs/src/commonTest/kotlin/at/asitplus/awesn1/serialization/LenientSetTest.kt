@@ -25,6 +25,14 @@ val LenientSetTest by matrixSuite {
             .asSet().children.map { DER.decodeFromTlv<Int>(it) } shouldBe listOf(1, 2)
     }
 
+    "canonical decoded sets equal their programmatic equivalent" {
+        val programmatic = LenientSet(linkedSetOf(2, 1))
+        val decoded = DER.decodeFromTlv<LenientSet<Int>>(DER.encodeToTlv(programmatic))
+
+        (decoded == programmatic) shouldBe true
+        decoded.hashCode() shouldBe programmatic.hashCode()
+    }
+
     "decoded sets retain wire order and duplicates" {
         val malformed = Asn1CustomStructure(
             listOf(DER.encodeToTlv(2), DER.encodeToTlv(1), DER.encodeToTlv(2)),

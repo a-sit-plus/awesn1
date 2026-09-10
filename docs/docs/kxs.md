@@ -489,9 +489,10 @@ val values = LenientSet(linkedSetOf("first", "second"))
 val validated: Set<String> = values.toValidatedSet()
 ```
 
-`LenientSet` implements `Collection`, not `Set`: decoded contents may be malformed. Its equality and hash code use set
-semantics. Programmatically constructed instances use canonical `SET OF` ordering; decoded instances preserve their
-wire order and duplicates when re-encoded. Schema-specific constraints such as minimum size or uniqueness by OID
+`LenientSet` implements `Collection`, not `Set`: decoded contents may be malformed. Canonical, duplicate-free decoded
+sets use set equality and hashing, so they equal their programmatic equivalents. A decoded set with non-canonical
+order or duplicates instead retains that wire form in equality, hashing, and re-encoding. Programmatically constructed
+instances use canonical `SET OF` ordering. Schema-specific constraints such as minimum size or uniqueness by OID
 remain the responsibility of the containing model.
 
 ## Retaining and Re-Emitting Raw ASN.1 Data
