@@ -14,6 +14,7 @@ import at.asitplus.awesn1.serialization.internal.DerAnalysisContext
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
 import kotlin.jvm.JvmName
@@ -52,9 +53,7 @@ class Der internal constructor(
     override fun <T> decodeFromByteArray(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
-    ): T = runWrappingAs(a = ::SerializationException) {
-        val analysis = DerAnalysisContext(configuration.explicitNulls)
-            .also { it.validateDescriptorTree(deserializer.descriptor) }
+    ): T = withAnalysis(deserializer.descriptor) { analysis ->
         val decoder = DerDecoder(
             if (bytes.isEmpty()) emptyList() else listOf(
                 Asn1Element.parse(source = bytes, limit = configuration.maxInputLength)
@@ -62,7 +61,7 @@ class Der internal constructor(
             der = this,
             analysis = analysis,
         )
-        return decoder.decodeSerializableValue(deserializer)
+        decoder.decodeSerializableValue(deserializer)
     }
 
     /**
@@ -77,7 +76,7 @@ class Der internal constructor(
     @Throws(SerializationException::class, ImplementationError::class)
     @JvmName("encodeToTlvNullable")
     fun <T> encodeToTlv(serializer: SerializationStrategy<T>, value: T): Asn1Element? =
-        Internal.encodeToTlv(this, serializer, value)
+        encodeToSingleTlv(serializer, value)
 
     /**
      * Encodes [value] with the given [serializer] into a single ASN.1 TLV element.
@@ -88,34 +87,29 @@ class Der internal constructor(
     @ExperimentalSerializationApi
     @Throws(SerializationException::class, ImplementationError::class)
     fun <T : Any> encodeToTlv(serializer: SerializationStrategy<T>, value: T): Asn1Element =
-        Internal.encodeToTlv(this, serializer, value)
+        encodeToSingleTlv(serializer, value)
             ?: throw ImplementationError("DER serializer produced no elements")
 
-    internal object Internal {
-        @ExperimentalSerializationApi
-        @Throws(SerializationException::class, ImplementationError::class)
-        fun <T> encodeToTlv(der: Der, serializer: SerializationStrategy<T>, value: T): Asn1Element? =
-            runWrappingAs(a = ::SerializationException) {
-                val analysis = DerAnalysisContext(der.configuration.explicitNulls)
-                    .also { it.validateDescriptorTree(serializer.descriptor) }
-                val encoder = DerEncoder(
-                    der = der,
-                    analysis = analysis,
+    @ExperimentalSerializationApi
+    @Throws(SerializationException::class, ImplementationError::class)
+    private fun <T> encodeToSingleTlv(serializer: SerializationStrategy<T>, value: T): Asn1Element? =
+        withAnalysis(serializer.descriptor) { analysis ->
+            val encoder = DerEncoder(
+                der = this,
+                analysis = analysis,
+            )
+            encoder.encodeSerializableValue(serializer, value)
+            val elements = encoder.encodeToTLV()
+                .also { if (it.size > 1) throw ImplementationError("DER serializer multiple elements") }
+            elements.forEach {
+                DerDepthGuard().ensureElementTreeFits(
+                    it,
+                    configuration.maxNestingDepth,
+                    serializer.descriptor.serialName,
                 )
-                encoder.encodeSerializableValue(serializer, value)
-                val elements = encoder.encodeToTLV()
-                    .also { if (it.size > 1) throw ImplementationError("DER serializer multiple elements") }
-                elements.forEach {
-                    DerDepthGuard().ensureElementTreeFits(
-                        it,
-                        der.configuration.maxNestingDepth,
-                        serializer.descriptor.serialName,
-                    )
-                }
-                return elements.firstOrNull()
             }
-
-    }
+            elements.firstOrNull()
+        }
 
     /**
      * Decodes a single TLV [source] using the given [deserializer].
@@ -125,16 +119,21 @@ class Der internal constructor(
     @ExperimentalSerializationApi
     @Throws(SerializationException::class, ImplementationError::class)
     fun <T> decodeFromTlv(deserializer: DeserializationStrategy<T>, source: Asn1Element): T =
-        runWrappingAs(a = ::SerializationException) {
-            val analysis = DerAnalysisContext(configuration.explicitNulls)
-                .also { it.validateDescriptorTree(deserializer.descriptor) }
+        withAnalysis(deserializer.descriptor) { analysis ->
             val decoder = DerDecoder(
                 listOf(source),
                 der = this,
                 analysis = analysis,
             )
-            return decoder.decodeSerializableValue(deserializer)
+            decoder.decodeSerializableValue(deserializer)
         }
+}
+
+private inline fun <R> Der.withAnalysis(
+    descriptor: SerialDescriptor,
+    body: (DerAnalysisContext) -> R,
+): R = runWrappingAs(a = ::SerializationException) {
+    body(DerAnalysisContext(configuration.explicitNulls).also { it.validateDescriptorTree(descriptor) })
 }
 
 
