@@ -45,6 +45,18 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
+private fun decodeTeletexContent(bytes: ByteArray): String =
+    CharArray(bytes.size) { (bytes[it].toInt() and 0xff).toChar() }.concatToString()
+
+private fun encodeTeletexContent(value: String): ByteArray {
+    val result = ByteArray(value.length)
+    value.forEachIndexed { index, char ->
+        if (char.code > 0xff) throw Asn1Exception("T61String cannot represent U+${char.code.toString(16).uppercase()}")
+        result[index] = char.code.toByte()
+    }
+    return result
+}
+
 private fun decodeBmpContent(bytes: ByteArray): String {
     if (bytes.size % 2 != 0) throw Asn1Exception("BMPString content length must be divisible by 2")
     return CharArray(bytes.size / 2) { i ->
@@ -295,10 +307,8 @@ sealed class Asn1String(
      *
      * Deprecated for HTTPS certificates; prefer UTF-8 (see [Asn1String.UTF8]).
      *
-     * **Best-effort validation.** True T.61/Teletex is a multi-byte coded character set (ITU-T T.61) that awesn1
-     * does not fully model. [isValid] only *recognizes* the Latin-1 subset (`0x00`–`0xFF`): it returns `true` for
-     * recognized content and `null` ("unknown") otherwise, and **never returns `false`** — so it never rejects
-     * potentially-valid input, and the `String` constructor never throws.
+     * awesn1 follows the BoringSSL/OpenSSL compatibility interpretation: every octet is one Latin-1 code point.
+     * This is intentionally not a stateful implementation of the full ITU-T T.61 repertoire.
      */
     @Serializable(with = Asn1StringSerializer::class)
     class Teletex private constructor(
@@ -307,17 +317,14 @@ sealed class Asn1String(
     ) : Asn1String(rawValue, performValidation) {
         override val tag = BERTags.T61_STRING.toULong()
 
-        override val isValid: Boolean? by lazy {
-            if (Regex("[\\u0000-\\u00FF]*").matches(value)) true else null
-        }
+        override val value: String by lazy { decodeTeletexContent(rawValue) }
+        override val isValid: Boolean = true
 
         /**
          * @throws Asn1Exception if illegal characters are provided
          */
         @Throws(Asn1Exception::class)
-        constructor(value: String) : this(value.encodeToByteArray(), true) {
-            if (isValid == false) throw Asn1Exception("Input contains invalid chars: '$value'")
-        }
+        constructor(value: String) : this(encodeTeletexContent(value), true)
 
         @PublishedApi
         internal constructor(rawValue: ByteArray) : this(rawValue, false)

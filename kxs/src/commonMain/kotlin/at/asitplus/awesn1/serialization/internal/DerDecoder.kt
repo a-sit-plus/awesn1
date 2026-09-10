@@ -964,7 +964,7 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
                 -> when (tag) {
                     Asn1Element.Tag.STRING_BMP -> decodeToBmpString().value
                     Asn1Element.Tag.STRING_UNIVERSAL -> decodeToUniversalString().value
-                    Asn1Element.Tag.STRING_T61 -> content.decodeSupportedTeletexString()
+                    Asn1Element.Tag.STRING_T61 -> decodeToTeletextString().value
                     else -> decodeToString()
                 }
 
@@ -974,13 +974,6 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
         if (tag != implicitTagOverride) throw SerializationException(Asn1TagMismatchException(implicitTagOverride, tag))
         String.decodeFromAsn1ContentBytes(content)
     }
-
-private fun ByteArray.decodeSupportedTeletexString(): String {
-    if (any { it.toInt() and 0x80 != 0 }) {
-        throw SerializationException("Non-ASCII TeletexString content is unsupported; use Asn1String to preserve raw bytes")
-    }
-    return decodeToString()
-}
 
 private fun Int.toStrictByte(): Byte =
     if (this in Byte.MIN_VALUE..Byte.MAX_VALUE) toByte()
