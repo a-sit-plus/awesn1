@@ -48,15 +48,6 @@ import kotlinx.serialization.encoding.Encoder
 private fun decodeTeletexContent(bytes: ByteArray): String =
     CharArray(bytes.size) { (bytes[it].toInt() and 0xff).toChar() }.concatToString()
 
-private fun encodeTeletexContent(value: String): ByteArray {
-    val result = ByteArray(value.length)
-    value.forEachIndexed { index, char ->
-        if (char.code > 0xff) throw Asn1Exception("T61String cannot represent U+${char.code.toString(16).uppercase()}")
-        result[index] = char.code.toByte()
-    }
-    return result
-}
-
 private fun decodeBmpContent(bytes: ByteArray): String {
     if (bytes.size % 2 != 0) throw Asn1Exception("BMPString content length must be divisible by 2")
     return CharArray(bytes.size / 2) { i ->
@@ -138,9 +129,9 @@ private fun encodeUniversalContent(value: String): ByteArray {
  * be recoverable from the wire representation. Use a concrete subtype like [UTF8], [IA5],
  * [Printable], [Visible], or [Numeric] when implicit tagging is required.
  *
- * String values are internally represented as raw [ByteArray]. Wide-character subtypes validate their
- * mandated encodings when constructed or typed-decoded; malformed bytes can still be retained in raw
- * [Asn1Element] values. The [isValid] property reports validity for the concrete type.
+ * String values are internally represented as raw [ByteArray]. Generic [Asn1String] decoding preserves even
+ * malformed string content and reports its status through [isValid]. Decoding to a concrete subtype is strict and
+ * throws when validation returns `false`; `null` means that no complete validator exists and is therefore accepted.
  */
 @Serializable(with = Asn1String.Companion::class)
 sealed class Asn1String(
@@ -160,10 +151,11 @@ sealed class Asn1String(
      * Returns whether this string's [rawValue] is valid for its concrete ASN.1 string type:
      * - `true`: validation succeeded
      * - `false`: validation failed
-     * - `null`: no validation implemented (see [Unrestricted], [Videotex])
+     * - `null`: validation is unavailable or inconclusive (see [Teletex], [General], [Graphic], [Unrestricted],
+     *   [Videotex])
      *
-     * With the sole exception of [UTF8] (which validates the raw UTF-8 bytes directly), validation is evaluated
-     * against the decoded [value].
+     * [UTF8], [BMP], and [Universal] validate their wire encodings directly; repertoire-based types validate the
+     * decoded [value].
      *
      * **Accuracy caveat:** [Teletex], [General], and [Graphic] cannot be validated exactly (their true repertoires
      * are multi-byte / ISO 2022). They perform *best-effort* recognition: `true` for a recognized subset, `null`
@@ -238,9 +230,7 @@ sealed class Asn1String(
         constructor(value: String) : this(encodeUniversalContent(value), true)
 
         @PublishedApi
-        internal constructor(rawValue: ByteArray) : this(rawValue, false) {
-            decodeUniversalContent(rawValue)
-        }
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
     }
 
     /**
@@ -307,8 +297,8 @@ sealed class Asn1String(
      *
      * Deprecated for HTTPS certificates; prefer UTF-8 (see [Asn1String.UTF8]).
      *
-     * awesn1 follows the BoringSSL/OpenSSL compatibility interpretation: every octet is one Latin-1 code point.
-     * This is intentionally not a stateful implementation of the full ITU-T T.61 repertoire.
+     * Wire decoding follows the BoringSSL/OpenSSL compatibility interpretation: every octet is one Latin-1 code
+     * point. String construction remains permissive for compatibility and does not validate the full T.61 repertoire.
      */
     @Serializable(with = Asn1StringSerializer::class)
     class Teletex private constructor(
@@ -318,13 +308,10 @@ sealed class Asn1String(
         override val tag = BERTags.T61_STRING.toULong()
 
         override val value: String by lazy { decodeTeletexContent(rawValue) }
-        override val isValid: Boolean = true
+        override val isValid: Boolean? = null
 
-        /**
-         * @throws Asn1Exception if illegal characters are provided
-         */
-        @Throws(Asn1Exception::class)
-        constructor(value: String) : this(encodeTeletexContent(value), true)
+        /** Creates a compatibility value without claiming complete T.61 validation. */
+        constructor(value: String) : this(value.encodeToByteArray(), true)
 
         @PublishedApi
         internal constructor(rawValue: ByteArray) : this(rawValue, false)
@@ -346,9 +333,7 @@ sealed class Asn1String(
         constructor(value: String) : this(encodeBmpContent(value), true)
 
         @PublishedApi
-        internal constructor(rawValue: ByteArray) : this(rawValue, false) {
-            decodeBmpContent(rawValue)
-        }
+        internal constructor(rawValue: ByteArray) : this(rawValue, false)
     }
 
     /**
@@ -526,14 +511,14 @@ sealed class Asn1String(
         other as Asn1String
 
         if (tag != other.tag) return false
-        if (value != other.value) return false
+        if (!rawValue.contentEquals(other.rawValue)) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = tag.hashCode()
-        result = 31 * result + value.hashCode()
+        result = 31 * result + rawValue.contentHashCode()
         return result
     }
 
@@ -565,23 +550,26 @@ sealed class Asn1String(
          *
          * @param src the ASN.1 primitive to decode
          * @return the corresponding [Asn1String] subtype
-         * @throws Asn1Exception if decoding fails or the tag is unsupported
+         * Malformed content is preserved and exposed through [Asn1String.isValid]. Use a concrete subtype decoder
+         * when malformed content must be rejected.
+         *
+         * @throws Asn1Exception if the tag is unsupported
          */
         @Throws(Asn1Exception::class)
         override fun doDecode(src: Asn1Primitive): Asn1String = runRethrowing {
             when (src.tag.tagValue) {
-                UTF8_STRING.toULong() -> src.decodeToUtf8String()
-                UNIVERSAL_STRING.toULong() -> src.decodeToUniversalString()
-                IA5_STRING.toULong() -> src.decodeToIa5String()
-                BMP_STRING.toULong() -> src.decodeToBmpString()
-                T61_STRING.toULong() -> src.decodeToTeletextString()
-                PRINTABLE_STRING.toULong() -> src.decodeToPrintableString()
-                NUMERIC_STRING.toULong() -> src.decodeToNumericString()
-                VISIBLE_STRING.toULong() -> src.decodeToVisibleString()
-                GENERAL_STRING.toULong() -> src.decodeToGeneralString()
-                GRAPHIC_STRING.toULong() -> src.decodeToGraphicString()
-                UNRESTRICTED_STRING.toULong() -> src.decodeToUnrestrictedString()
-                VIDEOTEX_STRING.toULong() -> src.decodeToVideotexString()
+                UTF8_STRING.toULong() -> UTF8(src.content)
+                UNIVERSAL_STRING.toULong() -> Universal(src.content)
+                IA5_STRING.toULong() -> IA5(src.content)
+                BMP_STRING.toULong() -> BMP(src.content)
+                T61_STRING.toULong() -> Teletex(src.content)
+                PRINTABLE_STRING.toULong() -> Printable(src.content)
+                NUMERIC_STRING.toULong() -> Numeric(src.content)
+                VISIBLE_STRING.toULong() -> Visible(src.content)
+                GENERAL_STRING.toULong() -> General(src.content)
+                GRAPHIC_STRING.toULong() -> Graphic(src.content)
+                UNRESTRICTED_STRING.toULong() -> Unrestricted(src.content)
+                VIDEOTEX_STRING.toULong() -> Videotex(src.content)
                 else -> throw Asn1Exception("Not an Asn1String!")
             }
         }
@@ -623,11 +611,13 @@ private inline fun <T : Asn1String> decodeImplicitlyTaggedAsn1StringSubtype(
     if (assertTag != null && src.tag != assertTag) {
         throw Asn1TagMismatchException(assertTag, src.tag)
     }
-    return if (src.tag == semanticTag) {
+    val result = if (src.tag == semanticTag) {
         decodeWithSemanticTag(src)
     } else {
         decodeImplicitContent(src.content)
     }
+    if (result.isValid == false) throw Asn1Exception("Invalid ASN.1 string content for tag ${src.tag}")
+    return result
 }
 
 object Asn1Utf8StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.UTF8>,
@@ -642,7 +632,7 @@ object Asn1Utf8StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.UTF
             assertTag,
             Asn1Element.Tag.STRING_UTF8,
             decodeWithSemanticTag = { it.decodeToUtf8String() },
-            decodeImplicitContent = { Asn1String.UTF8(String.decodeFromAsn1ContentBytes(it)) },
+            decodeImplicitContent = { Asn1String.UTF8(it) },
         )
 
     override fun doDecode(src: Asn1Primitive): Asn1String.UTF8 = src.decodeToUtf8String()
@@ -673,7 +663,7 @@ object Asn1VisibleStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.
             assertTag,
             Asn1Element.Tag.STRING_VISIBLE,
             decodeWithSemanticTag = { it.decodeToVisibleString() },
-            decodeImplicitContent = { Asn1String.Visible(String.decodeFromAsn1ContentBytes(it)) },
+            decodeImplicitContent = { Asn1String.Visible(it) },
         )
 
     override fun doDecode(src: Asn1Primitive): Asn1String.Visible = src.decodeToVisibleString()
@@ -735,7 +725,7 @@ object Asn1PrintableStringSerializer : Asn1Serializable<Asn1Primitive, Asn1Strin
             assertTag,
             Asn1Element.Tag.STRING_PRINTABLE,
             decodeWithSemanticTag = { it.decodeToPrintableString() },
-            decodeImplicitContent = { Asn1String.Printable(String.decodeFromAsn1ContentBytes(it)) },
+            decodeImplicitContent = { Asn1String.Printable(it) },
         )
 
     override fun doDecode(src: Asn1Primitive): Asn1String.Printable = src.decodeToPrintableString()
@@ -766,7 +756,7 @@ object Asn1NumericStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.
             assertTag,
             Asn1Element.Tag.STRING_NUMERIC,
             decodeWithSemanticTag = { it.decodeToNumericString() },
-            decodeImplicitContent = { Asn1String.Numeric(String.decodeFromAsn1ContentBytes(it)) },
+            decodeImplicitContent = { Asn1String.Numeric(it) },
         )
 
     override fun doDecode(src: Asn1Primitive): Asn1String.Numeric = src.decodeToNumericString()
