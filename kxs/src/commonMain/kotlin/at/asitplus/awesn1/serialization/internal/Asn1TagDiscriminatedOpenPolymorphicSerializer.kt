@@ -21,19 +21,6 @@ internal class Asn1TagDiscriminatedOpenPolymorphicSerializer<T : Any>(
     override val leadingTags: Set<Asn1Element.Tag>
         get() = dispatch.leadingTags
 
-    /**
-     * Adds one subtype registration at runtime.
-     *
-     * @throws IllegalArgumentException on duplicate/invalid tag mapping
-     */
-    @Throws(IllegalArgumentException::class)
-    fun registerSubtype(registration: Asn1TagDiscriminatedSubtypeRegistration<T>) {
-        dispatch.registerSubtype(registration)
-    }
-
-    override fun selectionForEncode(value: T): DerEncodeSelection<T> =
-        DerEncodeSelection(dispatch.serializerForEncode(value))
-
     override fun serialize(encoder: Encoder, value: T) {
         val derEncoder = encoder.requireDerEncoder(descriptor.serialName)
         val registration = dispatch.registrationForEncode(value)
