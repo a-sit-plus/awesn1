@@ -73,6 +73,31 @@ documentation site. See [SBOM](sbom.md) for publication-specific JSON/XML downlo
 - `at.asitplus.awesn1.serialization`:
   `kotlinx.serialization` format (provided by the `kxs` module).
 
+## ASN.1 String Validation and Raw Preservation
+
+ASN.1 contains several legacy string encodings, and real-world producers do not always encode them correctly.
+`Asn1String` therefore separates byte-preserving generic decoding from strict semantic decoding.
+
+- Generic decoding to `Asn1String` preserves the original subtype, tag, and content bytes. It does not reject
+  malformed string content. Check `isValid`: `true` means validation succeeded, `false` means validation failed, and
+  `null` means validation is unavailable or inconclusive. DER re-encoding remains byte-exact even when validity is
+  `false` or `null`.
+- Concrete decoding, such as `decodeToBmpString()`, `decodeToUniversalString()`, or decoding directly to a concrete
+  `Asn1String` subtype, is strict. It throws `Asn1Exception` when validation returns `false`; `null` is accepted because
+  the library cannot honestly prove that the content is invalid.
+- Decoding directly to Kotlin `String` is also strict because converting to `String` discards the raw representation.
+- Concrete String constructors reject known-invalid input, but types without complete validation remain permissive and
+  expose `isValid == null`.
+
+Malformed BMPString or UniversalString content may have no meaningful Kotlin representation. The generic object can
+still be inspected through `rawValue`, compared, hashed, and re-encoded, but accessing `value` may throw. Equality and
+hashing use the subtype and raw bytes; they never force semantic conversion.
+
+Generic `Asn1String` decoding requires the universal ASN.1 string tag to remain visible. An implicit tag removes the
+information needed to determine whether its bytes represent BMPString, UniversalString, TeletexString, or another
+type. Use a concrete subtype when the schema guarantees valid content. If malformed implicitly tagged content must be
+preserved, model it as a schema-specific raw `ByteArray` wrapper with a custom strict or best-effort getter.
+
 ## Serialization Example: RFC CHOICE with Sealed Polymorphism
 
 !!! tip "`kotlinx.serialization` integration "

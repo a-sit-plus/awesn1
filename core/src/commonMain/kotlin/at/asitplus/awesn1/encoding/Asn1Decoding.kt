@@ -8,12 +8,16 @@ package at.asitplus.awesn1.encoding
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.BERTags.BMP_STRING
+import at.asitplus.awesn1.BERTags.GENERAL_STRING
+import at.asitplus.awesn1.BERTags.GRAPHIC_STRING
 import at.asitplus.awesn1.BERTags.IA5_STRING
 import at.asitplus.awesn1.BERTags.NUMERIC_STRING
 import at.asitplus.awesn1.BERTags.PRINTABLE_STRING
 import at.asitplus.awesn1.BERTags.T61_STRING
 import at.asitplus.awesn1.BERTags.UNIVERSAL_STRING
+import at.asitplus.awesn1.BERTags.UNRESTRICTED_STRING
 import at.asitplus.awesn1.BERTags.UTF8_STRING
+import at.asitplus.awesn1.BERTags.VIDEOTEX_STRING
 import at.asitplus.awesn1.BERTags.VISIBLE_STRING
 import at.asitplus.awesn1.encoding.internal.decodeFromDer
 import at.asitplus.awesn1.encoding.internal.parse
@@ -383,8 +387,17 @@ fun Asn1Primitive.asAsn1String(): Asn1String = runRethrowing {
         PRINTABLE_STRING.toULong() -> Asn1String.Printable(content)
         NUMERIC_STRING.toULong() -> Asn1String.Numeric(content)
         VISIBLE_STRING.toULong() -> Asn1String.Visible(content)
+        GENERAL_STRING.toULong() -> Asn1String.General(content)
+        GRAPHIC_STRING.toULong() -> Asn1String.Graphic(content)
+        UNRESTRICTED_STRING.toULong() -> Asn1String.Unrestricted(content)
+        VIDEOTEX_STRING.toULong() -> Asn1String.Videotex(content)
         else -> throw Asn1StructuralException("Unsupported ASN.1 string tag $tag")
     }
+}
+
+@PublishedApi
+internal fun <T : Asn1String> T.requireValidStringContent(): T = apply {
+    if (isValid == false) throw Asn1Exception("Invalid ASN.1 string content for tag $tag")
 }
 
 /**
@@ -394,7 +407,7 @@ fun Asn1Primitive.asAsn1String(): Asn1String = runRethrowing {
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToUtf8String(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_UTF8) =
-    runRethrowing { decode(assertTag) { Asn1String.UTF8(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.UTF8(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Universal]. [assertTag] defaults to [Asn1Element.Tag.STRING_UNIVERSAL], but can be
@@ -403,7 +416,7 @@ inline fun Asn1Primitive.decodeToUtf8String(assertTag: Asn1Element.Tag = Asn1Ele
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToUniversalString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_UNIVERSAL) =
-    runRethrowing { decode(assertTag) { Asn1String.Universal(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.Universal(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.IA5]. [assertTag] defaults to [Asn1Element.Tag.STRING_IA5], but can be
@@ -412,7 +425,7 @@ inline fun Asn1Primitive.decodeToUniversalString(assertTag: Asn1Element.Tag = As
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToIa5String(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_IA5) =
-    runRethrowing { decode(assertTag) { Asn1String.IA5(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.IA5(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.BMP]. [assertTag] defaults to [Asn1Element.Tag.STRING_BMP], but can be
@@ -421,7 +434,7 @@ inline fun Asn1Primitive.decodeToIa5String(assertTag: Asn1Element.Tag = Asn1Elem
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToBmpString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_BMP) =
-    runRethrowing { decode(assertTag) { Asn1String.BMP(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.BMP(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Teletex]. [assertTag] defaults to [Asn1Element.Tag.STRING_T61], but can be
@@ -430,7 +443,7 @@ inline fun Asn1Primitive.decodeToBmpString(assertTag: Asn1Element.Tag = Asn1Elem
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToTeletextString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_T61) =
-    runRethrowing { decode(assertTag) { Asn1String.Teletex(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.Teletex(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Printable]. [assertTag] defaults to [Asn1Element.Tag.STRING_PRINTABLE], but can be
@@ -439,7 +452,7 @@ inline fun Asn1Primitive.decodeToTeletextString(assertTag: Asn1Element.Tag = Asn
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToPrintableString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_PRINTABLE) =
-    runRethrowing { decode(assertTag) { Asn1String.Printable(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.Printable(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Numeric]. [assertTag] defaults to [Asn1Element.Tag.STRING_NUMERIC], but can be
@@ -448,7 +461,7 @@ inline fun Asn1Primitive.decodeToPrintableString(assertTag: Asn1Element.Tag = As
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToNumericString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_NUMERIC) =
-    runRethrowing { decode(assertTag) { Asn1String.Numeric(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.Numeric(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Visible]. [assertTag] defaults to [Asn1Element.Tag.STRING_VISIBLE], but can be
@@ -457,7 +470,7 @@ inline fun Asn1Primitive.decodeToNumericString(assertTag: Asn1Element.Tag = Asn1
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToVisibleString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_VISIBLE) =
-    runRethrowing { decode(assertTag) { Asn1String.Visible(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.Visible(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.General]. [assertTag] defaults to [Asn1Element.Tag.STRING_GENERAL], but can be
@@ -466,7 +479,7 @@ inline fun Asn1Primitive.decodeToVisibleString(assertTag: Asn1Element.Tag = Asn1
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToGeneralString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_GENERAL) =
-    runRethrowing { decode(assertTag) { Asn1String.General(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.General(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Graphic]. [assertTag] defaults to [Asn1Element.Tag.STRING_GRAPHIC], but can be
@@ -475,7 +488,7 @@ inline fun Asn1Primitive.decodeToGeneralString(assertTag: Asn1Element.Tag = Asn1
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToGraphicString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_GRAPHIC) =
-    runRethrowing { decode(assertTag) { Asn1String.Graphic(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.Graphic(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Unrestricted]. [assertTag] defaults to [Asn1Element.Tag.STRING_UNRESTRICTED], but can be
@@ -484,7 +497,7 @@ inline fun Asn1Primitive.decodeToGraphicString(assertTag: Asn1Element.Tag = Asn1
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToUnrestrictedString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_UNRESTRICTED) =
-    runRethrowing { decode(assertTag) { Asn1String.Unrestricted(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.Unrestricted(content).requireValidStringContent() } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Videotex]. [assertTag] defaults to [Asn1Element.Tag.STRING_VIDEOTEX], but can be
@@ -493,7 +506,7 @@ inline fun Asn1Primitive.decodeToUnrestrictedString(assertTag: Asn1Element.Tag =
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToVideotexString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_VIDEOTEX) =
-    runRethrowing { decode(assertTag) { Asn1String.Videotex(content) } }
+    runRethrowing { decode(assertTag) { Asn1String.Videotex(content).requireValidStringContent() } }
 
 
 /**

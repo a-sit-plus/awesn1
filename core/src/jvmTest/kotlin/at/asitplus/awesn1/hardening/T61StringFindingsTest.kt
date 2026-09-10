@@ -3,7 +3,6 @@ package at.asitplus.awesn1.hardening
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1String
 import at.asitplus.awesn1.encoding.decodeToTeletextString
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -57,10 +56,9 @@ val T61StringFindingsTest by matrixSuite {
 
             val decoded = primitive.decodeToTeletextString()
             decoded.value shouldBe expected
-            decoded.isValid shouldBe true
+            decoded.isValid shouldBe null
             decoded.rawValue.contentEquals(primitive.content) shouldBe true
             decoded.encodeToTlv().derEncoded.toHexString() shouldBe vector.der
-            Asn1String.Teletex(expected).encodeToTlv().derEncoded.toHexString() shouldBe vector.der
         }
     }
 }

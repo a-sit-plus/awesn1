@@ -88,8 +88,8 @@ val Asn1StringValidatorFixTest by matrixSuite {
         Asn1String.General("é").isValid shouldBe null               // 8-bit content: unknown, not rejected
     }
 
-    "Teletex uses the BoringSSL Latin-1 compatibility profile" {
-        Asn1String.Teletex("é").isValid shouldBe true
-        shouldThrow<Asn1Exception> { Asn1String.Teletex("テスト") }
+    "Teletex remains permissive outside its recognized subset" {
+        Asn1String.Teletex("é").isValid shouldBe null
+        Asn1String.Teletex("テスト").isValid shouldBe null
     }
 }
