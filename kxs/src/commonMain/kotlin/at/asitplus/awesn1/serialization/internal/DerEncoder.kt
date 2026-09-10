@@ -49,6 +49,7 @@ class DerEncoder internal constructor(
     // ...), which the iterative core encoder cannot flatten; this turns a would-be StackOverflowError into a clean
     // SerializationException. Every child encoder MUST receive this same instance.
     private val depthGuard: DerDepthGuard = DerDepthGuard(),
+    private val honorRuntimeAsn1Encodable: Boolean = true,
 ) : AbstractEncoder(), at.asitplus.awesn1.serialization.DerEncoder {
 
     override val serializersModule: SerializersModule
@@ -350,7 +351,8 @@ class DerEncoder internal constructor(
                 classAsn1Tag = null,
             )
             @Suppress("UNCHECKED_CAST")
-            if (inheritedTagTemplate != null && !hasPendingBeginStructureTagTemplate) {
+            if (openSerializer !is Asn1TagDiscriminatedOpenPolymorphicSerializer<*> &&
+                inheritedTagTemplate != null && !hasPendingBeginStructureTagTemplate) {
                 pendingBeginStructureTagTemplate = inheritedTagTemplate
                 hasPendingBeginStructureTagTemplate = true
             }
@@ -394,7 +396,7 @@ class DerEncoder internal constructor(
         } else if (serializer is Asn1Serializable<*, *> && value is Asn1Encodable<*>) {
             descriptorAndIndex = null
             appendElement(value.encodeToTlv(), effectiveTagTemplate)
-        } else if (value is Asn1Encodable<*> || value is Asn1Element) {
+        } else if (value is Asn1Element || honorRuntimeAsn1Encodable && value is Asn1Encodable<*>) {
             descriptorAndIndex = null
             val baseElement = when (value) {
                 is Asn1Element -> value
@@ -464,6 +466,7 @@ class DerEncoder internal constructor(
             der = der,
             layoutPlan = layoutPlan,
             depthGuard = depthGuard,
+            honorRuntimeAsn1Encodable = false,
         )
         childSerializer.encodeSerializableValue(selectedSerializer as SerializationStrategy<Any?>, value as Any?)
         val elements = childSerializer.encodeToTLV()
@@ -543,6 +546,13 @@ class DerEncoder internal constructor(
     ) {
         val taggedElement = tagTemplate?.let { element.withImplicitTag(it) } ?: element
         buffer += Asn1ElementHolder.Element(taggedElement)
+    }
+
+    internal fun <T> encodeSingleElement(serializer: KSerializer<T>, value: T): Asn1Element {
+        val child = DerEncoder(der, layoutPlan, depthGuard)
+        child.encodeSerializableValue(serializer, value)
+        return child.encodeToTLV().singleOrNull()
+            ?: throw SerializationException("${serializer.descriptor.serialName} must encode to exactly one ASN.1 element")
     }
 
     /**
