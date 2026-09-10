@@ -442,7 +442,7 @@ class DerEncoder internal constructor(
         if (descriptor.kind is StructureKind.CLASS ||
             descriptor.kind is StructureKind.OBJECT
         ) {
-            analysis.validateOptionalLayout(descriptor)
+            analysis.validateOptionalLayout(descriptor)?.let { }
         }
         val pending = pendingStructure
         val tagTemplate = if (pending != null) {

@@ -28,13 +28,26 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.StructureKind
 
+internal sealed interface Asn1Presence {
+    data object Required : Asn1Presence
+    data object Defaulted : Asn1Presence
+    data object OmittedWhenNull : Asn1Presence
+    data object SentinelWhenNull : Asn1Presence
+}
+
 /** Descriptor-derived wire shape used by DER layout analysis. */
-private data class Asn1FieldShape(
+internal data class Asn1FieldShape(
     val index: Int,
     val name: String,
-    val omittable: Boolean,
+    val presence: Asn1Presence,
     val possibleLeadingTags: Asn1LeadingTagsResolution,
 )
+
+internal class Asn1StructureShape(
+    val fields: List<Asn1FieldShape>,
+) {
+    var choiceDispatch: Asn1TagDiscriminatedDispatch<*>? = null
+}
 
 internal sealed interface Asn1LeadingTagsResolution {
     data class Exact(val tags: Set<Asn1Element.Tag>) : Asn1LeadingTagsResolution
@@ -95,8 +108,8 @@ private const val KotlinTimeInstantSerialName = "kotlin.time.Instant"
 @Throws(SerializationException::class)
 internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
     formatExplicitNulls: Boolean = false,
-) {
-    if (kind !is StructureKind.CLASS && kind !is StructureKind.OBJECT) return
+): Asn1StructureShape {
+    if (kind !is StructureKind.CLASS && kind !is StructureKind.OBJECT) return Asn1StructureShape(emptyList())
 
     val fields = (0 until elementsCount).map { index ->
         val fieldDescriptor = getElementDescriptor(index)
@@ -117,13 +130,20 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
             )
         }
 
-        val omittableByNull = fieldDescriptor.isNullable &&
-                !nullEncodingAnalysis.encodeNullEnabled
-        val omittable = omittableByNull || isElementOptional(index)
+        val presence = when {
+            fieldDescriptor.isNullable -> if (nullEncodingAnalysis.encodeNullEnabled) {
+                Asn1Presence.SentinelWhenNull
+            } else {
+                Asn1Presence.OmittedWhenNull
+            }
+
+            isElementOptional(index) -> Asn1Presence.Defaulted
+            else -> Asn1Presence.Required
+        }
         Asn1FieldShape(
             index = index,
             name = getElementName(index),
-            omittable = omittable,
+            presence = presence,
             possibleLeadingTags = possibleLeadingTags(
                 descriptor = fieldDescriptor,
                 propertyAsn1Tag = propertyAsn1Tag,
@@ -134,7 +154,9 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
 
     for (start in fields.indices) {
         val nullableOrOptionalField = fields[start]
-        if (!nullableOrOptionalField.omittable) continue
+        if (nullableOrOptionalField.presence !is Asn1Presence.Defaulted &&
+            nullableOrOptionalField.presence !is Asn1Presence.OmittedWhenNull
+        ) continue
 
         if (start < fields.lastIndex && nullableOrOptionalField.possibleLeadingTags !is Asn1LeadingTagsResolution.Exact) {
             throw SerializationException(
@@ -153,7 +175,9 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
         var allSkippedFieldsAreOmittable = true
         for (candidate in (start + 1) until fields.size) {
             allSkippedFieldsAreOmittable =
-                allSkippedFieldsAreOmittable && fields[candidate - 1].omittable
+                allSkippedFieldsAreOmittable &&
+                        (fields[candidate - 1].presence is Asn1Presence.Defaulted ||
+                                fields[candidate - 1].presence is Asn1Presence.OmittedWhenNull)
             if (!allSkippedFieldsAreOmittable) break
 
             val candidateField = fields[candidate]
@@ -181,6 +205,8 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
             }
         }
     }
+
+    return Asn1StructureShape(fields)
 }
 
 /**
