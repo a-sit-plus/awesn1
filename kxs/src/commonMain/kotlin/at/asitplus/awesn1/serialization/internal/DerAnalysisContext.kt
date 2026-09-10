@@ -19,7 +19,9 @@ import kotlinx.serialization.descriptors.StructureKind
 internal data class DerValueSite(
     val descriptor: SerialDescriptor,
     val nullAnalysisDescriptor: SerialDescriptor,
+    val inlineHints: DerInlineHints,
     val propertyContext: DerPropertyContext?,
+    val effectivePropertyTag: Asn1Tag?,
     val tagTemplate: Asn1Element.Tag.Template?,
     val byteArrayShape: ByteArrayShape,
     val nullEncoding: Asn1NullEncodingAnalysis,
@@ -155,7 +157,9 @@ internal class DerAnalysisContext(
     ): DerValueSite = DerValueSite(
         descriptor = descriptor,
         nullAnalysisDescriptor = nullAnalysisDescriptor,
+        inlineHints = inlineHints,
         propertyContext = propertyContext,
+        effectivePropertyTag = propertyAsn1Tag,
         tagTemplate = resolveAsn1TagTemplate(
             inlineAsn1Tag = inlineHints.tag,
             propertyAsn1Tag = propertyAsn1Tag,

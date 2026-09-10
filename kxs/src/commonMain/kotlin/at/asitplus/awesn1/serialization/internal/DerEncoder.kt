@@ -241,6 +241,15 @@ class DerEncoder internal constructor(
      */
     @Throws(SerializationException::class)
     override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
+        try {
+            encodeSerializableValueImpl(serializer, value)
+        } finally {
+            pendingPropertyContext = null
+        }
+    }
+
+    @OptIn(InternalSerializationApi::class)
+    private fun <T> encodeSerializableValueImpl(serializer: SerializationStrategy<T>, value: T) {
         if (value != null && serializer.descriptor.isKotlinUnsignedIntegerDescriptor()) {
             encodeValue(value)
             return
@@ -252,19 +261,17 @@ class DerEncoder internal constructor(
 
         val inlineHints = inlineHintState.consume()
         val propertyContext = pendingPropertyContext
-        val propertyAnnotation = propertyContext?.propertyAsn1Tag
         val propertyDescriptor = propertyContext?.propertyDescriptor
-        val nullAnalysisDescriptor = when {
-            serializer.descriptor.isNullable -> serializer.descriptor
-            propertyDescriptor?.isNullable == true -> propertyDescriptor
-            else -> serializer.descriptor
-        }
         val valueSite = analysis.prepareValue(
             descriptor = serializer.descriptor,
-            nullAnalysisDescriptor = nullAnalysisDescriptor,
+            nullAnalysisDescriptor = when {
+                serializer.descriptor.isNullable -> serializer.descriptor
+                propertyDescriptor?.isNullable == true -> propertyDescriptor
+                else -> serializer.descriptor
+            },
             inlineHints = inlineHints,
             propertyContext = propertyContext,
-            propertyAsn1Tag = propertyAnnotation,
+            propertyAsn1Tag = propertyContext?.propertyAsn1Tag,
             propertyAsBitString = propertyContext?.propertyAsBitString == true,
             includeDescriptorAsBitString = true,
         )
@@ -274,40 +281,45 @@ class DerEncoder internal constructor(
             isGenericAsn1StringSerializer = serializer == Asn1String.Companion,
         )
         valueSite.requireUnambiguousNull()
-        val nullEncodingAnalysis = valueSite.nullEncoding
 
         if (value == null) {
-            if (!nullEncodingAnalysis.encodeNullEnabled) {
-                propertyContext?.let(::requireRepresentableCollectionNull)
-                pendingPropertyContext = null
-                return
-            }
-
-            pendingPropertyContext = null
-            appendNullElement(valueSite.nullAnalysisDescriptor, valueSite.tagTemplate)
+            encodeSerializableNull(valueSite)
             return
         }
 
+        encodeNonNullSerializableValue(serializer, value, valueSite)
+    }
+
+    private fun encodeSerializableNull(valueSite: DerValueSite) {
+        if (!valueSite.nullEncoding.encodeNullEnabled) {
+            valueSite.propertyContext?.let(::requireRepresentableCollectionNull)
+            return
+        }
+        appendNullElement(valueSite.nullAnalysisDescriptor, valueSite.tagTemplate)
+    }
+
+    @OptIn(InternalSerializationApi::class)
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> encodeNonNullSerializableValue(
+        serializer: SerializationStrategy<T>,
+        value: T,
+        valueSite: DerValueSite,
+    ) {
         if (value is Instant && serializer.descriptor.isKotlinTimeInstantDescriptor()) {
-            pendingPropertyContext = null
             val timeElement = Asn1Time(value).encodeToTlv()
             appendElement(timeElement, valueSite.tagTemplate)
             return
         }
 
-        when (serializer.descriptor.serialName.removeSuffix("?")) {
-            ASN1_DESCRIPTOR_ELEMENT_TREE -> {
-                pendingPropertyContext = null
-                if (der.configuration.explicitNulls && nullAnalysisDescriptor.isNullable &&
-                    (value as Asn1Element).isAsn1NullElement()
-                ) {
-                    throw SerializationException(
-                        valueSite.ambiguousNullEncodingMessage()
-                    )
-                }
-                appendElement(value as Asn1Element, valueSite.tagTemplate)
-                return
+        if (serializer.descriptor.serialName.removeSuffix("?") == ASN1_DESCRIPTOR_ELEMENT_TREE) {
+            val element = value as Asn1Element
+            if (der.configuration.explicitNulls && valueSite.nullAnalysisDescriptor.isNullable &&
+                element.isAsn1NullElement()
+            ) {
+                throw SerializationException(valueSite.ambiguousNullEncodingMessage())
             }
+            appendElement(element, valueSite.tagTemplate)
+            return
         }
 
         resolveOpenPolymorphicAsn1SerializerOrNull(serializer, serializersModule)?.let { openSerializer ->
@@ -320,11 +332,10 @@ class DerEncoder internal constructor(
             // Only a tag supplied by the enclosing property/inline wrapper crosses an open-polymorphic dispatch.
             // A tag on the open base descriptor belongs to that descriptor, not to every registered subtype.
             val inheritedTagTemplate = resolveAsn1TagTemplate(
-                inlineAsn1Tag = inlineHints.tag,
-                propertyAsn1Tag = propertyAnnotation,
+                inlineAsn1Tag = valueSite.inlineHints.tag,
+                propertyAsn1Tag = valueSite.effectivePropertyTag,
                 classAsn1Tag = null,
             )
-            @Suppress("UNCHECKED_CAST")
             if (openSerializer !is Asn1TagDiscriminatedOpenPolymorphicSerializer<*> &&
                 inheritedTagTemplate != null && pendingStructure == null) {
                 pendingStructure = PendingStructure(inheritedTagTemplate)
@@ -347,50 +358,52 @@ class DerEncoder internal constructor(
         }
 
         if (serializer is SealedClassSerializer<*>) {
-            pendingPropertyContext = null
             encodeChoiceSerializableValue(
                 serializer = serializer,
                 value = value,
-                inlineAnnotation = inlineHints.tag,
-                propertyAnnotation = propertyAnnotation,
+                inlineAnnotation = valueSite.inlineHints.tag,
+                propertyAnnotation = valueSite.effectivePropertyTag,
             )
             return
         }
 
-        if (valueSite.byteArrayShape != ByteArrayShape.NOT_APPLICABLE) {
-            pendingPropertyContext = null
-            val byteArrayValue = value as ByteArray
-            val baseElement = ByteArrayShapePolicy.encodeByteArray(byteArrayValue, valueSite.byteArrayShape)
-            appendElement(baseElement, valueSite.tagTemplate)
-            return
-        } else if (serializer is Asn1Serializable<*, *> && value is Asn1Encodable<*>) {
-            pendingPropertyContext = null
-            appendElement(value.encodeToTlv(), valueSite.tagTemplate)
-        } else if (value is Asn1Element || honorRuntimeAsn1Encodable && value is Asn1Encodable<*>) {
-            pendingPropertyContext = null
-            val baseElement = when (value) {
-                is Asn1Element -> value
-                is Asn1Encodable<*> -> value.encodeToTlv()
-                else -> throw ImplementationError("Unexpected non-ASN.1 value in ASN.1 encodable fast path")
-            }
-            appendElement(baseElement, valueSite.tagTemplate)
-        } else {
-            val forwardsToBeginStructure =
-                serializer.descriptor.kind is StructureKind.CLASS ||
-                        serializer.descriptor.kind is StructureKind.OBJECT ||
-                        serializer.descriptor.kind is StructureKind.LIST ||
-                        serializer.descriptor.kind is StructureKind.MAP
-
-            if (forwardsToBeginStructure && pendingStructure == null) {
-                pendingStructure = PendingStructure(valueSite.tagTemplate)
+        when {
+            valueSite.byteArrayShape != ByteArrayShape.NOT_APPLICABLE -> {
+                val baseElement = ByteArrayShapePolicy.encodeByteArray(value as ByteArray, valueSite.byteArrayShape)
+                appendElement(baseElement, valueSite.tagTemplate)
             }
 
-            try {
-                super<AbstractEncoder>.encodeSerializableValue(serializer, value as T)
-            } finally {
-                if (forwardsToBeginStructure && pendingStructure != null) {
-                    pendingStructure = null
-                }
+            serializer is Asn1Serializable<*, *> && value is Asn1Encodable<*> ->
+                appendElement(value.encodeToTlv(), valueSite.tagTemplate)
+
+            value is Asn1Element -> appendElement(value, valueSite.tagTemplate)
+
+            honorRuntimeAsn1Encodable && value is Asn1Encodable<*> ->
+                appendElement(value.encodeToTlv(), valueSite.tagTemplate)
+
+            else -> encodeWithKotlinxSerializer(serializer, value, valueSite.tagTemplate)
+        }
+    }
+
+    private fun <T> encodeWithKotlinxSerializer(
+        serializer: SerializationStrategy<T>,
+        value: T,
+        tagTemplate: Asn1Element.Tag.Template?,
+    ) {
+        val forwardsToBeginStructure = serializer.descriptor.kind.let {
+            it is StructureKind.CLASS || it is StructureKind.OBJECT ||
+                    it is StructureKind.LIST || it is StructureKind.MAP
+        }
+
+        if (forwardsToBeginStructure && pendingStructure == null) {
+            pendingStructure = PendingStructure(tagTemplate)
+        }
+
+        try {
+            super<AbstractEncoder>.encodeSerializableValue(serializer, value)
+        } finally {
+            if (forwardsToBeginStructure && pendingStructure != null) {
+                pendingStructure = null
             }
         }
     }
