@@ -7,12 +7,9 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.encoding.parseAll
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -22,22 +19,21 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * Values are encoded as Base64 over DER bytes to keep cross-format support without requiring DER-specific runtimes.
  * When used with the `awesn1.kxs` DER format, this fallback representation is bypassed and native DER TLV
  * encoding/decoding is used.
+ * Input-size policy belongs to the caller or the surrounding serialization format.
  */
 @OptIn(ExperimentalEncodingApi::class)
 abstract class Asn1ElementFallbackBase64SerializerBase<T : Any>(
     private val decodeElement: (Asn1Element) -> T,
-    private val encodeElement: (T) -> Asn1Element
-) : KSerializer<T> {
+    private val encodeElement: (T) -> Asn1Element,
+) : StringFallbackSerializer<T> {
     override val descriptor: SerialDescriptor = ASN1_ELEMENT_FALLBACK_BASE64_DESCRIPTOR
 
     fun decodeFromAsn1Element(element: Asn1Element): T = decodeElement(element)
 
-    override fun deserialize(decoder: Decoder): T =
-        decodeFromAsn1Element(Asn1Element.parse(Base64.decode(decoder.decodeString())))
+    override fun decodeFallback(encoded: String): T =
+        decodeFromAsn1Element(Asn1Element.parse(Base64.decode(encoded)))
 
-    override fun serialize(encoder: Encoder, value: T) {
-        encoder.encodeString(Base64.encode(encodeElement(value).derEncoded))
-    }
+    override fun encodeFallback(value: T): String = Base64.encode(encodeElement(value).derEncoded)
 }
 
 @OptIn(ExperimentalEncodingApi::class)

@@ -21,6 +21,9 @@ import kotlin.math.sign
 
 private const val IEEE754_BIAS = 1023
 
+private val REGEX_WHITESPACE = Regex("\\s")
+
+
 /**
  * ASN.1 REAL number. Mind possible loss of precision compared to Kotlin's built-in types.
  * This type is irrelevant for PKI applications, but required for generic ASN.1 serialization
@@ -262,8 +265,8 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
 
                 if (!lenient && !decoded.encodeToAsn1ContentBytes().contentEquals(bytes))
                     throw Asn1Exception(
-                        "ASN.1 REAL is not minimally encoded. Is: ${bytes.toHexString()}, shouldBe: ${
-                            decoded.encodeToAsn1ContentBytes().toHexString()
+                        "ASN.1 REAL is not minimally encoded. Is: ${bytes.toDiagnosticHexString()}, shouldBe: ${
+                            decoded.encodeToAsn1ContentBytes().toDiagnosticHexString()
                         }"
                     )
 
@@ -282,15 +285,12 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
  * When used with the `awesn1.kxs` DER format, this serializer is bypassed and native REAL DER TLV
  * encoding/decoding is used.
  */
-object Asn1RealStringSerializer : KSerializer<Asn1Real> {
+object Asn1RealStringSerializer : StringFallbackSerializer<Asn1Real> {
     override val descriptor: SerialDescriptor
         get() = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_REAL, PrimitiveKind.STRING)
 
-    override fun serialize(
-        encoder: Encoder,
-        value: Asn1Real
-    ) {
-        val serializedValue = when (value) {
+    override fun encodeFallback(value: Asn1Real): String =
+        when (value) {
             //@formatter:off
             Asn1Real.PositiveZero       ->  "0.0"
             Asn1Real.NegativeZero       -> "-0.0"
@@ -304,28 +304,24 @@ object Asn1RealStringSerializer : KSerializer<Asn1Real> {
                 "$mantissa * 2^$exponent"
             }
         }
-        encoder.encodeString(serializedValue)
-    }
 
-    override fun deserialize(decoder: Decoder): Asn1Real {
-        val decodedString = decoder.decodeString()
-        return when {
-            //@formatter:off
-            decodedString ==    "0" -> Asn1Real.PositiveZero
-            decodedString ==  "0.0" -> Asn1Real.PositiveZero
-            decodedString ==   "-0" -> Asn1Real.NegativeZero
-            decodedString == "-0.0" -> Asn1Real.NegativeZero
-            decodedString ==  "INF" -> Asn1Real.PositiveInfinity
-            decodedString == "-INF" -> Asn1Real.NegativeInfinity
-            decodedString ==  "NaN" -> Asn1Real.NaN
-            //@formatter:on
-            else -> {
-                val parts = decodedString.replace("\\s".toRegex(), "").split("*2^")
-                require(parts.size == 2) { "Invalid format for Asn1Real" }
-                val mantissa = Asn1Integer.fromHexString(parts[0])
-                val exponent = parts[1].toLong(16)
-                Asn1Real(mantissa, exponent)
-            }
+    override fun decodeFallback(encoded: String): Asn1Real = when {
+        //@formatter:off
+        encoded ==    "0" -> Asn1Real.PositiveZero
+        encoded ==  "0.0" -> Asn1Real.PositiveZero
+        encoded ==   "-0" -> Asn1Real.NegativeZero
+        encoded == "-0.0" -> Asn1Real.NegativeZero
+        encoded ==  "INF" -> Asn1Real.PositiveInfinity
+        encoded == "-INF" -> Asn1Real.NegativeInfinity
+        encoded ==  "NaN" -> Asn1Real.NaN
+        //@formatter:on
+        else -> {
+            val compacted = if (encoded.any(Char::isWhitespace)) encoded.replace(REGEX_WHITESPACE, "") else encoded
+            val parts = compacted.split("*2^")
+            require(parts.size == 2) { "Invalid format for Asn1Real" }
+            val mantissa = Asn1Integer.fromHexString(parts[0])
+            val exponent = parts[1].toLong(16)
+            Asn1Real(mantissa, exponent)
         }
     }
 

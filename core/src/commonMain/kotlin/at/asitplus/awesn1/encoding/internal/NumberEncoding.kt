@@ -243,11 +243,14 @@ fun Sink.writeAsn1VarInt(number: Asn1Integer): Int {
 /**
  * Decodes an ASN.1 unsigned varint to a [Asn1Integer], copying all bytes from the source into a [ByteArray].
  *
+ * @param limit maximum bytes to consume, or `null` for an already bounded source
  * @return the decoded [Asn1Integer] and the underlying varint-encoded bytes as [ByteArray]
+ * @throws IllegalArgumentException if the varint is unterminated at source exhaustion, or exceeds [limit]
  */
+@Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
-fun Source<*>.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> =
-    decodeAsn1VarBigUInt().let { (uint, bytes) -> Asn1Integer.Positive(uint) to bytes }
+fun Source<*>.decodeAsn1VarBigInt(limit: Long?): Pair<Asn1Integer, ByteArray> =
+    decodeAsn1VarBigUInt(limit).let { (uint, bytes) -> Asn1Integer.Positive(uint) to bytes }
 
 /**
  * Validates the constraints of an ASN.1 `INTEGER` type acquired from this source according to DER encoding rules.

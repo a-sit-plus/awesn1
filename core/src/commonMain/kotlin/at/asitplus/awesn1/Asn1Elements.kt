@@ -8,6 +8,7 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.encoding.*
+import at.asitplus.awesn1.encoding.internal.EMPTY_BYTE_ARRAY
 import at.asitplus.awesn1.encoding.internal.Sink
 import at.asitplus.awesn1.encoding.internal.Source
 import at.asitplus.awesn1.encoding.internal.decapsulateOrSelf
@@ -53,6 +54,15 @@ const val MAX_RENDER_CHARS: Long = (1 shl 20).toLong()
 private const val RENDER_TRUNCATION_MARKER = " … (output truncated)"
 private const val INTEGER_DECIMAL_RENDER_LIMIT_BYTES = 512
 private fun ByteArray.toPrefixedHexString(): String = "0x" + toHexString(HexFormat.UpperCase)
+
+/** Maximum bytes included in a diagnostic hex preview. */
+internal const val DIAGNOSTIC_HEX_BYTES: Int = 64
+
+/** Bounded hex preview with the full byte count when truncated. */
+@OptIn(ExperimentalStdlibApi::class)
+internal fun ByteArray.toDiagnosticHexString(maxBytes: Int = DIAGNOSTIC_HEX_BYTES): String =
+    if (size <= maxBytes) "0x" + toHexString(HexFormat.UpperCase)
+    else "0x" + copyOf(maxBytes).toHexString(HexFormat.UpperCase) + "…($size bytes)"
 private fun Asn1Element.Tag.toPrettyString(): String = toString().replaceFirst("(=", "(=0x")
 
 /**
@@ -69,6 +79,9 @@ sealed class Asn1Element(
     final override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is Asn1Element) return false
+        if (this is Asn1Primitive && other is Asn1Primitive &&
+            this !is Asn1EncapsulatingOctetString && other !is Asn1EncapsulatingOctetString
+        ) return tag == other.tag && content.contentEquals(other.content)
         return derEncoded.contentEquals(other.derEncoded)
     }
 
@@ -178,7 +191,7 @@ sealed class Asn1Element(
         val stack = ArrayDeque<Asn1Element>().apply { addLast(this@Asn1Element) }
         while (stack.isNotEmpty()) when (val e = stack.removeLast()) {
             is Asn1Structure -> {
-                sink.write(e.tag.encodedTag)
+                sink.write(e.tag.encodedTagBytes)
                 sink.encodeLength(e.contentLengthLong) // direct length write — no per-node array allocation
                 for (i in e.children.indices.reversed()) stack.addLast(e.children[i])
             }
@@ -187,7 +200,7 @@ sealed class Asn1Element(
             // STRUCTURALLY (header + push children) — never via its `content` provider — so deep encapsulation
             // stays iterative AND never materializes a per-layer content copy (this is the O(input²) fix).
             is Asn1EncapsulatingOctetString -> {
-                sink.write(e.tag.encodedTag)
+                sink.write(e.tag.encodedTagBytes)
                 sink.encodeLength(e.contentLengthLong)
                 for (i in e.children.indices.reversed()) stack.addLast(e.children[i])
             }
@@ -253,14 +266,15 @@ sealed class Asn1Element(
                     is Asn1Primitive -> {
                         emit(e.prettyPrintHeader(if (pretty) ind else 0))
                         emit(" ")
-                        // render content bounded to the remaining budget so a huge primitive never builds a giant String;
-                        // clamp the build budget to Int (a String is Int-bounded) and reserve headroom for the suffix
-                        val content = e.content
+                        // Do not force lazy content merely to truncate it.
+                        val length = e.contentLengthLong
                         val buildRoom = (limit - emitted).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
                         emit(
-                            if (content.size.toLong() * 2 <= buildRoom.toLong()) e.contentToString() // small: full (semantic) render
-                            else content.copyOf(((buildRoom - 64) / 2).coerceIn(0, content.size))
-                                .toPrefixedHexString() + "…(${content.size} bytes)"
+                            if (length * 2 <= buildRoom.toLong()) e.contentToString() // small: full (semantic) render
+                            else if (e.isContentMaterialized) e.content
+                                .let { it.copyOf(((buildRoom - 64) / 2).coerceIn(0, it.size)).toPrefixedHexString() }
+                                    .plus("…($length bytes)")
+                            else "…($length bytes)"
                         )
                         emit(e.prettyPrintTrailer(if (pretty) ind else 0))
                     }
@@ -421,7 +435,7 @@ sealed class Asn1Element(
     final override fun hashCode(): Int {
         var h = cachedHash
         if (h == 0) {
-            h = derEncoded.contentHashCode()
+            h = HashingSink().also { encodeTreeTo(it) }.hash
             if (h == 0) h = 1 // don't re-derive when the real hash legitimately is 0
             cachedHash = h
         }
@@ -429,21 +443,22 @@ sealed class Asn1Element(
     }
 
 
-    @ConsistentCopyVisibility
-    data class Tag internal constructor(
+    class Tag internal constructor(
         val tagValue: ULong,
-        val encodedTag: ByteArray
+        internal val encodedTagBytes: ByteArray
     ) : Comparable<Tag> {
+
+        val encodedTag: ByteArray get() = encodedTagBytes.copyOf()
 
         /**
          * The length (in bytes) of this tag when encoded according to DER
          */
-        val encodedTagLength: Int = encodedTag.size
+        val encodedTagLength: Int get() = encodedTagBytes.size
 
         /**
          * Creates a copy of this tag, overriding [tagValue], but keeping [isConstructed] and [tagClass]
          */
-        infix fun withNumber(number: ULong) = Tag(number, constructed = isConstructed, tagClass = tagClass)
+        infix fun withNumber(number: ULong) = of(number, constructed = isConstructed, tagClass = tagClass)
 
         constructor(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL) : this(
             tagValue, encode(tagClass, constructed, tagValue)
@@ -453,7 +468,7 @@ sealed class Asn1Element(
         // anyway, so laziness only bought a per-Tag SynchronizedLazyImpl + retained closure. Real-world inputs carry
         // many distinct Tags, so that scaffolding dominated; `TagClass` is an interned enum, so this field is just a
         // shared reference.
-        val tagClass: TagClass = checkNotNull(TagClass.fromByte(encodedTag.first()).getOrNull()) {
+        val tagClass: TagClass = checkNotNull(TagClass.fromByte(encodedTagBytes.first()).getOrNull()) {
             "An Illegal Tag class has been found. This should be impossible!"
         }
 
@@ -482,36 +497,58 @@ sealed class Asn1Element(
                 return derEncoded
             }
 
-            val SET = Tag(tagValue = BERTags.SET.toULong(), constructed = true)
-            val SEQUENCE = Tag(tagValue = BERTags.SEQUENCE.toULong(), constructed = true)
+            internal val SINGLE_BYTE_TAGS: Array<Tag?> = Array(256) { byte ->
+                if (byte and 0b0001_1111 == 0b0001_1111) null
+                else try {
+                    Tag((byte and 0b0001_1111).toULong(), byteArrayOf(byte.toByte()))
+                } catch (_: Asn1Exception) {
+                    null
+                }
+            }
+
+            internal fun of(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL): Tag {
+                if (tagValue <= 30uL) {
+                    val byte = tagValue.toInt() or
+                            (if (constructed) BERTags.CONSTRUCTED.toInt() else 0) or tagClass.berTag.toInt()
+                    SINGLE_BYTE_TAGS[byte]?.let { return it }
+                }
+                return Tag(tagValue, constructed, tagClass)
+            }
+
+            private fun universal(tagValue: UByte, constructed: Boolean = false): Tag =
+                checkNotNull(SINGLE_BYTE_TAGS[tagValue.toInt() or
+                        (if (constructed) BERTags.CONSTRUCTED.toInt() else 0)])
+
+            val SET = universal(BERTags.SET, constructed = true)
+            val SEQUENCE = universal(BERTags.SEQUENCE, constructed = true)
 
             @OptIn(ExperimentalObjCName::class)
             @ObjCName("ASN1_NULL") //workaround KT-33092
-            val NULL = Tag(tagValue = BERTags.ASN1_NULL.toULong(), constructed = false)
-            val BOOL = Tag(tagValue = BERTags.BOOLEAN.toULong(), constructed = false)
-            val INT = Tag(tagValue = BERTags.INTEGER.toULong(), constructed = false)
-            val REAL = Tag(tagValue = BERTags.REAL.toULong(), constructed = false)
-            val OID = Tag(tagValue = BERTags.OBJECT_IDENTIFIER.toULong(), constructed = false)
-            val ENUM = Tag(tagValue = BERTags.ENUMERATED.toULong(), constructed = false)
+            val NULL = universal(BERTags.ASN1_NULL)
+            val BOOL = universal(BERTags.BOOLEAN)
+            val INT = universal(BERTags.INTEGER)
+            val REAL = universal(BERTags.REAL)
+            val OID = universal(BERTags.OBJECT_IDENTIFIER)
+            val ENUM = universal(BERTags.ENUMERATED)
 
-            val OCTET_STRING = Tag(tagValue = BERTags.OCTET_STRING.toULong(), constructed = false)
-            val BIT_STRING = Tag(tagValue = BERTags.BIT_STRING.toULong(), constructed = false)
+            val OCTET_STRING = universal(BERTags.OCTET_STRING)
+            val BIT_STRING = universal(BERTags.BIT_STRING)
 
-            val STRING_UTF8 = Tag(tagValue = BERTags.UTF8_STRING.toULong(), constructed = false)
-            val STRING_UNIVERSAL = Tag(tagValue = BERTags.UNIVERSAL_STRING.toULong(), constructed = false)
-            val STRING_IA5 = Tag(tagValue = BERTags.IA5_STRING.toULong(), constructed = false)
-            val STRING_BMP = Tag(tagValue = BERTags.BMP_STRING.toULong(), constructed = false)
-            val STRING_T61 = Tag(tagValue = BERTags.T61_STRING.toULong(), constructed = false)
-            val STRING_PRINTABLE = Tag(tagValue = BERTags.PRINTABLE_STRING.toULong(), constructed = false)
-            val STRING_NUMERIC = Tag(tagValue = BERTags.NUMERIC_STRING.toULong(), constructed = false)
-            val STRING_VISIBLE = Tag(tagValue = BERTags.VISIBLE_STRING.toULong(), constructed = false)
-            val STRING_GENERAL = Tag(tagValue = BERTags.GENERAL_STRING.toULong(), constructed = false)
-            val STRING_GRAPHIC = Tag(tagValue = BERTags.GRAPHIC_STRING.toULong(), constructed = false)
-            val STRING_UNRESTRICTED = Tag(tagValue = BERTags.UNRESTRICTED_STRING.toULong(), constructed = false)
-            val STRING_VIDEOTEX = Tag(tagValue = BERTags.VIDEOTEX_STRING.toULong(), constructed = false)
+            val STRING_UTF8 = universal(BERTags.UTF8_STRING)
+            val STRING_UNIVERSAL = universal(BERTags.UNIVERSAL_STRING)
+            val STRING_IA5 = universal(BERTags.IA5_STRING)
+            val STRING_BMP = universal(BERTags.BMP_STRING)
+            val STRING_T61 = universal(BERTags.T61_STRING)
+            val STRING_PRINTABLE = universal(BERTags.PRINTABLE_STRING)
+            val STRING_NUMERIC = universal(BERTags.NUMERIC_STRING)
+            val STRING_VISIBLE = universal(BERTags.VISIBLE_STRING)
+            val STRING_GENERAL = universal(BERTags.GENERAL_STRING)
+            val STRING_GRAPHIC = universal(BERTags.GRAPHIC_STRING)
+            val STRING_UNRESTRICTED = universal(BERTags.UNRESTRICTED_STRING)
+            val STRING_VIDEOTEX = universal(BERTags.VIDEOTEX_STRING)
 
-            val TIME_GENERALIZED = Tag(tagValue = BERTags.GENERALIZED_TIME.toULong(), constructed = false)
-            val TIME_UTC = Tag(tagValue = BERTags.UTC_TIME.toULong(), constructed = false)
+            val TIME_GENERALIZED = universal(BERTags.GENERALIZED_TIME)
+            val TIME_UTC = universal(BERTags.UTC_TIME)
 
             val entries: Iterable<Tag> by lazy {
                 setOf(
@@ -566,13 +603,13 @@ sealed class Asn1Element(
             }
 
 
-        val isConstructed get() = encodedTag.first().toUByte().isConstructed()
+        val isConstructed get() = encodedTagBytes.first().toUByte().isConstructed()
 
         internal val isExplicitlyTagged get() = isConstructed && tagClass == TagClass.CONTEXT_SPECIFIC
 
         override fun toString(): String =
             "${tagClass.let { if (it == TagClass.UNIVERSAL) "" else it.name + " " }}${tagValue}${if (isConstructed) " CONSTRUCTED" else ""}" +
-                    (" (=${encodedTag.toHexString(HexFormat.UpperCase)})" + (name?.let { " ($it)" } ?: ""))
+                    (" (=${encodedTagBytes.toHexString(HexFormat.UpperCase)})" + (name?.let { " ($it)" } ?: ""))
 
         /**
          * As per ITU-T X.680 8824-1 8.6
@@ -594,12 +631,12 @@ sealed class Asn1Element(
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Tag) return false
-            if (!encodedTag.contentEquals(other.encodedTag)) return false
+            if (!encodedTagBytes.contentEquals(other.encodedTagBytes)) return false
 
             return true
         }
 
-        override fun hashCode(): Int = encodedTag.contentHashCode()
+        override fun hashCode(): Int = encodedTagBytes.contentHashCode()
 
         /**
          * creates a new Tag from this object, overriding the class. Useful for implicitTagging (see [Asn1Structure.withImplicitTag])
@@ -716,7 +753,7 @@ sealed class Asn1Structure(
         // decides WITHOUT materializing the members' full encodings; only an exact tag+length tie falls back to the
         // full derEncoded compare (where the content bytes must be examined anyway).
         override fun compare(a: Asn1Element, b: Asn1Element): Int {
-            val ta = a.tag.encodedTag; val tb = b.tag.encodedTag
+            val ta = a.tag.encodedTagBytes; val tb = b.tag.encodedTagBytes
             for (i in 0 until minOf(ta.size, tb.size)) {
                 val c = ta[i].toUByte().compareTo(tb[i].toUByte())
                 if (c != 0) return c
@@ -874,7 +911,7 @@ sealed class Asn1Structure(
 
     override fun doEncode(sink: Sink) {
         children.let { childElems ->
-            sink.write(tag.encodedTag);
+            sink.write(tag.encodedTagBytes);
             sink.write(encodedLength);
             childElems.forEach { child -> child.encodeTo(sink) }
         }
@@ -1071,9 +1108,9 @@ class Asn1CustomStructure internal constructor(
         (" " * indent) + tag.tagClass +
                 " ${tag.tagValue}" +
                 (if (!tag.isConstructed) " PRIMITIVE" else "") +
-                " (=${tag.encodedTag.toPrefixedHexString()}), length=${contentLengthLong} (=${encodedLength.toPrefixedHexString()})" +
-                ", overallLength=${overallLengthLong}" +
-                (content?.let { " ${it.toPrefixedHexString()}" } ?: "")
+                " (=${tag.encodedTagBytes.toPrefixedHexString()}), length=${contentLengthLong} (=${encodedLength.toPrefixedHexString()})" +
+                ", overallLength=${overallLengthLong}"
+    // Content is rendered through the children below.
 
     companion object {
         /**
@@ -1230,9 +1267,9 @@ class Asn1EncapsulatingOctetString private constructor(
 
     override fun iterator(): Asn1Structure.Iterator = _sequence.iterator()
 
+    // Reading content here would encode the entire subtree before render limits apply.
     override fun prettyPrintHeader(indent: Int) =
-        (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent) + " " +
-                content.toPrefixedHexString()
+        (" " * indent) + "OCTET STRING Encapsulating" + super.prettyPrintHeader(indent)
 
     companion object {
         /**
@@ -1347,9 +1384,13 @@ open class Asn1Primitive private constructor(
     private var contentProviderOrNull: (() -> ByteArray)? = if (content == null) contentProvider else null
     // props with explicit backing fields cannot have accessors, so we're left with this mess
     @Volatile
-    private var contentCache: ByteArray? = content /*<- this is the ctor param, not the prop below*/
+    private var contentCache: ByteArray? = content?.shareIfEmpty()
     val content: ByteArray
-        get() = contentCache ?: contentProviderOrNull!!().also { /*order is important here!*/contentCache = it; contentProviderOrNull = null }
+        get() = contentCache ?: contentProviderOrNull!!().shareIfEmpty()
+            .also { /*order is important here!*/contentCache = it; contentProviderOrNull = null }
+
+    /** Whether reading [content] avoids materializing lazy content. */
+    internal val isContentMaterialized: Boolean get() = contentCache != null
 
     override val contentLengthLong: Long get() = content.size.toLong()
 
@@ -1363,7 +1404,7 @@ open class Asn1Primitive private constructor(
         get() = derEncodedCache ?: throughBuffer { encodeTreeTo(it) }.also { derEncodedCache = it }
 
     override fun doEncode(sink: Sink) {
-        sink.write(tag.encodedTag)
+        sink.write(tag.encodedTagBytes)
         sink.encodeLength(contentLengthLong) // direct length write — no per-node array allocation
         sink.write(content)
     }
@@ -1423,6 +1464,32 @@ private inline fun lengthEncodedSize(len: Long): Int =
 
 @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
 @kotlin.internal.InlineOnly
+internal fun ByteArray.shareIfEmpty(): ByteArray = if (isEmpty()) EMPTY_BYTE_ARRAY else this
+
+private class HashingSink : Sink {
+    var hash: Int = 1
+        private set
+
+    override fun writeByte(byte: Byte) {
+        hash = 31 * hash + byte
+    }
+
+    override fun write(bytes: ByteArray, startIndex: Int, endIndex: Int) {
+        for (i in startIndex until endIndex) hash = 31 * hash + bytes[i]
+    }
+
+    override fun appendUnsafe(bytes: ByteArray, startIndex: Int, endIndex: Int): Int {
+        write(bytes, startIndex, endIndex)
+        return endIndex - startIndex
+    }
+}
+
+fun Asn1Element.Tag.copy(
+    tagValue: ULong = this.tagValue,
+    constructed: Boolean = this.isConstructed,
+    tagClass: TagClass = this.tagClass,
+): Asn1Element.Tag = Asn1Element.Tag.of(tagValue, constructed, tagClass)
+
 internal fun Int.encodeLength(): ByteArray = toLong().encodeLength()
 
 @Throws(IllegalArgumentException::class)

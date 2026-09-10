@@ -1,6 +1,17 @@
 # Changelog
 
 ## NEXT
+* **Security Hardening:**
+    * **Breaking:** `Source.decodeAsn1VarBigInt()` now requires a byte limit; all big-varint decoders reject
+      unterminated input.
+    * **Breaking:** Removed generic fallback-serializer input limits and the ineffective `BoundedFallbackSerializer`
+      API. The surrounding format has already materialised a fallback string before its serializer sees it, so
+      input-size policy belongs to the caller or format. Only quadratic decimal INTEGER conversion retains explicit
+      limits. Malformed fallback values still surface as `SerializationException`.
+    * Diagnostic messages and `prettyPrint` no longer materialize unbounded content.
+* Reduced `Asn1Element` allocation through tag and empty-array sharing, trimmed child lists, and allocation-free
+  hashing.
+* Avoid repeated regex compilation and unnecessary string copies when decoding `Asn1Real`.
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer

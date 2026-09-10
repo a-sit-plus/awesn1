@@ -255,5 +255,8 @@ fun Asn1Integer.toAsn1VarInt(): ByteArray = throughBuffer { it.writeAsn1VarInt(t
  * while the highest bit indicates if more bytes are to come. Trailing bytes are ignored.
  *
  * @return the decoded unsigned BigInteger and the underlying varint-encoded bytes as `ByteArray`
+ * @throws IllegalArgumentException if the varint is unterminated, i.e. every byte has its continuation bit set
  */
-fun ByteArray.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> = this.throughBuffer { it.decodeAsn1VarBigInt() }
+@Throws(IllegalArgumentException::class)
+fun ByteArray.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> =
+    this.throughBuffer { it.decodeAsn1VarBigInt(size.toLong()) }
