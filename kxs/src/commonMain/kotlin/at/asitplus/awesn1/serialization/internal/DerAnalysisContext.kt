@@ -1,21 +1,91 @@
 // SPDX-FileCopyrightText: Copyright (c) A-SIT Plus GmbH
 // SPDX-License-Identifier: Apache-2.0
 
+@file:OptIn(at.asitplus.awesn1.InternalAwesn1Api::class)
+
 package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.ASN1_DESCRIPTOR_ELEMENT_TREE
+import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.asn1Tag
+import at.asitplus.awesn1.serialization.isAsn1ExplicitWrapperDescriptor
 import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.StructureKind
 
-internal data class DerValuePlan(
+internal data class DerValueSite(
+    val descriptor: SerialDescriptor,
+    val nullAnalysisDescriptor: SerialDescriptor,
+    val propertyContext: DerPropertyContext?,
     val tagTemplate: Asn1Element.Tag.Template?,
     val byteArrayShape: ByteArrayShape,
     val nullEncoding: Asn1NullEncodingAnalysis,
-)
+) {
+    val ownerSerialName: String
+        get() = propertyContext?.ownerSerialName ?: descriptor.serialName
+
+    private val location: String
+        get() = propertyContext?.takeIf { it.propertyName != null }?.let {
+            "property '${it.propertyName}' (index ${it.index}) in ${it.ownerSerialName}"
+        } ?: ownerSerialName
+
+    fun validateSerializerAnnotations(
+        allowTaggedRawElementDescriptor: Boolean,
+        isGenericAsn1StringSerializer: Boolean,
+    ) {
+        if (!allowTaggedRawElementDescriptor &&
+            descriptor.serialName.removeSuffix("?") == ASN1_DESCRIPTOR_ELEMENT_TREE &&
+            tagTemplate != null
+        ) {
+            throw SerializationException(
+                "Raw Asn1Element must not use @Asn1Tag at $location. " +
+                        "Remove the tag override or use a strongly typed value/wrapper instead. " +
+                        "Resolved tag override was $tagTemplate."
+            )
+        }
+        if (isGenericAsn1StringSerializer && tagTemplate != null) {
+            throw SerializationException(
+                "Generic ${descriptor.serialName} must not use @Asn1Tag at $location. " +
+                        "Use a concrete Asn1String subtype or wrap the tagged value in a dedicated value class instead. " +
+                        "Resolved tag override was $tagTemplate."
+            )
+        }
+        requireExplicitWrapperTag()
+    }
+
+    private fun requireExplicitWrapperTag() {
+        if (!descriptor.isAsn1ExplicitWrapperDescriptor()) return
+        if (tagTemplate == null) {
+            throw SerializationException(
+                "ExplicitlyTagged requires an implicit tag override at $location. " +
+                        "Provide @Asn1Tag(tagNumber=..., tagClass=CONTEXT_SPECIFIC, constructed=CONSTRUCTED)."
+            )
+        }
+        val effectiveClass = tagTemplate.tagClass ?: TagClass.UNIVERSAL
+        val effectiveConstructed = tagTemplate.constructed ?: true
+        if (effectiveClass != TagClass.CONTEXT_SPECIFIC || !effectiveConstructed) {
+            throw SerializationException(
+                "ExplicitlyTagged requires CONTEXT_SPECIFIC + CONSTRUCTED tag at $location, " +
+                        "but effective override is class=$effectiveClass, constructed=$effectiveConstructed."
+            )
+        }
+    }
+
+    fun requireUnambiguousNull() {
+        if (nullEncoding.isAmbiguous) {
+            throw SerializationException(ambiguousNullEncodingMessage())
+        }
+    }
+
+    fun ambiguousNullEncodingMessage(): String = ambiguousAsn1NullEncodingMessage(
+        ownerSerialName = ownerSerialName,
+        propertyName = propertyContext?.propertyName,
+        propertyIndex = propertyContext?.index,
+    )
+}
 
 /** Format-aware descriptor analysis shared by one DER encode/decode operation. */
 internal class DerAnalysisContext(
@@ -74,14 +144,18 @@ internal class DerAnalysisContext(
         inlineAsBitString = inlineAsBitString,
     )
 
-    fun planValue(
+    fun prepareValue(
         descriptor: SerialDescriptor,
         nullAnalysisDescriptor: SerialDescriptor,
         inlineHints: DerInlineHints,
+        propertyContext: DerPropertyContext?,
         propertyAsn1Tag: Asn1Tag?,
         propertyAsBitString: Boolean,
         includeDescriptorAsBitString: Boolean = false,
-    ): DerValuePlan = DerValuePlan(
+    ): DerValueSite = DerValueSite(
+        descriptor = descriptor,
+        nullAnalysisDescriptor = nullAnalysisDescriptor,
+        propertyContext = propertyContext,
         tagTemplate = resolveAsn1TagTemplate(
             inlineAsn1Tag = inlineHints.tag,
             propertyAsn1Tag = propertyAsn1Tag,
