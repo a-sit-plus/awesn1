@@ -44,7 +44,7 @@ private data class PendingStructure(val tagTemplate: Asn1Element.Tag.Template?)
 @ExperimentalSerializationApi
 class DerEncoder internal constructor(
     override val der: Der,
-    private val layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
+    private val analysis: DerAnalysisContext = DerAnalysisContext(der.configuration.explicitNulls),
     // Shared across the whole encode so structural recursion is bounded (mirror of DerDecoder). Serializing a deeply
     // nested recursive @Serializable type recurses per level (serialize -> encodeSerializableElement -> serialize ->
     // ...), which the iterative core encoder cannot flatten; this turns a would-be StackOverflowError into a clean
@@ -187,7 +187,7 @@ class DerEncoder internal constructor(
         val propertyContext = consumePropertyContextOrNull() ?: return
         val propertyDescriptor = propertyContext.propertyDescriptor
         requireRepresentableCollectionNull(propertyContext)
-        val nullEncodingAnalysis = layoutPlan.analyzeNullable(
+        val nullEncodingAnalysis = analysis.analyzeNullable(
             descriptor = propertyDescriptor,
             propertyAsn1Tag = propertyContext.propertyAsn1Tag,
             inlineAsn1Tag = inlineHints.tag,
@@ -260,7 +260,7 @@ class DerEncoder internal constructor(
             propertyDescriptor?.isNullable == true -> propertyDescriptor
             else -> serializer.descriptor
         }
-        val valuePlan = layoutPlan.planValue(
+        val valuePlan = analysis.planValue(
             descriptor = serializer.descriptor,
             nullAnalysisDescriptor = nullAnalysisDescriptor,
             inlineHints = inlineHints,
@@ -468,7 +468,7 @@ class DerEncoder internal constructor(
 
         val childSerializer = DerEncoder(
             der = der,
-            layoutPlan = layoutPlan,
+            analysis = analysis,
             depthGuard = depthGuard,
             honorRuntimeAsn1Encodable = false,
         )
@@ -496,7 +496,7 @@ class DerEncoder internal constructor(
         if (descriptor.kind is StructureKind.CLASS ||
             descriptor.kind is StructureKind.OBJECT
         ) {
-            layoutPlan.ensureNoAmbiguousOptionalLayout(descriptor)
+            analysis.validateOptionalLayout(descriptor)
         }
         val pending = pendingStructure
         val tagTemplate = if (pending != null) {
@@ -516,7 +516,7 @@ class DerEncoder internal constructor(
 
         val childSerializer = DerEncoder(
             der = der,
-            layoutPlan = layoutPlan,
+            analysis = analysis,
             depthGuard = depthGuard,
         )
 
@@ -582,7 +582,7 @@ class DerEncoder internal constructor(
     }
 
     internal fun <T> encodeSingleElement(serializer: KSerializer<T>, value: T): Asn1Element {
-        val child = DerEncoder(der, layoutPlan, depthGuard)
+        val child = DerEncoder(der, analysis, depthGuard)
         child.encodeSerializableValue(serializer, value)
         return child.encodeToTLV().singleOrNull()
             ?: throw SerializationException("${serializer.descriptor.serialName} must encode to exactly one ASN.1 element")
