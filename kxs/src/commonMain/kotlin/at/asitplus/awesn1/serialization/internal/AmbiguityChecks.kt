@@ -282,7 +282,7 @@ private fun possibleBaseLeadingTags(
             propertyAsBitString = false,
             inlineAsBitString = false,
             inheritedBitString = isBitString,
-            forcedChoice = choiceMode,
+            forcedChoice = null,
         )
     }
 
