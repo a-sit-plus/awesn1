@@ -9,6 +9,7 @@ import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.encoding.asAsn1BitString
 import at.asitplus.awesn1.serialization.isAsn1BitString
+import at.asitplus.awesn1.serialization.isAsn1BitStringCompatibleDescriptor
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -44,14 +45,13 @@ internal object ByteArrayShapePolicy {
     @Throws(SerializationException::class)
     fun resolveSerializerShape(
         descriptor: SerialDescriptor,
-        layoutPlan: DerLayoutPlanContext,
         inlineAsBitString: Boolean = false,
         propertyAsBitString: Boolean = false,
         includeDescriptorAsBitString: Boolean = false,
     ): ByteArrayShape {
         val bitStringRequested = inlineAsBitString || propertyAsBitString ||
                 (includeDescriptorAsBitString && descriptor.isAsn1BitString)
-        if (bitStringRequested && !layoutPlan.isBitStringCompatible(descriptor)) {
+        if (bitStringRequested && !descriptor.isAsn1BitStringCompatibleDescriptor()) {
             throw SerializationException(
                 "@Asn1BitString can only be used with ByteArray-compatible serializers, but got ${descriptor.serialName}"
             )

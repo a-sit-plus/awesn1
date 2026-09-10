@@ -84,7 +84,7 @@ internal data class DerDecodeHandoff(
 class DerDecoder internal constructor(
     private val elements: List<Asn1Element>,
     override val der: Der,
-    private val layoutPlan: DerLayoutPlanContext = DerLayoutPlanContext(der.configuration),
+    private val analysis: DerAnalysisContext = DerAnalysisContext(der.configuration.explicitNulls),
     // Shared across the whole decode so structural recursion is bounded. kotlinx.serialization's decode contract is
     // recursive descent (deserialize -> decodeSerializableElement -> deserialize -> ...), which the iterative raw
     // parser cannot flatten; this counter turns an unrecoverable StackOverflowError on a deeply nested recursive
@@ -174,7 +174,7 @@ class DerDecoder internal constructor(
         val isolated = DerDecoder(
             elements = listOf(current),
             der = der,
-            layoutPlan = layoutPlan,
+            analysis = analysis,
             depthGuard = depthGuard,
             polymorphicHandoff = handoff,
         )
@@ -230,7 +230,7 @@ class DerDecoder internal constructor(
                     DerDecoder(
                         effectiveChildren,
                         der = der,
-                        layoutPlan = layoutPlan,
+                        analysis = analysis,
                         depthGuard = depthGuard,
                     )
                 } else {
@@ -248,7 +248,7 @@ class DerDecoder internal constructor(
                 DerDecoder(
                     effectiveChildren,
                     der = der,
-                    layoutPlan = layoutPlan,
+                    analysis = analysis,
                     depthGuard = depthGuard,
                 )
             }
@@ -274,7 +274,7 @@ class DerDecoder internal constructor(
         return when (descriptor.kind) {
             is StructureKind.CLASS, is StructureKind.OBJECT -> {
                 if (descriptorIndex == 0) {
-                    layoutPlan.ensureNoAmbiguousOptionalLayout(descriptor)
+                    analysis.validateOptionalLayout(descriptor)
                 }
                 if (descriptorIndex >= descriptor.elementsCount) {
                     if (elementIndex < elements.size) {
@@ -293,7 +293,7 @@ class DerDecoder internal constructor(
                     isTrailing = currentDescriptorIndex >= descriptor.elementsCount - 1,
                 )
                 val propertyContext = requireNotNull(currentSlot)
-                val nullEncodingAnalysis = layoutPlan.analyzeNullable(
+                val nullEncodingAnalysis = analysis.analyzeNullable(
                     descriptor = propertyContext.descriptor,
                     propertyAsn1Tag = propertyContext.propertyAsn1Tag,
                     propertyAsBitString = propertyContext.propertyAsBitString,
@@ -303,7 +303,7 @@ class DerDecoder internal constructor(
                     elementIndex < elements.size
                 ) {
                     val actualTag = currentElement().tag
-                    val expectedTags = layoutPlan.possibleLeadingTags(
+                    val expectedTags = analysis.possibleLeadingTags(
                         descriptor = propertyContext.descriptor,
                         propertyAsn1Tag = propertyContext.propertyAsn1Tag,
                         propertyAsBitString = propertyContext.propertyAsBitString,
@@ -441,7 +441,7 @@ class DerDecoder internal constructor(
     ): T {
 
         val nullableCouldBeAbsent = currentSlot?.couldBeAbsent == true
-        val descriptorNullEncodingAnalysis = layoutPlan.analyzeNullable(deserializer.descriptor)
+        val descriptorNullEncodingAnalysis = analysis.analyzeNullable(deserializer.descriptor)
         if (nullableCouldBeAbsent) {
             val pendingInlineHints = inlineHintState.peek()
             if (elementIndex == elements.size) {
@@ -450,7 +450,7 @@ class DerDecoder internal constructor(
 
             val openSerializer = resolveOpenPolymorphicAsn1SerializerOrNull(deserializer, serializersModule)
             val tagDispatched = openSerializer is Asn1TagDiscriminatedOpenPolymorphicSerializer<*>
-            when (val expectedLeadingTags = layoutPlan.possibleLeadingTags(
+            when (val expectedLeadingTags = analysis.possibleLeadingTags(
                 descriptor = openSerializer?.descriptor ?: propertyDescriptor,
                 propertyAsn1Tag = propertyAsn1Tag.takeUnless { tagDispatched },
                 inlineAsn1Tag = pendingInlineHints.tag,
@@ -485,7 +485,7 @@ class DerDecoder internal constructor(
             deserializer.descriptor.serialName.removeSuffix("?") != ASN1_DESCRIPTOR_ELEMENT_TREE
         ) {
             val propertyDescriptorEncodesNull = currentSlot != null &&
-                    layoutPlan.analyzeNullable(
+                    analysis.analyzeNullable(
                         descriptor = propertyDescriptor,
                         propertyAsn1Tag = propertyAsn1Tag,
                         propertyAsBitString = propertyAsBitString,
@@ -510,7 +510,7 @@ class DerDecoder internal constructor(
         if (elements.isEmpty() && deserializer.descriptor.isNullable) return nullDecoded()
         val pendingInlineHints = inlineHintState.peek()
         val pendingPropertyTag = polymorphicHandoff.inheritedPropertyTag ?: propertyAsn1Tag
-        val pendingNullAnalysis = layoutPlan.analyzeNullable(
+        val pendingNullAnalysis = analysis.analyzeNullable(
             descriptor = currentSlot?.descriptor ?: deserializer.descriptor,
             propertyAsn1Tag = pendingPropertyTag,
             inlineAsn1Tag = pendingInlineHints.tag,
@@ -549,7 +549,7 @@ class DerDecoder internal constructor(
         val currentAnnotatedElement = currentElement()
         val inlineHints = inlineHintState.consume()
         val effectivePropertyAsn1Tag = polymorphicHandoff.inheritedPropertyTag ?: propertyAsn1Tag
-        val valuePlan = layoutPlan.planValue(
+        val valuePlan = analysis.planValue(
             descriptor = deserializer.descriptor,
             nullAnalysisDescriptor = currentSlot?.descriptor ?: deserializer.descriptor,
             inlineHints = inlineHints,
@@ -735,7 +735,7 @@ class DerDecoder internal constructor(
         val childDecoder = DerDecoder(
             elements = mutableListOf(processedElement),
             der = der,
-            layoutPlan = layoutPlan,
+            analysis = analysis,
             depthGuard = depthGuard,
             polymorphicHandoff = DerDecodeHandoff(discriminatorOid = polymorphicHandoff.discriminatorOid),
         )
