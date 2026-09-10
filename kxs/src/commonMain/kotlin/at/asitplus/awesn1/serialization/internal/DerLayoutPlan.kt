@@ -19,8 +19,8 @@ import kotlinx.serialization.descriptors.StructureKind
 internal class DerLayoutPlanContext(
     private val formatConfiguration: DerConfiguration,
 ) {
-    private val primed = mutableSetOf<SerialDescriptor>()
-    private val optionalLayoutChecked = mutableSetOf<SerialDescriptor>()
+    private val primed = mutableSetOf<IdentityKey<SerialDescriptor>>()
+    private val optionalLayoutChecked = mutableSetOf<IdentityKey<SerialDescriptor>>()
     private val bitStringCompatible = mutableMapOf<SerialDescriptor, Boolean>()
     private val nullAnalysis = mutableMapOf<NullAnalysisKey, Asn1NullEncodingAnalysis>()
     private val leadingTagAnalysis = mutableMapOf<LeadingTagKey, Asn1LeadingTagsResolution>()
@@ -32,7 +32,7 @@ internal class DerLayoutPlanContext(
      */
     @Throws(SerializationException::class)
     fun prime(descriptor: SerialDescriptor) {
-        if (!primed.add(descriptor)) return
+        if (!primed.add(IdentityKey(descriptor))) return
 
         bitStringCompatible[descriptor] = descriptor.isAsn1BitStringCompatibleDescriptor()
         // Warm default analyses used frequently in runtime paths.
@@ -55,7 +55,7 @@ internal class DerLayoutPlanContext(
      */
     @Throws(SerializationException::class)
     fun ensureNoAmbiguousOptionalLayout(descriptor: SerialDescriptor) {
-        if (!optionalLayoutChecked.add(descriptor)) return
+        if (!optionalLayoutChecked.add(IdentityKey(descriptor))) return
         descriptor.ensureNoAsn1AmbiguousOptionalLayout(
             formatExplicitNulls = formatConfiguration.explicitNulls,
         )
@@ -130,4 +130,9 @@ internal class DerLayoutPlanContext(
         val propertyAsBitString: Boolean,
         val inlineAsBitString: Boolean,
     )
+
+    private class IdentityKey<T : Any>(private val value: T) {
+        override fun equals(other: Any?): Boolean = other is IdentityKey<*> && value === other.value
+        override fun hashCode(): Int = value.hashCode()
+    }
 }

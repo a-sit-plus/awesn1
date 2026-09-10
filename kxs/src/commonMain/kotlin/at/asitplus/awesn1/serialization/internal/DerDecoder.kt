@@ -182,7 +182,8 @@ class DerDecoder internal constructor(
             is StructureKind.LIST,
             is StructureKind.MAP -> {
                 if (element is Asn1Structure || element is Asn1EncapsulatingOctetString ||
-                    element is Asn1Primitive && descriptor.isAsn1OctetStringEncapsulatedDescriptor()
+                    element is Asn1Primitive &&
+                    (descriptor.isAsn1OctetStringEncapsulatedDescriptor() || element.contentLength == 0)
                 ) {
                     val children = when (element) {
                         is Asn1Structure -> element.children
@@ -262,7 +263,25 @@ class DerDecoder internal constructor(
                     propertyAsn1Tag = propertyContext.propertyAsn1Tag,
                     propertyAsBitString = propertyContext.propertyAsBitString,
                 )
-                couldBeNull = propertyContext.propertyDescriptor.isNullable && !nullEncodingAnalysis.encodeNullEnabled
+                if (descriptor.isElementOptional(currentDescriptorIndex) &&
+                    !propertyContext.propertyDescriptor.isNullable &&
+                    elementIndex < elements.size
+                ) {
+                    val actualTag = currentElement().tag
+                    val expectedTags = layoutPlan.possibleLeadingTags(
+                        descriptor = propertyContext.propertyDescriptor,
+                        propertyAsn1Tag = propertyContext.propertyAsn1Tag,
+                        propertyAsBitString = propertyContext.propertyAsBitString,
+                    )
+                    if (expectedTags is Asn1LeadingTagsResolution.Exact &&
+                        actualTag !in expectedTags.tags &&
+                        !(nullEncodingAnalysis.encodeNullEnabled && currentElement().isAsn1NullElement())
+                    ) {
+                        return decodeElementIndex(descriptor)
+                    }
+                }
+                couldBeNull = propertyContext.propertyDescriptor.isNullable &&
+                        !nullEncodingAnalysis.encodeNullEnabled
 
                 if (elementIndex >= elements.size && !couldBeNull) {
                     couldBeNull = false
@@ -430,7 +449,9 @@ class DerDecoder internal constructor(
             }
         }
         val currentAnnotatedElement = currentElement()
-        if (currentAnnotatedElement.isAsn1NullElement()) {
+        if (currentAnnotatedElement.isAsn1NullElement() &&
+            deserializer.descriptor.serialName.removeSuffix("?") != ASN1_DESCRIPTOR_ELEMENT_TREE
+        ) {
             val propertyDescriptorEncodesNull = ::propertyDescriptor.isInitialized &&
                     layoutPlan.analyzeNullable(
                         descriptor = propertyDescriptor,
@@ -455,6 +476,44 @@ class DerDecoder internal constructor(
     @Throws(SerializationException::class)
     override fun <T> decodeSerializableValue(deserializer: DeserializationStrategy<T>): T {
         if (elements.isEmpty() && deserializer.descriptor.isNullable) return nullDecoded()
+        val pendingInlineHints = inlineHintState.peek()
+        val pendingPropertyTag = inheritedOpenPolymorphicTag ?: propertyAsn1Tag
+        val pendingNullAnalysis = layoutPlan.analyzeNullable(
+            descriptor = if (::propertyDescriptor.isInitialized) propertyDescriptor else deserializer.descriptor,
+            propertyAsn1Tag = pendingPropertyTag,
+            inlineAsn1Tag = pendingInlineHints.tag,
+            propertyAsBitString = propertyAsBitString,
+            inlineAsBitString = pendingInlineHints.asBitString,
+        )
+        val pendingElement = currentElement()
+        val encodedNull = pendingElement.isAsn1NullElement() ||
+                (pendingNullAnalysis.canDecodeNullByZeroLength && pendingElement.contentLength == 0) ||
+                (pendingNullAnalysis.canDecodeNullByConstructedBit &&
+                        !pendingElement.tag.isConstructed && pendingElement.contentLength == 0)
+        if (pendingNullAnalysis.encodeNullEnabled && encodedNull) {
+            if (!pendingElement.isAsn1NullElement()) {
+                val template = resolveAsn1TagTemplate(
+                    inlineAsn1Tag = pendingInlineHints.tag,
+                    propertyAsn1Tag = pendingPropertyTag,
+                    classAsn1Tag = deserializer.descriptor.asn1Tag,
+                )
+                if (template != null) {
+                    val expectedTag = Asn1Element.Tag(
+                        template.tagValue,
+                        template.constructed ?: pendingElement.tag.isConstructed,
+                        template.tagClass ?: TagClass.CONTEXT_SPECIFIC,
+                    )
+                    if (pendingElement.tag.tagValue != expectedTag.tagValue ||
+                        pendingElement.tag.tagClass != expectedTag.tagClass
+                    ) {
+                        throw SerializationException(Asn1TagMismatchException(expectedTag, pendingElement.tag))
+                    }
+                }
+            }
+            inlineHintState.consume()
+            elementIndex++
+            return nullDecoded()
+        }
         if (deserializer.descriptor.isInline) {
             // Let the framework do its inline-class magic **before consuming pending inline hints.**
             return deserializer.deserialize(this)
@@ -587,7 +646,8 @@ class DerDecoder internal constructor(
         val isEncodedNull =
             processedElement.isAsn1NullElement() ||
                     (nullEncodingAnalysis.canDecodeNullByZeroLength && processedElement.contentLength == 0) ||
-                    (nullEncodingAnalysis.canDecodeNullByConstructedBit && !processedElement.tag.isConstructed)
+                    (nullEncodingAnalysis.canDecodeNullByConstructedBit &&
+                            !processedElement.tag.isConstructed && processedElement.contentLength == 0)
 
         if (nullEncodingAnalysis.encodeNullEnabled && isEncodedNull) {
             elementIndex++

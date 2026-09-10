@@ -215,7 +215,7 @@ class DerEncoder internal constructor(
             propertyAsn1Tag = propertyContext.propertyAsn1Tag,
             classAsn1Tag = propertyDescriptor.asn1Tag,
         )
-        appendElement(Asn1.Null(), tagTemplate)
+        appendNullElement(propertyDescriptor, tagTemplate)
     }
 
     override fun encodeElement(descriptor: SerialDescriptor, index: Int): Boolean {
@@ -329,7 +329,7 @@ class DerEncoder internal constructor(
             }
 
             descriptorAndIndex = null
-            appendElement(Asn1.Null(), effectiveTagTemplate)
+            appendNullElement(nullAnalysisDescriptor, effectiveTagTemplate)
             return
         }
 
@@ -343,6 +343,17 @@ class DerEncoder internal constructor(
         when (serializer.descriptor.serialName.removeSuffix("?")) {
             ASN1_DESCRIPTOR_ELEMENT_TREE -> {
                 descriptorAndIndex = null
+                if (der.configuration.explicitNulls && nullAnalysisDescriptor.isNullable &&
+                    (value as Asn1Element).isAsn1NullElement()
+                ) {
+                    throw SerializationException(
+                        ambiguousAsn1NullEncodingMessage(
+                            ownerSerialName = propertyContext?.ownerSerialName ?: serializer.descriptor.serialName,
+                            propertyName = propertyContext?.propertyName,
+                            propertyIndex = propertyContext?.index,
+                        )
+                    )
+                }
                 appendElement(value as Asn1Element, effectiveTagTemplate)
                 return
             }
@@ -627,7 +638,7 @@ class DerEncoder internal constructor(
                     )
                 }
                 holder.tagTemplate?.let {
-                    if (!holder.descriptor.isAsn1OctetStringEncapsulatedDescriptor()) {
+                    if (childElements.isNotEmpty() && !holder.descriptor.isAsn1OctetStringEncapsulatedDescriptor()) {
                         requireCompatibleConstructedBit(true, it, "ASN.1 structure")
                     }
                     structureElement.withImplicitTag(it)
@@ -635,5 +646,19 @@ class DerEncoder internal constructor(
             }
 
         }
+    }
+
+    private fun appendNullElement(
+        descriptor: SerialDescriptor,
+        tagTemplate: Asn1Element.Tag.Template?,
+    ) {
+        val primitiveTaggedStructure = tagTemplate?.constructed == false && when (descriptor.kind) {
+            is StructureKind.CLASS,
+            is StructureKind.OBJECT,
+            is StructureKind.LIST,
+            is StructureKind.MAP -> true
+            else -> false
+        }
+        appendElement(Asn1.Null(), tagTemplate.takeUnless { primitiveTaggedStructure })
     }
 }
