@@ -40,8 +40,13 @@ internal data class Asn1FieldShape(
     val index: Int,
     val name: String,
     val presence: Asn1Presence,
+    val defaulted: Boolean,
     val possibleLeadingTags: Asn1LeadingTagsResolution,
-)
+) {
+    /** Whether this field may be omitted for either independent reason. */
+    val canBeOmitted: Boolean
+        get() = defaulted || presence is Asn1Presence.OmittedWhenNull
+}
 
 internal class Asn1StructureShape(
     val fields: List<Asn1FieldShape>,
@@ -144,6 +149,7 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
             index = index,
             name = getElementName(index),
             presence = presence,
+            defaulted = isElementOptional(index),
             possibleLeadingTags = possibleLeadingTags(
                 descriptor = fieldDescriptor,
                 propertyAsn1Tag = propertyAsn1Tag,
@@ -154,9 +160,7 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
 
     for (start in fields.indices) {
         val nullableOrOptionalField = fields[start]
-        if (nullableOrOptionalField.presence !is Asn1Presence.Defaulted &&
-            nullableOrOptionalField.presence !is Asn1Presence.OmittedWhenNull
-        ) continue
+        if (!nullableOrOptionalField.canBeOmitted) continue
 
         if (start < fields.lastIndex && nullableOrOptionalField.possibleLeadingTags !is Asn1LeadingTagsResolution.Exact) {
             throw SerializationException(
@@ -175,9 +179,7 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
         var allSkippedFieldsAreOmittable = true
         for (candidate in (start + 1) until fields.size) {
             allSkippedFieldsAreOmittable =
-                allSkippedFieldsAreOmittable &&
-                        (fields[candidate - 1].presence is Asn1Presence.Defaulted ||
-                                fields[candidate - 1].presence is Asn1Presence.OmittedWhenNull)
+                allSkippedFieldsAreOmittable && fields[candidate - 1].canBeOmitted
             if (!allSkippedFieldsAreOmittable) break
 
             val candidateField = fields[candidate]
