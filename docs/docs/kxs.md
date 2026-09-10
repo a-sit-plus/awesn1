@@ -55,6 +55,14 @@ The important part is that the registration happens before the first access to `
 This design avoids a mutable global codec while still allowing library integrations to make raw-backed transient
 materialization work out of the box.
 
+!!! warning "Generic versus concrete ASN.1 string decoding"
+
+    `DER.decodeFromByteArray<Asn1String>()` preserves malformed content and reports tri-state validity, while decoding
+    to a concrete subtype or Kotlin `String` is strict. Generic `Asn1String` is unsuitable for implicit tags because
+    the string subtype is no longer present on the wire. See
+    [ASN.1 String Validation and Raw Preservation](core.md#asn1-string-validation-and-raw-preservation) for the full
+    contract and the raw-wrapper workaround.
+
 ??? info "Non-DER Fallback Representations"
 
     - `ObjectIdentifier` serializes as dotted-decimal text (`1.2.840...`)
