@@ -32,4 +32,19 @@ val SerializationTestAsn1String by matrixSuite(
         shouldThrow<SerializationException> { DER.decodeFromByteArray<Asn1String.BMP>(malformed) }
         shouldThrow<SerializationException> { DER.decodeFromByteArray<String>(malformed) }
     }
+
+    "Kotlin String decodes every supported ASN.1 string type" {
+        listOf(
+            "0c024142" to "AB",                 // UTF8String
+            "1e0400410042" to "AB",             // BMPString
+            "12023132" to "12",                 // NumericString
+            "14024142" to "AB",                 // TeletexString
+            "1a024142" to "AB",                 // VisibleString
+            "1c080000004100000042" to "AB",     // UniversalString
+            "13024142" to "AB",                 // PrintableString
+            "16024142" to "AB",                 // IA5String
+        ).forEach { (encoded, expected) ->
+            DER.decodeFromByteArray<String>(encoded.hexToByteArray()) shouldBe expected
+        }
+    }
 }
