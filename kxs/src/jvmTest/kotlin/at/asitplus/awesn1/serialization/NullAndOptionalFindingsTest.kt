@@ -249,18 +249,16 @@ val SerializationNullAndOptionalFindings by matrixSuite {
         }
 
         /*
-         * layoutplan_structural_equals_dedupe_bypasses_ambiguity_guard
+         * descriptor_validation_uses_identity_for_deduplication
          *
-         * BUG: DerLayoutPlanContext memoises `primed` / `optionalLayoutChecked` by structural
-         * SerialDescriptor equality, which is annotation-blind. Two @SerialName("Shared")
-         * descriptors that differ ONLY in their @Asn1Tag annotations therefore collapse into one
-         * memo entry, and the ambiguous second type is never checked — its guard is skipped
-         * because the disambiguated first type already "passed".
+         * REGRESSION: structural SerialDescriptor equality is annotation-blind. Validation must
+         * therefore deduplicate by identity, or two @SerialName("Shared") descriptors that differ
+         * only in their @Asn1Tag annotations collapse and the ambiguous second type is never checked.
          *
          * TRIGGER: RootBoth(a = Disambiguated, b = Ambiguous). Decoding it must raise the same
          * "Ambiguous ASN.1 layout" the ambiguous type raises on its own (control A).
          */
-        "layoutplan_structural_equals_dedupe_bypasses_ambiguity_guard" {
+        "descriptor_validation_uses_identity_for_deduplication" {
             // Control (A): the ambiguous type alone is rejected.
             shouldThrow<SerializationException> {
                 DER.decodeFromByteArray<GlAmbiguous>("3003020108".hexToByteArray())
