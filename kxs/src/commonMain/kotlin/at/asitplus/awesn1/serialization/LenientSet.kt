@@ -5,6 +5,7 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.serialization.internal.asNamedSetDescriptor
+import at.asitplus.awesn1.serialization.internal.DerDecoder as InternalDerDecoder
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -56,15 +57,21 @@ class LenientSet<T> private constructor(
                 }
             }
 
-        override fun deserialize(decoder: Decoder): LenientSet<T> = decoder.decodeStructure(descriptor) {
-            val elements = mutableListOf<T>()
-            while (true) {
-                val index = decodeElementIndex(descriptor)
-                if (index == CompositeDecoder.DECODE_DONE) break
-                elements += decodeSerializableElement(descriptor, index, elementSerializer)
+        override fun deserialize(decoder: Decoder): LenientSet<T> {
+            val wireWasCanonical =
+                (decoder as? InternalDerDecoder)?.peekCurrentElementOrNull()?.asStructure()?.isActuallySorted == true
+            return decoder.decodeStructure(descriptor) {
+                val elements = mutableListOf<T>()
+                while (true) {
+                    val index = decodeElementIndex(descriptor)
+                    if (index == CompositeDecoder.DECODE_DONE) break
+                    elements += decodeSerializableElement(descriptor, index, elementSerializer)
+                }
+                val uniqueElements = elements.toSet()
+                val preserveWireOrder =
+                    decoder is DerDecoder && (!wireWasCanonical || uniqueElements.size != elements.size)
+                LenientSet(if (preserveWireOrder) elements else uniqueElements, preserveWireOrder)
             }
-            if (decoder is DerDecoder) LenientSet(elements, preserveWireOrder = true)
-            else LenientSet(elements.toSet(), preserveWireOrder = false)
         }
 
         private companion object {
