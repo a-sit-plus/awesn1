@@ -29,7 +29,9 @@ val SerializationTreeBuilderTest by matrixSuite {
         val expected = listOf(DER.encodeToTlv(algorithm))
 
         Asn1.Sequence { +algorithm }.children shouldBe expected
+        Asn1.Sequence { append(algorithm) }.children shouldBe expected
         with(DER) { Asn1.Sequence { +algorithm } }.children shouldBe expected
+        with(DER) { Asn1.Sequence { append(algorithm) } }.children shouldBe expected
     }
 
     "X509SignatureValue unary plus works with and without DER context" {
@@ -37,7 +39,9 @@ val SerializationTreeBuilderTest by matrixSuite {
         val expected = listOf(DER.encodeToTlv(signature))
 
         Asn1.Sequence { +signature }.children shouldBe expected
+        Asn1.Sequence { append(signature) }.children shouldBe expected
         with(DER) { Asn1.Sequence { +signature } }.children shouldBe expected
+        with(DER) { Asn1.Sequence { append(signature) } }.children shouldBe expected
     }
 
     "unary plus infers serializers for crypto types" {
@@ -63,8 +67,8 @@ val SerializationTreeBuilderTest by matrixSuite {
 
         with(DER) {
             Asn1.Sequence {
-                +publicKey
-                +certificate
+                append(publicKey)
+                append(certificate)
             }
         }.children shouldBe listOf(
             DER.encodeToTlv(publicKey),

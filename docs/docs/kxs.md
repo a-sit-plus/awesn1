@@ -91,13 +91,13 @@ implementation("at.asitplus.awesn1:kxs:$version")
 
 ## Serializable Values in the Builder DSL
 
-The `kxs` module lets an `Asn1TreeBuilder` encode values whose static type has an available kotlinx serializer. Use a
-`Der` instance as context parameter and use unary `+`; the serializer is inferred from that static type:
+The `kxs` module lets an `Asn1TreeBuilder` encode values whose static type has an available kotlinx serializer. Use
+`append`; the serializer is inferred from the static type:
 
 ```kotlin
 val envelope = with(DER) {
     Asn1.Sequence {
-        +certificate
+        append(certificate)
     }
 }
 ```
@@ -106,38 +106,47 @@ Here `certificate` may be an `@Serializable` application type or, for example, t
 `crypto` module. The encoded certificate is appended as one child TLV element; the surrounding `Asn1.Sequence` remains
 an additional outer sequence.
 
-The equivalent explicit builder calls are:
+An explicit serializer can also be supplied:
 
 ```kotlin
-Asn1.Sequence {
-    append(certificate, DER)                       // inferred serializer
-    append(X509Certificate.serializer(), other, DER) // explicit serializer
+with(DER) {
+    Asn1.Sequence {
+        append(certificate)                           // inferred serializer
+        append(X509Certificate.serializer(), other)   // explicit serializer
+    }
 }
 ```
 
 Nullable values follow the selected `Der` configuration. If encoding omits a nullable `null` because
 `explicitNulls` is disabled, the builder appends nothing.
 
+!!! warning "Unary `+` is not a generic serialization operator"
+
+    Kotlin always prefers an operand's member `unaryPlus` over extensions. Consequently, a generic serialization
+    operator cannot reliably support values such as `Int`: `+5` invokes `Int.unaryPlus()` and appends nothing. The
+    former generic extension was removed; use `with(der) { Asn1.Sequence { append(value) } }` for
+    kotlinx-serializable values.
+
 Core builder operands do not need a `Der` context. `Asn1Element`, `Asn1Encodable`, `WrappedElement`, and
-`WrappedEncodable` values work directly with unary `+`; they continue to work unchanged inside `with(DER)`. In
-particular, the `crypto` module's `X509AlgorithmIdentifier` and `X509SignatureValue` are transparent wrappers:
+`WrappedEncodable` values work directly with `append` or the legacy unary `+`. In particular, the `crypto` module's
+`X509AlgorithmIdentifier` and `X509SignatureValue` are transparent wrappers:
 
 ```kotlin
 val withoutContext = Asn1.Sequence {
-    +algorithmIdentifier
-    +signatureValue
+    append(algorithmIdentifier)
+    append(signatureValue)
 }
 
 val withContext = with(DER) {
     Asn1.Sequence {
-        +algorithmIdentifier
-        +signatureValue
+        append(algorithmIdentifier)
+        append(signatureValue)
     }
 }
 ```
 
-Both forms append the wrappers' existing ASN.1 representation. A `Der` context is required only for values that need
-the serialization bridge.
+Both forms append the wrappers' existing ASN.1 representation. A `Der` context is required only by `append` calls
+that use the serialization bridge.
 
 ## Baseline Mapping
 
@@ -433,6 +442,12 @@ that contextual registration as well if the configured instance must continue ac
 The same override works with the default `DER` instance through the [Default `DER` Registry](#default-der-registry).
 Call `DefaultDer.register(...)` during application or library startup, before the first access to the lazily initialized
 `DER` value. If nothing is registered, the provided-fallback type is used automatically.
+
+!!! danger "`DefaultDer` configuration is startup-only and unsynchronised"
+
+    `DefaultDer.register(...)`, `DefaultDer.maxInputLength`, and the first access to `DER` must not race across threads
+    or coroutines. Complete configuration serially during startup. If that lifecycle cannot be guaranteed, construct
+    and retain an application-owned `Der` instance instead.
 
 ## Collections: `Map` and `Set`
 

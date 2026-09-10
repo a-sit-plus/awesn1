@@ -8,7 +8,7 @@ import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.unaryPlus
+import at.asitplus.awesn1.encoding.append
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.LenientSet
@@ -64,7 +64,7 @@ data class Pkcs10CsrAttribute private constructor(
             require(extensions.isNotEmpty()) { "At least one extension is required" }
             return Pkcs10CsrAttribute(
                 EXTENSION_REQUEST_OID,
-                singleElement = with(der) { Asn1.Sequence { extensions.forEach { +it } } }
+                singleElement = with(der) { Asn1.Sequence { extensions.forEach { append(it) } } }
             )
         }
     }
