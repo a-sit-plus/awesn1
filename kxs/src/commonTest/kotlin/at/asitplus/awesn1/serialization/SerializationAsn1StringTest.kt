@@ -72,19 +72,36 @@ val SerializationTestAsn1String by matrixSuite(
                 Asn1StringNullableThenInt(null, 7)
     }
 
-    "Kotlin String decodes every supported ASN.1 string type" {
+    "Kotlin String is exactly UTF8String in both directions" {
+        // A Kotlin String cannot carry the ASN.1 string type, so it maps to exactly one: accepting any other
+        // would mean re-encoding it as UTF8String and silently rewriting the wire.
+        DER.encodeToByteArray("AB").toHexString() shouldBe "0c024142"
+        DER.decodeFromByteArray<String>("0c024142".hexToByteArray()) shouldBe "AB"
+
         listOf(
-            "0c024142" to "AB",                 // UTF8String
-            "1e0400410042" to "AB",             // BMPString
-            "12023132" to "12",                 // NumericString
-            "14024142" to "AB",                 // TeletexString
-            "1a024142" to "AB",                 // VisibleString
-            "1c080000004100000042" to "AB",     // UniversalString
-            "13024142" to "AB",                 // PrintableString
-            "16024142" to "AB",                 // IA5String
-        ).forEach { (encoded, expected) ->
-            DER.decodeFromByteArray<String>(encoded.hexToByteArray()) shouldBe expected
+            "1e0400410042",             // BMPString
+            "12023132",                 // NumericString
+            "14024142",                 // TeletexString
+            "1a024142",                 // VisibleString
+            "1c080000004100000042",     // UniversalString
+            "13024142",                 // PrintableString
+            "16024142",                 // IA5String
+        ).forEach { encoded ->
+            shouldThrow<SerializationException> {
+                DER.decodeFromByteArray<String>(encoded.hexToByteArray())
+            }
+            // The tolerant spelling accepts them and preserves the tag through a round trip.
+            val asn1 = DER.decodeFromByteArray<Asn1String>(encoded.hexToByteArray())
+            DER.encodeToByteArray(asn1).contentEquals(encoded.hexToByteArray()) shouldBe true
         }
+    }
+
+    "an @Asn1Tag override still pins a Kotlin String to that tag" {
+        // The third spelling: keep the Kotlin type, name the wire tag explicitly. Symmetric by construction.
+        val value = TaggedKotlinString("AB")
+        val encoded = DER.encodeToByteArray(value)
+        encoded.toHexString() shouldBe "3004800241 42".replace(" ", "")
+        DER.decodeFromByteArray<TaggedKotlinString>(encoded) shouldBe value
     }
 }
 
@@ -99,3 +116,6 @@ data class Asn1StringNullableThenInt(
     val s: Asn1String.UTF8? = null,
     val n: Int,
 )
+
+@Serializable
+data class TaggedKotlinString(@Asn1Tag(tagNumber = 0uL) val s: String)

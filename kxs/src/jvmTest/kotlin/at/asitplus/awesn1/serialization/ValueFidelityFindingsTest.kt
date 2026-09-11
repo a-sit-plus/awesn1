@@ -247,8 +247,16 @@ val SerializationValueFidelityFindings by matrixSuite {
             val wireE9 = "30031401e9".hexToByteArray()
             val wireEA = "30031401ea".hexToByteArray()
 
-            DER.decodeFromByteArray<GlStringHolder>(wireE9).s shouldBe "é"
-            DER.decodeFromByteArray<GlStringHolder>(wireEA).s shouldBe "ê"
+            // A Kotlin String property no longer admits TeletexString at all: it could not re-encode one,
+            // so accepting it would rewrite the tag on the way out.
+            shouldThrow<SerializationException> { DER.decodeFromByteArray<GlStringHolder>(wireE9) }
+
+            // Declaring Asn1String keeps the type, and its content must still decode as Latin-1 rather than
+            // being normalized to replacement characters.
+            DER.decodeFromByteArray<GlAsn1StringHolder>(wireE9).s.value shouldBe "é"
+            DER.decodeFromByteArray<GlAsn1StringHolder>(wireEA).s.value shouldBe "ê"
+            DER.encodeToByteArray(DER.decodeFromByteArray<GlAsn1StringHolder>(wireE9))
+                .contentEquals(wireE9) shouldBe true
         }
 
         /*
@@ -268,10 +276,14 @@ val SerializationValueFidelityFindings by matrixSuite {
                 DER.decodeFromByteArray<GlStringHolder>("300404024142".hexToByteArray())
             }
 
-            // Fault (B): admitted BMPString content is misread as UTF-8.
-            DER.decodeFromByteArray<GlStringHolder>(
-                "300c1e0a00610064006d0069006e".hexToByteArray()
-            ).s shouldBe "admin"
+            // Fault (B): BMPString content must never be misread as UTF-8, and must never be silently
+            // re-tagged to 0x0C. A Kotlin String property rejects it outright...
+            val bmp = "300c1e0a00610064006d0069006e".hexToByteArray()
+            shouldThrow<SerializationException> { DER.decodeFromByteArray<GlStringHolder>(bmp) }
+
+            // ...and the Asn1String spelling decodes the UTF-16BE content correctly and round-trips the tag.
+            DER.decodeFromByteArray<GlAsn1StringHolder>(bmp).s.value shouldBe "admin"
+            DER.encodeToByteArray(DER.decodeFromByteArray<GlAsn1StringHolder>(bmp)).contentEquals(bmp) shouldBe true
         }
     }
 }
