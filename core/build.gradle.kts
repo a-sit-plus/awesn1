@@ -35,6 +35,9 @@ kotlin {
             kotlin.srcDir("src/sharedTest")
             dependencies {
                 implementation(project(":oids"))
+                // Test-only: the fallback serializers exist for non-ASN.1 formats, so their contract is only
+                // observable through one. JSON is never a production dependency of :core.
+                implementation(serialization("json"))
             }
         }
         jvmTest {

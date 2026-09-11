@@ -316,9 +316,6 @@ private fun possibleBaseLeadingTags(
         )
     }
 
-    descriptor.coreAsn1ScalarLeadingTagsOrNull()?.let {
-        return Asn1LeadingTagsResolution.Exact(it)
-    }
 
     if (descriptor.isAsn1OpaqueSerializerDescriptor()) {
         return Asn1LeadingTagsResolution.UnknownInfer
@@ -537,19 +534,11 @@ private fun SerialDescriptor.isAsn1OpaqueSerializerDescriptor(): Boolean {
 internal fun SerialDescriptor.isKotlinTimeInstantDescriptor(): Boolean =
     serialName.removeSuffix("?") == KotlinTimeInstantSerialName
 
-private fun SerialDescriptor.coreAsn1ScalarLeadingTagsOrNull(): Set<Asn1Element.Tag>? {
-    return when (serialName.removeSuffix("?")) {
-        ASN1_DESCRIPTOR_OBJECT_IDENTIFIER -> setOf(Asn1Element.Tag.OID)
-        ASN1_DESCRIPTOR_INTEGER -> setOf(Asn1Element.Tag.INT)
-        ASN1_DESCRIPTOR_REAL -> setOf(Asn1Element.Tag.REAL)
-        // Asn1String subtypes all share this serial name; their real tag sets are declared on the
-        // serializer and reach us through asn1LeadingTagsOrNull, which is consulted before this table.
-        ASN1_DESCRIPTOR_TIME -> setOf(Asn1Element.Tag.TIME_UTC, Asn1Element.Tag.TIME_GENERALIZED)
-        ASN1_DESCRIPTOR_BIT_STRING -> setOf(Asn1Element.Tag.BIT_STRING)
-        else -> null
-    }
-}
 
+// Unlike leading tags, "can this type encode zero content octets" is not declared anywhere in core — this table is
+// its only definition, so there is nothing here to deduplicate. Moving it would mean inventing a new public member on
+// Asn1Serializable plus a second descriptor annotation channel: ~40 new lines of core API to delete 10 lines here, for
+// a fact with no observed disagreement. Kept deliberately; revisit only if a core type's answer ever becomes dynamic.
 private fun SerialDescriptor.coreAsn1BaseCanEncodeEmptyContentOrNull(): Boolean? {
     return when (serialName.removeSuffix("?")) {
         ASN1_DESCRIPTOR_OBJECT_IDENTIFIER -> false

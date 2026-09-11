@@ -344,7 +344,9 @@ class DerEncoder internal constructor(
 
             value is Asn1Element -> appendElement(value, valueSite.tagTemplate)
 
-            honorRuntimeAsn1Encodable && value is Asn1Encodable<*> ->
+            // A declared non-DER fallback serializer must reach its own DER guard rather than be silently
+            // overridden by the runtime type — otherwise encode emits framing this decoder then rejects.
+            honorRuntimeAsn1Encodable && value is Asn1Encodable<*> && serializer !is StringFallbackSerializer<*> ->
                 appendElement(value.encodeToTlv(), valueSite.tagTemplate)
 
             else -> encodeWithKotlinxSerializer(serializer, value, valueSite.tagTemplate)
