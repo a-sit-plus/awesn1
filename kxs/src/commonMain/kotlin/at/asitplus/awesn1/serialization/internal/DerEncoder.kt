@@ -45,6 +45,7 @@ private data class DerPendingSite(
 )
 
 
+@Suppress("NOTHING_TO_INLINE")
 @ExperimentalSerializationApi
 class DerEncoder internal constructor(
     override val der: Der,
@@ -232,11 +233,6 @@ class DerEncoder internal constructor(
      */
     @Throws(SerializationException::class)
     override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
-        encodeSerializableValueImpl(serializer, value)
-    }
-
-    @OptIn(InternalSerializationApi::class)
-    private fun <T> encodeSerializableValueImpl(serializer: SerializationStrategy<T>, value: T) {
         if (value != null && serializer.descriptor.isKotlinUnsignedIntegerDescriptor()) {
             encodeValue(value)
             return
@@ -287,7 +283,8 @@ class DerEncoder internal constructor(
 
     @OptIn(InternalSerializationApi::class)
     @Suppress("UNCHECKED_CAST")
-    private fun <T> encodeNonNullSerializableValue(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun <T> encodeNonNullSerializableValue(
         serializer: SerializationStrategy<T>,
         value: T,
         valueSite: DerValueSite,
@@ -371,7 +368,8 @@ class DerEncoder internal constructor(
         }
     }
 
-    private fun <T> encodeWithKotlinxSerializer(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline  fun <T> encodeWithKotlinxSerializer(
         serializer: SerializationStrategy<T>,
         value: T,
         tagTemplate: Asn1Element.Tag.Template?,
@@ -403,7 +401,8 @@ class DerEncoder internal constructor(
      * @throws SerializationException if no concrete arm can be resolved or arm encoding is invalid
      */
     @Throws(SerializationException::class)
-    private fun encodeChoiceSerializableValue(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun encodeChoiceSerializableValue(
         serializer: SealedClassSerializer<*>,
         value: Any?,
         inlineAnnotation: Asn1Tag?,
@@ -521,7 +520,8 @@ class DerEncoder internal constructor(
         }
     }
 
-    internal fun <T> encodeSingleElement(serializer: KSerializer<T>, value: T): Asn1Element {
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    internal inline fun <T> encodeSingleElement(serializer: KSerializer<T>, value: T): Asn1Element {
         val child = DerEncoder(der, analysis, depthGuard)
         child.encodeSerializableValue(serializer, value)
         return child.encodeToTLV().singleOrNull()
@@ -531,10 +531,12 @@ class DerEncoder internal constructor(
     //exists to keep the below function
     internal fun encodeToTLV() = buffer.finalizeElements()
 
-    private fun List<Asn1ElementHolder>.finalizeElements(): List<Asn1Element> = map(::finalizeElement)
+    /*two call sites; code is more legible like that and inline saves a stack frame*/
+    private inline fun List<Asn1ElementHolder>.finalizeElements(): List<Asn1Element> = map(::finalizeElement)
 
 
-    private fun finalizeElement(holder: Asn1ElementHolder): Asn1Element {
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun finalizeElement(holder: Asn1ElementHolder): Asn1Element {
 
         return when (holder) {
             is Asn1ElementHolder.Element -> holder.element

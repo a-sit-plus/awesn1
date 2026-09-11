@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 @file:OptIn(InternalAwesn1Api::class)
+@file:Suppress("NOTHING_TO_INLINE")
 
 package at.asitplus.awesn1.serialization.internal
 
@@ -31,7 +32,8 @@ private data class DerDecodeSlot(
     val possibleLeadingTags: Asn1LeadingTagsResolution = Asn1LeadingTagsResolution.UnknownInfer,
 ) {
     companion object {
-        fun forProperty(
+        /*single call site; code is more legible like that and inline saves a stack frame*/
+        inline fun forProperty(
             context: DerPropertyContext,
             isTrailing: Boolean,
             couldBeAbsent: Boolean,
@@ -51,7 +53,8 @@ private data class DerDecodeSlot(
     }
 }
 
-private class DerElementCursor(
+/*internal only for inlining*/
+internal class DerElementCursor(
     private val elements: List<Asn1Element>,
 ) {
     var position: Int = 0
@@ -61,19 +64,22 @@ private class DerElementCursor(
     val remaining: Int get() = size - position
     val isAtEnd: Boolean get() = position >= size
 
-    fun currentOrNull(): Asn1Element? = elements.getOrNull(position)
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun currentOrNull(): Asn1Element? = elements.getOrNull(position)
 
     fun current(): Asn1Element = currentOrNull()
         ?: throw SerializationException("No ASN.1 element at index $position (have $size)")
 
     fun take(): Asn1Element = current().also { position++ }
 
-    fun advance() {
-        current()
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun advance() {
+        val _ = current()
         position++
     }
 
-    fun <T> consume(decode: (Asn1Element) -> T): T {
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun <T> consume(decode: (Asn1Element) -> T): T {
         val decoded = decode(current())
         position++
         return decoded
@@ -85,7 +91,8 @@ internal data class DerDecodeHandoff(
     val acceptWireTag: Boolean = false,
     val discriminatorOid: ObjectIdentifier? = null,
 ) {
-    fun <T : Any> withSelection(selection: DerDecodeSelection<T>) = copy(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun <T : Any> withSelection(selection: DerDecodeSelection<T>) = copy(
         acceptWireTag = selection.acceptWireTag,
         discriminatorOid = selection.discriminatorOid,
     )
@@ -122,8 +129,10 @@ class DerDecoder internal constructor(
     private val inlineHintState = DerInlineHintState()
 
 
-    internal fun peekCurrentElementTagOrNull(): Asn1Element.Tag? = cursor.currentOrNull()?.tag
-    internal fun peekCurrentElementOrNull(): Asn1Element? = cursor.currentOrNull()
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    internal inline fun peekCurrentElementTagOrNull(): Asn1Element.Tag? = cursor.currentOrNull()?.tag
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    internal inline fun peekCurrentElementOrNull(): Asn1Element? = cursor.currentOrNull()
 
     @Suppress("UNCHECKED_CAST")
     private fun <T> castDecoded(value: Any?): T = value as T
@@ -137,13 +146,16 @@ class DerDecoder internal constructor(
      * @throws SerializationException if no current element exists or decoding fails for [deserializer]
      */
     @Throws(SerializationException::class)
-    internal fun <T> decodeCurrentElementWith(deserializer: DeserializationStrategy<T>): T =
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    internal inline fun <T> decodeCurrentElementWith(deserializer: DeserializationStrategy<T>): T =
         decodeCurrentElementWith(deserializer, polymorphicHandoff)
 
-    internal fun <T : Any> decodeCurrentElementWith(selection: DerDecodeSelection<T>): T =
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    internal inline fun <T : Any> decodeCurrentElementWith(selection: DerDecodeSelection<T>): T =
         decodeCurrentElementWith(selection.deserializer, polymorphicHandoff.withSelection(selection))
 
-    private fun <T> decodeCurrentElementWith(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun <T> decodeCurrentElementWith(
         deserializer: DeserializationStrategy<T>,
         handoff: DerDecodeHandoff,
     ): T = cursor.consume { current ->
@@ -344,7 +356,8 @@ class DerDecoder internal constructor(
         return decodeSerializableValue(deserializer)
     }
 
-    private fun <T> isCurrentNullableValueAbsent(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun <T> isCurrentNullableValueAbsent(
         deserializer: DeserializationStrategy<T>,
         slot: DerDecodeSlot,
     ): Boolean {
@@ -451,7 +464,8 @@ class DerDecoder internal constructor(
         return decodeConcreteValue(deserializer, currentAnnotatedElement, valueSite)
     }
 
-    private fun tryConsumeEncodedNull(deserializer: DeserializationStrategy<*>): Boolean {
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun tryConsumeEncodedNull(deserializer: DeserializationStrategy<*>): Boolean {
         val element = cursor.currentOrNull() ?: return false
         val property = currentSlot.property
         val descriptor = property?.propertyDescriptor ?: currentSlot.descriptor ?: deserializer.descriptor
@@ -483,7 +497,8 @@ class DerDecoder internal constructor(
         return true
     }
 
-    private fun <T> decodeConcreteValue(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun <T> decodeConcreteValue(
         deserializer: DeserializationStrategy<T>,
         currentAnnotatedElement: Asn1Element,
         valueSite: DerValueSite,
@@ -592,7 +607,8 @@ class DerDecoder internal constructor(
         return value
     }
 
-    private fun initializeStandalonePropertyState(descriptor: SerialDescriptor) {
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun initializeStandalonePropertyState(descriptor: SerialDescriptor) {
         currentSlot = DerDecodeSlot.standalone(descriptor)
     }
 
@@ -605,7 +621,8 @@ class DerDecoder internal constructor(
         return if (index < 0) this else filterIndexed { childIndex, _ -> childIndex != index }
     }
 
-    private fun applyCurrentPropertyContext(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun applyCurrentPropertyContext(
         ownerDescriptor: SerialDescriptor,
         propertyIndex: Int,
         isTrailing: Boolean,
@@ -636,7 +653,8 @@ class DerDecoder internal constructor(
      * @throws SerializationException if CHOICE descriptors/arms cannot be resolved or matched
      */
     @Throws(SerializationException::class)
-    private fun <T> decodeChoiceSerializableValue(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    private inline fun <T> decodeChoiceSerializableValue(
         deserializer: SealedClassSerializer<*>,
         currentAnnotatedElement: Asn1Element,
         inlineAnnotation: Asn1Tag?,
