@@ -15,6 +15,7 @@ import at.asitplus.awesn1.ASN1_DESCRIPTOR_REAL
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_STRING
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_TIME
 import at.asitplus.awesn1.TagClass
+import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.asn1LeadingTagsOrNull
 import at.asitplus.awesn1.serialization.asn1Tag
@@ -59,34 +60,38 @@ internal sealed interface Asn1LeadingTagsResolution {
     data object UnknownInfer : Asn1LeadingTagsResolution
 }
 
+internal sealed interface Asn1NullSentinel {
+    data object Absent : Asn1NullSentinel
+    data object RawNull : Asn1NullSentinel
+    data class Tagged(val tag: Asn1Element.Tag) : Asn1NullSentinel
+
+    fun write(): Asn1Element? = when (this) {
+        Absent -> null
+        RawNull -> Asn1.Null()
+        is Tagged -> Asn1.Null() withImplicitTag tag
+    }
+
+    fun matches(element: Asn1Element): Boolean = when (this) {
+        Absent -> false
+        RawNull -> element.isAsn1NullElement()
+        is Tagged -> element.isAsn1NullElement() || element.tag == tag && element.contentLength == 0
+    }
+}
+
 internal data class Asn1NullEncodingAnalysis(
-    val encodeNullEnabled: Boolean,
-    val usesImplicitNullSentinel: Boolean,
+    val sentinel: Asn1NullSentinel,
     val baseIsConstructed: Boolean,
     val baseCanEncodeEmptyContent: Boolean,
 ) {
+    val encodeNullEnabled: Boolean
+        get() = sentinel !is Asn1NullSentinel.Absent
+
     val isAmbiguous: Boolean
-        get() = encodeNullEnabled &&
-                usesImplicitNullSentinel &&
+        get() = sentinel is Asn1NullSentinel.Tagged &&
                 !baseIsConstructed &&
                 baseCanEncodeEmptyContent
 
-    val canDecodeNullByZeroLength: Boolean
-        get() = encodeNullEnabled &&
-                usesImplicitNullSentinel &&
-                !baseIsConstructed &&
-                !baseCanEncodeEmptyContent
-
-    val canDecodeNullByConstructedBit: Boolean
-        get() = encodeNullEnabled &&
-                usesImplicitNullSentinel &&
-                baseIsConstructed
-
-    fun matchesEncodedNull(element: Asn1Element): Boolean = encodeNullEnabled && (
-            element.isAsn1NullElement() ||
-                    canDecodeNullByZeroLength && element.contentLength == 0 ||
-                    canDecodeNullByConstructedBit && !element.tag.isConstructed && element.contentLength == 0
-            )
+    fun matchesEncodedNull(element: Asn1Element): Boolean = sentinel.matches(element)
 }
 
 private const val KotlinTimeInstantSerialName = "kotlin.time.Instant"
@@ -210,8 +215,7 @@ internal fun SerialDescriptor.analyzeAsn1NullableNullEncoding(
     val encodeNullEnabled = isNullable && formatExplicitNulls
     if (!encodeNullEnabled) {
         return Asn1NullEncodingAnalysis(
-            encodeNullEnabled = false,
-            usesImplicitNullSentinel = false,
+            sentinel = Asn1NullSentinel.Absent,
             baseIsConstructed = false,
             baseCanEncodeEmptyContent = false,
         )
@@ -225,8 +229,7 @@ internal fun SerialDescriptor.analyzeAsn1NullableNullEncoding(
     val usesImplicitNullSentinel = tagTemplate != null
     if (!usesImplicitNullSentinel) {
         return Asn1NullEncodingAnalysis(
-            encodeNullEnabled = true,
-            usesImplicitNullSentinel = false,
+            sentinel = Asn1NullSentinel.RawNull,
             baseIsConstructed = false,
             baseCanEncodeEmptyContent = false,
         )
@@ -240,10 +243,21 @@ internal fun SerialDescriptor.analyzeAsn1NullableNullEncoding(
 
     val baseIsConstructed = tagTemplate.constructed ?: unwrapped.asn1BaseIsConstructed()
     val baseCanEncodeEmptyContent = unwrapped.asn1BaseCanEncodeEmptyContent(isBitString)
+    val primitiveTaggedStructure = tagTemplate.constructed == false && when (kind) {
+        is StructureKind.CLASS,
+        is StructureKind.OBJECT,
+        is StructureKind.LIST,
+        is StructureKind.MAP -> true
+        else -> false
+    }
+    val sentinel = if (primitiveTaggedStructure) {
+        Asn1NullSentinel.RawNull
+    } else {
+        Asn1NullSentinel.Tagged((Asn1.Null() withImplicitTag tagTemplate).tag)
+    }
 
     return Asn1NullEncodingAnalysis(
-        encodeNullEnabled = true,
-        usesImplicitNullSentinel = true,
+        sentinel = sentinel,
         baseIsConstructed = baseIsConstructed,
         baseCanEncodeEmptyContent = baseCanEncodeEmptyContent,
     )
