@@ -7,6 +7,7 @@ package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.encoding.encodeToAsn1Primitive
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Der
@@ -102,39 +103,44 @@ class DerEncoder internal constructor(
     }
 
     override fun encodeBoolean(value: Boolean) {
-        encodeValue(value)
+        encodePrimitive(value.encodeToAsn1Primitive())
     }
 
     override fun encodeByte(value: Byte) {
-        encodeValue(value)
+        encodePrimitive(value.toInt().encodeToAsn1Primitive())
     }
 
     override fun encodeShort(value: Short) {
-        encodeValue(value)
+        encodePrimitive(value.toInt().encodeToAsn1Primitive())
     }
 
     override fun encodeInt(value: Int) {
-        encodeValue(value)
+        encodePrimitive(value.encodeToAsn1Primitive())
     }
 
     override fun encodeLong(value: Long) {
-        encodeValue(value)
+        encodePrimitive(value.encodeToAsn1Primitive())
     }
 
     override fun encodeDouble(value: Double) {
-        encodeValue(value)
+        encodePrimitive(value.encodeToAsn1Primitive())
     }
 
     override fun encodeFloat(value: Float) {
-        encodeValue(value)
+        encodePrimitive(value.encodeToAsn1Primitive())
     }
 
     override fun encodeChar(value: Char) {
-        encodeValue(value)
+        encodePrimitive(value.toString().encodeToAsn1Primitive())
     }
 
     override fun encodeString(value: String) {
-        encodeValue(value)
+        encodePrimitive(value.encodeToAsn1Primitive())
+    }
+
+    private inline fun encodePrimitive(element: Asn1Element) {
+        val pendingSite = consumePending()
+        appendElement(element, tagSite(pendingSite.inline, pendingSite.property, typeDescriptor = null))
     }
 
     /**
