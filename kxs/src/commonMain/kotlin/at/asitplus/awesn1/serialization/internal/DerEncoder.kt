@@ -11,6 +11,7 @@ import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.asn1Tag
+import at.asitplus.awesn1.serialization.isAsn1BitString
 import at.asitplus.awesn1.serialization.isAsn1OctetStringEncapsulatedDescriptor
 import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.PolymorphicKind
@@ -36,7 +37,12 @@ private sealed class Asn1ElementHolder {
     ) : Asn1ElementHolder()
 }
 
-private data class PendingStructure(val tagTemplate: Asn1Element.Tag.Template?)
+private data class DerPendingSite(
+    val property: DerPropertyContext? = null,
+    val inline: DerInlineHints = DerInlineHints(null, false),
+    val structureTag: Asn1Element.Tag.Template? = null,
+    val discriminatorOid: ObjectIdentifier? = null,
+)
 
 
 @ExperimentalSerializationApi
@@ -55,27 +61,42 @@ class DerEncoder internal constructor(
         get() = der.configuration.serializersModule
 
     private val buffer = mutableListOf<Asn1ElementHolder>()
-    private var pendingPropertyContext: DerPropertyContext? = null
+    private var pending = DerPendingSite()
 
-    private val inlineHintState = DerInlineHintState()
-    private var pendingStructure: PendingStructure? = null
-    private var pendingDiscriminatorOid: ObjectIdentifier? = null
+    private inline fun <R> withPending(next: DerPendingSite, body: () -> R): R {
+        val previous = pending
+        pending = next
+        return try {
+            body()
+        } finally {
+            pending = previous
+        }
+    }
+
+    private fun consumePending(): DerPendingSite = pending.also { pending = DerPendingSite() }
 
     @Suppress("UNCHECKED_CAST")
     internal fun <T : Any> encodeSelectedValue(selection: DerEncodeSelection<T>, value: T) {
-        val previousDiscriminatorOid = pendingDiscriminatorOid
-        pendingDiscriminatorOid = selection.discriminatorOid
+        val previousDiscriminatorOid = pending.discriminatorOid
+        pending = pending.copy(discriminatorOid = selection.discriminatorOid)
         try {
             encodeSerializableValue(selection.serializer as SerializationStrategy<T>, value)
         } finally {
-            pendingDiscriminatorOid = previousDiscriminatorOid
+            pending = pending.copy(discriminatorOid = previousDiscriminatorOid)
         }
     }
 
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun encodeInline(descriptor: SerialDescriptor): Encoder {
-        inlineHintState.captureInlineHintsFrom(descriptor)
+        descriptor.requireNoAsn1TagOnInlineBackingProperty()
+        val inline = pending.inline
+        pending = pending.copy(
+            inline = DerInlineHints(
+                tag = inline.tag ?: descriptor.annotations.asn1Tag,
+                asBitString = inline.asBitString || descriptor.isAsn1BitString,
+            )
+        )
         return this
     }
 
@@ -121,8 +142,9 @@ class DerEncoder internal constructor(
      * @throws SerializationException if tag/annotation constraints are invalid for the current value
      */
     override fun encodeValue(value: Any) {
-        val inlineHints = inlineHintState.consume()
-        val propertyContext = consumePropertyContextOrNull()
+        val pendingSite = consumePending()
+        val inlineHints = pendingSite.inline
+        val propertyContext = pendingSite.property
         val tagTemplate = tagSite(inlineHints, propertyContext, typeDescriptor = null)
 
         if (value is Asn1Element && tagTemplate != null) {
@@ -156,8 +178,9 @@ class DerEncoder internal constructor(
      * @throws SerializationException if nullable null encoding is ambiguous at current property location
      */
     override fun encodeNull() {
-        val inlineHints = inlineHintState.consume()
-        val propertyContext = consumePropertyContextOrNull() ?: return
+        val pendingSite = consumePending()
+        val inlineHints = pendingSite.inline
+        val propertyContext = pendingSite.property ?: return
         val propertyDescriptor = propertyContext.propertyDescriptor
         requireRepresentableCollectionNull(propertyContext)
         val nullEncodingAnalysis = analysis.analyzeNullable(
@@ -183,7 +206,7 @@ class DerEncoder internal constructor(
     }
 
     override fun encodeElement(descriptor: SerialDescriptor, index: Int): Boolean {
-        pendingPropertyContext = (descriptor to index).toDerPropertyContext()
+        pending = pending.copy(property = (descriptor to index).toDerPropertyContext())
         return super.encodeElement(descriptor, index)
     }
 
@@ -191,8 +214,9 @@ class DerEncoder internal constructor(
         der.configuration.encodeDefaults
 
     override fun encodeEnum(enumDescriptor: SerialDescriptor, index: Int) {
-        val propertyContext = consumePropertyContextOrNull()
-        val inlineHints = inlineHintState.consume()
+        val pendingSite = consumePending()
+        val propertyContext = pendingSite.property
+        val inlineHints = pendingSite.inline
         val tagTemplate = tagSite(
             inlineHints.copy(tag = inlineHints.tag ?: propertyContext?.propertyDescriptor?.asn1Tag),
             propertyContext,
@@ -209,11 +233,7 @@ class DerEncoder internal constructor(
      */
     @Throws(SerializationException::class)
     override fun <T> encodeSerializableValue(serializer: SerializationStrategy<T>, value: T) {
-        try {
-            encodeSerializableValueImpl(serializer, value)
-        } finally {
-            pendingPropertyContext = null
-        }
+        encodeSerializableValueImpl(serializer, value)
     }
 
     @OptIn(InternalSerializationApi::class)
@@ -227,8 +247,9 @@ class DerEncoder internal constructor(
             return
         }
 
-        val inlineHints = inlineHintState.consume()
-        val propertyContext = pendingPropertyContext
+        val pendingSite = consumePending()
+        val inlineHints = pendingSite.inline
+        val propertyContext = pendingSite.property
         val propertyDescriptor = propertyContext?.propertyDescriptor
         val valueSite = analysis.prepareValue(
             descriptor = serializer.descriptor,
@@ -254,7 +275,7 @@ class DerEncoder internal constructor(
             return
         }
 
-        encodeNonNullSerializableValue(serializer, value, valueSite)
+        encodeNonNullSerializableValue(serializer, value, valueSite, pendingSite)
     }
 
     private fun encodeSerializableNull(valueSite: DerValueSite) {
@@ -271,6 +292,7 @@ class DerEncoder internal constructor(
         serializer: SerializationStrategy<T>,
         value: T,
         valueSite: DerValueSite,
+        pendingSite: DerPendingSite,
     ) {
         if (value is Instant && serializer.descriptor.isKotlinTimeInstantDescriptor()) {
             appendElement(DerValueCodec.encodeInstant(value), valueSite.tagTemplate)
@@ -303,16 +325,13 @@ class DerEncoder internal constructor(
                 typeDescriptor = null,
             )
             if (openSerializer !is Asn1TagDiscriminatedOpenPolymorphicSerializer<*> &&
-                inheritedTagTemplate != null && pendingStructure == null) {
-                pendingStructure = PendingStructure(inheritedTagTemplate)
-            }
-            try {
-                return encodeSerializableValue(openSerializer as SerializationStrategy<T>, value)
-            } finally {
-                if (pendingStructure != null) {
-                    pendingStructure = null
+                inheritedTagTemplate != null
+            ) {
+                return withPending(pending.copy(structureTag = inheritedTagTemplate)) {
+                    encodeSerializableValue(openSerializer as SerializationStrategy<T>, value)
                 }
             }
+            return encodeSerializableValue(openSerializer as SerializationStrategy<T>, value)
         }
 
         if (serializer.descriptor.kind is PolymorphicKind.OPEN && serializer is AbstractPolymorphicSerializer<*>) {
@@ -349,7 +368,7 @@ class DerEncoder internal constructor(
             honorRuntimeAsn1Encodable && value is Asn1Encodable<*> && serializer !is StringFallbackSerializer<*> ->
                 appendElement(value.encodeToTlv(), valueSite.tagTemplate)
 
-            else -> encodeWithKotlinxSerializer(serializer, value, valueSite.tagTemplate)
+            else -> encodeWithKotlinxSerializer(serializer, value, valueSite.tagTemplate, pendingSite)
         }
     }
 
@@ -357,21 +376,22 @@ class DerEncoder internal constructor(
         serializer: SerializationStrategy<T>,
         value: T,
         tagTemplate: Asn1Element.Tag.Template?,
+        pendingSite: DerPendingSite,
     ) {
         val forwardsToBeginStructure = serializer.descriptor.kind.let {
             it is StructureKind.CLASS || it is StructureKind.OBJECT ||
                     it is StructureKind.LIST || it is StructureKind.MAP
         }
 
-        if (forwardsToBeginStructure && pendingStructure == null) {
-            pendingStructure = PendingStructure(tagTemplate)
-        }
-
-        try {
-            super<AbstractEncoder>.encodeSerializableValue(serializer, value)
-        } finally {
-            if (forwardsToBeginStructure && pendingStructure != null) {
-                pendingStructure = null
+        if (forwardsToBeginStructure) {
+            withPending(
+                pendingSite.copy(structureTag = pendingSite.structureTag ?: tagTemplate)
+            ) {
+                super<AbstractEncoder>.encodeSerializableValue(serializer, value)
+            }
+        } else {
+            withPending(pendingSite) {
+                super<AbstractEncoder>.encodeSerializableValue(serializer, value)
             }
         }
     }
@@ -435,16 +455,9 @@ class DerEncoder internal constructor(
         ) {
             analysis.validateOptionalLayout(descriptor)?.let { }
         }
-        val pending = pendingStructure
-        val tagTemplate = if (pending != null) {
-            inlineHintState.clear()
-            pendingPropertyContext = null
-            pendingStructure = null
-            pending.tagTemplate
-        } else {
-            val propertyContext = consumePropertyContextOrNull()
-            tagSite(inlineHintState.consume(), propertyContext, typeDescriptor = descriptor)
-        }
+        val pendingSite = consumePending()
+        val tagTemplate = pendingSite.structureTag
+            ?: tagSite(pendingSite.inline, pendingSite.property, typeDescriptor = descriptor)
 
         val childSerializer = DerEncoder(
             der = der,
@@ -452,10 +465,9 @@ class DerEncoder internal constructor(
             depthGuard = depthGuard,
         )
 
-        pendingDiscriminatorOid?.let { elem ->
+        pendingSite.discriminatorOid?.let { elem ->
             // prepend as the *first* element in the child structure
             childSerializer.buffer.add(0, Asn1ElementHolder.Element(elem.encodeToTlv()))
-            pendingDiscriminatorOid = null
         }
 
         val placeholder = Asn1ElementHolder.StructurePlaceholder(
@@ -471,9 +483,6 @@ class DerEncoder internal constructor(
     override fun endStructure(descriptor: SerialDescriptor) {
         depthGuard.exit()
     }
-
-    private fun consumePropertyContextOrNull(): DerPropertyContext? =
-        pendingPropertyContext.also { pendingPropertyContext = null }
 
     internal fun appendElement(
         element: Asn1Element,
