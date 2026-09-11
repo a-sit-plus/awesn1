@@ -48,11 +48,13 @@ internal fun tagSite(
 )
 
 /** Mutable pending-inline state with explicit peek/consume semantics. */
+@Suppress("NOTHING_TO_INLINE")
 internal class DerInlineHintState {
     private var inlineAsn1Tag: Asn1Tag? = null
     private var inlineAsBitString: Boolean = false
 
-    fun captureInlineHintsFrom(descriptor: SerialDescriptor) {
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun captureInlineHintsFrom(descriptor: SerialDescriptor) {
         descriptor.requireNoAsn1TagOnInlineBackingProperty()
         inlineAsn1Tag = inlineAsn1Tag ?: descriptor.annotations.asn1Tag
         inlineAsBitString = inlineAsBitString || descriptor.isAsn1BitString

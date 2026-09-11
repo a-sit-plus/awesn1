@@ -21,10 +21,12 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlin.time.Instant
 
 /** Stateless conversion between Kotlin scalar values and individual ASN.1 elements. */
+@Suppress("NOTHING_TO_INLINE")
 internal object DerValueCodec {
 
     /** Returns `null` when [value] is not one of the scalar values handled directly by DER. */
-    fun encodePrimitiveOrNull(value: Any, byteArrayShape: ByteArrayShape): Asn1Element? = when (value) {
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun encodePrimitiveOrNull(value: Any, byteArrayShape: ByteArrayShape): Asn1Element? = when (value) {
         is ByteArray -> ByteArrayShapePolicy.encodeByteArray(value, byteArrayShape)
         is Boolean -> value.encodeToAsn1Primitive()
         is Byte -> value.toInt().encodeToAsn1Primitive()
@@ -42,7 +44,8 @@ internal object DerValueCodec {
         else -> null
     }
 
-    fun decodePrimitive(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun decodePrimitive(
         element: Asn1Element,
         effectiveDescriptor: SerialDescriptor,
         declaredDescriptor: SerialDescriptor,
@@ -94,15 +97,16 @@ internal object DerValueCodec {
                     "Provide a custom serializer or use a supported ASN.1 mapping shape."
         )
     }
-
-    fun decodeEnumOrdinal(element: Asn1Primitive, expectedTag: Asn1Element.Tag?): Int =
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun decodeEnumOrdinal(element: Asn1Primitive, expectedTag: Asn1Element.Tag?): Int =
         element.decodeToEnumOrdinal(expectedTag ?: Asn1Element.Tag.ENUM).let {
             if (it < 0) throw SerializationException("Negative ordinal $it cannot be auto-mapped to an enum value")
             if (it > Int.MAX_VALUE.toLong()) throw SerializationException("Ordinal $it too large!")
             it.toInt()
         }
 
-    fun <T> decodeEnum(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun <T> decodeEnum(
         deserializer: DeserializationStrategy<T>,
         element: Asn1Primitive,
         expectedTag: Asn1Element.Tag?,
@@ -116,9 +120,11 @@ internal object DerValueCodec {
         })
     }
 
-    fun encodeInstant(value: Instant): Asn1Element = Asn1Time(value).encodeToTlv()
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun encodeInstant(value: Instant): Asn1Element = Asn1Time(value).encodeToTlv()
 
-    fun decodeInstant(element: Asn1Primitive, expectedTag: Asn1Element.Tag?): Instant {
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun decodeInstant(element: Asn1Primitive, expectedTag: Asn1Element.Tag?): Instant {
         if (expectedTag == null) return element.decodeToInstant()
 
         if (expectedTag == Asn1Element.Tag.TIME_UTC) {
@@ -144,7 +150,8 @@ internal object DerValueCodec {
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun decodeAsn1Serializable(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun decodeAsn1Serializable(
         serializer: Asn1Serializable<*, *>,
         element: Asn1Element,
         expectedTag: Asn1Element.Tag?,
@@ -169,7 +176,8 @@ internal object DerValueCodec {
     }
 
     @OptIn(ExperimentalSerializationApi::class)
-    fun decodeRawElement(
+    /*single call site; code is more legible like that and inline saves a stack frame*/
+    inline fun decodeRawElement(
         deserializer: DeserializationStrategy<*>,
         element: Asn1Element,
         expectedTag: Asn1Element.Tag?,
@@ -190,7 +198,9 @@ internal object DerValueCodec {
     }
 }
 
-private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): String {
+/*two call sites; code is more legible like that and inline saves a stack frame*/
+@Suppress("NOTHING_TO_INLINE")
+private inline fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): String {
     // Kotlin String cannot carry the ASN.1 string type, so accepting a foreign one would mean re-encoding it as
     // UTF8String and silently rewriting the wire. Use Asn1String to keep the tag, or @Asn1Tag to override it.
     val expected = implicitTagOverride ?: Asn1Element.Tag.STRING_UTF8
