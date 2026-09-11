@@ -16,13 +16,11 @@ import at.asitplus.awesn1.serialization.asn1Tag
 import at.asitplus.awesn1.serialization.isAsn1OctetStringEncapsulatedDescriptor
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ByteArraySerializer
-import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.AbstractDecoder
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.internal.AbstractPolymorphicSerializer
-import kotlinx.serialization.modules.SerializersModule
 
 private data class DerDecodeSlot(
     val descriptor: SerialDescriptor? = null,
@@ -118,7 +116,8 @@ class DerDecoder internal constructor(
     // parser cannot flatten; this counter turns an unrecoverable StackOverflowError on a deeply nested recursive
     // type into a clean SerializationException. Every child decoder MUST receive this same instance.
     private val depthGuard: DerDepthGuard = DerDepthGuard(),
-    private val polymorphicHandoff: DerDecodeHandoff = DerDecodeHandoff(),
+    //internal only for inlining; should actually be private
+    internal val polymorphicHandoff: DerDecodeHandoff = DerDecodeHandoff(),
 ) : AbstractDecoder(), at.asitplus.awesn1.serialization.DerDecoder {
 
     override val serializersModule get() = der.serializersModule
@@ -140,22 +139,8 @@ class DerDecoder internal constructor(
     @Suppress("UNCHECKED_CAST")
     private fun <T> nullDecoded(): T = null as T
 
-    /**
-     * Decodes the current element in an isolated child decoder context.
-     *
-     * @throws SerializationException if no current element exists or decoding fails for [deserializer]
-     */
-    @Throws(SerializationException::class)
-    /*single call site; code is more legible like that and inline saves a stack frame*/
-    internal inline fun <T> decodeCurrentElementWith(deserializer: DeserializationStrategy<T>): T =
-        decodeCurrentElementWith(deserializer, polymorphicHandoff)
-
-    /*single call site; code is more legible like that and inline saves a stack frame*/
-    internal inline fun <T : Any> decodeCurrentElementWith(selection: DerDecodeSelection<T>): T =
-        decodeCurrentElementWith(selection.deserializer, polymorphicHandoff.withSelection(selection))
-
-    /*single call site; code is more legible like that and inline saves a stack frame*/
-    private inline fun <T> decodeCurrentElementWith(
+    /*two call site; code is more legible like that and inline saves a stack frame*/
+    internal inline fun <T> decodeCurrentElementWith(
         deserializer: DeserializationStrategy<T>,
         handoff: DerDecodeHandoff,
     ): T = cursor.consume { current ->
@@ -685,7 +670,7 @@ class DerDecoder internal constructor(
                 "No CHOICE alternative of ${deserializer.descriptor.serialName} matches tag ${currentAnnotatedElement.tag}"
             )
 
-        return decodeCurrentElementWith(selected as DeserializationStrategy<T>)
+        return decodeCurrentElementWith(selected as DeserializationStrategy<T>, polymorphicHandoff)
     }
 
 }

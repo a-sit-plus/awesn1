@@ -54,6 +54,10 @@ internal abstract class Asn1DiscriminatedOpenPolymorphicSerializer<T : Any>(
     @Throws(SerializationException::class)
     final override fun deserialize(decoder: Decoder): T {
         val derDecoder = decoder.requireDerDecoder(descriptor.serialName)
-        return derDecoder.decodeCurrentElementWith(selectionForDecode(derDecoder))
+        val selection = selectionForDecode(derDecoder)
+        return derDecoder.decodeCurrentElementWith(
+            selection.deserializer,
+            derDecoder.polymorphicHandoff.withSelection(selection)
+        )
     }
 }

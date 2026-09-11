@@ -534,9 +534,7 @@ class DerEncoder internal constructor(
     /*two call sites; code is more legible like that and inline saves a stack frame*/
     private inline fun List<Asn1ElementHolder>.finalizeElements(): List<Asn1Element> = map(::finalizeElement)
 
-
-    /*single call site; code is more legible like that and inline saves a stack frame*/
-    private inline fun finalizeElement(holder: Asn1ElementHolder): Asn1Element {
+    private fun finalizeElement(holder: Asn1ElementHolder): Asn1Element {
 
         return when (holder) {
             is Asn1ElementHolder.Element -> holder.element
