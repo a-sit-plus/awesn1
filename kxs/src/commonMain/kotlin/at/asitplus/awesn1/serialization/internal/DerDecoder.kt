@@ -22,7 +22,8 @@ import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.internal.AbstractPolymorphicSerializer
 
-private data class DerDecodeSlot(
+/*internal for inlining*/
+internal data class DerDecodeSlot(
     val descriptor: SerialDescriptor? = null,
     val property: DerPropertyContext? = null,
     val isTrailing: Boolean = false,
@@ -151,7 +152,7 @@ class DerDecoder internal constructor(
             depthGuard = depthGuard,
             polymorphicHandoff = handoff,
         )
-        isolated.initializeStandalonePropertyState(deserializer.descriptor)
+        isolated.currentSlot = DerDecodeSlot.standalone(deserializer.descriptor)
         isolated.decodeSerializableValue(deserializer)
     }
 
@@ -590,11 +591,6 @@ class DerDecoder internal constructor(
             )
         }
         return value
-    }
-
-    /*single call site; code is more legible like that and inline saves a stack frame*/
-    private inline fun initializeStandalonePropertyState(descriptor: SerialDescriptor) {
-        currentSlot = DerDecodeSlot.standalone(descriptor)
     }
 
     private fun List<Asn1Element>.withoutPendingDiscriminatorOid(): List<Asn1Element> {
