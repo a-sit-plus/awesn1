@@ -190,32 +190,13 @@ internal object DerValueCodec {
     }
 }
 
-private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): String =
-    if (implicitTagOverride == null) {
-        when (tag) {
-            Asn1Element.Tag.STRING_UTF8,
-            Asn1Element.Tag.STRING_BMP,
-            Asn1Element.Tag.STRING_NUMERIC,
-            Asn1Element.Tag.STRING_T61,
-            Asn1Element.Tag.STRING_VISIBLE,
-            Asn1Element.Tag.STRING_UNIVERSAL,
-            Asn1Element.Tag.STRING_PRINTABLE,
-            Asn1Element.Tag.STRING_IA5,
-                -> when (tag) {
-                    Asn1Element.Tag.STRING_BMP -> decodeToBmpString().value
-                    Asn1Element.Tag.STRING_UNIVERSAL -> decodeToUniversalString().value
-                    Asn1Element.Tag.STRING_T61 -> decodeToTeletextString().value
-                    else -> decodeToString()
-                }
-
-            else -> throw SerializationException(Asn1TagMismatchException(Asn1Element.Tag.STRING_UTF8, tag))
-        }
-    } else {
-        if (tag != implicitTagOverride) {
-            throw SerializationException(Asn1TagMismatchException(implicitTagOverride, tag))
-        }
-        String.decodeFromAsn1ContentBytes(content)
-    }
+private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): String {
+    // Kotlin String cannot carry the ASN.1 string type, so accepting a foreign one would mean re-encoding it as
+    // UTF8String and silently rewriting the wire. Use Asn1String to keep the tag, or @Asn1Tag to override it.
+    val expected = implicitTagOverride ?: Asn1Element.Tag.STRING_UTF8
+    if (tag != expected) throw SerializationException(Asn1TagMismatchException(expected, tag))
+    return if (implicitTagOverride == null) decodeToString() else String.decodeFromAsn1ContentBytes(content)
+}
 
 private fun Int.toStrictByte(): Byte =
     if (this in Byte.MIN_VALUE..Byte.MAX_VALUE) toByte()
