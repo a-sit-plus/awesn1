@@ -553,7 +553,8 @@ private fun SerialDescriptor.coreAsn1ScalarLeadingTagsOrNull(): Set<Asn1Element.
         ASN1_DESCRIPTOR_OBJECT_IDENTIFIER -> setOf(Asn1Element.Tag.OID)
         ASN1_DESCRIPTOR_INTEGER -> setOf(Asn1Element.Tag.INT)
         ASN1_DESCRIPTOR_REAL -> setOf(Asn1Element.Tag.REAL)
-        ASN1_DESCRIPTOR_STRING -> Asn1StringTags
+        // Asn1String subtypes all share this serial name; their real tag sets are declared on the
+        // serializer and reach us through asn1LeadingTagsOrNull, which is consulted before this table.
         ASN1_DESCRIPTOR_TIME -> setOf(Asn1Element.Tag.TIME_UTC, Asn1Element.Tag.TIME_GENERALIZED)
         ASN1_DESCRIPTOR_BIT_STRING -> setOf(Asn1Element.Tag.BIT_STRING)
         else -> null
