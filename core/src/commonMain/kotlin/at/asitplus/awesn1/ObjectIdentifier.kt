@@ -21,6 +21,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlin.concurrent.Volatile
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+import at.asitplus.awesn1.serialization.withDynamicAsn1LeadingTags
 
 /**
  * ASN.1 OBJECT IDENTIFIER featuring the most cursed encoding of numbers known to man, which probably surfaced due to an ungodly combination
@@ -208,6 +209,7 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
+                .withDynamicAsn1LeadingTags { leadingTags }
 
         /** maximum characters per sub-identifier when decoding from string */
         const val MAX_SUBIDENTIFIER_CHARS = 150

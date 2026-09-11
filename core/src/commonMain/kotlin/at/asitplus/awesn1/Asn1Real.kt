@@ -17,6 +17,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.math.pow
 import kotlin.math.sign
+import at.asitplus.awesn1.serialization.withDynamicAsn1LeadingTags
 
 
 private const val IEEE754_BIAS = 1023
@@ -132,6 +133,7 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
 
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_REAL, PrimitiveKind.STRING)
+                .withDynamicAsn1LeadingTags { leadingTags }
 
         /**
          * Converts a Double into an ASN.1 REAL.
