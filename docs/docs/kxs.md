@@ -584,12 +584,30 @@ DER format behaviour can be tuned with the DER builder:
 - `encodeDefaults = false`: omit default-valued properties
 - `maxInputLength = …`: maximum number of encoded DER bytes to consume before refusing to parse (enforced before
   reading from the source)
-- `maxNestingDepth = …`: typed recursion limit from 1 through 65,536 (default 32; raising it requires matching stack space)
+- `maxNestingDepth = …`: typed structural-nesting limit from 1 through 65,536 (default 32)
 
 These switches are important when you need to align with profile-specific encoding expectations or with legacy systems
 that depend on a specific wire form.
 For strict canonicality expectations in certificate ecosystems, see
 [X.509 (RFC 5280)](https://www.rfc-editor.org/rfc/rfc5280).
+
+!!! warning "Nesting depth and stack size"
+
+    Every nested typed structure counts toward `maxNestingDepth`, not only a self-reference. Fixed schemas have an
+    inherent maximum depth; self-referential `@Serializable` types are the usual way for input or an in-memory value to
+    produce arbitrary depth.
+
+    The raw ASN.1 parser and encoder are iterative, but kotlinx.serialization itself uses recursive descent. Each
+    logical level passes through generated serializer code and framework encoder/decoder callbacks, retaining several
+    call-stack frames which a serialization format cannot avoid. Consequently, a safe depth is not determined by the
+    ASN.1 model alone: it also depends on the target, runtime, compiler output, optimizations, thread stack size, and
+    existing stack use.
+
+    The default of **32** is deliberately conservative across supported platforms with ordinary stacks. Reduce it for
+    smaller or otherwise constrained thread stacks. Raise it only after exercising the complete encode/decode path on
+    every deployment target under its actual stack configuration. The accepted maximum of 65,536 is merely a
+    configuration ceiling; it is not expected to be reachable on a normal call stack. Stack exhaustion is never caught
+    or converted, so an unsafe configured limit can still fail before the guard is reached.
 
 !!! danger "Custom decoder recursion is not bounded"
 
