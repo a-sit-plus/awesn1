@@ -562,3 +562,7 @@ data class GlNullableDefaultedCollision(
     @Asn1Tag(tagNumber = 5uL) val a: Int? = null,
     @Asn1Tag(tagNumber = 5uL) val b: Int? = null,
 )
+
+/** The [Asn1String] spelling of [GlStringHolder] — tolerates any ASN.1 string type and keeps its tag. */
+@Serializable
+data class GlAsn1StringHolder(val s: at.asitplus.awesn1.Asn1String)

@@ -3,6 +3,7 @@
 ## NEXT
 * **Fixes:**
     * **Breaking:** `@Asn1Tag(tagClass = INFER)` now resolves to and validates `CONTEXT_SPECIFIC` on decode; use an explicit tag class for APPLICATION, PRIVATE, or UNIVERSAL tags.
+    * **Breaking:** a Kotlin `String`/`Char` property now maps to exactly `UTF8String` in both directions; previously it encoded as `UTF8String` but decoded eight different string types, silently rewriting the tag on re-encode. Declare `Asn1String` to tolerate and preserve any string type, a concrete subtype to require one, or `@Asn1Tag` to pin the wire tag while keeping the Kotlin type.
     * **Breaking:** a property typed as a concrete `Asn1String` subtype (`Asn1String.UTF8`, `.Printable`, `.IA5`, `.Visible`, `.Numeric`) now only accepts its own ASN.1 string tag when it carries no `@Asn1Tag` override; previously any of the twelve string tags was silently reinterpreted. Declare the `Asn1String` base type to keep tolerating a producer that picked a different string type than the spec demands.
     * Serializer-declared `leadingTags` now reach the DER format through the descriptor, so disjoint concrete string subtypes no longer collide in the ambiguity gate and `Asn1Serializable` implementations get precise layout analysis instead of "undecidable".
     * Fixed DER null and optional handling: null sentinels round-trip without swallowing data or colliding with empty values, defaulted fields are detected by tag, enum/SET tag inference is accurate, and layout checks keep distinct annotated descriptors separate.

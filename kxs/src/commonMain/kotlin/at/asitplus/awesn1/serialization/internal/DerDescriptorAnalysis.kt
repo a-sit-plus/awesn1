@@ -89,20 +89,6 @@ internal data class Asn1NullEncodingAnalysis(
             )
 }
 
-private val Asn1StringTags: Set<Asn1Element.Tag> = setOf(
-    Asn1Element.Tag.STRING_UTF8,
-    Asn1Element.Tag.STRING_BMP,
-    Asn1Element.Tag.STRING_NUMERIC,
-    Asn1Element.Tag.STRING_T61,
-    Asn1Element.Tag.STRING_VISIBLE,
-    Asn1Element.Tag.STRING_UNIVERSAL,
-    Asn1Element.Tag.STRING_PRINTABLE,
-    Asn1Element.Tag.STRING_IA5,
-    Asn1Element.Tag.STRING_GENERAL,
-    Asn1Element.Tag.STRING_GRAPHIC,
-    Asn1Element.Tag.STRING_UNRESTRICTED,
-    Asn1Element.Tag.STRING_VIDEOTEX,
-)
 private const val KotlinTimeInstantSerialName = "kotlin.time.Instant"
 
 /**
@@ -363,8 +349,11 @@ private fun possibleBaseLeadingTags(
         PrimitiveKind.FLOAT,
         PrimitiveKind.DOUBLE -> setOf(Asn1Element.Tag.REAL)
 
+        // Kotlin String/Char are the exact, convenience mapping: they encode as UTF8String and accept nothing
+        // else, because they cannot carry the wire tag and would therefore silently re-tag on re-encode.
+        // Declare Asn1String to tolerate a producer that chose another string type, or @Asn1Tag to pin one.
         PrimitiveKind.CHAR,
-        PrimitiveKind.STRING -> Asn1StringTags
+        PrimitiveKind.STRING -> setOf(Asn1Element.Tag.STRING_UTF8)
 
         SerialKind.ENUM -> setOf(Asn1Element.Tag.ENUM)
 
