@@ -19,6 +19,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlin.experimental.or
 import kotlin.jvm.JvmInline
 import kotlin.math.pow
+import at.asitplus.awesn1.serialization.withDynamicAsn1LeadingTags
 
 private val REGEX_BASE10 = Regex("[0-9]+")
 
@@ -136,6 +137,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
+                .withDynamicAsn1LeadingTags { leadingTags }
 
         val ONE by lazy { Asn1Integer.Positive(VarUInt(1u)) }
         val ZERO by lazy { Asn1Integer.Positive(VarUInt(0u)) }
