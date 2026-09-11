@@ -12,7 +12,6 @@ import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.asn1Tag
-import at.asitplus.awesn1.serialization.isAsn1BitString
 import at.asitplus.awesn1.serialization.isAsn1OctetStringEncapsulatedDescriptor
 import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.*
@@ -26,8 +25,9 @@ import kotlinx.serialization.internal.AbstractPolymorphicSerializer
 import kotlinx.serialization.modules.SerializersModule
 
 private data class DerDecodeSlot(
-    val property: DerPropertyContext,
-    val isTrailing: Boolean,
+    val descriptor: SerialDescriptor? = null,
+    val property: DerPropertyContext? = null,
+    val isTrailing: Boolean = false,
     val couldBeAbsent: Boolean = false,
     val possibleLeadingTags: Asn1LeadingTagsResolution = Asn1LeadingTagsResolution.UnknownInfer,
 ) {
@@ -38,6 +38,7 @@ private data class DerDecodeSlot(
             couldBeAbsent: Boolean,
             possibleLeadingTags: Asn1LeadingTagsResolution = Asn1LeadingTagsResolution.UnknownInfer,
         ) = DerDecodeSlot(
+            descriptor = context.propertyDescriptor,
             property = context,
             isTrailing = isTrailing,
             couldBeAbsent = couldBeAbsent,
@@ -45,14 +46,7 @@ private data class DerDecodeSlot(
         )
 
         fun standalone(descriptor: SerialDescriptor) = DerDecodeSlot(
-            property = DerPropertyContext(
-                ownerDescriptor = descriptor,
-                index = 0,
-                propertyDescriptor = descriptor,
-                propertyAsn1Tag = descriptor.annotations.asn1Tag,
-                propertyAsBitString = descriptor.isAsn1BitString,
-                propertyName = descriptor.serialName,
-            ),
+            descriptor = descriptor,
             isTrailing = true,
         )
     }
@@ -72,6 +66,13 @@ private class DerElementCursor(
 
     fun current(): Asn1Element = currentOrNull()
         ?: throw SerializationException("No ASN.1 element at index $position (have $size)")
+
+    fun take(): Asn1Element = current().also { position++ }
+
+    fun advance() {
+        current()
+        position++
+    }
 
     fun <T> consume(decode: (Asn1Element) -> T): T {
         val decoded = decode(current())
@@ -118,7 +119,7 @@ class DerDecoder internal constructor(
 
     private val cursor = DerElementCursor(elements)
     private var descriptorIndex = 0
-    private var currentSlot: DerDecodeSlot? = null
+    private var currentSlot = DerDecodeSlot()
     private val inlineHintState = DerInlineHintState()
 
 
@@ -160,9 +161,7 @@ class DerDecoder internal constructor(
 
     @OptIn(ExperimentalSerializationApi::class)
     override fun decodeInline(descriptor: SerialDescriptor): Decoder {
-        if (currentSlot == null) {
-            initializeStandalonePropertyState(descriptor)
-        }
+        currentSlot = currentSlot.copy(descriptor = descriptor)
         inlineHintState.captureInlineHintsFrom(descriptor)
         return this
     }
@@ -301,8 +300,10 @@ class DerDecoder internal constructor(
      */
     override fun decodeValue(): Any {
         val inlineAnnotation = inlineHintState.consume().tag
-        val propertyContext = requireNotNull(currentSlot).property
-        val propertyDescriptor = propertyContext.propertyDescriptor
+        val propertyContext = currentSlot.property
+        val propertyDescriptor = propertyContext?.propertyDescriptor
+            ?: currentSlot.descriptor
+            ?: throw SerializationException("No descriptor available while decoding a primitive value")
 
         return cursor.consume { processedElement ->
             val effectiveDescriptor =
@@ -338,7 +339,7 @@ class DerDecoder internal constructor(
         previousValue: T?
     ): T {
         val slot = currentSlot
-        if (slot?.couldBeAbsent == true && isCurrentNullableValueAbsent(deserializer, slot)) {
+        if (slot.couldBeAbsent && isCurrentNullableValueAbsent(deserializer, slot)) {
             return nullDecoded()
         }
         return decodeSerializableValue(deserializer)
@@ -351,6 +352,7 @@ class DerDecoder internal constructor(
         if (cursor.isAtEnd) return true
 
         val property = slot.property
+        val descriptor = property?.propertyDescriptor ?: slot.descriptor ?: deserializer.descriptor
         val inlineHints = inlineHintState.peek()
         val openSerializer = resolveOpenPolymorphicAsn1SerializerOrNull(deserializer, serializersModule)
         val tagDispatched = openSerializer is Asn1TagDiscriminatedOpenPolymorphicSerializer<*>
@@ -358,10 +360,10 @@ class DerDecoder internal constructor(
             slot.possibleLeadingTags
         } else {
             analysis.possibleLeadingTags(
-                descriptor = openSerializer?.descriptor ?: property.propertyDescriptor,
-                propertyAsn1Tag = property.propertyAsn1Tag.takeUnless { tagDispatched },
+                descriptor = openSerializer?.descriptor ?: descriptor,
+                propertyAsn1Tag = property?.propertyAsn1Tag?.takeUnless { tagDispatched },
                 inlineAsn1Tag = inlineHints.tag,
-                propertyAsBitString = property.propertyAsBitString,
+                propertyAsBitString = property?.propertyAsBitString == true,
                 inlineAsBitString = inlineHints.asBitString,
             )
         }
@@ -371,9 +373,9 @@ class DerDecoder internal constructor(
                 if (!slot.isTrailing) {
                     throw SerializationException(
                         undecidableAsn1NullableDecodingMessage(
-                            ownerSerialName = property.ownerSerialName,
-                            propertyName = property.propertyName ?: property.propertyDescriptor.serialName,
-                            propertyIndex = property.index,
+                            ownerSerialName = property?.ownerSerialName ?: descriptor.serialName,
+                            propertyName = property?.propertyName ?: descriptor.serialName,
+                            propertyIndex = property?.index ?: 0,
                             reason = expectedLeadingTags.reason(),
                         )
                     )
@@ -394,7 +396,7 @@ class DerDecoder internal constructor(
         if (cursor.size == 0 && deserializer.descriptor.isNullable) return nullDecoded()
         if (tryConsumeEncodedNull(deserializer)) return nullDecoded()
 
-        val propertyContext = currentSlot?.property
+        val propertyContext = currentSlot.property
         if (deserializer.descriptor.isInline) {
             // Let the framework do its inline-class magic **before consuming pending inline hints.**
             return deserializer.deserialize(this)
@@ -452,11 +454,12 @@ class DerDecoder internal constructor(
 
     private fun tryConsumeEncodedNull(deserializer: DeserializationStrategy<*>): Boolean {
         val element = cursor.currentOrNull() ?: return false
-        val property = currentSlot?.property
+        val property = currentSlot.property
+        val descriptor = property?.propertyDescriptor ?: currentSlot.descriptor ?: deserializer.descriptor
         val inlineHints = inlineHintState.peek()
         val propertyTag = polymorphicHandoff.inheritedPropertyTag ?: property?.propertyAsn1Tag
         val effectiveNullEncoding = analysis.analyzeNullable(
-            descriptor = property?.propertyDescriptor ?: deserializer.descriptor,
+            descriptor = descriptor,
             propertyAsn1Tag = propertyTag,
             inlineAsn1Tag = inlineHints.tag,
             propertyAsBitString = property?.propertyAsBitString == true,
@@ -492,7 +495,7 @@ class DerDecoder internal constructor(
         }
 
         inlineHintState.clear()
-        cursor.consume { Unit }
+        cursor.advance()
         return true
     }
 
@@ -520,9 +523,8 @@ class DerDecoder internal constructor(
                 depthGuard.ensureElementTreeFits(
                     processedElement, der.configuration.maxNestingDepth, deserializer.descriptor.serialName
                 )
-                return cursor.consume {
-                    castDecoded(DerValueCodec.decodeRawElement(deserializer, processedElement, expectedTag))
-                }
+                cursor.advance()
+                return castDecoded(DerValueCodec.decodeRawElement(deserializer, processedElement, expectedTag))
             }
         }
 
@@ -530,9 +532,8 @@ class DerDecoder internal constructor(
             depthGuard.ensureElementTreeFits(
                 processedElement, der.configuration.maxNestingDepth, deserializer.descriptor.serialName
             )
-            return cursor.consume {
-                castDecoded(DerValueCodec.decodeAsn1Serializable(deserializer, processedElement, expectedTag))
-            }
+            cursor.advance()
+            return castDecoded(DerValueCodec.decodeAsn1Serializable(deserializer, processedElement, expectedTag))
         }
 
         if (deserializer.descriptor.isKotlinTimeInstantDescriptor()) {
@@ -540,9 +541,8 @@ class DerDecoder internal constructor(
                 ?: throw SerializationException(
                     "Expected ASN.1 primitive for kotlin.time.Instant, but got ${processedElement::class.simpleName}"
                 )
-            return cursor.consume {
-                castDecoded(DerValueCodec.decodeInstant(primitive, expectedTag))
-            }
+            cursor.advance()
+            return castDecoded(DerValueCodec.decodeInstant(primitive, expectedTag))
         }
 
         // Tag-check for explicitly / implicitly tagged primitives
@@ -556,69 +556,56 @@ class DerDecoder internal constructor(
             }
         }
         if (deserializer == ByteArraySerializer()) {
-            return cursor.consume {
-                castDecoded(
-                    ByteArrayShapePolicy.decodeByteArray(
-                        primitive = processedElement.asPrimitive(),
-                        shape = valueSite.byteArrayShape,
-                        tagToValidate = tagToValidate,
-                    )
+            cursor.advance()
+            return castDecoded(
+                ByteArrayShapePolicy.decodeByteArray(
+                    primitive = processedElement.asPrimitive(),
+                    shape = valueSite.byteArrayShape,
+                    tagToValidate = tagToValidate,
                 )
-            }
+            )
         }
 
         if (deserializer.descriptor.kind == SerialKind.ENUM) {
-            return cursor.consume {
-                DerValueCodec.decodeEnum(deserializer, processedElement.asPrimitive(), expectedTag, serializersModule)
-            }
+            cursor.advance()
+            return DerValueCodec.decodeEnum(deserializer, processedElement.asPrimitive(), expectedTag, serializersModule)
         }
 
         // (3) Primitive kinds → let deserializer consume primitive decoder APIs.
         // This preserves custom primitive-wrapper serializers (e.g. value classes / wrappers
         // with PrimitiveSerialDescriptor) instead of short-circuiting to raw primitive values.
         if (deserializer.descriptor.kind is PrimitiveKind) {
-            if (currentSlot == null) {
-                initializeStandalonePropertyState(deserializer.descriptor)
-            }
-            val primitiveSlot = requireNotNull(currentSlot)
-            if (primitiveSlot.property.propertyAsn1Tag == null) {
-                currentSlot = primitiveSlot.copy(
-                    property = primitiveSlot.property.copy(
-                        propertyAsn1Tag = deserializer.descriptor.annotations.asn1Tag
-                    )
-                )
-            }
+            currentSlot = currentSlot.copy(descriptor = deserializer.descriptor)
             return deserializer.deserialize(this)
         }
 
 
-        return cursor.consume {
-            val childDecoder = DerDecoder(
-                elements = mutableListOf(processedElement),
-                der = der,
-                analysis = analysis,
-                depthGuard = depthGuard,
-                polymorphicHandoff = DerDecodeHandoff(discriminatorOid = polymorphicHandoff.discriminatorOid),
+        cursor.advance()
+        val childDecoder = DerDecoder(
+            elements = mutableListOf(processedElement),
+            der = der,
+            analysis = analysis,
+            depthGuard = depthGuard,
+            polymorphicHandoff = DerDecodeHandoff(discriminatorOid = polymorphicHandoff.discriminatorOid),
+        )
+        val value = deserializer.deserialize(childDecoder)
+        if (deserializer.descriptor.isKotlinSetDescriptor &&
+            value is Set<*> &&
+            value.size != processedElement.asStructure().children.size
+        ) {
+            throw SerializationException(
+                "Duplicate elements cannot be decoded into ${deserializer.descriptor.serialName} without data loss"
             )
-            val value = deserializer.deserialize(childDecoder)
-            if (deserializer.descriptor.isKotlinSetDescriptor &&
-                value is Set<*> &&
-                value.size != processedElement.asStructure().children.size
-            ) {
-                throw SerializationException(
-                    "Duplicate elements cannot be decoded into ${deserializer.descriptor.serialName} without data loss"
-                )
-            }
-            if (deserializer.descriptor.kind is StructureKind.MAP &&
-                value is Map<*, *> &&
-                value.size * 2 != processedElement.asStructure().children.size
-            ) {
-                throw SerializationException(
-                    "Duplicate keys cannot be decoded into ${deserializer.descriptor.serialName} without data loss"
-                )
-            }
-            value
         }
+        if (deserializer.descriptor.kind is StructureKind.MAP &&
+            value is Map<*, *> &&
+            value.size * 2 != processedElement.asStructure().children.size
+        ) {
+            throw SerializationException(
+                "Duplicate keys cannot be decoded into ${deserializer.descriptor.serialName} without data loss"
+            )
+        }
+        return value
     }
 
     private fun initializeStandalonePropertyState(descriptor: SerialDescriptor) {
@@ -675,7 +662,7 @@ class DerDecoder internal constructor(
         rejectAsn1TagOnChoice(
             choiceSerialName = deserializer.descriptor.serialName,
             inlineAsn1Tag = inlineAnnotation,
-            propertyAsn1Tag = currentSlot?.property?.propertyAsn1Tag,
+            propertyAsn1Tag = currentSlot.property?.propertyAsn1Tag,
             classAsn1Tag = deserializer.descriptor.asn1Tag,
         )
         val alternativesDescriptor = deserializer.descriptor.findLikelySealedAlternativesDescriptor()
