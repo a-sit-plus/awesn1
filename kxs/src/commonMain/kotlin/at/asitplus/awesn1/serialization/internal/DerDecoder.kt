@@ -13,7 +13,6 @@ import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.asn1Tag
 import at.asitplus.awesn1.serialization.isAsn1OctetStringEncapsulatedDescriptor
-import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.builtins.serializer
@@ -468,7 +467,7 @@ class DerDecoder internal constructor(
 
         if (element.isAsn1NullElement()) {
             val descriptorEncodesNull = analysis.analyzeNullable(deserializer.descriptor).encodeNullEnabled
-            val encodedNull = effectiveNullEncoding.encodeNullEnabled || descriptorEncodesNull
+            val encodedNull = effectiveNullEncoding.matchesEncodedNull(element) || descriptorEncodesNull
             if (!encodedNull) {
                 if (deserializer.descriptor.serialName.removeSuffix("?") == ASN1_DESCRIPTOR_ELEMENT_TREE) {
                     return false
@@ -477,21 +476,6 @@ class DerDecoder internal constructor(
             }
         } else {
             if (!effectiveNullEncoding.matchesEncodedNull(element)) return false
-            val template = resolveAsn1TagTemplate(
-                inlineAsn1Tag = inlineHints.tag,
-                propertyAsn1Tag = propertyTag,
-                classAsn1Tag = deserializer.descriptor.asn1Tag,
-            )
-            if (template != null) {
-                val expectedTag = Asn1Element.Tag(
-                    template.tagValue,
-                    template.constructed ?: element.tag.isConstructed,
-                    template.tagClass ?: TagClass.CONTEXT_SPECIFIC,
-                )
-                if (element.tag.tagValue != expectedTag.tagValue || element.tag.tagClass != expectedTag.tagClass) {
-                    throw SerializationException(Asn1TagMismatchException(expectedTag, element.tag))
-                }
-            }
         }
 
         inlineHintState.clear()

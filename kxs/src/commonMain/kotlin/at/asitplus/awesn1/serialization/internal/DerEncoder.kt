@@ -201,8 +201,7 @@ class DerEncoder internal constructor(
         }
         if (!nullEncodingAnalysis.encodeNullEnabled) return
 
-        val tagTemplate = tagSite(inlineHints, propertyContext, typeDescriptor = propertyDescriptor)
-        appendNullElement(propertyDescriptor, tagTemplate)
+        nullEncodingAnalysis.sentinel.write()?.let(::appendElement)
     }
 
     override fun encodeElement(descriptor: SerialDescriptor, index: Int): Boolean {
@@ -283,7 +282,7 @@ class DerEncoder internal constructor(
             valueSite.propertyContext?.let(::requireRepresentableCollectionNull)
             return
         }
-        appendNullElement(valueSite.nullAnalysisDescriptor, valueSite.tagTemplate)
+        valueSite.nullEncoding.sentinel.write()?.let(::appendElement)
     }
 
     @OptIn(InternalSerializationApi::class)
@@ -566,17 +565,4 @@ class DerEncoder internal constructor(
         }
     }
 
-    private fun appendNullElement(
-        descriptor: SerialDescriptor,
-        tagTemplate: Asn1Element.Tag.Template?,
-    ) {
-        val primitiveTaggedStructure = tagTemplate?.constructed == false && when (descriptor.kind) {
-            is StructureKind.CLASS,
-            is StructureKind.OBJECT,
-            is StructureKind.LIST,
-            is StructureKind.MAP -> true
-            else -> false
-        }
-        appendElement(Asn1.Null(), tagTemplate.takeUnless { primitiveTaggedStructure })
-    }
 }
