@@ -17,7 +17,6 @@
 
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
@@ -25,11 +24,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalStdlibApi::class)
@@ -97,16 +93,37 @@ val SerializationNullAndOptionalFindings by matrixSuite {
          * TRIGGER: explicitNulls = true, encode Holder(null), decode it back.
          * Control: the raw NULL shape (05 00), which the encoder never emits, does decode.
          */
-        "inline_nullable_null_sentinel_undecodable" {
-            val der = DER { explicitNulls = true }
+        "inline_nullable_null_sentinel_undecodable" - {
 
-            // Control (A): the raw-NULL shape decodes as null.
-            der.decodeFromByteArray<GlWrappedIntHolder>("30020500".hexToByteArray()) shouldBe
-                    GlWrappedIntHolder(null)
+            data(
+                "ExplicitNulls",
+                listOf(DER { explicitNulls = true }, DER { explicitNulls = false }),
+                nameFn = { it.configuration.explicitNulls.toString() }) - { der ->
+                "Encode null" {
+                    // Control (A): the raw-NULL shape decodes as null.
+                    val bytes = if(der.configuration.explicitNulls) "30020500" else "3000"
+                    der.decodeFromByteArray<GlWrappedIntHolder>(bytes.hexToByteArray()) shouldBe
+                            GlWrappedIntHolder(null)
+                }
+                "Decode null" {
+                    // Fault (B): the encoder's own sentinel does not.
+                    val nulled = GlWrappedIntHolder(null)
+                    der.decodeFromByteArray<GlWrappedIntHolder>(der.encodeToByteArray(nulled)) shouldBe nulled
+                }
 
-            // Fault (B): the encoder's own sentinel does not.
-            val nulled = GlWrappedIntHolder(null)
-            der.decodeFromByteArray<GlWrappedIntHolder>(der.encodeToByteArray(nulled)) shouldBe nulled
+                "RTT Zero" {
+                    // (C):int 0 works
+                    val zeroed = GlWrappedIntHolder(GlWrappedInt(0))
+                    der.decodeFromByteArray<GlWrappedIntHolder>("3003850100".hexToByteArray()) shouldBe zeroed
+                    der.decodeFromByteArray<GlWrappedIntHolder>(der.encodeToByteArray(zeroed)) shouldBe zeroed
+                }
+                "RTT One" {
+                    // (D): itn 1 works
+                    val onned = GlWrappedIntHolder(GlWrappedInt(1))
+                    der.decodeFromByteArray<GlWrappedIntHolder>("3003850101".hexToByteArray()) shouldBe onned
+                    der.decodeFromByteArray<GlWrappedIntHolder>(der.encodeToByteArray(onned)) shouldBe onned
+                }
+            }
         }
 
         /*
