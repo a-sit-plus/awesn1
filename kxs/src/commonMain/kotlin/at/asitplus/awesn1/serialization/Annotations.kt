@@ -22,7 +22,8 @@ import kotlinx.serialization.descriptors.SerialDescriptor
  *
  * @param tagNumber implicit ASN.1 tag number override
  * @param tagClass implicit ASN.1 tag-class override; defaults to [Asn1Tag.Class.CONTEXT_SPECIFIC]
- * while [Asn1Tag.Class.INFER] keeps underlying class
+ * while [Asn1Tag.Class.INFER] also resolves to [Asn1Tag.Class.CONTEXT_SPECIFIC] and only accepts
+ * that class while decoding
  * @param constructed implicit ASN.1 constructed-bit override; [Asn1Tag.ConstructedBit.INFER] keeps underlying form
  */
 @SerialInfo

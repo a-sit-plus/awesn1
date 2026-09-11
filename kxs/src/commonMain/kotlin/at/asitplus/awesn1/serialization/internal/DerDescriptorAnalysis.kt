@@ -369,10 +369,9 @@ private fun possibleBaseLeadingTags(
         SerialKind.ENUM -> setOf(Asn1Element.Tag.ENUM)
 
         is StructureKind.CLASS,
-        is StructureKind.OBJECT -> setOf(if (descriptor.isSetDescriptor) Asn1Element.Tag.SET else Asn1Element.Tag.SEQUENCE)
-
+        is StructureKind.OBJECT,
         is StructureKind.LIST,
-        is StructureKind.MAP -> setOf(if (descriptor.isSetDescriptor) Asn1Element.Tag.SET else Asn1Element.Tag.SEQUENCE)
+        is StructureKind.MAP -> setOfNotNull(descriptor.asn1StructureTag)
 
         is PolymorphicKind.OPEN -> setOf(Asn1Element.Tag.SEQUENCE)
         is PolymorphicKind.SEALED -> {
@@ -502,16 +501,30 @@ private tailrec fun SerialDescriptor.unwrapInlineDescriptor(): SerialDescriptor 
 
 private fun SerialDescriptor.asn1BaseIsConstructed(): Boolean =
     if (isAsn1OpaqueSerializerDescriptor() || isByteArrayLikeDescriptor()) false
-    else isSetDescriptor || when (kind) {
-        is StructureKind.CLASS,
-        is StructureKind.OBJECT,
-        is StructureKind.LIST,
-        is StructureKind.MAP,
+    else isSetDescriptor || asn1StructureTag != null || when (kind) {
         is PolymorphicKind.OPEN,
         is PolymorphicKind.SEALED -> true
 
         else -> false
     }
+
+private val SerialDescriptor.isAsn1StructureKind: Boolean
+    get() = kind is StructureKind.CLASS || kind is StructureKind.OBJECT ||
+            kind is StructureKind.LIST || kind is StructureKind.MAP
+
+internal val SerialDescriptor.asn1StructureTag: Asn1Element.Tag?
+    get() = if (!isAsn1StructureKind) null
+    else if (isSetDescriptor) Asn1Element.Tag.SET else Asn1Element.Tag.SEQUENCE
+
+/** Expected universal tag for the primitive/structure value path; null keeps primitive validation in decodeValue. */
+internal fun expectedUniversalTag(
+    descriptor: SerialDescriptor,
+    byteArrayShape: ByteArrayShape,
+): Asn1Element.Tag? = when (byteArrayShape) {
+    ByteArrayShape.BIT_STRING -> Asn1Element.Tag.BIT_STRING
+    ByteArrayShape.OCTET_STRING -> Asn1Element.Tag.OCTET_STRING
+    ByteArrayShape.NOT_APPLICABLE -> descriptor.asn1StructureTag
+}
 
 private fun SerialDescriptor.asn1BaseCanEncodeEmptyContent(isBitString: Boolean): Boolean {
     coreAsn1BaseCanEncodeEmptyContentOrNull()?.let { return it }
