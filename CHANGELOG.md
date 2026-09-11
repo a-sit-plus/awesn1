@@ -2,6 +2,7 @@
 
 ## NEXT
 * **Fixes:**
+    * **Breaking:** `@Asn1Tag(tagClass = INFER)` now resolves to and validates `CONTEXT_SPECIFIC` on decode; use an explicit tag class for APPLICATION, PRIVATE, or UNIVERSAL tags.
     * Fixed DER null and optional handling: null sentinels round-trip without swallowing data or colliding with empty values, defaulted fields are detected by tag, enum/SET tag inference is accurate, and layout checks keep distinct annotated descriptors separate.
     * Fixed tag-discriminated open polymorphism to emit registered subtype tags, preserve them through enclosing properties, resolve nullable/nested dispatch correctly, and avoid leaking tag state to later fields.
     * Fixed OID-discriminated open polymorphism to prefer exact subtype registrations, emit the registered discriminator, survive canonical SET sorting, and reject non-leading selectors that cannot be decoded losslessly.

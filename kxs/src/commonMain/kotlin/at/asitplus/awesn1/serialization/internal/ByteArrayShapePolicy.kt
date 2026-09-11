@@ -13,7 +13,6 @@ import at.asitplus.awesn1.serialization.isAsn1BitStringCompatibleDescriptor
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.descriptors.StructureKind
 
 internal enum class ByteArrayShape {
     OCTET_STRING,
@@ -101,19 +100,4 @@ internal object ByteArrayShapePolicy {
         ByteArrayShape.NOT_APPLICABLE -> throw SerializationException("Byte-array shape is not applicable")
     }
 
-    fun defaultTagForDescriptor(
-        descriptor: SerialDescriptor,
-        byteArrayShape: ByteArrayShape,
-    ): Asn1Element.Tag? =
-        if (descriptor.isSetDescriptor) Asn1Element.Tag.SET
-        else when (byteArrayShape) {
-            ByteArrayShape.BIT_STRING -> Asn1Element.Tag.BIT_STRING
-            ByteArrayShape.OCTET_STRING -> Asn1Element.Tag.OCTET_STRING
-            ByteArrayShape.NOT_APPLICABLE -> when (descriptor.kind) {
-                is StructureKind.CLASS, is StructureKind.OBJECT -> Asn1Element.Tag.SEQUENCE
-                is StructureKind.LIST -> Asn1Element.Tag.SEQUENCE
-                is StructureKind.MAP -> Asn1Element.Tag.SEQUENCE
-                else -> null // primitive tags validated in decodeValue()
-            }
-        }
 }
