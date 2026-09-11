@@ -8,10 +8,10 @@ package at.asitplus.awesn1.serialization.internal
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1TagMismatchException
+import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Asn1OpenPolymorphicWithDefaultSerializer
 import at.asitplus.awesn1.serialization.asn1Tag
-import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerializationException
@@ -153,33 +153,16 @@ internal fun Decoder.requireDerDecoder(serializerName: String): DerDecoder {
     return this
 }
 
-/**
- * Applies effective implicit tag override and validates [actualTag] against it.
- *
- * Returns `null` when no override is effective.
- *
- * @throws SerializationException if [actualTag] does not match the resolved implicit override
- */
+/** Applies the value-path implicit tag rule and validates [actual] against it. */
 @Throws(SerializationException::class)
-internal fun validateAndResolveImplicitTagOverride(
-    actualTag: Asn1Element.Tag,
-    inlineAsn1Tag: Asn1Tag? = null,
-    propertyAsn1Tag: Asn1Tag? = null,
-    classAsn1Tag: Asn1Tag? = null,
-): Asn1Element.Tag? {
-    val tagTemplate = resolveAsn1TagTemplate(
-        inlineAsn1Tag = inlineAsn1Tag,
-        propertyAsn1Tag = propertyAsn1Tag,
-        classAsn1Tag = classAsn1Tag,
-    ) ?: return null
-
+internal fun Asn1Element.Tag.Template.resolveAgainst(actual: Asn1Element.Tag): Asn1Element.Tag {
     val expectedTag = Asn1Element.Tag(
-        tagValue = tagTemplate.tagValue,
-        tagClass = tagTemplate.tagClass ?: actualTag.tagClass,
-        constructed = tagTemplate.constructed ?: actualTag.isConstructed,
+        tagValue = tagValue,
+        tagClass = tagClass ?: TagClass.CONTEXT_SPECIFIC,
+        constructed = constructed ?: actual.isConstructed,
     )
-    if (actualTag != expectedTag) {
-        throw SerializationException(Asn1TagMismatchException(expectedTag, actualTag))
+    if (actual != expectedTag) {
+        throw SerializationException(Asn1TagMismatchException(expectedTag, actual))
     }
     return expectedTag
 }
