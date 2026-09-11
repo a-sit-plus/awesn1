@@ -3,6 +3,8 @@
 ## NEXT
 * **Fixes:**
     * **Breaking:** `@Asn1Tag(tagClass = INFER)` now resolves to and validates `CONTEXT_SPECIFIC` on decode; use an explicit tag class for APPLICATION, PRIVATE, or UNIVERSAL tags.
+    * **Breaking:** a property typed as a concrete `Asn1String` subtype (`Asn1String.UTF8`, `.Printable`, `.IA5`, `.Visible`, `.Numeric`) now only accepts its own ASN.1 string tag when it carries no `@Asn1Tag` override; previously any of the twelve string tags was silently reinterpreted. Declare the `Asn1String` base type to keep tolerating a producer that picked a different string type than the spec demands.
+    * Serializer-declared `leadingTags` now reach the DER format through the descriptor, so disjoint concrete string subtypes no longer collide in the ambiguity gate and `Asn1Serializable` implementations get precise layout analysis instead of "undecidable".
     * Fixed DER null and optional handling: null sentinels round-trip without swallowing data or colliding with empty values, defaulted fields are detected by tag, enum/SET tag inference is accurate, and layout checks keep distinct annotated descriptors separate.
     * Fixed tag-discriminated open polymorphism to emit registered subtype tags, preserve them through enclosing properties, resolve nullable/nested dispatch correctly, and avoid leaking tag state to later fields.
     * Fixed OID-discriminated open polymorphism to prefer exact subtype registrations, emit the registered discriminator, survive canonical SET sorting, and reject non-leading selectors that cannot be decoded losslessly.
