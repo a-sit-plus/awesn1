@@ -75,10 +75,15 @@ Decode/parse paths run inside `runRethrowing`/`runWrappingAs`, which catch non-f
 ### Bounded Depth and Collection Sizes
 
 - `kxs` shares a `DerDepthGuard` between `DerDecoder`/`DerEncoder` that throws `SerializationException` past
-  `DerConfiguration.maxNestingDepth` (default **32**, maximum **65,536**). Built-in ASN.1 element trees are checked
-  iteratively on both encode and decode. Raising the limit is supported for runtimes provisioned with a matching stack;
-  choosing a value beyond the available stack will still cause an SoE.
-  Adjusting this value based on platform stack limits remains the caller's responsibility.
+  `DerConfiguration.maxNestingDepth` (default **32**, configuration maximum **65,536**). It counts every nested typed
+  structure, although self-referential `@Serializable` types are what usually make depth attacker-controlled. Built-in
+  ASN.1 element trees are checked iteratively on both encode and decode.
+- The typed path cannot be made fully iterative: kotlinx.serialization's generated serializers and encoder/decoder
+  callbacks retain several call-stack frames for every logical nesting level. The exact cost varies by target, compiler,
+  optimization, and surrounding call path. The default of 32 is therefore intentionally conservative across ordinary
+  supported-runtime stacks. Applications using smaller or constrained thread stacks should lower it. Raise it only
+  after testing the complete path on every deployment environment; 65,536 is a configuration ceiling, not a safe or
+  generally reachable stack depth.
 - A `MAX_COLLECTION_SIZE` guard (`Int.MAX_VALUE - 8`, checked per append) turns an overfull child list into a catchable
   `Asn1Exception`. This is an addressability backstop, **not** a heap-DoS defense — see input bounding below.
 
