@@ -15,6 +15,7 @@ import at.asitplus.awesn1.ASN1_DESCRIPTOR_REAL
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_STRING
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_TIME
 import at.asitplus.awesn1.TagClass
+import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.asn1LeadingTagsOrNull
 import at.asitplus.awesn1.serialization.asn1Tag
@@ -28,56 +29,71 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.descriptors.StructureKind
 
-private data class Asn1FieldShape(
+internal sealed interface Asn1Presence {
+    data object Required : Asn1Presence
+    data object Defaulted : Asn1Presence
+    data object OmittedWhenNull : Asn1Presence
+    data object SentinelWhenNull : Asn1Presence
+}
+
+/** Descriptor-derived wire shape used by DER layout analysis. */
+internal data class Asn1FieldShape(
     val index: Int,
     val name: String,
-    val omittable: Boolean,
+    val presence: Asn1Presence,
+    val defaulted: Boolean,
     val possibleLeadingTags: Asn1LeadingTagsResolution,
-)
+) {
+    /** Whether this field may be omitted for either independent reason. */
+    val canBeOmitted: Boolean
+        get() = defaulted || presence is Asn1Presence.OmittedWhenNull
+}
+
+internal class Asn1StructureShape(
+    val fields: List<Asn1FieldShape>,
+) {
+    var choiceDispatch: Asn1TagDiscriminatedDispatch<*>? = null
+}
 
 internal sealed interface Asn1LeadingTagsResolution {
     data class Exact(val tags: Set<Asn1Element.Tag>) : Asn1LeadingTagsResolution
     data object UnknownInfer : Asn1LeadingTagsResolution
 }
 
+internal sealed interface Asn1NullSentinel {
+    data object Absent : Asn1NullSentinel
+    data object RawNull : Asn1NullSentinel
+    data class Tagged(val tag: Asn1Element.Tag) : Asn1NullSentinel
+
+    fun write(): Asn1Element? = when (this) {
+        Absent -> null
+        RawNull -> Asn1.Null()
+        is Tagged -> Asn1.Null() withImplicitTag tag
+    }
+
+    fun matches(element: Asn1Element): Boolean = when (this) {
+        Absent -> false
+        RawNull -> element.isAsn1NullElement()
+        is Tagged -> element.isAsn1NullElement() || element.tag == tag && element.contentLength == 0
+    }
+}
+
 internal data class Asn1NullEncodingAnalysis(
-    val encodeNullEnabled: Boolean,
-    val usesImplicitNullSentinel: Boolean,
+    val sentinel: Asn1NullSentinel,
     val baseIsConstructed: Boolean,
     val baseCanEncodeEmptyContent: Boolean,
 ) {
+    val encodeNullEnabled: Boolean
+        get() = sentinel !is Asn1NullSentinel.Absent
+
     val isAmbiguous: Boolean
-        get() = encodeNullEnabled &&
-                usesImplicitNullSentinel &&
+        get() = sentinel is Asn1NullSentinel.Tagged &&
                 !baseIsConstructed &&
                 baseCanEncodeEmptyContent
 
-    val canDecodeNullByZeroLength: Boolean
-        get() = encodeNullEnabled &&
-                usesImplicitNullSentinel &&
-                !baseIsConstructed &&
-                !baseCanEncodeEmptyContent
-
-    val canDecodeNullByConstructedBit: Boolean
-        get() = encodeNullEnabled &&
-                usesImplicitNullSentinel &&
-                baseIsConstructed
+    fun matchesEncodedNull(element: Asn1Element): Boolean = sentinel.matches(element)
 }
 
-private val Asn1StringTags: Set<Asn1Element.Tag> = setOf(
-    Asn1Element.Tag.STRING_UTF8,
-    Asn1Element.Tag.STRING_BMP,
-    Asn1Element.Tag.STRING_NUMERIC,
-    Asn1Element.Tag.STRING_T61,
-    Asn1Element.Tag.STRING_VISIBLE,
-    Asn1Element.Tag.STRING_UNIVERSAL,
-    Asn1Element.Tag.STRING_PRINTABLE,
-    Asn1Element.Tag.STRING_IA5,
-    Asn1Element.Tag.STRING_GENERAL,
-    Asn1Element.Tag.STRING_GRAPHIC,
-    Asn1Element.Tag.STRING_UNRESTRICTED,
-    Asn1Element.Tag.STRING_VIDEOTEX,
-)
 private const val KotlinTimeInstantSerialName = "kotlin.time.Instant"
 
 /**
@@ -88,8 +104,8 @@ private const val KotlinTimeInstantSerialName = "kotlin.time.Instant"
 @Throws(SerializationException::class)
 internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
     formatExplicitNulls: Boolean = false,
-) {
-    if (kind !is StructureKind.CLASS && kind !is StructureKind.OBJECT) return
+): Asn1StructureShape {
+    if (kind !is StructureKind.CLASS && kind !is StructureKind.OBJECT) return Asn1StructureShape(emptyList())
 
     val fields = (0 until elementsCount).map { index ->
         val fieldDescriptor = getElementDescriptor(index)
@@ -110,13 +126,21 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
             )
         }
 
-        val omittableByNull = fieldDescriptor.isNullable &&
-                !nullEncodingAnalysis.encodeNullEnabled
-        val omittable = omittableByNull || isElementOptional(index)
+        val presence = when {
+            fieldDescriptor.isNullable -> if (nullEncodingAnalysis.encodeNullEnabled) {
+                Asn1Presence.SentinelWhenNull
+            } else {
+                Asn1Presence.OmittedWhenNull
+            }
+
+            isElementOptional(index) -> Asn1Presence.Defaulted
+            else -> Asn1Presence.Required
+        }
         Asn1FieldShape(
             index = index,
             name = getElementName(index),
-            omittable = omittable,
+            presence = presence,
+            defaulted = isElementOptional(index),
             possibleLeadingTags = possibleLeadingTags(
                 descriptor = fieldDescriptor,
                 propertyAsn1Tag = propertyAsn1Tag,
@@ -127,7 +151,7 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
 
     for (start in fields.indices) {
         val nullableOrOptionalField = fields[start]
-        if (!nullableOrOptionalField.omittable) continue
+        if (!nullableOrOptionalField.canBeOmitted) continue
 
         if (start < fields.lastIndex && nullableOrOptionalField.possibleLeadingTags !is Asn1LeadingTagsResolution.Exact) {
             throw SerializationException(
@@ -146,7 +170,7 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
         var allSkippedFieldsAreOmittable = true
         for (candidate in (start + 1) until fields.size) {
             allSkippedFieldsAreOmittable =
-                allSkippedFieldsAreOmittable && fields[candidate - 1].omittable
+                allSkippedFieldsAreOmittable && fields[candidate - 1].canBeOmitted
             if (!allSkippedFieldsAreOmittable) break
 
             val candidateField = fields[candidate]
@@ -174,6 +198,8 @@ internal fun SerialDescriptor.ensureNoAsn1AmbiguousOptionalLayout(
             }
         }
     }
+
+    return Asn1StructureShape(fields)
 }
 
 /**
@@ -189,8 +215,7 @@ internal fun SerialDescriptor.analyzeAsn1NullableNullEncoding(
     val encodeNullEnabled = isNullable && formatExplicitNulls
     if (!encodeNullEnabled) {
         return Asn1NullEncodingAnalysis(
-            encodeNullEnabled = false,
-            usesImplicitNullSentinel = false,
+            sentinel = Asn1NullSentinel.Absent,
             baseIsConstructed = false,
             baseCanEncodeEmptyContent = false,
         )
@@ -204,8 +229,7 @@ internal fun SerialDescriptor.analyzeAsn1NullableNullEncoding(
     val usesImplicitNullSentinel = tagTemplate != null
     if (!usesImplicitNullSentinel) {
         return Asn1NullEncodingAnalysis(
-            encodeNullEnabled = true,
-            usesImplicitNullSentinel = false,
+            sentinel = Asn1NullSentinel.RawNull,
             baseIsConstructed = false,
             baseCanEncodeEmptyContent = false,
         )
@@ -219,10 +243,21 @@ internal fun SerialDescriptor.analyzeAsn1NullableNullEncoding(
 
     val baseIsConstructed = tagTemplate.constructed ?: unwrapped.asn1BaseIsConstructed()
     val baseCanEncodeEmptyContent = unwrapped.asn1BaseCanEncodeEmptyContent(isBitString)
+    val primitiveTaggedStructure = tagTemplate.constructed == false && when (kind) {
+        is StructureKind.CLASS,
+        is StructureKind.OBJECT,
+        is StructureKind.LIST,
+        is StructureKind.MAP -> true
+        else -> false
+    }
+    val sentinel = if (primitiveTaggedStructure) {
+        Asn1NullSentinel.RawNull
+    } else {
+        Asn1NullSentinel.Tagged((Asn1.Null() withImplicitTag tagTemplate).tag)
+    }
 
     return Asn1NullEncodingAnalysis(
-        encodeNullEnabled = true,
-        usesImplicitNullSentinel = true,
+        sentinel = sentinel,
         baseIsConstructed = baseIsConstructed,
         baseCanEncodeEmptyContent = baseCanEncodeEmptyContent,
     )
@@ -295,9 +330,6 @@ private fun possibleBaseLeadingTags(
         )
     }
 
-    descriptor.coreAsn1ScalarLeadingTagsOrNull()?.let {
-        return Asn1LeadingTagsResolution.Exact(it)
-    }
 
     if (descriptor.isAsn1OpaqueSerializerDescriptor()) {
         return Asn1LeadingTagsResolution.UnknownInfer
@@ -328,16 +360,18 @@ private fun possibleBaseLeadingTags(
         PrimitiveKind.FLOAT,
         PrimitiveKind.DOUBLE -> setOf(Asn1Element.Tag.REAL)
 
+        // Kotlin String/Char are the exact, convenience mapping: they encode as UTF8String and accept nothing
+        // else, because they cannot carry the wire tag and would therefore silently re-tag on re-encode.
+        // Declare Asn1String to tolerate a producer that chose another string type, or @Asn1Tag to pin one.
         PrimitiveKind.CHAR,
-        PrimitiveKind.STRING -> Asn1StringTags
+        PrimitiveKind.STRING -> setOf(Asn1Element.Tag.STRING_UTF8)
 
         SerialKind.ENUM -> setOf(Asn1Element.Tag.ENUM)
 
         is StructureKind.CLASS,
-        is StructureKind.OBJECT -> setOf(if (descriptor.isSetDescriptor) Asn1Element.Tag.SET else Asn1Element.Tag.SEQUENCE)
-
+        is StructureKind.OBJECT,
         is StructureKind.LIST,
-        is StructureKind.MAP -> setOf(if (descriptor.isSetDescriptor) Asn1Element.Tag.SET else Asn1Element.Tag.SEQUENCE)
+        is StructureKind.MAP -> setOfNotNull(descriptor.asn1StructureTag)
 
         is PolymorphicKind.OPEN -> setOf(Asn1Element.Tag.SEQUENCE)
         is PolymorphicKind.SEALED -> {
@@ -467,16 +501,30 @@ private tailrec fun SerialDescriptor.unwrapInlineDescriptor(): SerialDescriptor 
 
 private fun SerialDescriptor.asn1BaseIsConstructed(): Boolean =
     if (isAsn1OpaqueSerializerDescriptor() || isByteArrayLikeDescriptor()) false
-    else isSetDescriptor || when (kind) {
-        is StructureKind.CLASS,
-        is StructureKind.OBJECT,
-        is StructureKind.LIST,
-        is StructureKind.MAP,
+    else isSetDescriptor || asn1StructureTag != null || when (kind) {
         is PolymorphicKind.OPEN,
         is PolymorphicKind.SEALED -> true
 
         else -> false
     }
+
+private val SerialDescriptor.isAsn1StructureKind: Boolean
+    get() = kind is StructureKind.CLASS || kind is StructureKind.OBJECT ||
+            kind is StructureKind.LIST || kind is StructureKind.MAP
+
+internal val SerialDescriptor.asn1StructureTag: Asn1Element.Tag?
+    get() = if (!isAsn1StructureKind) null
+    else if (isSetDescriptor) Asn1Element.Tag.SET else Asn1Element.Tag.SEQUENCE
+
+/** Expected universal tag for the primitive/structure value path; null keeps primitive validation in decodeValue. */
+internal fun expectedUniversalTag(
+    descriptor: SerialDescriptor,
+    byteArrayShape: ByteArrayShape,
+): Asn1Element.Tag? = when (byteArrayShape) {
+    ByteArrayShape.BIT_STRING -> Asn1Element.Tag.BIT_STRING
+    ByteArrayShape.OCTET_STRING -> Asn1Element.Tag.OCTET_STRING
+    ByteArrayShape.NOT_APPLICABLE -> descriptor.asn1StructureTag
+}
 
 private fun SerialDescriptor.asn1BaseCanEncodeEmptyContent(isBitString: Boolean): Boolean {
     coreAsn1BaseCanEncodeEmptyContentOrNull()?.let { return it }
@@ -500,18 +548,11 @@ private fun SerialDescriptor.isAsn1OpaqueSerializerDescriptor(): Boolean {
 internal fun SerialDescriptor.isKotlinTimeInstantDescriptor(): Boolean =
     serialName.removeSuffix("?") == KotlinTimeInstantSerialName
 
-private fun SerialDescriptor.coreAsn1ScalarLeadingTagsOrNull(): Set<Asn1Element.Tag>? {
-    return when (serialName.removeSuffix("?")) {
-        ASN1_DESCRIPTOR_OBJECT_IDENTIFIER -> setOf(Asn1Element.Tag.OID)
-        ASN1_DESCRIPTOR_INTEGER -> setOf(Asn1Element.Tag.INT)
-        ASN1_DESCRIPTOR_REAL -> setOf(Asn1Element.Tag.REAL)
-        ASN1_DESCRIPTOR_STRING -> Asn1StringTags
-        ASN1_DESCRIPTOR_TIME -> setOf(Asn1Element.Tag.TIME_UTC, Asn1Element.Tag.TIME_GENERALIZED)
-        ASN1_DESCRIPTOR_BIT_STRING -> setOf(Asn1Element.Tag.BIT_STRING)
-        else -> null
-    }
-}
 
+// Unlike leading tags, "can this type encode zero content octets" is not declared anywhere in core — this table is
+// its only definition, so there is nothing here to deduplicate. Moving it would mean inventing a new public member on
+// Asn1Serializable plus a second descriptor annotation channel: ~40 new lines of core API to delete 10 lines here, for
+// a fact with no observed disagreement. Kept deliberately; revisit only if a core type's answer ever becomes dynamic.
 private fun SerialDescriptor.coreAsn1BaseCanEncodeEmptyContentOrNull(): Boolean? {
     return when (serialName.removeSuffix("?")) {
         ASN1_DESCRIPTOR_OBJECT_IDENTIFIER -> false

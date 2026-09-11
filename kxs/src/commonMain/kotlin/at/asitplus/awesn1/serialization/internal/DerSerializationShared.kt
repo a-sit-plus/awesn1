@@ -8,15 +8,10 @@ package at.asitplus.awesn1.serialization.internal
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1TagMismatchException
-import at.asitplus.awesn1.ASN1_DESCRIPTOR_ELEMENT_TREE
 import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Asn1OpenPolymorphicWithDefaultSerializer
 import at.asitplus.awesn1.serialization.asn1Tag
-import at.asitplus.awesn1.serialization.isAsn1BitString
-import at.asitplus.awesn1.serialization.isAsn1ExplicitWrapperDescriptor
-import at.asitplus.awesn1.serialization.isSealed
-import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerializationException
@@ -30,88 +25,6 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.internal.AbstractPolymorphicSerializer
 import kotlinx.serialization.modules.SerializersModule
-
-/**
- * Inline annotation hints captured by [DerEncoder]/[DerDecoder] from [SerialDescriptor]s.
- */
-internal data class DerInlineHints(
-    val tag: Asn1Tag?,
-    val asBitString: Boolean,
-)
-
-internal data class DerPropertyContext(
-    val ownerDescriptor: SerialDescriptor,
-    val index: Int,
-    val propertyDescriptor: SerialDescriptor,
-    val propertyAsn1Tag: Asn1Tag?,
-    val propertyAsBitString: Boolean,
-    val propertyName: String?,
-) {
-    val ownerSerialName: String
-        get() = ownerDescriptor.serialName
-}
-
-/**
- * Mutable holder for pending inline hints with explicit consume/peek semantics.
- */
-internal class DerInlineHintState {
-    private var inlineAsn1Tag: Asn1Tag? = null
-    private var inlineAsBitString: Boolean = false
-
-    /**
-     * Captures inline ASN.1 hints from [descriptor] for later consumption.
-     */
-    fun captureInlineHintsFrom(descriptor: SerialDescriptor) {
-        descriptor.requireNoAsn1TagOnInlineBackingProperty()
-        inlineAsn1Tag = inlineAsn1Tag ?: descriptor.annotations.asn1Tag
-        inlineAsBitString = inlineAsBitString || descriptor.isAsn1BitString
-    }
-
-    /**
-     * Returns currently pending inline hints without consuming them.
-     */
-    fun peek(): DerInlineHints = DerInlineHints(
-        tag = inlineAsn1Tag,
-        asBitString = inlineAsBitString,
-    )
-
-    /**
-     * Returns currently pending inline hints and resets internal state.
-     */
-    fun consume(): DerInlineHints = peek().also {
-        inlineAsn1Tag = null
-        inlineAsBitString = false
-    }
-}
-
-/**
- * Resolves property-level ASN.1 context from a `(descriptor, index)` pair.
- *
- * @throws IndexOutOfBoundsException when [safePropertyNameLookup] is false and [index] is outside descriptor bounds
- */
-@Throws(IndexOutOfBoundsException::class)
-internal fun Pair<SerialDescriptor, Int>.toDerPropertyContext(
-    safePropertyNameLookup: Boolean = false,
-): DerPropertyContext {
-    val (ownerDescriptor, index) = this
-    val propertyName = if (safePropertyNameLookup) {
-        runCatching { ownerDescriptor.getElementName(index) }.getOrNull()
-    } else {
-        ownerDescriptor.getElementName(index)
-    }
-    return DerPropertyContext(
-        ownerDescriptor = ownerDescriptor,
-        index = index,
-        propertyDescriptor = ownerDescriptor.getElementDescriptor(index),
-        propertyAsn1Tag = ownerDescriptor.asn1Tag(index),
-        propertyAsBitString = ownerDescriptor.isAsn1BitString(index),
-        propertyName = propertyName,
-    )
-}
-
-internal fun isAsn1ChoiceRequested(
-    descriptor: SerialDescriptor,
-): Boolean = descriptor.isSealed
 
 private val byteArrayDescriptor = ByteArraySerializer().descriptor
 private val byteArraySerialName = byteArrayDescriptor.serialName.removeSuffix("?")
@@ -240,133 +153,18 @@ internal fun Decoder.requireDerDecoder(serializerName: String): DerDecoder {
     return this
 }
 
-/**
- * Applies effective implicit tag override and validates [actualTag] against it.
- *
- * Returns `null` when no override is effective.
- *
- * @throws SerializationException if [actualTag] does not match the resolved implicit override
- */
+/** Applies the value-path implicit tag rule and validates [actual] against it. */
 @Throws(SerializationException::class)
-internal fun validateAndResolveImplicitTagOverride(
-    actualTag: Asn1Element.Tag,
-    inlineAsn1Tag: Asn1Tag? = null,
-    propertyAsn1Tag: Asn1Tag? = null,
-    classAsn1Tag: Asn1Tag? = null,
-): Asn1Element.Tag? {
-    val tagTemplate = resolveAsn1TagTemplate(
-        inlineAsn1Tag = inlineAsn1Tag,
-        propertyAsn1Tag = propertyAsn1Tag,
-        classAsn1Tag = classAsn1Tag,
-    ) ?: return null
-
+internal fun Asn1Element.Tag.Template.resolveAgainst(actual: Asn1Element.Tag): Asn1Element.Tag {
     val expectedTag = Asn1Element.Tag(
-        tagValue = tagTemplate.tagValue,
-        tagClass = tagTemplate.tagClass ?: actualTag.tagClass,
-        constructed = tagTemplate.constructed ?: actualTag.isConstructed,
+        tagValue = tagValue,
+        tagClass = tagClass ?: TagClass.CONTEXT_SPECIFIC,
+        constructed = constructed ?: actual.isConstructed,
     )
-    if (actualTag != expectedTag) {
-        throw SerializationException(Asn1TagMismatchException(expectedTag, actualTag))
+    if (actual != expectedTag) {
+        throw SerializationException(Asn1TagMismatchException(expectedTag, actual))
     }
     return expectedTag
-}
-
-/**
- * Validates [at.asitplus.awesn1.serialization.ExplicitlyTagged] wrapper tag requirements at the current location.
- *
- * @throws SerializationException if no effective tag override exists or if override is not
- * CONTEXT_SPECIFIC + CONSTRUCTED
- */
-@Throws(SerializationException::class)
-internal fun requireAsn1ExplicitWrapperTag(
-    descriptor: SerialDescriptor,
-    tagTemplate: Asn1Element.Tag.Template?,
-    ownerSerialName: String,
-    propertyName: String? = null,
-    propertyIndex: Int? = null,
-) {
-    if (!descriptor.isAsn1ExplicitWrapperDescriptor()) return
-    val location = if (propertyName != null && propertyIndex != null) {
-        "property '$propertyName' (index $propertyIndex) in $ownerSerialName"
-    } else {
-        ownerSerialName
-    }
-    if (tagTemplate == null) {
-        throw SerializationException(
-            "ExplicitlyTagged requires an implicit tag override at $location. " +
-                    "Provide @Asn1Tag(tagNumber=..., tagClass=CONTEXT_SPECIFIC, constructed=CONSTRUCTED)."
-        )
-    }
-    val effectiveClass = tagTemplate.tagClass ?: TagClass.UNIVERSAL
-    val effectiveConstructed = tagTemplate.constructed ?: true
-    if (effectiveClass != TagClass.CONTEXT_SPECIFIC || !effectiveConstructed) {
-        throw SerializationException(
-            "ExplicitlyTagged requires CONTEXT_SPECIFIC + CONSTRUCTED tag at $location, " +
-                    "but effective override is class=$effectiveClass, constructed=$effectiveConstructed."
-        )
-    }
-}
-
-@Throws(SerializationException::class)
-internal fun requireNoAsn1TagOnRawElement(
-    descriptor: SerialDescriptor,
-    inlineAsn1Tag: Asn1Tag? = null,
-    propertyAsn1Tag: Asn1Tag? = null,
-    classAsn1Tag: Asn1Tag? = null,
-    ownerSerialName: String,
-    propertyName: String? = null,
-    propertyIndex: Int? = null,
-) {
-    val normalizedSerialName = descriptor.serialName.removeSuffix("?")
-    if (normalizedSerialName != ASN1_DESCRIPTOR_ELEMENT_TREE) return
-
-    val tagTemplate = resolveAsn1TagTemplate(
-        inlineAsn1Tag = inlineAsn1Tag,
-        propertyAsn1Tag = propertyAsn1Tag,
-        classAsn1Tag = classAsn1Tag,
-    ) ?: return
-
-    val location = if (propertyName != null && propertyIndex != null) {
-        "property '$propertyName' (index $propertyIndex) in $ownerSerialName"
-    } else {
-        ownerSerialName
-    }
-    throw SerializationException(
-        "Raw Asn1Element must not use @Asn1Tag at $location. " +
-                "Remove the tag override or use a strongly typed value/wrapper instead. " +
-                "Resolved tag override was $tagTemplate."
-    )
-}
-
-@Throws(SerializationException::class)
-internal fun requireNoAsn1TagOnGenericAsn1String(
-    isGenericAsn1StringSerializer: Boolean,
-    descriptor: SerialDescriptor,
-    inlineAsn1Tag: Asn1Tag? = null,
-    propertyAsn1Tag: Asn1Tag? = null,
-    classAsn1Tag: Asn1Tag? = null,
-    ownerSerialName: String,
-    propertyName: String? = null,
-    propertyIndex: Int? = null,
-) {
-    if (!isGenericAsn1StringSerializer) return
-
-    val tagTemplate = resolveAsn1TagTemplate(
-        inlineAsn1Tag = inlineAsn1Tag,
-        propertyAsn1Tag = propertyAsn1Tag,
-        classAsn1Tag = classAsn1Tag,
-    ) ?: return
-
-    val location = if (propertyName != null && propertyIndex != null) {
-        "property '$propertyName' (index $propertyIndex) in $ownerSerialName"
-    } else {
-        ownerSerialName
-    }
-    throw SerializationException(
-        "Generic ${descriptor.serialName} must not use @Asn1Tag at $location. " +
-            "Use a concrete Asn1String subtype or wrap the tagged value in a dedicated value class instead. " +
-            "Resolved tag override was $tagTemplate."
-    )
 }
 
 internal fun Asn1Element.isAsn1NullElement(): Boolean =

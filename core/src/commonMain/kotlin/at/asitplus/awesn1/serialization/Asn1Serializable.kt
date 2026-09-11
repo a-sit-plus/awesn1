@@ -47,6 +47,7 @@ interface Asn1Serializable<A : Asn1Element, T : Asn1Encodable<A>> :
 
     override val descriptor: SerialDescriptor
         get() = SerialDescriptor(ASN1_DESCRIPTOR_OPAQUE, ByteArraySerializer().descriptor)
+            .withDynamicAsn1LeadingTags { leadingTags }
 
     /**
      * Decodes one ASN.1-backed value via DER bytes.

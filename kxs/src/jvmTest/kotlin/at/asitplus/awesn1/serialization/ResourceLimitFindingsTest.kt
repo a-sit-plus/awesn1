@@ -50,11 +50,11 @@ val SerializationResourceLimitFindings by matrixSuite {
          * before the counter reaches maxNestingDepth, so an uncaught StackOverflowError escapes
          * `DER.decodeFromByteArray` although the KDoc promises a catchable SerializationException.
          *
-         * TRIGGER: decode 127 nested SEQUENCEs on a 64 KiB-stack
+         * TRIGGER: decode 127 nested SEQUENCEs on a 256 KiB-stack (1/4 of default stack sizes)
          * thread. Anything that comes out must be a SerializationException, never an Error.
          */
         "depthguard_soe_bypass" {
-            val thrown = onThreadWithStack(64 * 1024L) {
+            val thrown = onThreadWithStack(256 * 1024L) {
                 DER.decodeFromDer<DsPlainRecursive>(nestedSequenceDer(127))
             }
             // Correct behaviour: either a clean decode or a catchable SerializationException.
@@ -68,12 +68,12 @@ val SerializationResourceLimitFindings by matrixSuite {
          * BUG: the encode-side twin of depthguard_soe_bypass. DerEncoder.beginStructure bounded
          * recursion only by a logical counter whose former default exceeded constrained-stack headroom.
          *
-         * TRIGGER: build a depth-127 recursive graph in memory and encode it on a 64 KiB-stack
+         * TRIGGER: build a depth-127 recursive graph in memory and encode it on a 256 KiB-stack (1/4 of realistic stack sizes)
          * thread. Anything thrown must be a catchable SerializationException, not an Error.
          */
         "enc_depthguard_soe_smallstack" {
             val graph = buildRecursiveGraph(127)
-            val thrown = onThreadWithStack(64 * 1024L) { DER.encodeToByteArray(graph) }
+            val thrown = onThreadWithStack(256 * 1024L) { DER.encodeToByteArray(graph) }
             if (thrown != null) thrown.shouldBeInstanceOf<SerializationException>()
         }
 

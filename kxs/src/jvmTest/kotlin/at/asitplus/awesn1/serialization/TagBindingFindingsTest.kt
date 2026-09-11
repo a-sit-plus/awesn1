@@ -23,6 +23,7 @@ import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
@@ -203,7 +204,7 @@ val SerializationTagBindingFindings by matrixSuite {
             // Control (A): the plain spelling is rejected by the design guard.
             shouldThrow<SerializationException> {
                 DER.encodeToByteArray(DsRawTagPlain(octet))
-            }
+            }.message shouldContain "Resolved tag override was CONTEXT_SPECIFIC:0/C"
 
             // Fault (B): @Contextual bypasses the very same guard and emits 30 04 80 02 01 02,
             // i.e. a PRIMITIVE [0] where the annotation declared CONSTRUCTED [0] (=A0).
@@ -243,7 +244,7 @@ val SerializationTagBindingFindings by matrixSuite {
         /*
          * asn1tag_infer_class_ambiguity_mispredict
          *
-         * BUG: applyImplicitTagOverride in AmbiguityChecks substitutes the BASE tag's class for
+         * BUG: applyImplicitTagOverride in DerDescriptorAnalysis substitutes the BASE tag's class for
          * Asn1Tag.Class.INFER, while the encoder forces CONTEXT_SPECIFIC and decode-side
          * validation accepts any class. The ambiguity checker therefore predicts
          * [UNIVERSAL:5] for property `a` and [CONTEXT:5] for `b` and certifies the layout as

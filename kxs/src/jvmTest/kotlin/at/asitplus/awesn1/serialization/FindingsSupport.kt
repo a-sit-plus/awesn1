@@ -72,6 +72,13 @@ internal fun nestedSequenceDer(levels: Int): ByteArray {
     return body
 }
 
+internal fun withClue(clue: String, block: () -> Unit) =
+    try {
+        block()
+    } catch (t: AssertionError) {
+        throw AssertionError("${t.message}\n--- probe output ---\n$clue", t)
+    }
+
 internal fun buildRecursiveGraph(depth: Int): DsPlainRecursive {
     var node = DsPlainRecursive(null)
     repeat(depth - 1) { node = DsPlainRecursive(node) }
@@ -88,7 +95,7 @@ data class DsPlainRecursive(val child: DsPlainRecursive? = null)
 
 /**
  * Recursion through an Asn1Serializable companion — the path DerDecoder routes to
- * decodeAsn1SerializableValue, which never calls DerDepthGuard.enter().
+ * decodeConcreteValue, which calls DerDepthGuard.ensureElementTreeFits().
  */
 @Serializable(with = DsSerializableRecursive.Companion::class)
 class DsSerializableRecursive(val child: DsSerializableRecursive?) : Asn1Encodable<Asn1Sequence> {
@@ -173,34 +180,6 @@ interface DsP
 @Serializable
 @Asn1Tag(tagNumber = 3uL, tagClass = Asn1Tag.Class.CONTEXT_SPECIFIC, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
 data class DsPImpl(val next: DsP? = null) : DsP
-
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
-internal fun withClue(clue: String, block: () -> Unit) =
-    try {
-        block()
-    } catch (t: AssertionError) {
-        throw AssertionError("${t.message}\n--- probe output ---\n$clue", t)
-    }
-
-internal fun glDerLength(length: Int): ByteArray {
-    if (length < 0x80) return byteArrayOf(length.toByte())
-    var remaining = length
-    val octets = mutableListOf<Byte>()
-    while (remaining > 0) {
-        octets.add(0, (remaining and 0xFF).toByte())
-        remaining = remaining ushr 8
-    }
-    return byteArrayOf((0x80 or octets.size).toByte()) + octets.toByteArray()
-}
-
-internal fun glNestedSequenceDer(levels: Int): ByteArray {
-    var body = ByteArray(0)
-    repeat(levels) { body = byteArrayOf(0x30) + glDerLength(body.size) + body }
-    return body
-}
 
 // ---------------------------------------------------------------------------
 // models
@@ -570,3 +549,20 @@ data class GlContainer(
     val ext: GlPolyOidBase,
     val metadata: GlMetadata,
 )
+
+/**
+ * Two nullable, kotlinx-OPTIONAL properties sharing one implicit tag.
+ *
+ * `Int` cannot encode empty content, so the tagged null sentinel is unambiguous and the
+ * per-field null-encoding guard stays silent under `explicitNulls = true` — which leaves the
+ * layout gate as the only thing standing between this shape and a collision.
+ */
+@Serializable
+data class GlNullableDefaultedCollision(
+    @Asn1Tag(tagNumber = 5uL) val a: Int? = null,
+    @Asn1Tag(tagNumber = 5uL) val b: Int? = null,
+)
+
+/** The [Asn1String] spelling of [GlStringHolder] — tolerates any ASN.1 string type and keeps its tag. */
+@Serializable
+data class GlAsn1StringHolder(val s: at.asitplus.awesn1.Asn1String)
