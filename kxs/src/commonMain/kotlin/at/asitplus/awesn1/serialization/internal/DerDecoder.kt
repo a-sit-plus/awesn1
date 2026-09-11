@@ -314,12 +314,11 @@ class DerDecoder internal constructor(
                     propertyDescriptor
                 }
 
-            val expectedTag = validateAndResolveImplicitTagOverride(
-                actualTag = processedElement.tag,
-                inlineAsn1Tag = inlineAnnotation,
-                propertyAsn1Tag = propertyContext.propertyAsn1Tag,
-                classAsn1Tag = effectiveDescriptor.asn1Tag,
-            )
+            val expectedTag = tagSite(
+                inlineHints = DerInlineHints(inlineAnnotation, false),
+                property = propertyContext,
+                typeDescriptor = propertyDescriptor,
+            )?.resolveAgainst(processedElement.tag)
 
             DerValueCodec.decodePrimitive(
                 element = processedElement,
@@ -404,13 +403,12 @@ class DerDecoder internal constructor(
         }
         val currentAnnotatedElement = cursor.current()
         val inlineHints = inlineHintState.consume()
-        val effectivePropertyAsn1Tag = polymorphicHandoff.inheritedPropertyTag ?: propertyContext?.propertyAsn1Tag
         val valueSite = analysis.prepareValue(
             descriptor = deserializer.descriptor,
             nullAnalysisDescriptor = propertyContext?.propertyDescriptor ?: deserializer.descriptor,
             inlineHints = inlineHints,
             propertyContext = propertyContext,
-            propertyAsn1Tag = effectivePropertyAsn1Tag,
+            inheritedPropertyTag = polymorphicHandoff.inheritedPropertyTag,
             propertyAsBitString = propertyContext?.propertyAsBitString == true,
         )
         valueSite.validateSerializerAnnotations(
@@ -518,12 +516,7 @@ class DerDecoder internal constructor(
                 shouldBeSorted = false,
             )
         } else currentAnnotatedElement
-        val expectedTag = validateAndResolveImplicitTagOverride(
-            actualTag = processedElement.tag,
-            inlineAsn1Tag = valueSite.inlineHints.tag,
-            propertyAsn1Tag = valueSite.effectivePropertyTag,
-            classAsn1Tag = valueSite.descriptor.asn1Tag,
-        )
+        val expectedTag = valueSite.tagTemplate?.resolveAgainst(processedElement.tag)
         when (deserializer.descriptor.serialName.removeSuffix("?")) {
             ASN1_DESCRIPTOR_ELEMENT_TREE -> {
                 depthGuard.ensureElementTreeFits(
@@ -556,7 +549,7 @@ class DerDecoder internal constructor(
 
         // Tag-check for explicitly / implicitly tagged primitives
         val tagToValidate = expectedTag ?: if (!polymorphicHandoff.acceptWireTag) {
-            ByteArrayShapePolicy.defaultTagForDescriptor(deserializer.descriptor, valueSite.byteArrayShape)
+            expectedUniversalTag(deserializer.descriptor, valueSite.byteArrayShape)
         } else null
 
         tagToValidate?.let { expected ->

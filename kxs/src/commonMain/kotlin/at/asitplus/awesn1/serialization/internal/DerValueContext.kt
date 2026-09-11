@@ -12,6 +12,7 @@ import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.asn1Tag
 import at.asitplus.awesn1.serialization.isAsn1BitString
 import at.asitplus.awesn1.serialization.isAsn1ExplicitWrapperDescriptor
+import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 
@@ -33,6 +34,18 @@ internal data class DerPropertyContext(
     val ownerSerialName: String
         get() = ownerDescriptor.serialName
 }
+
+/** Resolves the one implicit-tag site used by value encoding and decoding. */
+internal fun tagSite(
+    inlineHints: DerInlineHints,
+    property: DerPropertyContext?,
+    inherited: Asn1Tag? = null,
+    typeDescriptor: SerialDescriptor? = null,
+): Asn1Element.Tag.Template? = resolveAsn1TagTemplate(
+    inlineAsn1Tag = inlineHints.tag,
+    propertyAsn1Tag = inherited ?: property?.propertyAsn1Tag,
+    classAsn1Tag = typeDescriptor?.asn1Tag,
+)
 
 /** Mutable pending-inline state with explicit peek/consume semantics. */
 internal class DerInlineHintState {

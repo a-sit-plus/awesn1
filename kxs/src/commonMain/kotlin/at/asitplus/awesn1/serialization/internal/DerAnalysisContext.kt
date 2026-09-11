@@ -7,7 +7,6 @@ package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.asn1Tag
-import at.asitplus.awesn1.serialization.resolveAsn1TagTemplate
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.StructureKind
@@ -86,34 +85,38 @@ internal class DerAnalysisContext(
         nullAnalysisDescriptor: SerialDescriptor,
         inlineHints: DerInlineHints,
         propertyContext: DerPropertyContext?,
-        propertyAsn1Tag: Asn1Tag?,
+        inheritedPropertyTag: Asn1Tag? = null,
         propertyAsBitString: Boolean,
         includeDescriptorAsBitString: Boolean = false,
-    ): DerValueSite = DerValueSite(
-        descriptor = descriptor,
-        nullAnalysisDescriptor = nullAnalysisDescriptor,
-        inlineHints = inlineHints,
-        propertyContext = propertyContext,
-        effectivePropertyTag = propertyAsn1Tag,
-        tagTemplate = resolveAsn1TagTemplate(
-            inlineAsn1Tag = inlineHints.tag,
-            propertyAsn1Tag = propertyAsn1Tag,
-            classAsn1Tag = descriptor.asn1Tag,
-        ),
-        byteArrayShape = ByteArrayShapePolicy.resolveSerializerShape(
+    ): DerValueSite {
+        val effectivePropertyTag = inheritedPropertyTag ?: propertyContext?.propertyAsn1Tag
+        return DerValueSite(
             descriptor = descriptor,
-            inlineAsBitString = inlineHints.asBitString,
-            propertyAsBitString = propertyAsBitString,
-            includeDescriptorAsBitString = includeDescriptorAsBitString,
-        ),
-        nullEncoding = analyzeNullable(
-            descriptor = nullAnalysisDescriptor,
-            propertyAsn1Tag = propertyAsn1Tag,
-            inlineAsn1Tag = inlineHints.tag,
-            propertyAsBitString = propertyAsBitString,
-            inlineAsBitString = inlineHints.asBitString,
-        ),
-    )
+            nullAnalysisDescriptor = nullAnalysisDescriptor,
+            inlineHints = inlineHints,
+            propertyContext = propertyContext,
+            effectivePropertyTag = effectivePropertyTag,
+            tagTemplate = tagSite(
+                inlineHints = inlineHints,
+                property = propertyContext,
+                inherited = inheritedPropertyTag,
+                typeDescriptor = descriptor,
+            ),
+            byteArrayShape = ByteArrayShapePolicy.resolveSerializerShape(
+                descriptor = descriptor,
+                inlineAsBitString = inlineHints.asBitString,
+                propertyAsBitString = propertyAsBitString,
+                includeDescriptorAsBitString = includeDescriptorAsBitString,
+            ),
+            nullEncoding = analyzeNullable(
+                descriptor = nullAnalysisDescriptor,
+                propertyAsn1Tag = effectivePropertyTag,
+                inlineAsn1Tag = inlineHints.tag,
+                propertyAsBitString = propertyAsBitString,
+                inlineAsBitString = inlineHints.asBitString,
+            ),
+        )
+    }
 
     private class IdentityKey<T : Any>(private val value: T) {
         override fun equals(other: Any?): Boolean = other is IdentityKey<*> && value === other.value
