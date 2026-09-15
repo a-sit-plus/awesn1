@@ -17,18 +17,15 @@
 
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.awesn1.Asn1OctetString
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.decodeFromByteArray
-import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encodeToByteArray
 
 @OptIn(ExperimentalSerializationApi::class, ExperimentalStdlibApi::class)
@@ -88,7 +85,7 @@ val SerializationNullAndOptionalFindings by matrixSuite {
         /*
          * inline_nullable_null_sentinel_undecodable
          *
-         * BUG: the inline fast path in decodeSerializableValue returns before the isEncodedNull
+         * BUG: the inline fast path in decodeSerializableValue returns before the tryConsumeEncodedNull
          * block, so the tagged null sentinel that encodeNull emits for a nullable value-class
          * property (30 02 85 00) reaches the primitive decode path as a zero-length Int and is
          * rejected. The encoder's own output is unconditionally undecodable.
@@ -96,16 +93,37 @@ val SerializationNullAndOptionalFindings by matrixSuite {
          * TRIGGER: explicitNulls = true, encode Holder(null), decode it back.
          * Control: the raw NULL shape (05 00), which the encoder never emits, does decode.
          */
-        "inline_nullable_null_sentinel_undecodable" {
-            val der = DER { explicitNulls = true }
+        "inline_nullable_null_sentinel_undecodable" - {
 
-            // Control (A): the raw-NULL shape decodes as null.
-            der.decodeFromByteArray<GlWrappedIntHolder>("30020500".hexToByteArray()) shouldBe
-                    GlWrappedIntHolder(null)
+            data(
+                "ExplicitNulls",
+                listOf(DER { explicitNulls = true }, DER { explicitNulls = false }),
+                nameFn = { it.configuration.explicitNulls.toString() }) - { der ->
+                "Encode null" {
+                    // Control (A): the raw-NULL shape decodes as null.
+                    val bytes = if(der.configuration.explicitNulls) "30020500" else "3000"
+                    der.decodeFromByteArray<GlWrappedIntHolder>(bytes.hexToByteArray()) shouldBe
+                            GlWrappedIntHolder(null)
+                }
+                "Decode null" {
+                    // Fault (B): the encoder's own sentinel does not.
+                    val nulled = GlWrappedIntHolder(null)
+                    der.decodeFromByteArray<GlWrappedIntHolder>(der.encodeToByteArray(nulled)) shouldBe nulled
+                }
 
-            // Fault (B): the encoder's own sentinel does not.
-            val nulled = GlWrappedIntHolder(null)
-            der.decodeFromByteArray<GlWrappedIntHolder>(der.encodeToByteArray(nulled)) shouldBe nulled
+                "RTT Zero" {
+                    // (C):int 0 works
+                    val zeroed = GlWrappedIntHolder(GlWrappedInt(0))
+                    der.decodeFromByteArray<GlWrappedIntHolder>("3003850100".hexToByteArray()) shouldBe zeroed
+                    der.decodeFromByteArray<GlWrappedIntHolder>(der.encodeToByteArray(zeroed)) shouldBe zeroed
+                }
+                "RTT One" {
+                    // (D): itn 1 works
+                    val onned = GlWrappedIntHolder(GlWrappedInt(1))
+                    der.decodeFromByteArray<GlWrappedIntHolder>("3003850101".hexToByteArray()) shouldBe onned
+                    der.decodeFromByteArray<GlWrappedIntHolder>(der.encodeToByteArray(onned)) shouldBe onned
+                }
+            }
         }
 
         /*
@@ -226,7 +244,7 @@ val SerializationNullAndOptionalFindings by matrixSuite {
         /*
          * gate_certifies_undecodable_defaulted_optional_layouts
          *
-         * BUG: DerDecoder.decodeElementIndex derives `couldBeNull` from NULLABILITY only, so a
+         * BUG: DerDecoder.decodeElementIndex derives `couldBeAbsent` from NULLABILITY only, so a
          * non-nullable kotlinx-OPTIONAL (defaulted) property has no tag-based presence
          * resolution: it unconditionally binds the next wire element and then fails tag
          * validation. Meanwhile ensureNoAsn1AmbiguousOptionalLayout certifies exactly these
@@ -249,18 +267,46 @@ val SerializationNullAndOptionalFindings by matrixSuite {
         }
 
         /*
-         * layoutplan_structural_equals_dedupe_bypasses_ambiguity_guard
+         * gate_skips_nullable_defaulted_fields_under_explicit_nulls
          *
-         * BUG: DerLayoutPlanContext memoises `primed` / `optionalLayoutChecked` by structural
-         * SerialDescriptor equality, which is annotation-blind. Two @SerialName("Shared")
-         * descriptors that differ ONLY in their @Asn1Tag annotations therefore collapse into one
-         * memo entry, and the ambiguous second type is never checked — its guard is skipped
-         * because the disambiguated first type already "passed".
+         * REGRESSION: a property can be omitted from the wire for two independent reasons —
+         * it is nullable and nulls are omitted, or it is kotlinx-OPTIONAL and encodeDefaults is
+         * false. The layout gate must treat a field as omittable if EITHER holds, because
+         * ensureNoAsn1AmbiguousOptionalLayout never sees encodeDefaults and so cannot rule the
+         * second reason out. A presence model that lets nullability shadow the defaulted axis
+         * certifies a layout whose fields can still both vanish.
+         *
+         * TRIGGER: two nullable defaulted Int properties sharing @Asn1Tag(5) under
+         * explicitNulls = true and encodeDefaults = false. Int cannot encode empty content, so the
+         * per-field null-encoding guard does not fire and the layout gate is the only check left.
+         * Control (A): the same layout under the default explicitNulls = false, where the nullable
+         * axis alone already makes both fields omittable.
+         */
+        "gate_skips_nullable_defaulted_fields_under_explicit_nulls" {
+            // Control (A): explicitNulls = false — both fields omittable via the nullable axis.
+            shouldThrow<SerializationException> {
+                DER.encodeToByteArray(GlNullableDefaultedCollision(a = 1))
+            }.message shouldContain "Ambiguous ASN.1 layout"
+
+            // Fault (B): explicitNulls = true — the nullable axis no longer omits, but
+            // encodeDefaults = false still can, so the collision is unchanged and must be caught.
+            val der = DER { explicitNulls = true; encodeDefaults = false }
+            shouldThrow<SerializationException> {
+                der.encodeToByteArray(GlNullableDefaultedCollision(a = 1))
+            }.message shouldContain "Ambiguous ASN.1 layout"
+        }
+
+        /*
+         * descriptor_validation_uses_identity_for_deduplication
+         *
+         * REGRESSION: structural SerialDescriptor equality is annotation-blind. Validation must
+         * therefore deduplicate by identity, or two @SerialName("Shared") descriptors that differ
+         * only in their @Asn1Tag annotations collapse and the ambiguous second type is never checked.
          *
          * TRIGGER: RootBoth(a = Disambiguated, b = Ambiguous). Decoding it must raise the same
          * "Ambiguous ASN.1 layout" the ambiguous type raises on its own (control A).
          */
-        "layoutplan_structural_equals_dedupe_bypasses_ambiguity_guard" {
+        "descriptor_validation_uses_identity_for_deduplication" {
             // Control (A): the ambiguous type alone is rejected.
             shouldThrow<SerializationException> {
                 DER.decodeFromByteArray<GlAmbiguous>("3003020108".hexToByteArray())

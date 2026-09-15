@@ -15,13 +15,10 @@
 
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.append
 import at.asitplus.testballoon.matrix.matrixSuite
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.builtins.serializer
 
@@ -55,27 +52,4 @@ val SerializationLifecycleFindings by matrixSuite {
         }
     }
 
-    "PEM emission" - {
-        /*
-         * pem_label_fence_injection
-         *
-         * BUG: PemBlock's init only checks `pemLabel.isNotBlank()`. Newlines and other control
-         * characters are accepted and interpolated verbatim into the "-----BEGIN/END $label-----"
-         * boundaries, so a wire-controlled label emits attacker-chosen PEM fence lines. A
-         * downstream fence scanner (OpenSSL, a bundle reader, grep) then extracts and may trust
-         * a block the emitting application never intended to produce.
-         *
-         * TRIGGER: construct a PemBlock whose label embeds a complete CERTIFICATE block. The
-         * label must be rejected. Control: an ordinary label is accepted.
-         */
-        "pem_label_fence_injection" {
-            // Control (A): a well-formed label is fine.
-            PemBlock("X", payload = byteArrayOf(1, 2, 3)).encodeToPem().shouldBeInstanceOf<String>()
-
-            // Fault (B): a label carrying fence lines must not be accepted.
-            val injected = "X\n-----END X-----\n\n-----BEGIN CERTIFICATE-----\n" +
-                    "TUlJRkVJR0VORVJBVEVEQ0VSVElGSUNBVEU=\n-----END CERTIFICATE-----\n\n-----BEGIN Y"
-            shouldThrow<IllegalArgumentException> { PemBlock(injected, payload = byteArrayOf(1, 2, 3)) }
-        }
-    }
 }

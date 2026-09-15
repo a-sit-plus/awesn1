@@ -18,7 +18,6 @@ internal fun <T : Any> buildSealedChoiceDispatch(
     ownerSerialName: String,
     alternativesDescriptor: SerialDescriptor,
     resolveSerializerByName: (String) -> KSerializer<out T>?,
-    resolveRuntimeSerializer: ((T) -> KSerializer<out T>?)? = null,
 ): Asn1TagDiscriminatedDispatch<T> {
     val registrations = mutableListOf<Asn1TagDiscriminatedSubtypeRegistration<T>>()
 
@@ -38,19 +37,9 @@ internal fun <T : Any> buildSealedChoiceDispatch(
             )
         }
 
-        val matches: (T) -> Boolean = if (resolveRuntimeSerializer == null) {
-            { false }
-        } else {
-            { value ->
-                resolveRuntimeSerializer(value)?.descriptor?.serialName ==
-                        alternativeSerializer.descriptor.serialName
-            }
-        }
-
         registrations += Asn1TagDiscriminatedSubtypeRegistration(
             serializer = alternativeSerializer,
             leadingTags = leadingTags,
-            matches = matches,
             debugName = alternativeSerializer.descriptor.serialName,
         )
     }

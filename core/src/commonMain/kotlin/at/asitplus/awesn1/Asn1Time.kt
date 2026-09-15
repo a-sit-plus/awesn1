@@ -17,6 +17,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlin.time.Instant
+import at.asitplus.awesn1.serialization.withDynamicAsn1LeadingTags
 
 /**
  * ASN.1 TIME (required since GENERALIZED TIME and UTC TIME exist).
@@ -187,6 +188,7 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_TIME, PrimitiveKind.STRING)
+                .withDynamicAsn1LeadingTags { leadingTags }
 
         /** Constructs a whole-second [Asn1Time] from an [Instant]. Sub-second precision is dropped (see [SecondsCapped]). */
         operator fun invoke(instant: Instant, formatOverride: Format? = null): Asn1Time {

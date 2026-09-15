@@ -47,6 +47,26 @@ val SerializationTestInstantBridge by matrixSuite(
         DER.decodeFromByteArray<TaggedInstantBox>(encoded) shouldBe value
     }
 
+    "Implicitly tagged kotlin.time.Instant accepts both time encodings and rejects invalid content" {
+        listOf(
+            Instant.parse("2040-06-30T12:34:56Z"),
+            Instant.parse("2051-06-30T12:34:56Z"),
+        ).forEach { instant ->
+            val value = TaggedInstantBox(instant)
+            DER.decodeFromByteArray<TaggedInstantBox>(DER.encodeToByteArray(value)) shouldBe value
+        }
+
+        shouldThrow<SerializationException> {
+            DER.decodeFromByteArray<TaggedInstantBox>("30058003626164".hexToByteArray())
+        }.message.shouldContain("neither UTCTime nor GeneralizedTime")
+    }
+
+    "kotlin.time.Instant rejects constructed ASN.1 values" {
+        shouldThrow<SerializationException> {
+            DER.decodeFromByteArray<Instant>("3000".hexToByteArray())
+        }.message.shouldContain("Expected ASN.1 primitive")
+    }
+
     "Nullable Instant followed by nullable Int is unambiguous" {
         val withoutInstant = NullableInstantThenInt(
             first = null,
