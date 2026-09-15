@@ -53,7 +53,6 @@ subprojects {
 
 allprojects {
     if(name=="benchmarks") return@allprojects
-    repositories {mavenLocal()}
     apply(plugin = "org.jetbrains.dokka")
     group = rootProject.group
 }
@@ -110,6 +109,7 @@ val syncSbomDocs by tasks.register("syncSbomDocs") {
         "linuxArm64",
         "linuxX64",
         "mingwX64",
+        "macosArm64",
         "wasmJs",
     )
     val bomJsonFiles = sortedProjects.flatMap { moduleProject ->
