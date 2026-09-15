@@ -33,13 +33,8 @@
     },
     {
       "os": "macos-latest",
-      "name": "appleOtherRunner",
-      "testCommand": "./gradlew tvosSimulatorArm64Test watchosSimulatorArm64Test macosArm64Test --scan"
-    },
-    {
-      "os": "macos-latest",
       "name": "macRunner",
-      "testCommand": "./gradlew allTests -x iosSimulatorArm64Test -x tvosSimulatorArm64Test -x watchosSimulatorArm64Test -x macosArm64Test -x jvmTest -x jsTest -x wasmJsTest -x wasmJsNodeTest -x jsNodeTest --scan"
+      "testCommand": "./gradlew allTests -x iosSimulatorArm64Test  -x jvmTest -x jsTest -x wasmJsTest -x wasmJsNodeTest -x jsNodeTest --scan"
     }
   ]
 }
