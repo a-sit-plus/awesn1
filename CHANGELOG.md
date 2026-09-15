@@ -37,6 +37,7 @@
 * Reduced `Asn1Element` allocation through tag and empty-array sharing, trimmed child lists, and allocation-free
   hashing.
 * Avoid repeated regex compilation and unnecessary string copies when decoding `Asn1Real`.
+* Update to Conventions 2026014 with TestBalloon 1.1.0 and TestBalloon Addons 0.16.1
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer
