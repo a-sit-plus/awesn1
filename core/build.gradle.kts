@@ -45,7 +45,7 @@ kotlin {
                 implementation(project(":kxs"))
                 implementation(serialization("json"))
                 implementation(project(":crypto"))
-                implementation(libs.bouncycastle.prov) // BouncyCastle JCA provider
+                implementation(bouncycastle("bcprov")) // BouncyCastle JCA provider
             }
         }
     }
