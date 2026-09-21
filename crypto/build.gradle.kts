@@ -30,7 +30,7 @@ kotlin {
         }
         jvmTest {
             dependencies {
-                implementation(bouncycastle("pkix"))
+                implementation(bouncycastle("bcpkix"))
             }
         }
     }
