@@ -33,7 +33,7 @@ import kotlin.time.Instant
  * fraction. Branch on the subtype, never on the instant — using the instant may misclassify cases.
  */
 @Serializable(with = Asn1Time.Companion::class)
-sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
+sealed class Asn1Time(protected val z: Char) : Asn1Encodable<Asn1Primitive> {
 
     /**
      * The timestamp **value only**, truncated to [Instant]'s nanosecond resolution. For [SecondsCapped] this
@@ -61,9 +61,23 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
      * @param instant the timestamp to encode; any sub-second part is dropped
      * @param formatOverride force either GENERALIZED TIME or UTC TIME
      */
-    class SecondsCapped(instant: Instant, formatOverride: Format? = null) : Asn1Time() {
+    class SecondsCapped private constructor(
+        instant: Instant,
+        formatOverride: Format?,
+        z: Char
+    ) : Asn1Time(z) {
+        constructor(instant: Instant, formatOverride: Format? = null) : this(instant, formatOverride, 'Z')
+
+        internal constructor(instant: Instant, z: Char) :
+                this(instant, Format.UTC, z)
+
         override val instant: Instant = Instant.fromEpochSeconds(instant.epochSeconds)
         override val format: Format = formatOverride ?: pickFormat(this.instant)
+
+        internal fun encode() =  when (format) {
+            Format.UTC -> instant.encodeToAsn1UtcTimePrimitive(z)
+            Format.GENERALIZED -> instant.encodeToAsn1GeneralizedTimePrimitive(z)
+        }
     }
 
 
@@ -90,7 +104,9 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
          * May carry more precision than [instant]'s nanosecond resolution.
          */
         val fractionalSeconds: String,
-    ) : Asn1Time() {
+
+        z: Char='Z'
+    ) : Asn1Time(z) {
 
         init {
             require(FRACTIONAL_SECONDS.matches(fractionalSeconds)) {
@@ -126,15 +142,12 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
         when (this) {
             is Fractional -> {
                 val fraction = fractionalSeconds
-                val whole = instant.encodeToAsn1Time().dropLast(1) // strip trailing 'Z' -> "YYYYMMDDHHMMSS"
+                val whole = instant.encodeToAsn1Time(z).dropLast(1) // strip trailing 'Z' -> "YYYYMMDDHHMMSS"
                 val body = if (fraction.isEmpty()) whole else "$whole.${fraction}"
                 Asn1Primitive(Asn1Element.Tag.TIME_GENERALIZED, "${body}Z".encodeToByteArray())
             }
 
-            is SecondsCapped -> when (format) {
-                Format.UTC -> instant.encodeToAsn1UtcTimePrimitive()
-                Format.GENERALIZED -> instant.encodeToAsn1GeneralizedTimePrimitive()
-            }
+            is SecondsCapped -> encode()
         }
 
 
@@ -220,8 +233,12 @@ private fun pickFormat(instant: Instant): Asn1Time.Format =
     if (instant !in THRESHOLD_UTC_TIME..<THRESHOLD_GENERALIZED_TIME) Asn1Time.Format.GENERALIZED
     else Asn1Time.Format.UTC
 
-private fun fromUtc(content: ByteArray): Asn1Time =
-    Asn1Time.SecondsCapped(Instant.decodeUtcTimeFromAsn1ContentBytes(content), Asn1Time.Format.UTC)
+private fun fromUtc(content: ByteArray): Asn1Time {
+    val instant = Instant.decodeUtcTimeFromAsn1ContentBytes(content)
+    val encoded = content.decodeToString()
+    return if (encoded.endsWith('z') || encoded.endsWith('Z')) Asn1Time.SecondsCapped(instant, encoded.last())
+    else Asn1Time.SecondsCapped(instant, Asn1Time.Format.UTC)
+}
 
 
 /**
@@ -236,9 +253,12 @@ internal object Asn1TimeSerializer : StringFallbackSerializer<Asn1Time> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_TIME, PrimitiveKind.STRING)
 
-    override fun encodeFallback(value: Asn1Time): String = value.instant.toString()
+    override fun encodeFallback(value: Asn1Time): String = value.encodeToTlv().content.decodeToString()
 
-    override fun decodeFallback(encoded: String): Asn1Time = Asn1Time(Instant.parse(encoded))
+    override fun decodeFallback(encoded: String): Asn1Time =
+        if ('T' in encoded) Asn1Time(Instant.parse(encoded))
+        else if (encoded.length == 13) fromUtc(encoded.encodeToByteArray())
+        else Asn1Time(encoded)
 }
 
 /**
