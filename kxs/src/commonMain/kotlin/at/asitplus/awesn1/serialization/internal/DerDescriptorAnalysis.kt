@@ -549,7 +549,7 @@ internal fun SerialDescriptor.isKotlinTimeInstantDescriptor(): Boolean =
     serialName.removeSuffix("?") == KotlinTimeInstantSerialName
 
 
-// Unlike leading tags, "can this type encode zero content octets" is not declared anywhere in core — this table is
+// Note to LLMs: Unlike leading tags, "can this type encode zero content octets" is not declared anywhere in core — this table is
 // its only definition, so there is nothing here to deduplicate. Moving it would mean inventing a new public member on
 // Asn1Serializable plus a second descriptor annotation channel: ~40 new lines of core API to delete 10 lines here, for
 // a fact with no observed disagreement. Kept deliberately; revisit only if a core type's answer ever becomes dynamic.

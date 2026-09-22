@@ -56,7 +56,6 @@ This design avoids a mutable global codec while still allowing library integrati
 materialization work out of the box.
 
 !!! warning "Generic versus concrete ASN.1 string decoding"
-
     `DER.decodeFromByteArray<Asn1String>()` preserves malformed content and reports tri-state validity, while decoding
     to a concrete subtype or Kotlin `String` is strict. Generic `Asn1String` is unsuitable for implicit tags because
     the string subtype is no longer present on the wire. See
@@ -64,7 +63,6 @@ materialization work out of the box.
     contract and the raw-wrapper workaround.
 
 ??? info "Non-DER Fallback Representations"
-
     - `ObjectIdentifier` serializes as dotted-decimal text (`1.2.840...`)
     - `Asn1Integer` serializes as a signed hexadecimal string (`0x2A`, `-0x2A`)
     - `Asn1Real` (`PositiveZero`, `NegativeZero`, `PositiveInfinity`, `NegativeInfinity`, `NaN`, `Finite`) serializes as a string; finite values use hexadecimal mantissa and exponent (`0x3 * 2^4`)
@@ -79,7 +77,6 @@ materialization work out of the box.
     `Asn1String` deserializes to `UTF8`, so its original ASN.1 string subtype is not preserved.
 
 !!! warning "Breaking representation change in awesn1 0.7"
-
     awesn1 0.7 changed the non-DER fallback representations of `Asn1Integer` and finite `Asn1Real` from decimal to
     hexadecimal. It also changed their human-readable `toString()` output accordingly. Migrate persisted JSON or other
     string-encoded values before upgrading: an old digit-only value may be interpreted as hexadecimal rather than
@@ -129,7 +126,6 @@ Nullable values follow the selected `Der` configuration. If encoding omits a nul
 `explicitNulls` is disabled, the builder appends nothing.
 
 !!! warning "Unary `+` is not a generic serialization operator"
-
     Kotlin always prefers an operand's member `unaryPlus` over extensions. Consequently, a generic serialization
     operator cannot reliably support values such as `Int`: `+5` invokes `Int.unaryPlus()` and appends nothing. The
     former generic extension was removed; use `with(der) { Asn1.Sequence { append(value) } }` for
@@ -592,7 +588,6 @@ For strict canonicality expectations in certificate ecosystems, see
 [X.509 (RFC 5280)](https://www.rfc-editor.org/rfc/rfc5280).
 
 !!! warning "Nesting depth and stack size"
-
     Every nested typed structure counts toward `maxNestingDepth`, not only a self-reference. Fixed schemas have an
     inherent maximum depth; self-referential `@Serializable` types are the usual way for input or an in-memory value to
     produce arbitrary depth.
@@ -610,7 +605,6 @@ For strict canonicality expectations in certificate ecosystems, see
     or converted, so an unsafe configured limit can still fail before the guard is reached.
 
 !!! danger "Custom decoder recursion is not bounded"
-
     `maxNestingDepth` bounds recursion driven by kotlinx.serialization and the ASN.1 element trees consumed or produced
     by built-in `Asn1Encodable`/`Asn1Decodable` handling. It **cannot** observe recursion performed inside custom
     `KSerializer` code or `Asn1Serializable.doDecode`; trusted custom implementations must enforce their own depth and
@@ -634,7 +628,6 @@ For strict canonicality expectations in certificate ecosystems, see
    Explore on <a href="{{ asn1js_url('kxs-format-options-encode-defaults') }}" target="_blank" rel="noopener">asn1js.eu</a>
 
 !!! danger "Bound untrusted input with `maxInputLength`"
-    
     `maxInputLength` defaults to the target's largest conservatively addressable `ByteArray` (`Int.MAX_VALUE - 8` on
     JVM/Android and `Int.MAX_VALUE` elsewhere). It is an addressability backstop, not a small application policy: lower
     it when your protocol permits smaller payloads. Large CMS/S/MIME objects remain accepted when memory permits. See
@@ -820,7 +813,6 @@ re-encodes a real self-signed X.509 v3 certificate through `DER.decodeFromByteAr
 `@Serializable` certificate model) and compares against Bouncy Castle's hand-written, typed `x509.Certificate` model.
 
 ??? note "Benchmark environment"
-
     JMH 1.37, average-time mode (**lower is better**), 1 thread, 3×10 s warmup + 5×10 s measurement, single fork, JDK 17
     (Corretto 17.0.10), Bouncy Castle **1.85** (`bcprov-jdk18on`/`bcpkix-jdk18on`). MacBook Pro (Apple **M3**, 12 cores:
     6 performance + 6 efficiency), macOS 26.6.2, on AC power.
