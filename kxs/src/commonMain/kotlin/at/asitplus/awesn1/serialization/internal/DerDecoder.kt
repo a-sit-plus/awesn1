@@ -965,7 +965,7 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
                 -> when (tag) {
                     Asn1Element.Tag.STRING_BMP -> content.decodeBmpString()
                     Asn1Element.Tag.STRING_UNIVERSAL -> content.decodeUniversalString()
-                    Asn1Element.Tag.STRING_T61 -> content.decodeSupportedTeletexString()
+                    Asn1Element.Tag.STRING_T61 -> decodeToTeletextString().value
                     else -> decodeToString()
                 }
 
