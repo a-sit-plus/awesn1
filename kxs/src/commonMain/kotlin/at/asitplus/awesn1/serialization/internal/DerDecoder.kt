@@ -187,6 +187,7 @@ class DerDecoder internal constructor(
                     val children = when (element) {
                         is Asn1Structure -> element.children
                         is Asn1EncapsulatingOctetString -> element.children
+                        //implicit tagging may cause this kind of confusion
                         is Asn1Primitive -> Asn1Element.parseAll(element.content)
                     }
 
@@ -975,6 +976,7 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
         String.decodeFromAsn1ContentBytes(content)
     }
 
+//cleaned up in follow-up PR
 private fun ByteArray.decodeBmpString(): String {
     if (size % 2 != 0) throw SerializationException("BMPString content length must be divisible by 2")
     return CharArray(size / 2) { index ->
@@ -985,6 +987,7 @@ private fun ByteArray.decodeBmpString(): String {
     }.concatToString()
 }
 
+//cleaned up in follow-up PR
 private fun ByteArray.decodeUniversalString(): String {
     if (size % 4 != 0) throw SerializationException("UniversalString content length must be divisible by 4")
     val result = StringBuilder(size / 4)
@@ -1006,6 +1009,7 @@ private fun ByteArray.decodeUniversalString(): String {
     return result.toString()
 }
 
+//cleaned up in follow-up PR
 private fun ByteArray.decodeSupportedTeletexString(): String {
     if (any { it.toInt() and 0x80 != 0 }) {
         throw SerializationException("Non-ASCII TeletexString content is unsupported; use Asn1String to preserve raw bytes")
