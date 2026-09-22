@@ -44,7 +44,6 @@ kotlin {
             dependencies {
                 implementation(project(":kxs"))
                 implementation(serialization("json"))
-                implementation("at.asitplus.signum:indispensable:3.26.0")
                 implementation(project(":crypto"))
                 implementation(bouncycastle("bcprov")) // BouncyCastle JCA provider
             }
