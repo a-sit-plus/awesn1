@@ -3,15 +3,12 @@ package at.asitplus.awesn1
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.*
 import at.asitplus.testballoon.matrix.matrixSuite
-import com.ionspin.kotlin.bignum.integer.BigInteger
-import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
-import com.ionspin.kotlin.bignum.integer.toBigInteger
-import com.ionspin.kotlin.bignum.integer.util.fromTwosComplementByteArray
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.*
 import org.bouncycastle.asn1.ASN1Integer
+import java.math.BigInteger
 import kotlin.math.pow
 
 @OptIn(InternalAwesn1Api::class)
@@ -20,19 +17,19 @@ val Asn1NumberEncodingTest by matrixSuite {
 
     "Asn1 Number encoding" - {
         listOf(
-                257L,
-                2f.pow(24).toLong() - 1,
-                65555,
-                2f.pow(24).toLong(),
-                15253481L,
-                -1446230472L,
-                0L,
-                1L,
-                -1L,
-                -2L,
-                -9994587L,
-                340281555L,
-            ).asData(name = "Manual") test { value ->
+            257L,
+            2f.pow(24).toLong() - 1,
+            65555,
+            2f.pow(24).toLong(),
+            15253481L,
+            -1446230472L,
+            0L,
+            1L,
+            -1L,
+            -2L,
+            -9994587L,
+            340281555L,
+        ).asData(name = "Manual") test { value ->
             val bytes = (value).toTwosComplementByteArray()
 
             val fromBC = ASN1Integer(value).encoded
@@ -50,14 +47,14 @@ val Asn1NumberEncodingTest by matrixSuite {
     compact("longs") - {
         "failures" - {
             property("too small", Arb.bigInt(128), iterations = 5000) test { value ->
-                val v = BigInteger.fromLong(Long.MIN_VALUE).minus(1)
-                    .minus(BigInteger.fromTwosComplementByteArray(value.toByteArray()))
-                shouldThrow<Asn1Exception> { Asn1.Int(v.toJavaBigInteger().toAsn1Integer()).decodeToLong() }
+                val v = BigInteger.valueOf(Long.MIN_VALUE).minus(BigInteger.ONE)
+                    .minus(BigInteger(value.toByteArray()))
+                shouldThrow<Asn1Exception> { Asn1.Int(v.toAsn1Integer()).decodeToLong() }
             }
             property("too large", Arb.bigInt(128), iterations = 5000) test { value ->
-                val v = BigInteger.fromLong(Long.MAX_VALUE).plus(1)
-                    .plus(BigInteger.fromTwosComplementByteArray(value.toByteArray()))
-                shouldThrow<Asn1Exception> { Asn1.Int(v.toJavaBigInteger().toAsn1Integer()).decodeToLong() }
+                val v = BigInteger.valueOf(Long.MAX_VALUE).plus(BigInteger.ONE)
+                    .plus(BigInteger(value.toByteArray()))
+                shouldThrow<Asn1Exception> { Asn1.Int(v.toAsn1Integer()).decodeToLong() }
             }
         }
         property("successes", Arb.long(), iterations = 150000) test { value ->
@@ -125,7 +122,7 @@ val Asn1NumberEncodingTest by matrixSuite {
             val decoded = (seq.iterator().next() as Asn1Primitive).decodeToUInt()
             decoded shouldBe value
 
-            Asn1.Int(value).derEncoded shouldBe ASN1Integer(value.toBigInteger().toJavaBigInteger()).encoded
+            Asn1.Int(value).derEncoded shouldBe ASN1Integer(value.toBigInteger()).encoded
             val twosComplementByteArray = value.toTwosComplementByteArray()
             twosComplementByteArray.wrapInUnsafeSource()
                 .readTwosComplementUInt(twosComplementByteArray.size, lenient = false) shouldBe value
@@ -136,14 +133,14 @@ val Asn1NumberEncodingTest by matrixSuite {
 
     compact("unsigned longs") - {
         listOf(
-                2f.pow(24).toULong() - 1u,
-                256uL,
-                65555uL,
-                2f.pow(24).toULong(),
-                255uL,
-                360uL,
-                4113774321109173852uL,
-            ).asData(name = "manual") test { value ->
+            2f.pow(24).toULong() - 1u,
+            256uL,
+            65555uL,
+            2f.pow(24).toULong(),
+            255uL,
+            360uL,
+            4113774321109173852uL,
+        ).asData(name = "manual") test { value ->
             val bytes = (value).toTwosComplementByteArray()
             bytes.wrapInUnsafeSource().readTwosComplementULong(bytes.size, lenient = false) shouldBe value
         }
@@ -154,12 +151,10 @@ val Asn1NumberEncodingTest by matrixSuite {
             }
             property("negative", Arb.bigInt(128), iterations = 5000) test { value ->
                 val byteArray = value.toByteArray()
-                val v = BigInteger.fromULong(ULong.MAX_VALUE).plus(1).plus(
-                    BigInteger.fromTwosComplementByteArray(
-                        byteArray
-                    )
+                val v = BigInteger(ULong.MAX_VALUE.toTwosComplementByteArray()).plus(BigInteger.ONE).plus(
+                    BigInteger(byteArray)
                 )
-                val asn1Primitive = Asn1.Int(v.toJavaBigInteger().toAsn1Integer())
+                val asn1Primitive = Asn1.Int(v.toAsn1Integer())
                 shouldThrow<Asn1Exception> { asn1Primitive.decodeToULong() }
             }
         }
@@ -168,7 +163,7 @@ val Asn1NumberEncodingTest by matrixSuite {
             val decoded = (seq.iterator().next() as Asn1Primitive).decodeToULong()
             decoded shouldBe value
 
-            Asn1.Int(value).derEncoded shouldBe ASN1Integer(value.toBigInteger().toJavaBigInteger()).encoded
+            Asn1.Int(value).derEncoded shouldBe ASN1Integer(value.toBigInteger()).encoded
             val twosComplementByteArray = value.toTwosComplementByteArray()
             twosComplementByteArray.wrapInUnsafeSource()
                 .readTwosComplementULong(twosComplementByteArray.size, lenient = false) shouldBe value

@@ -3,8 +3,6 @@ package at.asitplus.awesn1
 import at.asitplus.awesn1.encoding.decodeFromDer
 import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.testballoon.matrix.matrixSuite
-import com.ionspin.kotlin.bignum.integer.BigInteger
-import com.ionspin.kotlin.bignum.integer.Sign
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
@@ -14,6 +12,7 @@ import io.kotest.property.RandomSource
 import io.kotest.property.Sample
 import io.kotest.property.arbitrary.*
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
+import java.math.BigInteger
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -109,8 +108,8 @@ val OidTest by matrixSuite {
                     ) test { rest ->
                         listOf(0, 1, 2).forEach { first ->
                             val withNegative =
-                                intArrayOf(negativeInt, *rest).apply { shuffle() }.map { BigInteger(it) }
-                                    .toTypedArray()
+                                intArrayOf(negativeInt, *rest).apply { shuffle() }
+                                    .map { BigInteger.valueOf(it.toLong()) }.toTypedArray()
                             shouldThrow<Asn1Exception> {
                                 ObjectIdentifier("$first.$second." + withNegative.joinToString("."))
                             }
@@ -175,7 +174,7 @@ val OidTest by matrixSuite {
             property("second", Arb.positiveInt(39), iterations = 15) - { second ->
                 property("third", Arb.bigInt(1, 358), iterations = 500) test { generated ->
                     listOf(1, 2).forEach { first ->
-                        val third = BigInteger.fromByteArray(generated.toByteArray(), Sign.POSITIVE)
+                        val third = BigInteger(1,generated.toByteArray())
                         val oid = ObjectIdentifier("$first.$second.$third")
 
                         val stringRepresentation =
@@ -226,7 +225,7 @@ val OidTest by matrixSuite {
                         Sample(uuidFromRandomBytes(rs.random.nextBytes(Uuid.SIZE_BYTES)))
                 }, nameFn = { it.toString() }) test { uuid ->
                     val bigint = uuid.toBigInteger()
-                    bigint.toString() shouldBe BigInteger.parseString(uuid.toHexString(), 16).toString()
+                    bigint.toString() shouldBe BigInteger(uuid.toHexString(), 16).toString()
                     Uuid.fromBigintOrNull(bigint) shouldBe uuid
 
                     val oidString = "2.25.$bigint"

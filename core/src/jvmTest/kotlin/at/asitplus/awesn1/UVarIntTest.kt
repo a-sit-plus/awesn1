@@ -6,15 +6,14 @@ import at.asitplus.awesn1.encoding.decodeAsn1VarUInt
 import at.asitplus.awesn1.encoding.decodeAsn1VarULong
 import at.asitplus.awesn1.encoding.internal.*
 import at.asitplus.awesn1.encoding.toAsn1VarInt
+import at.asitplus.awesn1.encoding.toTwosComplementByteArray
 import at.asitplus.testballoon.matrix.matrixSuite
-import com.ionspin.kotlin.bignum.integer.BigInteger
-import com.ionspin.kotlin.bignum.integer.Sign
-import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.*
+import java.math.BigInteger
 import kotlin.math.ceil
 import kotlin.random.Random
 
@@ -80,11 +79,11 @@ val UVarIntTest by matrixSuite {
 
         property("long-capped", Arb.uLong(), iterations = 100) test { long ->
             val uLongVarInt = long.toAsn1VarInt()
-            val bigInteger = BigInteger.fromULong(long)
-            val bigIntVarInt = bigInteger.toJavaBigInteger().toAsn1VarInt()
+            val bigInteger = BigInteger(long.toTwosComplementByteArray())
+            val bigIntVarInt = bigInteger.toAsn1VarInt()
 
             bigIntVarInt shouldBe uLongVarInt
-            ByteArraySink().apply { writeAsn1VarInt(bigInteger.toJavaBigInteger()) }
+            ByteArraySink().apply { writeAsn1VarInt(bigInteger) }
                 .readByteArray() shouldBe bigIntVarInt
             ByteArraySink().apply { writeAsn1VarInt(long) }.readByteArray() shouldBe uLongVarInt
 
@@ -100,15 +99,14 @@ val UVarIntTest by matrixSuite {
         }
 
         property("larger", Arb.byteArray(Arb.positiveInt(1024), Arb.byte()), iterations = 100) test { bytes ->
-            val bigInt = BigInteger.fromByteArray(bytes, Sign.POSITIVE)
-            val bigIntVarint = bigInt.toJavaBigInteger().toAsn1VarInt()
+            val bigIntVarint = BigInteger(1, bytes).toAsn1VarInt()
             val rnd = Random.nextBytes(33)
             val src = bigIntVarint.asList() + rnd
                 .asList()
-            src.decodeAsn1VarBigInt().first.toString() shouldBe bigInt.toString()
+            src.decodeAsn1VarBigInt().first.toString() shouldBe BigInteger(1, bytes).toString()
 
             val buf = src.toByteArray().wrapInUnsafeSource()
-            buf.decodeAsn1VarBigInt(src.size.toLong()).first.toDecimalString() shouldBe bigInt.toString()
+            buf.decodeAsn1VarBigInt(src.size.toLong()).first.toDecimalString() shouldBe BigInteger(1, bytes).toString()
             rnd.forEach { it shouldBe buf.readByte() }
             buf.exhausted().shouldBeTrue()
         }
@@ -172,14 +170,14 @@ internal inline fun Iterable<Byte>.decodeAsn1VarBigInt(): Pair<BigInteger, ByteA
  */
 private fun Iterator<Byte>.decodeAsn1VarBigInt(): Pair<BigInteger, ByteArray> {
     var result = BigInteger.ZERO
-    val mask = BigInteger.fromUByte(0x7Fu)
+    val mask = BigInteger.valueOf(0x7Fu.toLong())
     val accumulator = mutableListOf<Byte>()
     while (hasNext()) {
         val curByte = next()
-        val current = BigInteger(curByte.toUByte().toInt())
+        val current = BigInteger.valueOf(curByte.toUByte().toLong())
         accumulator += curByte
         result = (current and mask) or (result shl 7)
-        if (current < 0x80.toUByte()) break
+        if (current < BigInteger.valueOf(0x80)) break
     }
 
     return result to accumulator.toByteArray()
