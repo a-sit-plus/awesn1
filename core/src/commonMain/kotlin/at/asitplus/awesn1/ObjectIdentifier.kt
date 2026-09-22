@@ -11,6 +11,7 @@ import at.asitplus.awesn1.encoding.decode
 import at.asitplus.awesn1.encoding.internal.Sink
 import at.asitplus.awesn1.encoding.internal.writeAsn1VarInt
 import at.asitplus.awesn1.serialization.Asn1Serializer
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -209,7 +210,7 @@ class ObjectIdentifier @Throws(Asn1Exception::class) private constructor(
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
-                .withDynamicAsn1LeadingTags { leadingTags }
+                .withAsn1LeadingTags(leadingTags)
 
         /** maximum characters per sub-identifier when decoding from string */
         const val MAX_SUBIDENTIFIER_CHARS = 150

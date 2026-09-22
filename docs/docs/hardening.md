@@ -5,18 +5,18 @@ hide:
 
 # Hardening, Fuzzing & Robustness
 
-awesn1 has a parser at its core. Parsers parse data from untrusted (attacker-controlled) input. Hence, the awesn1 raw parser, encoder, and
+awesn1 has a parser at its core. By definition, parsers parse data from untrusted (attacker-controlled) input. Hence, the awesn1 raw parser, encoder, and
 renderers are designed to **fail predictably** on adversarial input: a malformed, oversized, or deeply-nested blob
-yields a bounded `Asn1Exception`/`SerializationException` or a bounded result — never a `StackOverflowError`, runaway
-recursion, an uncatchable crash, or silent corruption.
+yields a bounded `Asn1Exception`/`SerializationException` or a bounded result — not a `StackOverflowError`, runaway
+recursion, an uncatchable crash, or silent corruption, **iff you configured sensible bounds**.
 
 This page collects the robustness model in one place. For the APIs it refers to, see the
 [Low-Level ASN.1 API](lowlevel.md) and the [Serialization](kxs.md) pages.
 
-!!! warning "Hardening is an ongoing effort — and never truly *done*"
+!!! warning "Hardening as an ongoing effort"
 
-    Hardening a parser of attacker-controlled input is a moving target: Treat the guarantees on this page as a living baseline, not a finished checklist.
-    We keep extending the fuzzing and coverage behind them, improve things and fix issues as we discover them.
+    Hardening a parser is hardly ever truly done, as the API evolves: Treat the guarantees on this page as a living baseline, not a finished checklist.
+    We keep adding more fuzzing input, and we continously increase test coverage, improve things and fix issues as we discover them.
 
     **If you find a gap, please report it confidentially.** Follow our
     [security policy](https://github.com/a-sit-plus/awesn1/blob/main/SECURITY.md): Do **not** open a public issue if you discover a potential security vulnerability.
@@ -41,7 +41,6 @@ guarantees below (no leak, no amplification, no overflow).
 ## Hardening Scope
 This section describes which parts of awesn1 are hardened against hostile input and to what extent.
 
-
 ### Purely Iterative Parsing and Encoding (New since 0.5.0)
 
 Parsing, encoding (`derEncoded`/`encodeTo`), `prettyPrint`/`toString`, `equals`/`hashCode`, and SET ordering are all
@@ -49,6 +48,9 @@ Parsing, encoding (`derEncoded`/`encodeTo`), `prettyPrint`/`toString`, `equals`/
 big-integer arc arithmetics are loop-based as well. Arbitrarily deep nesting — `SEQUENCE` in `SEQUENCE`, `EXPLICIT` tags,
 custom constructed structures, encapsulating `OCTET STRING`s — cannot exhaust the stack. Encapsulating octet strings are
 decapsulated iteratively and without per-layer byte copies, so nested octet string content stays linear in input size.
+
+**The main exception is the integration with `kotlinx.serialization` as complier-plugin-generated code exhibits some recursive
+behaviour which is impossible to work around.** Because of this, serialization allows configurable bounds and length limits.
 
 ### Bounded Lengths and Overflow Guards
 
@@ -63,16 +65,17 @@ decapsulated iteratively and without per-layer byte copies, so nested octet stri
 
 By default `DerConfiguration.maxInputLength` is the target's conservative `ByteArray` ceiling (`Int.MAX_VALUE - 8` on
 JVM/Android and `Int.MAX_VALUE` elsewhere). It prevents source parsing from attempting an impossible backing-array
-allocation; it is not a small application-level payload policy.
+allocation; it is not an application-level payload policy.
 
 ### Catchable Errors Only
 
 Every rejection produced by awesn1's validation surfaces as a catchable `Asn1Exception` (core),
 `SerializationException` (kxs), `NumberFormatException`, `IllegalArgumentException`, etc. Stack exhaustion is not a
-validation result and is deliberately never caught or converted. The nesting guard must reject excessive depth before
-the runtime exhausts its stack; an unsafe configured limit or unbounded custom code can still exhaust memory or the
-call stack.
-Decode/parse paths run inside `runRethrowing`/`runWrappingAs`, which catch non-fatal `Throwable`s and wrap them; only VM-fatal errors are rethrown.
+validation result and is deliberately never caught or converted. The nesting guard is set to sane defaults for all targets to
+reject excessive depth before the runtime exhausts its stack.
+**Hence, an unsafe configured limit or unbounded custom code can still exhaust memory or the
+call stack.**
+Decode/parse paths run inside `runRethrowing`/`runWrappingAs`, which catch non-fatal `Throwable`s and wrap them; only fatal errors are rethrown.
 
 ### Bounded Depth and Collection Sizes
 
@@ -194,9 +197,13 @@ Parsed elements require more memory than their wire representation, especially w
 elements. The iterative parser prevents stack overflow, but callers must still choose input limits appropriate for
 their workload.
 
+This is universally true for binary formats, as these tend to pack data much more tightly than the
+in-memory representation used by Kotlin. For DER, however, which was designed to save every bit possible on the wire, 
+this amplification can be close the theoretical maximum even for some real-world data.
+
 ### Constructing Huge Data Programmatically
 
-These guarantees concern *parsing untrusted input*. If you build an `Asn1Element` tree in code whose aggregate size
+These above limits and guarantees concern *parsing untrusted input*. If you build an `Asn1Element` tree in code whose aggregate size
 exceeds `Int.MAX_VALUE`, that is under your control: read the `…Long` accessors and encode via `encodeTo(sink)` to a
 streaming sink instead of materializing `derEncoded` (a single `ByteArray`, itself capped at ~2 GiB).
 
@@ -208,7 +215,6 @@ The `kxs` module implements a `kotlinx.serialization` format, which means that s
 cannot be fully controlled by awesn1 during deserialization:
 
 !!! danger "Custom decoder recursion is not bounded"
-
     **`maxNestingDepth` does not apply to recursion performed inside custom `KSerializer` code or
     `Asn1Serializable.doDecode`.** Those functions are trusted application code: awesn1 receives control only before
     and after the call, so it cannot observe or count recursive calls made inside it. Such implementations must

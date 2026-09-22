@@ -7,6 +7,7 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.Asn1BitString.Companion.fromBitSet
 import at.asitplus.awesn1.serialization.Asn1Serializer
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -141,7 +142,7 @@ data class Asn1BitString private constructor(
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_BIT_STRING, PrimitiveKind.STRING)
-                .withDynamicAsn1LeadingTags { leadingTags }
+                .withAsn1LeadingTags(leadingTags)
 
         private fun fromBitSet(bitSet: BitSet): Pair<Byte, ByteArray> {
             val rawBytes = bitSet.bytes.map {
