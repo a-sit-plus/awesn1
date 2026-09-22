@@ -5,13 +5,9 @@
 
 package at.asitplus.awesn1.serialization
 
-import at.asitplus.awesn1.Asn1Decodable
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Encodable
-import at.asitplus.awesn1.ASN1_DESCRIPTOR_OPAQUE
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.decodeFromDer
 import at.asitplus.awesn1.encoding.encodeToDer
-import at.asitplus.awesn1.runWrappingAs
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ByteArraySerializer
@@ -47,7 +43,7 @@ interface Asn1Serializable<A : Asn1Element, T : Asn1Encodable<A>> :
 
     override val descriptor: SerialDescriptor
         get() = SerialDescriptor(ASN1_DESCRIPTOR_OPAQUE, ByteArraySerializer().descriptor)
-            .withDynamicAsn1LeadingTags { leadingTags }
+            .withAsn1LeadingTags(leadingTags)
 
     /**
      * Decodes one ASN.1-backed value via DER bytes.

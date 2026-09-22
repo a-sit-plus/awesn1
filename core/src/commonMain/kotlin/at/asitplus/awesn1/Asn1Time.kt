@@ -9,6 +9,7 @@ import at.asitplus.awesn1.Asn1Time.Companion.invoke
 import at.asitplus.awesn1.Asn1Time.Fractional.Companion.FRACTIONAL_SECONDS
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.serialization.Asn1Serializer
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -183,7 +184,7 @@ sealed class Asn1Time(protected val z: Char) : Asn1Encodable<Asn1Primitive> {
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_TIME, PrimitiveKind.STRING)
-                .withDynamicAsn1LeadingTags { leadingTags }
+                .withAsn1LeadingTags(leadingTags)
 
         /** Constructs a whole-second [Asn1Time] from an [Instant]. Sub-second precision is dropped (see [SecondsCapped]). */
         operator fun invoke(instant: Instant, formatOverride: Format? = null): Asn1Time {

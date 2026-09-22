@@ -5,6 +5,7 @@ package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
 import at.asitplus.awesn1.serialization.withDynamicAsn1LeadingTags
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
@@ -39,7 +40,7 @@ internal abstract class Asn1DiscriminatedOpenPolymorphicSerializer<T : Any>(
 
     final override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(serialName, PrimitiveKind.STRING)
-            .withDynamicAsn1LeadingTags { leadingTags }
+            .withAsn1LeadingTags(leadingTags)
 
     protected abstract val leadingTags: Set<Asn1Element.Tag>
 
