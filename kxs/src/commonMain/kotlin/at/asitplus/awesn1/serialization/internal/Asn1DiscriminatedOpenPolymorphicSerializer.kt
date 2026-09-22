@@ -40,7 +40,8 @@ internal abstract class Asn1DiscriminatedOpenPolymorphicSerializer<T : Any>(
 
     final override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(serialName, PrimitiveKind.STRING)
-            .withAsn1LeadingTags(leadingTags)
+            // leadingTags is backed by subclass dispatch, which is unavailable while this base initializer runs.
+            .withDynamicAsn1LeadingTags { leadingTags }
 
     protected abstract val leadingTags: Set<Asn1Element.Tag>
 
