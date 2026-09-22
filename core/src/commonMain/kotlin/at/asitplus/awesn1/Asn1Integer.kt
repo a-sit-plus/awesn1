@@ -8,6 +8,7 @@ package at.asitplus.awesn1
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.*
 import at.asitplus.awesn1.serialization.Asn1Serializer
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -28,6 +29,7 @@ private const val DEFAULT_MAX_INPUT_LENGTH = (DEFAULT_MAX_MAGNITUDE_BYTES * 2410
 
 // number of bytes rendered for debugging before truncation
 private const val DEBUGGING_MAGNITUDE_BYTES = 48
+
 // 2^53: binary64 has 53 significant bits; rounding to this value carries into a new exponent.
 private const val DOUBLE_SIGNIFICAND_CARRY = 9007199254740992.0
 
@@ -136,6 +138,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
+                .withAsn1LeadingTags(leadingTags)
 
         val ONE by lazy { Asn1Integer.Positive(VarUInt(1u)) }
         val ZERO by lazy { Asn1Integer.Positive(VarUInt(0u)) }
@@ -373,14 +376,14 @@ internal value class VarUInt private constructor(
             else -> ""
         }
         val overhead = effectivePrefix.length + effectiveSuffix.length
-        val effectiveByteLimit = (Int.MAX_VALUE - overhead)/2 /* String maximum length */
+        val effectiveByteLimit = (Int.MAX_VALUE - overhead) / 2 /* String maximum length */
 
 
         val renderEnd = minOf(truncatePast, words.size)
         require(renderEnd <= effectiveByteLimit)
-            { "UVarInt (${words.size} bytes) is too long to be converted to String!" }
+        { "UVarInt (${words.size} bytes) is too long to be converted to String!" }
 
-        val result = StringBuilder(renderEnd*2 + overhead)
+        val result = StringBuilder(renderEnd * 2 + overhead)
         result.append(effectivePrefix)
         for (i in 0 until renderEnd) {
             val value = words[i].toInt()
@@ -532,6 +535,7 @@ internal value class VarUInt private constructor(
         if (shift > 0) {
             fun bitAt(index: Int): Boolean =
                 ((words[words.lastIndex - index / 8].toInt() ushr (index % 8)) and 1) != 0
+
             val guard = bitAt(shift - 1)
             val sticky = (0 until shift - 1).any(::bitAt)
             if (guard && (sticky || (significand.toLong() and 1L) != 0L)) significand += 1.0

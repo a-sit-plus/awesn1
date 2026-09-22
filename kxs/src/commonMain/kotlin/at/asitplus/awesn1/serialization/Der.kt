@@ -10,10 +10,11 @@ import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerDepthGuard
-import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
+import at.asitplus.awesn1.serialization.internal.DerAnalysisContext
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
 import kotlin.jvm.JvmName
@@ -52,16 +53,15 @@ class Der internal constructor(
     override fun <T> decodeFromByteArray(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
-    ): T = runWrappingAs(a = ::SerializationException) {
-        val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
+    ): T = withAnalysis(deserializer.descriptor) { analysis ->
         val decoder = DerDecoder(
             if (bytes.isEmpty()) emptyList() else listOf(
                 Asn1Element.parse(source = bytes, limit = configuration.maxInputLength)
             ),
             der = this,
-            layoutPlan = layoutPlan,
+            analysis = analysis,
         )
-        return decoder.decodeSerializableValue(deserializer)
+        decoder.decodeSerializableValue(deserializer)
     }
 
     /**
@@ -76,7 +76,7 @@ class Der internal constructor(
     @Throws(SerializationException::class, ImplementationError::class)
     @JvmName("encodeToTlvNullable")
     fun <T> encodeToTlv(serializer: SerializationStrategy<T>, value: T): Asn1Element? =
-        Internal.encodeToTlv(this, serializer, value)
+        encodeToSingleTlv(serializer, value)
 
     /**
      * Encodes [value] with the given [serializer] into a single ASN.1 TLV element.
@@ -87,33 +87,29 @@ class Der internal constructor(
     @ExperimentalSerializationApi
     @Throws(SerializationException::class, ImplementationError::class)
     fun <T : Any> encodeToTlv(serializer: SerializationStrategy<T>, value: T): Asn1Element =
-        Internal.encodeToTlv(this, serializer, value)
+        encodeToSingleTlv(serializer, value)
             ?: throw ImplementationError("DER serializer produced no elements")
 
-    internal object Internal {
-        @ExperimentalSerializationApi
-        @Throws(SerializationException::class, ImplementationError::class)
-        fun <T> encodeToTlv(der: Der, serializer: SerializationStrategy<T>, value: T): Asn1Element? =
-            runWrappingAs(a = ::SerializationException) {
-                val layoutPlan = DerLayoutPlanContext(der.configuration).also { it.prime(serializer.descriptor) }
-                val encoder = DerEncoder(
-                    der = der,
-                    layoutPlan = layoutPlan,
+    @ExperimentalSerializationApi
+    @Throws(SerializationException::class, ImplementationError::class)
+    private fun <T> encodeToSingleTlv(serializer: SerializationStrategy<T>, value: T): Asn1Element? =
+        withAnalysis(serializer.descriptor) { analysis ->
+            val encoder = DerEncoder(
+                der = this,
+                analysis = analysis,
+            )
+            encoder.encodeSerializableValue(serializer, value)
+            val elements = encoder.encodeToTLV()
+                .also { if (it.size > 1) throw ImplementationError("DER serializer multiple elements") }
+            elements.forEach {
+                DerDepthGuard().ensureElementTreeFits(
+                    it,
+                    configuration.maxNestingDepth,
+                    serializer.descriptor.serialName,
                 )
-                encoder.encodeSerializableValue(serializer, value)
-                val elements = encoder.encodeToTLV()
-                    .also { if (it.size > 1) throw ImplementationError("DER serializer multiple elements") }
-                elements.forEach {
-                    DerDepthGuard().ensureElementTreeFits(
-                        it,
-                        der.configuration.maxNestingDepth,
-                        serializer.descriptor.serialName,
-                    )
-                }
-                return elements.firstOrNull()
             }
-
-    }
+            elements.firstOrNull()
+        }
 
     /**
      * Decodes a single TLV [source] using the given [deserializer].
@@ -123,15 +119,21 @@ class Der internal constructor(
     @ExperimentalSerializationApi
     @Throws(SerializationException::class, ImplementationError::class)
     fun <T> decodeFromTlv(deserializer: DeserializationStrategy<T>, source: Asn1Element): T =
-        runWrappingAs(a = ::SerializationException) {
-            val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
+        withAnalysis(deserializer.descriptor) { analysis ->
             val decoder = DerDecoder(
                 listOf(source),
                 der = this,
-                layoutPlan = layoutPlan,
+                analysis = analysis,
             )
-            return decoder.decodeSerializableValue(deserializer)
+            decoder.decodeSerializableValue(deserializer)
         }
+}
+
+private inline fun <R> Der.withAnalysis(
+    descriptor: SerialDescriptor,
+    body: (DerAnalysisContext) -> R,
+): R = runWrappingAs(a = ::SerializationException) {
+    body(DerAnalysisContext(configuration.explicitNulls).also { it.validateDescriptorTree(descriptor) })
 }
 
 
@@ -146,15 +148,24 @@ class Der internal constructor(
  * @property maxInputLength maximum allowed DER byte-array size. Defaults to the platform's conservative array ceiling;
  * lower it when the application or protocol has a smaller bound. Streaming `Source` APIs may use a tighter per-call
  * limit.
- * @property maxNestingDepth maximum structural nesting depth the **typed** encoder/decoder will descend before
- * throwing a [kotlinx.serialization.SerializationException]. The raw parser/encoder are iterative and stack-safe, but
- * kotlinx.serialization's encode/decode contract is recursive descent (`deserialize` -> `decodeSerializableElement` ->
- * `deserialize` -> ...; and the mirror on encode), so a *self-referential* `@Serializable` type that is deeply nested
- * (decoded from deeply nested input, or serialized from a deeply nested in-memory value) would otherwise overflow the
- * call stack with an unrecoverable [StackOverflowError]. A limit chosen within the runtime's actual stack headroom
- * rejects the input with a clean, catchable exception before exhaustion.
- * The default is 32, which is conservative across supported runtimes. Values up to 65,536 are accepted for callers
- * that deliberately provide a larger stack; the caller is responsible for ensuring sufficient platform stack space.
+ * @property maxNestingDepth maximum structural nesting depth the **typed** encoder/decoder will enter before throwing
+ * a [kotlinx.serialization.SerializationException]. Every nested structure counts, not only a self-reference. A fixed
+ * schema has an inherently bounded depth; self-referential `@Serializable` types are the usual way for input or an
+ * in-memory value to drive that depth arbitrarily high.
+ *
+ * The raw parser/encoder are iterative and stack-safe, but kotlinx.serialization's contract is recursive descent
+ * (`deserialize` -> `decodeSerializableElement` -> generated `deserialize` -> ...; and the mirror on encode). Each
+ * logical nesting level therefore retains several generated-serializer and framework callback frames. Those frames
+ * are intrinsic to kotlinx.serialization and cannot be eliminated by a format implementation.
+ *
+ * The default of 32 is a conservative cross-platform limit for ordinary runtime stacks. Actual headroom depends on
+ * the target, runtime, compiler output, optimizations, thread stack size, and code already on the stack. Applications
+ * running on unusually small or otherwise constrained stacks should reduce this value. Increase it only after testing
+ * the complete encode/decode path on every deployment target with the actual thread-stack configuration. The accepted
+ * maximum of 65,536 is a configuration ceiling, not a claim that any runtime stack can support that depth.
+ *
+ * The guard prevents stack exhaustion only when the configured limit fits the available headroom. Stack exhaustion
+ * itself is deliberately neither caught nor converted.
  *
  * **IMPORTANT:** this limit applies only to recursion driven through kotlinx.serialization's encoder/decoder callbacks.
  * Recursion performed inside trusted custom code, including [Asn1Serializable.doDecode], is outside the format's
@@ -198,10 +209,13 @@ class DerBuilder internal constructor() {
     var maxInputLength: Long = defaultMaxByteArrayInputLength
 
     /**
-     * Maximum structural nesting depth the typed encoder/decoder will descend before throwing a
-     * [kotlinx.serialization.SerializationException], instead of overflowing the call stack on a deeply nested
-     * recursive `@Serializable` type. Defaults to 32 and can be raised to 65,536 when the runtime stack permits. See
-     * [DerConfiguration.maxNestingDepth].
+     * Maximum structural nesting depth the typed encoder/decoder will enter before throwing a
+     * [kotlinx.serialization.SerializationException]. Every nested structure counts. kotlinx.serialization necessarily
+     * retains several generated-serializer and framework callback frames per logical level, so available depth varies
+     * with the platform and thread stack. The conservative default is 32; reduce it for constrained stacks, and raise
+     * it only after testing the actual deployment environment. The accepted maximum of 65,536 is not guaranteed to fit
+     * any runtime stack. See [DerConfiguration.maxNestingDepth].
+     * Stack exhaustion itself is deliberately neither caught nor converted.
      * This does not bound recursion inside custom serializers or [Asn1Serializable.doDecode].
      */
     var maxNestingDepth: Int = DEFAULT_MAX_NESTING_DEPTH

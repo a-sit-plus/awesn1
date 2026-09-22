@@ -14,6 +14,7 @@ import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromByteArray
@@ -25,7 +26,7 @@ import kotlin.jvm.JvmInline
 val SerializationTestCoverageGaps by matrixSuite(
     matrixConfig { execution= ExecutionMode.Sequential }
 ) {
-    "Asn1Tag INFER keeps primitive base class/constructed while overriding tag number" {
+    "Asn1Tag INFER defaults class to context-specific while inferring constructed" {
         val value = InferTagOnPrimitive(1)
         val element = Asn1Element.parse(
             Buffer().apply { DER.encodeToSink(value, this) }.readByteArray()
@@ -38,6 +39,14 @@ val SerializationTestCoverageGaps by matrixSuite(
         DER.decodeFromSource<InferTagOnPrimitive>(Buffer().apply { write(
             Buffer().apply { DER.encodeToSink(value, this) }.readByteArray()
         ) }) shouldBe value
+    }
+
+    "Asn1Tag INFER rejects foreign wire tag classes" {
+        listOf("3003450107", "3003c50107", "3003050107").forEach { encoded ->
+            shouldThrow<SerializationException> {
+                DER.decodeFromSource<InferTagOnPrimitive>(Buffer().apply { write(encoded.hexToByteArray()) })
+            }.cause.shouldBeInstanceOf<Asn1TagMismatchException>()
+        }
     }
 
     "Asn1Tag constructed=INFER keeps constructed=true for class-level structures" {

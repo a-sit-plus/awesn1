@@ -28,6 +28,7 @@ repositories {
     mavenLocal {
         content {
             includeGroup("at.asitplus.gradle")
+            includeGroup("at.asitplus.testballoon")
         }
     }
     maven {
