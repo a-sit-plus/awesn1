@@ -29,6 +29,7 @@ import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.awesn1.serialization.Asn1DerDecoder
 import at.asitplus.awesn1.serialization.Asn1DerEncoder
 import at.asitplus.awesn1.serialization.Asn1Serializable
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
 import at.asitplus.awesn1.serialization.withDynamicAsn1LeadingTags
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -544,7 +545,7 @@ sealed class Asn1String(
 
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
-            .withDynamicAsn1LeadingTags { leadingTags }
+            .withAsn1LeadingTags(leadingTags)
 
         /**
          * Decodes an [Asn1Primitive] into a specific [Asn1String] subtype based on its tag.
@@ -636,7 +637,7 @@ object Asn1Utf8StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.UTF
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_UTF8)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
-            .withDynamicAsn1LeadingTags { leadingTags }
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.UTF8 =
         decodeImplicitlyTaggedAsn1StringSubtype(
@@ -668,7 +669,7 @@ object Asn1VisibleStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_VISIBLE)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
-            .withDynamicAsn1LeadingTags { leadingTags }
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.Visible =
         decodeImplicitlyTaggedAsn1StringSubtype(
@@ -700,7 +701,7 @@ object Asn1Ia5StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.IA5>
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_IA5)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
-            .withDynamicAsn1LeadingTags { leadingTags }
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.IA5 =
         decodeImplicitlyTaggedAsn1StringSubtype(
@@ -732,7 +733,7 @@ object Asn1PrintableStringSerializer : Asn1Serializable<Asn1Primitive, Asn1Strin
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_PRINTABLE)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
-            .withDynamicAsn1LeadingTags { leadingTags }
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.Printable =
         decodeImplicitlyTaggedAsn1StringSubtype(
@@ -764,7 +765,7 @@ object Asn1NumericStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_NUMERIC)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
-            .withDynamicAsn1LeadingTags { leadingTags }
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.Numeric =
         decodeImplicitlyTaggedAsn1StringSubtype(
