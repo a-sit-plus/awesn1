@@ -33,7 +33,7 @@ import kotlin.time.Instant
  * fraction. Branch on the subtype, never on the instant — using the instant may misclassify cases.
  */
 @Serializable(with = Asn1Time.Companion::class)
-sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
+sealed class Asn1Time(protected val z: Char) : Asn1Encodable<Asn1Primitive> {
 
     /**
      * The timestamp **value only**, truncated to [Instant]'s nanosecond resolution. For [SecondsCapped] this
@@ -64,27 +64,20 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
     class SecondsCapped private constructor(
         instant: Instant,
         formatOverride: Format?,
-        private val preservedUtcContent: String?,
-    ) : Asn1Time() {
-        constructor(instant: Instant, formatOverride: Format? = null) : this(instant, formatOverride, null)
+        z: Char
+    ) : Asn1Time(z) {
+        constructor(instant: Instant, formatOverride: Format? = null) : this(instant, formatOverride, 'Z')
 
-        internal constructor(instant: Instant, preservedUtcContent: String) :
-                this(instant, Format.UTC, preservedUtcContent)
+        internal constructor(instant: Instant, z: Char) :
+                this(instant, Format.UTC, z)
 
         override val instant: Instant = Instant.fromEpochSeconds(instant.epochSeconds)
         override val format: Format = formatOverride ?: pickFormat(this.instant)
 
-        internal fun encode() = preservedUtcContent?.let {
-            Asn1Primitive(Asn1Element.Tag.TIME_UTC, it.encodeToByteArray())
-        } ?: when (format) {
-            Format.UTC -> instant.encodeToAsn1UtcTimePrimitive()
-            Format.GENERALIZED -> instant.encodeToAsn1GeneralizedTimePrimitive()
+        internal fun encode() =  when (format) {
+            Format.UTC -> instant.encodeToAsn1UtcTimePrimitive(z)
+            Format.GENERALIZED -> instant.encodeToAsn1GeneralizedTimePrimitive(z)
         }
-
-        override fun equals(other: Any?): Boolean =
-            super.equals(other) && other is SecondsCapped && preservedUtcContent == other.preservedUtcContent
-
-        override fun hashCode(): Int = super.hashCode() * 31 + preservedUtcContent.hashCode()
     }
 
 
@@ -111,7 +104,9 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
          * May carry more precision than [instant]'s nanosecond resolution.
          */
         val fractionalSeconds: String,
-    ) : Asn1Time() {
+
+        z: Char='Z'
+    ) : Asn1Time(z) {
 
         init {
             require(FRACTIONAL_SECONDS.matches(fractionalSeconds)) {
@@ -147,7 +142,7 @@ sealed class Asn1Time : Asn1Encodable<Asn1Primitive> {
         when (this) {
             is Fractional -> {
                 val fraction = fractionalSeconds
-                val whole = instant.encodeToAsn1Time().dropLast(1) // strip trailing 'Z' -> "YYYYMMDDHHMMSS"
+                val whole = instant.encodeToAsn1Time(z).dropLast(1) // strip trailing 'Z' -> "YYYYMMDDHHMMSS"
                 val body = if (fraction.isEmpty()) whole else "$whole.${fraction}"
                 Asn1Primitive(Asn1Element.Tag.TIME_GENERALIZED, "${body}Z".encodeToByteArray())
             }
@@ -241,7 +236,7 @@ private fun pickFormat(instant: Instant): Asn1Time.Format =
 private fun fromUtc(content: ByteArray): Asn1Time {
     val instant = Instant.decodeUtcTimeFromAsn1ContentBytes(content)
     val encoded = content.decodeToString()
-    return if (encoded.endsWith('z')) Asn1Time.SecondsCapped(instant, encoded)
+    return if (encoded.endsWith('z') || encoded.endsWith('Z')) Asn1Time.SecondsCapped(instant, encoded.last())
     else Asn1Time.SecondsCapped(instant, Asn1Time.Format.UTC)
 }
 

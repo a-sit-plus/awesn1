@@ -486,16 +486,20 @@ fun Asn1Integer.encodeToAsn1ContentBytes() = twosComplement()
 /**
  * Produces a UTC TIME as [Asn1Primitive]
  */
-fun Instant.encodeToAsn1UtcTimePrimitive() =
-    Asn1Primitive(Asn1Element.Tag.TIME_UTC, encodeToAsn1Time().drop(2).encodeToByteArray())
+fun Instant.encodeToAsn1UtcTimePrimitive() = encodeToAsn1UtcTimePrimitive('Z')
+@Suppress("NOTHING_TO_INLINE")
+internal inline fun Instant.encodeToAsn1UtcTimePrimitive(z:Char) =
+    Asn1Primitive(Asn1Element.Tag.TIME_UTC, encodeToAsn1Time(z).drop(2).encodeToByteArray())
 
 /**
  * Produces a GENERALIZED TIME as [Asn1Primitive]
  */
-fun Instant.encodeToAsn1GeneralizedTimePrimitive() =
-    Asn1Primitive(Asn1Element.Tag.TIME_GENERALIZED, encodeToAsn1Time().encodeToByteArray())
+fun Instant.encodeToAsn1GeneralizedTimePrimitive() = encodeToAsn1GeneralizedTimePrimitive('Z')
+@Suppress("NOTHING_TO_INLINE")
+internal inline fun Instant.encodeToAsn1GeneralizedTimePrimitive(z: Char) =
+    Asn1Primitive(Asn1Element.Tag.TIME_GENERALIZED, encodeToAsn1Time(z).encodeToByteArray())
 
-internal fun Instant.encodeToAsn1Time(): String {
+internal fun Instant.encodeToAsn1Time(z:Char): String {
     val value = this.toString()
     if (value.isEmpty())
         throw IllegalArgumentException("Instant serialization failed: no value")
@@ -514,7 +518,7 @@ internal fun Instant.encodeToAsn1Time(): String {
         ?: throw IllegalArgumentException("Instant serialization minute failed: $value")
     val seconds = matchResult.groups[6]?.value
         ?: throw IllegalArgumentException("Instant serialization seconds failed: $value")
-    return "$year$month$day$hour$minute$seconds" + "Z"
+    return "$year$month$day$hour$minute$seconds$z"
 }
 
 
