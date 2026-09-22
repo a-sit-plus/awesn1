@@ -4,14 +4,13 @@ import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.without
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.testballoon.matrix.matrixSuite
-import com.ionspin.kotlin.bignum.integer.BigInteger
-import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.uLong
+import java.math.BigInteger
 
 val ImplicitTaggingTest by matrixSuite {
 
@@ -75,8 +74,8 @@ val ImplicitTaggingTest by matrixSuite {
                 (Asn1.Int(1337u) withImplicitTag tag).asPrimitive().decodeToUIntOrNull(tag) shouldBe 1337u
                 (Asn1.Int(1337L) withImplicitTag tag).asPrimitive().decodeToLongOrNull(tag) shouldBe 1337L
                 (Asn1.Int(1337uL) withImplicitTag tag).asPrimitive().decodeToULongOrNull(tag) shouldBe 1337uL
-                (Asn1.Int(BigInteger(1337).toJavaBigInteger()) withImplicitTag tag).asPrimitive()
-                    .decodeToAsn1Integer(tag).toJavaBigInteger() shouldBe BigInteger(1337).toJavaBigInteger()
+                (Asn1.Int(BigInteger.valueOf(1337)) withImplicitTag tag).asPrimitive()
+                    .decodeToAsn1Integer(tag).toJavaBigInteger() shouldBe BigInteger.valueOf(1337)
             }
 
 

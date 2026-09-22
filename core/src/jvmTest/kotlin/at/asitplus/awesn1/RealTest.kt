@@ -4,11 +4,10 @@ import at.asitplus.awesn1.encoding.*
 import at.asitplus.testballoon.matrix.CompactConcurrency
 import at.asitplus.testballoon.matrix.CompactReport
 import at.asitplus.testballoon.matrix.matrixSuite
-import com.ionspin.kotlin.bignum.decimal.BigDecimal
-import com.ionspin.kotlin.bignum.integer.base63.toJavaBigInteger
 import de.infix.testBalloon.framework.core.TestConfig
 import de.infix.testBalloon.framework.core.aroundAll
 import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.longs.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldStartWith
@@ -17,6 +16,7 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.bigInt
 import io.kotest.property.arbitrary.long
 import kotlinx.serialization.json.Json
+import java.math.BigDecimal
 import java.math.BigInteger
 
 
@@ -56,12 +56,12 @@ val RealTest by matrixSuite {
         "large" {
             val number =
                 "1.1897314953572317650857593266280070162123456789009876543456789098765432123456789876543212345678987654323456789876532345678765432345678876543234567"
-            val bigDecimal = BigDecimal.parseString(number)
-            bigDecimal.precision shouldBeGreaterThan 64L
-            val wrongScaledMantissa = bigDecimal.significand.toJavaBigInteger().toAsn1Integer()
-            val exponent = bigDecimal.exponent
+            val bigDecimal = BigDecimal(number)
+            bigDecimal.precision() shouldBeGreaterThan 64
+            val wrongScaledMantissa = bigDecimal.unscaledValue().toAsn1Integer()
+            val exponent = -bigDecimal.scale()
             bigDecimal.toString() shouldBe number
-            val encoded = Asn1Real.Finite(wrongScaledMantissa, exponent).encodeToDer()
+            val encoded = Asn1Real.Finite(wrongScaledMantissa, exponent.toLong()).encodeToDer()
             Asn1Real.decodeFromDer(encoded).apply {
                 this.shouldBeInstanceOf<Asn1Real.Finite>()
                 this.normalizedMantissa shouldBe wrongScaledMantissa
