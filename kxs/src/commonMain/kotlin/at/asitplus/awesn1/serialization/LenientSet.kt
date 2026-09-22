@@ -5,6 +5,7 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.serialization.internal.asNamedSetDescriptor
+import at.asitplus.awesn1.serialization.internal.DerDecoder as InternalDerDecoder
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -33,10 +34,15 @@ class LenientSet<T> private constructor(
         if (it.size != size) throw Asn1Exception("ASN.1 SET OF contains duplicate elements")
     }
 
-    override fun equals(other: Any?): Boolean =
-        this === other || other is LenientSet<*> && elements.toSet() == other.elements.toSet()
+    override fun equals(other: Any?): Boolean = when {
+        this === other -> true
+        other !is LenientSet<*> || preserveWireOrder != other.preserveWireOrder -> false
+        preserveWireOrder -> elements.toList() == other.elements.toList()
+        else -> elements.toSet() == other.elements.toSet()
+    }
 
-    override fun hashCode(): Int = elements.toSet().hashCode()
+    override fun hashCode(): Int = 31 * preserveWireOrder.hashCode() +
+            if (preserveWireOrder) elements.toList().hashCode() else elements.toSet().hashCode()
 
     class Serializer<T>(private val elementSerializer: KSerializer<T>) : KSerializer<LenientSet<T>> {
         private val listDescriptor = ListSerializer(elementSerializer).descriptor
@@ -51,14 +57,21 @@ class LenientSet<T> private constructor(
                 }
             }
 
-        override fun deserialize(decoder: Decoder): LenientSet<T> = decoder.decodeStructure(descriptor) {
-            val elements = mutableListOf<T>()
-            while (true) {
-                val index = decodeElementIndex(descriptor)
-                if (index == CompositeDecoder.DECODE_DONE) break
-                elements += decodeSerializableElement(descriptor, index, elementSerializer)
+        override fun deserialize(decoder: Decoder): LenientSet<T> {
+            val wireWasCanonical =
+                (decoder as? InternalDerDecoder)?.peekCurrentElementOrNull()?.asStructure()?.isActuallySorted == true
+            return decoder.decodeStructure(descriptor) {
+                val elements = mutableListOf<T>()
+                while (true) {
+                    val index = decodeElementIndex(descriptor)
+                    if (index == CompositeDecoder.DECODE_DONE) break
+                    elements += decodeSerializableElement(descriptor, index, elementSerializer)
+                }
+                val uniqueElements = elements.toSet()
+                val preserveWireOrder =
+                    decoder is DerDecoder && (!wireWasCanonical || uniqueElements.size != elements.size)
+                LenientSet(if (preserveWireOrder) elements else uniqueElements, preserveWireOrder)
             }
-            LenientSet(elements, preserveWireOrder = true)
         }
 
         private companion object {

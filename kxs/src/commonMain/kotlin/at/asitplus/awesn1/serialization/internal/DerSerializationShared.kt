@@ -144,6 +144,11 @@ internal fun SerialDescriptor.isKotlinULongDescriptor(): Boolean =
 internal fun SerialDescriptor.isKotlinUnsignedIntegerDescriptor(): Boolean =
     isKotlinUByteDescriptor() || isKotlinUShortDescriptor() || isKotlinUIntDescriptor() || isKotlinULongDescriptor()
 
+internal tailrec fun SerialDescriptor.inlineChainContains(serialName: String): Boolean =
+    if (this.serialName.removeSuffix("?") == serialName) true
+    else if (isInline && elementsCount == 1) getElementDescriptor(0).inlineChainContains(serialName)
+    else false
+
 internal fun SerialDescriptor.requireNoAsn1TagOnInlineBackingProperty() {
     if (isInline && elementsCount == 1 && asn1Tag(0) != null) {
         throw SerializationException(
