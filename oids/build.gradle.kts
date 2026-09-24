@@ -102,6 +102,10 @@ fun generateKnownOIDs() {
                     .replace('-', '_')
                     .replace(",", "").let {
                         it.ifBlank { oid!!.replace(" ", "_") }
+                    }.let {
+                        // now known OIDS introduced a bug
+                        // `sha1` is ambiguous in dumpasn1.cfg; keep the conventional X.509/JCA OIW OID unsuffixed.
+                        if (it == "sha1" && oid != "1 3 14 3 2 26") "${it}_${oid!!.replace(" ", "_")}" else it
                     }
             } else if (line.startsWith("Comment = ")) {
                 comment = line.substring("Comment = ".length).trim()
