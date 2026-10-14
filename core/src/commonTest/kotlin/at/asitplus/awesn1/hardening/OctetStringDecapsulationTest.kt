@@ -41,6 +41,18 @@ private fun Asn1Element.asInt() = (this as Asn1Primitive).decodeToInt()
 
 val OctetStringDecapsulationTest by matrixSuite {
 
+    "nested encapsulating octet strings do not retain materialized content" {
+        var current = Asn1Element.parse(octet(octet(int1)))
+        while (current is Asn1EncapsulatingOctetString) {
+            val first = current.content
+            val second = current.content
+            first shouldBe second
+            (first === second) shouldBe false
+            current.isContentMaterialized shouldBe false
+            current = current.children.single()
+        }
+    }
+
     "octet string wrapping a single DER element decapsulates" {
         val der = octet(int1)
         val parsed = Asn1Element.parse(der)

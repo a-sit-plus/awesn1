@@ -1223,11 +1223,7 @@ class Asn1EncapsulatingOctetString private constructor(
     //decoding-time child replacement never changes this element's encoding.
     @PublishedApi
     internal val _sequence: Asn1Sequence,
-) : Asn1OctetString(
-    // `content` (the inner DER) is derived from the children and is NEVER forced on the parse/encode/equals path
-    // (see the overrides below); it is realized lazily only on an explicit `content`/`prettyPrint` access.
-    { throughBuffer { sink -> _sequence.children.forEach { it.encodeTo(sink) } } }
-), Iterable<Asn1Element> {
+) : Asn1OctetString(Asn1Primitive.initImplError), Iterable<Asn1Element> {
 
     constructor(children: List<Asn1Element>) : this(Asn1Sequence(children))
 
@@ -1250,6 +1246,8 @@ class Asn1EncapsulatingOctetString private constructor(
     // via the dedicated branch in encodeTreeTo). This is what keeps deeply nested encapsulation O(input), not
     // O(input²) — there is no per-layer `rawContent` copy any more.
     override val contentLengthLong: Long get() = _sequence.contentLengthLong
+    override val content: ByteArray
+        get() = throughBuffer { sink -> children.forEach { it.encodeTo(sink) } }
     override val derEncoded: ByteArray get() = throughBuffer { encodeTreeTo(it) }
 
     /**
@@ -1393,7 +1391,7 @@ open class Asn1Primitive private constructor(
     // props with explicit backing fields cannot have accessors, so we're left with this mess
     @Volatile
     private var contentCache: ByteArray? = content?.shareIfEmpty()
-    val content: ByteArray
+    open val content: ByteArray
         get() = contentCache ?: contentProviderOrNull!!().shareIfEmpty()
             .also { /*order is important here!*/contentCache = it; contentProviderOrNull = null }
 

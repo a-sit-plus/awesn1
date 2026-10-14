@@ -56,7 +56,7 @@ val Asn1ParserTest by matrixSuite {
         }
 
         "with Garbage" {
-            val garbage = Random.nextBytes(32)
+            val garbage = byteArrayOf(0x00, 0x00) + Random.nextBytes(32) // prepend forbidden DER end-of-contents tag.
             val withGarbage = rawChildren + garbage
             val source = withGarbage.wrapInUnsafeSource()
             val (parseFirst, rest) = Asn1Element.parseFirst(withGarbage)
@@ -78,9 +78,7 @@ val Asn1ParserTest by matrixSuite {
 
 
             shouldThrow<Asn1Exception> {
-                run {
-                    withGarbage.wrapInUnsafeSource().readFullyToAsn1Elements(limit = Long.MAX_VALUE)
-                } shouldBe seq.children
+                withGarbage.wrapInUnsafeSource().readFullyToAsn1Elements(limit = Long.MAX_VALUE)
             }
 
             shouldThrow<Asn1Exception> { Asn1Element.parse(withGarbage) }
