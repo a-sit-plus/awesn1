@@ -14,16 +14,15 @@ interface StringFallbackSerializer<T> : KSerializer<T> {
 
     fun encodeFallback(value: T): String
 
-    fun deserializeFallback(decoder: Decoder): T {
-        val encoded = decoder.decodeString()
-        return runWrappingAs(a = { message, cause -> SerializationException(message, cause) }) {
-            decodeFallback(encoded)
-        }
+    fun deserializeFallback(decoder: Decoder): T = runWrappingAs(a = ::SerializationException) {
+        decodeFallback(decoder.decodeString())
     }
 
     fun serializeFallback(encoder: Encoder, value: T) {
         encoder.encodeString(
-            runWrappingAs(a = { message, cause -> SerializationException(message, cause) }) { encodeFallback(value) }
+            runWrappingAs(a = ::SerializationException) {
+                encodeFallback(value)
+            }
         )
     }
 

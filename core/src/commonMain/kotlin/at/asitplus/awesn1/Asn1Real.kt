@@ -316,7 +316,7 @@ object Asn1RealStringSerializer : StringFallbackSerializer<Asn1Real> {
         encoded ==  "NaN" -> Asn1Real.NaN
         //@formatter:on
         else -> {
-            val compacted = if (encoded.any(Char::isWhitespace)) encoded.replace(REGEX_WHITESPACE, "") else encoded
+            val compacted = encoded.replace(REGEX_WHITESPACE, "")
             val parts = compacted.split("*2^")
             require(parts.size == 2) { "Invalid format for Asn1Real" }
             val mantissa = Asn1Integer.fromHexString(parts[0])
