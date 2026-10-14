@@ -14,6 +14,7 @@ import at.asitplus.awesn1.ASN1_DESCRIPTOR_OPAQUE
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_REAL
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_STRING
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_TIME
+import at.asitplus.awesn1.TagClass
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.asn1LeadingTagsOrNull
 import at.asitplus.awesn1.serialization.asn1Tag
@@ -275,6 +276,14 @@ private fun possibleBaseLeadingTags(
     isBitString: Boolean,
     choiceMode: Boolean,
 ): Asn1LeadingTagsResolution {
+    descriptor.asn1LeadingTagsOrNull?.let { serializerLeadingTags ->
+        return if (serializerLeadingTags.isEmpty()) {
+            Asn1LeadingTagsResolution.UnknownInfer
+        } else {
+            Asn1LeadingTagsResolution.Exact(serializerLeadingTags)
+        }
+    }
+
     if (descriptor.isInline && descriptor.elementsCount == 1) {
         return possibleLeadingTags(
             descriptor = descriptor.getElementDescriptor(0),
@@ -284,14 +293,6 @@ private fun possibleBaseLeadingTags(
             inheritedBitString = isBitString,
             forcedChoice = null,
         )
-    }
-
-    descriptor.asn1LeadingTagsOrNull?.let { serializerLeadingTags ->
-        return if (serializerLeadingTags.isEmpty()) {
-            Asn1LeadingTagsResolution.UnknownInfer
-        } else {
-            Asn1LeadingTagsResolution.Exact(serializerLeadingTags)
-        }
     }
 
     descriptor.coreAsn1ScalarLeadingTagsOrNull()?.let {
@@ -388,7 +389,7 @@ private fun applyImplicitTagOverride(
             baseTags.tags.map {
                 Asn1Element.Tag(
                     tagValue = tagTemplate.tagValue,
-                    tagClass = tagTemplate.tagClass ?: it.tagClass,
+                    tagClass = tagTemplate.tagClass ?: TagClass.CONTEXT_SPECIFIC,
                     constructed = tagTemplate.constructed ?: it.isConstructed,
                 )
             }.toSet()
