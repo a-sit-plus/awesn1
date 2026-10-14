@@ -772,7 +772,7 @@ object Asn1IntegerDecimalStringSerializer : StringFallbackSerializer<Asn1Integer
     var magnitudeLimit: Int = 0 //cannot lateinit due to lang limitations, so we init in ctor
         set(value) {
             // 2.410 > log10(256); allow decimal representation plus one digit and sign
-            characterLimit = (magnitudeLimit.toLong() * 2410 / 1000 + 2).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            characterLimit = (value.toLong() * 2410 / 1000 + 2).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
             field = value
         }
 

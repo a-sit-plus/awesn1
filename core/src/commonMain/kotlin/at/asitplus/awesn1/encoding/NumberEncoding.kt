@@ -259,4 +259,4 @@ fun Asn1Integer.toAsn1VarInt(): ByteArray = throughBuffer { it.writeAsn1VarInt(t
  */
 @Throws(IllegalArgumentException::class)
 fun ByteArray.decodeAsn1VarBigInt(): Pair<Asn1Integer, ByteArray> =
-    this.throughBuffer { it.decodeAsn1VarBigInt(size.toLong()) }
+    this.throughBuffer { it.decodeAsn1VarBigInt(this.size.toLong()) }

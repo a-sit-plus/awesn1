@@ -250,7 +250,7 @@ fun Sink.writeAsn1VarInt(number: Asn1Integer): Int {
 @Throws(IllegalArgumentException::class)
 @InternalAwesn1Api
 fun Source<*>.decodeAsn1VarBigInt(limit: Long?): Pair<Asn1Integer, ByteArray> =
-    decodeAsn1VarBigUInt(limit).let { (uint, bytes) -> Asn1Integer.Positive(uint) to bytes }
+    decodeAsn1VarBigUInt(limit).let { (uint, bytes) -> (Asn1Integer.Positive(uint) to bytes) }
 
 /**
  * Validates the constraints of an ASN.1 `INTEGER` type acquired from this source according to DER encoding rules.

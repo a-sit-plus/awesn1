@@ -62,7 +62,7 @@ internal const val DIAGNOSTIC_HEX_BYTES: Int = 64
 @OptIn(ExperimentalStdlibApi::class)
 internal fun ByteArray.toDiagnosticHexString(maxBytes: Int = DIAGNOSTIC_HEX_BYTES): String =
     if (size <= maxBytes) "0x" + toHexString(HexFormat.UpperCase)
-    else "0x" + copyOf(maxBytes).toHexString(HexFormat.UpperCase) + "…($size bytes)"
+    else "0x" + copyOf(maxBytes).toHexString(HexFormat.UpperCase) + "… ($size bytes)"
 private fun Asn1Element.Tag.toPrettyString(): String = toString().replaceFirst("(=", "(=0x")
 
 /**
