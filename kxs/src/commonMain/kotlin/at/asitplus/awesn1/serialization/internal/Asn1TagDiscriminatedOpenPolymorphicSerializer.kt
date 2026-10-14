@@ -7,6 +7,7 @@ import at.asitplus.awesn1.Asn1Element
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.encoding.Encoder
 
 internal class Asn1TagDiscriminatedOpenPolymorphicSerializer<T : Any>(
     serialName: String,
@@ -34,6 +35,22 @@ internal class Asn1TagDiscriminatedOpenPolymorphicSerializer<T : Any>(
     override fun serializerForEncode(encoder: DerEncoder, value: T): KSerializer<out T> =
         dispatch.serializerForEncode(value)
 
+    override fun serialize(encoder: Encoder, value: T) {
+        val derEncoder = encoder.requireDerEncoder(descriptor.serialName)
+        val registration = dispatch.registrationForEncode(value)
+        @Suppress("UNCHECKED_CAST")
+        val element = derEncoder.encodeSingleElement(registration.serializer as KSerializer<T>, value)
+        val encoded = when {
+            element.tag in registration.leadingTags -> element
+            registration.leadingTags.size == 1 -> element.withImplicitTag(registration.leadingTags.single())
+            else -> throw SerializationException(
+                "Subtype '${registration.debugName}' encoded leading tag ${element.tag}, " +
+                        "which is not one of its registered tags ${registration.leadingTags}"
+            )
+        }
+        derEncoder.appendElement(encoded)
+    }
+
     /**
      * Selects decode serializer from current leading ASN.1 tag.
      *
@@ -44,6 +61,7 @@ internal class Asn1TagDiscriminatedOpenPolymorphicSerializer<T : Any>(
         val tag = decoder.peekCurrentElementTagOrNull()
             ?: throw SerializationException("No ASN.1 element left while decoding ${descriptor.serialName}")
         val selected = dispatch.serializerForDecode(tag)
+        decoder.acceptDispatchedTagForNextValue()
         @Suppress("UNCHECKED_CAST")
         return selected as DeserializationStrategy<T>
     }
