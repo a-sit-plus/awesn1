@@ -16,6 +16,8 @@
     * Decode and construct BMPString (UCS-2BE) and UniversalString (UCS-4BE) with strict value conversion, equality, and re-encoding; malformed code units/code points are rejected while raw `Asn1Element` remains available.
     * Decode TeletexString wire content using the BoringSSL/OpenSSL Latin-1 compatibility profile while retaining permissive String construction and `isValid == null` semantics.
     * Generic `Asn1String` DER decoding now preserves malformed content and reports tri-state validity without throwing; concrete subtype and Kotlin `String` decoding remain strict, and equality/hashing no longer interpret malformed bytes.
+    * Preserve compatibility UTC TIME values ending in lowercase `z` when decoding and re-encoding, while programmatically constructed values continue to emit canonical uppercase `Z`.
+    * Preserve the UTC/GENERALIZED TIME subtype and exact fractional seconds in non-DER `Asn1Time` serialization; the former ISO-8601 input remains accepted.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**
