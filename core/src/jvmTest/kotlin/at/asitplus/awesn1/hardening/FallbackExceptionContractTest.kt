@@ -51,7 +51,7 @@ val FallbackExceptionContract by matrixSuite {
 
     "accepted decimal INTEGERs can be encoded again" {
         val atLimit = Asn1Integer.fromUnsignedByteArray(
-            ByteArray(Asn1IntegerDecimalStringSerializer.encodingLimit).also { it[0] = 1 }
+            ByteArray(Asn1IntegerDecimalStringSerializer.magnitudeLimit).also { it[0] = 1 }
         )
         val json = Json.encodeToString(Asn1IntegerDecimalStringSerializer, atLimit)
         Json.encodeToString(

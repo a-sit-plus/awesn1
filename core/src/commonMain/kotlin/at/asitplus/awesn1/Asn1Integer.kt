@@ -371,14 +371,14 @@ internal value class VarUInt private constructor(
             else -> ""
         }
         val overhead = effectivePrefix.length + effectiveSuffix.length
-        val effectiveByteLimit = (Int.MAX_VALUE - overhead)/2 /* String maximum length */
+        val effectiveByteLimit = (Int.MAX_VALUE - overhead) / 2 /* String maximum length */
 
 
         val renderEnd = minOf(truncatePast, words.size)
         require(renderEnd <= effectiveByteLimit)
-            { "UVarInt (${words.size} bytes) is too long to be converted to String!" }
+        { "UVarInt (${words.size} bytes) is too long to be converted to String!" }
 
-        val result = StringBuilder(renderEnd*2 + overhead)
+        val result = StringBuilder(renderEnd * 2 + overhead)
         result.append(effectivePrefix)
         for (i in 0 until renderEnd) {
             val value = words[i].toInt()
@@ -760,29 +760,41 @@ internal value class VarUInt private constructor(
  *
  * Serialization uses [Asn1Integer.toDecimalString]/[Asn1Integer.fromDecimalString].
  * These functions are length limited.
- * The conversion limits used by this serializer can be overridden using [decodingLimit]/[encodingLimit].
+ * The magnitude limit used by this serializer can be overridden using [magnitudeLimit].
+ * The decoding character budget is derived from it, including room for a sign.
  * This only affects string serialization for non-DER formats.
  * Decimal conversion is quadratic, so this opt-in serializer retains limits that the linear hex fallback does not need.
  */
 object Asn1IntegerDecimalStringSerializer : StringFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
-    /** maximum size (characters) for decoding. */
-    var decodingLimit = DEFAULT_MAX_INPUT_LENGTH
+    /** Maximum magnitude size (bytes) for encoding and decoding. */
+    var magnitudeLimit: Int = 0 //cannot lateinit due to lang limitations, so we init in ctor
+        set(value) {
+            // 2.410 > log10(256); allow decimal representation plus one digit and sign
+            characterLimit = (magnitudeLimit.toLong() * 2410 / 1000 + 2).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            field = value
+        }
+
+    private var characterLimit: Int = 0 //cannot lateinit due to lang limitations, so we init in ctor
+
+    init {
+        //"lateinit" in ctor
+        magnitudeLimit = DEFAULT_MAX_MAGNITUDE_BYTES
+    }
 
     override fun decodeFallback(encoded: String): Asn1Integer =
-        Asn1Integer.fromDecimalString(encoded, decodingLimit).also {
+        Asn1Integer.fromDecimalString(
+            encoded,
+            maxInputLength = characterLimit
+        ).also {
             val magnitudeBytes = it.uint.words.size
-            if (magnitudeBytes > encodingLimit) throw Asn1Exception(
-                "Magnitude ($magnitudeBytes bytes) exceeds byte limit ($encodingLimit bytes)."
+            if (magnitudeBytes > magnitudeLimit) throw Asn1Exception(
+                "Magnitude ($magnitudeBytes bytes) exceeds byte limit ($magnitudeLimit bytes)."
             )
         }
 
-    /** maximum size (bytes) for encoding. can only be increased, not decreased. */
-    //@formatter:off
-    var encodingLimit = DEFAULT_MAX_MAGNITUDE_BYTES; set(v) { field = maxOf(field, v) }
-    //@formatter:on
-    override fun encodeFallback(value: Asn1Integer): String = value.toDecimalString(encodingLimit)
+    override fun encodeFallback(value: Asn1Integer): String = value.toDecimalString(magnitudeLimit)
 
 }
 

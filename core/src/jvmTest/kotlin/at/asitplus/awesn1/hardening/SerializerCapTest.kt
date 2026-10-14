@@ -21,7 +21,7 @@ val SerializerCapTest by matrixSuite {
 
     "Asn1IntegerDecimalStringSerializer throws for an over-cap magnitude (never truncates)" {
         val overCap = Asn1Integer.fromUnsignedByteArray(
-            ByteArray(Asn1IntegerDecimalStringSerializer.encodingLimit + 1).also { it[0] = 0x01 }
+            ByteArray(Asn1IntegerDecimalStringSerializer.magnitudeLimit + 1).also { it[0] = 0x01 }
         )
         val thrown = shouldThrow<SerializationException> {
             Json.encodeToString(Asn1IntegerDecimalStringSerializer, overCap)
@@ -29,20 +29,28 @@ val SerializerCapTest by matrixSuite {
         thrown.cause.shouldBeInstanceOf<Asn1Exception>()
     }
 
-    check(Asn1IntegerDecimalStringSerializer.decodingLimit >= 500)
     "Asn1IntegerDecimalStringSerializer round-trips an in-cap value" {
         val v = Asn1Integer.fromDecimalString("1234567890".repeat(50)) // 500 digits, well within cap
         val json = Json.encodeToString(Asn1IntegerDecimalStringSerializer, v)
         Json.decodeFromString(Asn1IntegerDecimalStringSerializer, json) shouldBe v
     }
 
-    "Asn1IntegerDecimalStringSerializer rejects values it cannot re-encode" {
-        shouldThrow<SerializationException> {
-            Json.decodeFromString(
-                Asn1IntegerDecimalStringSerializer,
-                "\"${"9".repeat(Asn1IntegerDecimalStringSerializer.decodingLimit)}\"",
-            )
+    "decimal serializer rejects excessive magnitude and input padding" {
+        val digits = (Asn1IntegerDecimalStringSerializer.magnitudeLimit.toLong() * 2410 / 1000).toInt()
+        for (input in listOf("9".repeat(digits), "0".repeat(digits + 3))) {
+            shouldThrow<SerializationException> {
+                Json.decodeFromString(Asn1IntegerDecimalStringSerializer, "\"$input\"")
+            }
         }
+    }
+
+    "decimal input budget allows a negative value at the magnitude limit" {
+        val value = Asn1Integer.fromUnsignedByteArray(
+            ByteArray(Asn1IntegerDecimalStringSerializer.magnitudeLimit) { 0xFF.toByte() }
+        )
+        val json = "\"-${value.toDecimalString()}\""
+        val decoded = Json.decodeFromString(Asn1IntegerDecimalStringSerializer, json)
+        Json.encodeToString(Asn1IntegerDecimalStringSerializer, decoded) shouldBe json
     }
 
     "ObjectIdentifier construction rejects an excessive sub-identifier" {

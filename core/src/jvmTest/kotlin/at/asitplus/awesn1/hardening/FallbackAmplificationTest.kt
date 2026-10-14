@@ -32,6 +32,6 @@ val FallbackAmplification by matrixSuite {
     }
 
     "quadratic decimal INTEGER decoding retains its conversion limit" {
-        (Asn1IntegerDecimalStringSerializer.decodingLimit > 0) shouldBe true
+        (Asn1IntegerDecimalStringSerializer.magnitudeLimit > 0) shouldBe true
     }
 }
