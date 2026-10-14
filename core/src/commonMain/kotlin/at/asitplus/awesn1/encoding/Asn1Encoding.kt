@@ -53,7 +53,9 @@ import kotlin.time.Instant
  * ```
  */
 class Asn1TreeBuilder {
-    internal val elements = mutableListOf<Asn1Element>()
+    internal val elements = ArrayList<Asn1Element>()
+
+    internal fun adoptable(): ArrayList<Asn1Element> = elements.also { it.trimToSize() }
 
     /**
      * appends a single [Asn1Element] to this ASN.1 structure
@@ -109,7 +111,7 @@ object Asn1 {
     fun Sequence(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
         val seq = Asn1TreeBuilder()
         seq.root()
-        return Asn1Sequence.adopting(seq.elements)
+        return Asn1Sequence.adopting(seq.adoptable())
     }
 
 
@@ -144,7 +146,7 @@ object Asn1 {
     fun SequenceOf(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
         val seq = Asn1TreeBuilder()
         seq.root()
-        return Asn1SequenceOf.adopting(seq.elements)
+        return Asn1SequenceOf.adopting(seq.adoptable())
     }
 
     /**

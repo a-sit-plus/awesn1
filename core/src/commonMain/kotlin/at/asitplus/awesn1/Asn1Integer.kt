@@ -371,14 +371,14 @@ internal value class VarUInt private constructor(
             else -> ""
         }
         val overhead = effectivePrefix.length + effectiveSuffix.length
-        val effectiveByteLimit = (Int.MAX_VALUE - overhead)/2 /* String maximum length */
+        val effectiveByteLimit = (Int.MAX_VALUE - overhead) / 2 /* String maximum length */
 
 
         val renderEnd = minOf(truncatePast, words.size)
         require(renderEnd <= effectiveByteLimit)
-            { "UVarInt (${words.size} bytes) is too long to be converted to String!" }
+        { "UVarInt (${words.size} bytes) is too long to be converted to String!" }
 
-        val result = StringBuilder(renderEnd*2 + overhead)
+        val result = StringBuilder(renderEnd * 2 + overhead)
         result.append(effectivePrefix)
         for (i in 0 until renderEnd) {
             val value = words[i].toInt()
@@ -693,7 +693,7 @@ internal value class VarUInt private constructor(
         }
 
 
-        internal fun ByteArray.decodeAsn1VarBigUInt() = wrapInUnsafeSource().decodeAsn1VarBigUIntValue()
+        internal fun ByteArray.decodeAsn1VarBigUInt() = wrapInUnsafeSource().decodeAsn1VarBigUIntValue(size.toLong())
 
         internal fun ByteArray.decodeAsn1VarBigUIntValue(startIndex: Int, endIndex: Int = size): Pair<VarUInt, Int> {
             require(startIndex in 0..endIndex) { "Invalid bounds [$startIndex, $endIndex)" }
@@ -706,26 +706,23 @@ internal value class VarUInt private constructor(
             return decodeBase128Unsigned(startIndex, index) to index
         }
 
-        internal fun Source<*>.decodeAsn1VarBigUIntValue(): VarUInt {
-            val accumulator = ByteArrayBuffer()
-            while (!exhausted()) {
-                val current = readUByte()
-                accumulator.writeUByte(current)
-                if (current < 0x80.toUByte()) break
-            }
-            val encoded = accumulator.toByteArray()
-            return encoded.decodeAsn1VarBigUIntValue(0, encoded.size).first
-        }
+        internal fun Source<*>.decodeAsn1VarBigUIntValue(limit: Long?): VarUInt =
+            readAsn1VarBigUIntBytes(limit).let { it.decodeAsn1VarBigUIntValue(0, it.size).first }
 
-        internal fun Source<*>.decodeAsn1VarBigUInt(): Pair<VarUInt, ByteArray> {
-            val accumulator = ByteArrayBuffer()//TODO hog
-            while (!exhausted()) {
-                val current = readUByte()
+        internal fun Source<*>.decodeAsn1VarBigUInt(limit: Long?): Pair<VarUInt, ByteArray> =
+            readAsn1VarBigUIntBytes(limit).let { it.decodeAsn1VarBigUIntValue(0, it.size).first to it }
+
+        /** Reads one complete big-varint, bounded before each source read. */
+        private fun Source<*>.readAsn1VarBigUIntBytes(limit: Long?): ByteArray {
+            val bounded = BoundedSource(this, limit)
+            val accumulator = ByteArrayBuffer()
+            while (true) {
+                if (bounded.exhausted()) throw IllegalArgumentException("Unterminated ASN.1 unsigned varint")
+                val current = bounded.readUByte()
                 accumulator.writeUByte(current)
                 if (current < 0x80.toUByte()) break
             }
-            val encoded = accumulator.toByteArray()
-            return encoded.decodeAsn1VarBigUIntValue(0, encoded.size).first to encoded
+            return accumulator.toByteArray()
         }
 
         //resurrect old hand-rolled variant from 2022 for efficiency
@@ -763,27 +760,41 @@ internal value class VarUInt private constructor(
  *
  * Serialization uses [Asn1Integer.toDecimalString]/[Asn1Integer.fromDecimalString].
  * These functions are length limited.
- * The limits used by this serializer can be overridden (globally)
- *   using [decodingLimit]/[encodingLimit].
+ * The magnitude limit used by this serializer can be overridden using [magnitudeLimit].
+ * The decoding character budget is derived from it, including room for a sign.
  * This only affects string serialization for non-DER formats.
+ * Decimal conversion is quadratic, so this opt-in serializer retains limits that the linear hex fallback does not need.
  */
-object Asn1IntegerDecimalStringSerializer : KSerializer<Asn1Integer> {
+object Asn1IntegerDecimalStringSerializer : StringFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
-    /** maximum size (characters) for decoding. can only be increased, not decreased. */
-    //@formatter:off
-    var decodingLimit = DEFAULT_MAX_INPUT_LENGTH; set(v) { field = maxOf(field, v) }
-    //@formatter:on
-    override fun deserialize(decoder: Decoder): Asn1Integer =
-        Asn1Integer.fromDecimalString(decoder.decodeString(), decodingLimit)
+    /** Maximum magnitude size (bytes) for encoding and decoding. */
+    var magnitudeLimit: Int = 0 //cannot lateinit due to lang limitations, so we init in ctor
+        set(value) {
+            // 2.410 > log10(256); allow decimal representation plus one digit and sign
+            characterLimit = (value.toLong() * 2410 / 1000 + 2).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            field = value
+        }
 
-    /** maximum size (bytes) for encoding. can only be increased, not decreased. */
-    //@formatter:off
-    var encodingLimit = DEFAULT_MAX_MAGNITUDE_BYTES; set(v) { field = maxOf(field, v) }
-    //@formatter:on
-    override fun serialize(encoder: Encoder, value: Asn1Integer) {
-        encoder.encodeString(value.toDecimalString(encodingLimit))
+    private var characterLimit: Int = 0 //cannot lateinit due to lang limitations, so we init in ctor
+
+    init {
+        //"lateinit" in ctor
+        magnitudeLimit = DEFAULT_MAX_MAGNITUDE_BYTES
     }
+
+    override fun decodeFallback(encoded: String): Asn1Integer =
+        Asn1Integer.fromDecimalString(
+            encoded,
+            maxInputLength = characterLimit
+        ).also {
+            val magnitudeBytes = it.uint.words.size
+            if (magnitudeBytes > magnitudeLimit) throw Asn1Exception(
+                "Magnitude ($magnitudeBytes bytes) exceeds byte limit ($magnitudeLimit bytes)."
+            )
+        }
+
+    override fun encodeFallback(value: Asn1Integer): String = value.toDecimalString(magnitudeLimit)
 
 }
 
@@ -795,16 +806,14 @@ object Asn1IntegerDecimalStringSerializer : KSerializer<Asn1Integer> {
  * encoding/decoding is used.
  *
  * Serialization uses [Asn1Integer.toHexString]/[Asn1Integer.fromHexString].
+ * This is [Asn1Integer]'s registered non-DER fallback.
  */
-object Asn1IntegerHexStringSerializer : KSerializer<Asn1Integer> {
+object Asn1IntegerHexStringSerializer : StringFallbackSerializer<Asn1Integer> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
 
-    override fun deserialize(decoder: Decoder): Asn1Integer =
-        Asn1Integer.fromHexString(decoder.decodeString())
+    override fun decodeFallback(encoded: String): Asn1Integer = Asn1Integer.fromHexString(encoded)
 
-    override fun serialize(encoder: Encoder, value: Asn1Integer) {
-        encoder.encodeString(value.toHexString())
-    }
+    override fun encodeFallback(value: Asn1Integer): String = value.toHexString()
 
 }
 

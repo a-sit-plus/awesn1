@@ -85,6 +85,11 @@ val Asn1EncodingTest by matrixSuite {
         parsed.shouldNotBeNull()
     }
 
+    "hashCode matches encoded bytes" {
+        val element = Asn1.Sequence { +Asn1.Int(42); +Asn1.Utf8String("test") }
+        element.hashCode() shouldBe element.derEncoded.contentHashCode()
+    }
+
     "Old and new encoder produce the same bytes" {
 
         val instant = Clock.System.now()

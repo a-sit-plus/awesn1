@@ -2,11 +2,45 @@ package at.asitplus.awesn1.at.asitplus.awesn1
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.TagClass
+import at.asitplus.awesn1.copy
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 
 val DERtagparsing by matrixSuite {
+    "single-byte factories validate and reuse tags for every identifier octet" {
+        for (encoded in 0..255) {
+            val number = encoded and 0x1F
+            val tagClass = TagClass.entries[encoded ushr 6]
+            val constructed = encoded and 0x20 != 0
+            if (number == 31 || (tagClass == TagClass.UNIVERSAL && number in listOf(0, 15))) {
+                shouldThrow<Asn1Exception> {
+                    Asn1Element.Tag.fromEncodedSingleByte(encoded.toByte())
+                }
+                if (number != 31) {
+                    shouldThrow<Asn1Exception> {
+                        Asn1Element.Tag(number.toULong(), constructed, tagClass)
+                    }
+                }
+            } else {
+                val tag = Asn1Element.Tag.fromEncodedSingleByte(encoded.toByte())
+                tag.tagValue shouldBe number.toULong()
+                tag.tagClass shouldBe tagClass
+                tag.isConstructed shouldBe constructed
+                tag.encodedTag.toList() shouldBe listOf(encoded.toByte())
+                (Asn1Element.Tag(number.toULong(), constructed, tagClass) === tag) shouldBe true
+                (tag.copy() === tag) shouldBe true
+                ((tag withNumber tag.tagValue) === tag) shouldBe true
+                ((tag withClass tagClass) === tag) shouldBe true
+            }
+        }
+        (Asn1Element.Tag(16uL, true) === Asn1Element.Tag.SEQUENCE) shouldBe true
+        Asn1Element.Tag(31uL, false).encodedTag.toList() shouldBe listOf(0x1F.toByte(), 0x1F.toByte())
+        Asn1Element.Tag(128uL, false).encodedTag.toList() shouldBe
+                listOf(0x1F.toByte(), 0x81.toByte(), 0x00.toByte())
+    }
+
     "rejects universal tag zero" - {
         listOf(
             "primitive incomplete" to "00",

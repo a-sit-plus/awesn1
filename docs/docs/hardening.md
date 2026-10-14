@@ -159,9 +159,16 @@ The test harness includes:
     - **`ByteArray`** parsing is bounded by the array's size — sanity-check that size before parsing untrusted data.
       Even a small blob of tiny nested elements can allocate a large object graph (but never causes a stack overflow).
     - **`Source`** (streaming) parsing takes a byte `limit` as a **mandatory** parameter; there is no unbounded
-      streaming overload.
+      streaming overload. The same holds for `Source.decodeAsn1VarBigInt(limit)`: a big varint has no inherent size
+      ceiling, unlike `decodeAsn1VarUInt`/`decodeAsn1VarULong`, which their target type caps at 5 resp. 9 continuation
+      bytes.
     - Via `kotlinx.serialization`, the cap is `DER { maxInputLength = … }` (default `Int.MAX_VALUE`); lower it for
       untrusted decode.
+    - Under **non-DER formats** (JSON, CBOR, …), bound untrusted input through that format or before invoking it.
+      awesn1's fallback serializers receive values only after the format has materialised them, so a second generic
+      length check there would be too late to protect memory and would impose an arbitrary application policy.
+      The decimal INTEGER fallback is the exception: it retains explicit conversion limits because its radix
+      conversion is quadratic. Malformed fallback values surface as `SerializationException`.
 
 It is a deliberate decision to leave input bounding to the caller. Only the caller knows realistic, expected input's sizes and
 semantics. Take X.509 certificates as an example: ECDSA-signed certificates are usually small, issuer DNs are also usually bounded,
@@ -170,19 +177,11 @@ Also, when parsing CMS or CRLs, the expected input sizes are orders of magnitude
 
 **Hence, callers must bound the input size themselves!**
 
-### Memory Amplification — Deep Nesting as Worst Case
+### Memory amplification
 
-A parsed tree is an in-memory object graph several times larger than the DER bytes it came from, and **deeply nested
-structures amplify the most**. A real-world certificate/attestation corpus parses at roughly **24×** its DER size as a
-raw `Asn1Element` tree (see [Low-Level → Memory](lowlevel.md#memory)). A *degenerate* chain of nested empty structures
-is far worse per input byte: a tree of **50 000** single-child empty `SEQUENCE`s — only a few bytes per level on the
-wire — materialises to about **9 MiB** of heap, i.e. roughly **190 bytes per nesting level** (one structure object, its
-child list, and the list's backing array).
-
-The iterative parser guarantees this never *crashes* the stack — but the heap cost still grows with input. This
-is precisely why input bounding is mandatory: a small but pathologically nested blob can still exhaust memory, and 
-worst-case amplification far above the ~24× of normal input means your byte cap must be chosen with the *amplified*
-in-memory size in mind, not just the wire size.
+Parsed elements require more memory than their wire representation, especially when input contains many tiny nested
+elements. The iterative parser prevents stack overflow, but callers must still choose input limits appropriate for
+their workload.
 
 ### Constructing Huge Data Programmatically
 

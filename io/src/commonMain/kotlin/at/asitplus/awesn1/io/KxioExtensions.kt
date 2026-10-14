@@ -138,7 +138,9 @@ fun kotlinx.io.Source.decodeAsn1VarULong(): Pair<ULong, ByteArray> =
 fun kotlinx.io.Source.decodeAsn1VarUInt(): Pair<UInt, ByteArray> =
     KxIoSource(this).decodeAsn1VarUInt()
 
-fun kotlinx.io.Source.decodeAsn1VarBigInt() = KxIoSource(this).decodeAsn1VarBigInt()
+/** Decodes one arbitrary-size ASN.1 varint, consuming at most [limit] bytes. */
+@Throws(IllegalArgumentException::class)
+fun kotlinx.io.Source.decodeAsn1VarBigInt(limit: Long) = KxIoSource(this).decodeAsn1VarBigInt(limit)
 
 fun kotlinx.io.Sink.writeAsn1VarInt(number: UInt): Int =
     KxIoSink(this).writeAsn1VarInt(number)
