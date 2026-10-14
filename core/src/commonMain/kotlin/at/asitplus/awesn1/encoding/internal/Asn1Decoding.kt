@@ -378,8 +378,7 @@ internal infix fun Byte.byteMask(mask: Int) = (this and mask.toUInt().toByte()).
 fun Source<*>.readAsn1Tag(): Asn1Element.Tag =
     readByte().let { firstByte ->
         (firstByte byteMask 0x1F).let { tagNumber ->
-            if (tagNumber <= 30U) Asn1Element.Tag.SINGLE_BYTE_TAGS[firstByte.toUByte().toInt()]
-                ?: Asn1Element.Tag(tagNumber.toULong(), byteArrayOf(firstByte))
+            if (tagNumber <= 30U) Asn1Element.Tag.fromEncodedSingleByte(firstByte)
             else decodeAsn1VarULong().let { (l, b) ->
                 Asn1Element.Tag(l.also {
                     if (it <= 30UL) throw Asn1Exception(

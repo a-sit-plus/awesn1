@@ -458,11 +458,7 @@ sealed class Asn1Element(
         /**
          * Creates a copy of this tag, overriding [tagValue], but keeping [isConstructed] and [tagClass]
          */
-        infix fun withNumber(number: ULong) = of(number, constructed = isConstructed, tagClass = tagClass)
-
-        constructor(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL) : this(
-            tagValue, encode(tagClass, constructed, tagValue)
-        )
+        infix fun withNumber(number: ULong) = Tag(number, constructed = isConstructed, tagClass = tagClass)
 
         // Eager (not `by lazy`): deriving the class is one byte read + enum lookup, and the init below reads it
         // anyway, so laziness only bought a per-Tag SynchronizedLazyImpl + retained closure. Real-world inputs carry
@@ -497,7 +493,7 @@ sealed class Asn1Element(
                 return derEncoded
             }
 
-            internal val SINGLE_BYTE_TAGS: Array<Tag?> = Array(256) { byte ->
+            private val SINGLE_BYTE_TAGS: Array<Tag?> = Array(256) { byte ->
                 if (byte and 0b0001_1111 == 0b0001_1111) null
                 else try {
                     Tag((byte and 0b0001_1111).toULong(), byteArrayOf(byte.toByte()))
@@ -506,13 +502,25 @@ sealed class Asn1Element(
                 }
             }
 
-            internal fun of(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL): Tag {
+            /** Creates a tag from one complete low-tag-number-form octet. */
+            internal fun fromEncodedSingleByte(encodedTagByte: Byte): Tag {
+                val encoded = encodedTagByte.toUByte().toInt()
+                val tagNumber = encoded and 0x1F
+                if (tagNumber == 0x1F) {
+                    throw Asn1Exception("High-tag-number form requires additional octets")
+                }
+                return SINGLE_BYTE_TAGS[encoded]
+                    ?: Tag(tagNumber.toULong(), byteArrayOf(encodedTagByte))
+            }
+
+            /** Creates a tag from its number, constructed flag, and class, reusing single-byte tags. */
+            operator fun invoke(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL): Tag {
                 if (tagValue <= 30uL) {
                     val byte = tagValue.toInt() or
                             (if (constructed) BERTags.CONSTRUCTED.toInt() else 0) or tagClass.berTag.toInt()
                     SINGLE_BYTE_TAGS[byte]?.let { return it }
                 }
-                return Tag(tagValue, constructed, tagClass)
+                return Tag(tagValue, encode(tagClass, constructed, tagValue))
             }
 
             private fun universal(tagValue: UByte, constructed: Boolean = false): Tag =
@@ -1488,7 +1496,7 @@ fun Asn1Element.Tag.copy(
     tagValue: ULong = this.tagValue,
     constructed: Boolean = this.isConstructed,
     tagClass: TagClass = this.tagClass,
-): Asn1Element.Tag = Asn1Element.Tag.of(tagValue, constructed, tagClass)
+): Asn1Element.Tag = Asn1Element.Tag(tagValue, constructed, tagClass)
 
 internal fun Int.encodeLength(): ByteArray = toLong().encodeLength()
 
