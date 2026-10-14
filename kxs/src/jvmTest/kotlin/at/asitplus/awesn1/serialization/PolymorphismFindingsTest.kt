@@ -19,7 +19,6 @@ package at.asitplus.awesn1.serialization
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Encodable
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.unaryPlus
 import at.asitplus.awesn1.readOid
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
