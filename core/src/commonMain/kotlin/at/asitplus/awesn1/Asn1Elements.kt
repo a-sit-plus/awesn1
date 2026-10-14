@@ -271,10 +271,10 @@ sealed class Asn1Element(
                         val buildRoom = (limit - emitted).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
                         emit(
                             if (length * 2 <= buildRoom.toLong()) e.contentToString() // small: full (semantic) render
-                            else if (e.isContentMaterialized) e.content
-                                .let { it.copyOf(((buildRoom - 64) / 2).coerceIn(0, it.size)).toPrefixedHexString() }
-                                    .plus("…($length bytes)")
-                            else "…($length bytes)"
+                            else if (e.isContentMaterialized) {
+                                e.content.copyOf(((buildRoom - 64) / 2).coerceIn(0, e.content.size))
+                                    .toPrefixedHexString() + "… ($length bytes)"
+                            } else "… ($length bytes)"
                         )
                         emit(e.prettyPrintTrailer(if (pretty) ind else 0))
                     }
