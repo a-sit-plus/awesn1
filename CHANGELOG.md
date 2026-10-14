@@ -13,7 +13,9 @@
     * Reject duplicate map keys during DER decoding; make `LenientSet` equality reflect retained malformed wire
       order/multiplicity while canonical decoded sets remain equal to their programmatic equivalents, and prevent
       non-DER decoders from creating wire-preserving malformed SET states.
-    * Decode BMPString and UniversalString according to their wide-character encodings; reject unsupported non-ASCII TeletexString content instead of lossy UTF-8 replacement.
+    * Decode and construct BMPString (UCS-2BE) and UniversalString (UCS-4BE) with strict value conversion, equality, and re-encoding; malformed code units/code points are rejected while raw `Asn1Element` remains available.
+    * Decode TeletexString wire content using the BoringSSL/OpenSSL Latin-1 compatibility profile while retaining permissive String construction and `isValid == null` semantics.
+    * Generic `Asn1String` DER decoding now preserves malformed content and reports tri-state validity without throwing; concrete subtype and Kotlin `String` decoding remain strict, and equality/hashing no longer interpret malformed bytes.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**

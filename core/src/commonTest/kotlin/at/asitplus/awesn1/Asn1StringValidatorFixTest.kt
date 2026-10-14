@@ -88,8 +88,8 @@ val Asn1StringValidatorFixTest by matrixSuite {
         Asn1String.General("é").isValid shouldBe null               // 8-bit content: unknown, not rejected
     }
 
-    "Teletex recognizes its Latin-1 subset and never rejects beyond it" {
-        Asn1String.Teletex("é").isValid shouldBe true               // within the Latin-1 recognized subset
-        Asn1String.Teletex("テスト").isValid shouldBe null           // beyond Latin-1: unknown, not rejected
+    "Teletex remains permissive outside its recognized subset" {
+        Asn1String.Teletex("é").isValid shouldBe null
+        Asn1String.Teletex("テスト").isValid shouldBe null
     }
 }

@@ -237,22 +237,18 @@ val SerializationValueFidelityFindings by matrixSuite {
         /*
          * decodestring_lenient_lossy_string_normalization
          *
-         * BUG: DerDecoder.decodeString never validates decoded content against the string type's
-         * repertoire/encoding and never consults Asn1String.isValid. Decode is therefore not
-         * injective: two distinct accepted wire values normalise to the same Kotlin String (both
-         * to U+FFFD), and re-encoding rewrites both tag and content, so a tampered byte is
-         * invisible to value comparison AND to re-encode-based verification.
+         * BUG: DerDecoder.decodeString decoded TeletexString as UTF-8. Distinct Latin-1 bytes were
+         * therefore normalized to replacement characters instead of retaining their values.
          *
-         * TRIGGER: TeletexString 0xE9 vs 0xEA. The format has no complete T.61 codec, so these
-         * values must be rejected rather than lossy-decoded as UTF-8. Callers requiring raw wire
-         * preservation can model Asn1String.
+         * TRIGGER: TeletexString 0xE9 vs 0xEA. BoringSSL's compatibility profile interprets these
+         * as U+00E9 and U+00EA respectively.
          */
         "decodestring_lenient_lossy_string_normalization" {
             val wireE9 = "30031401e9".hexToByteArray()
             val wireEA = "30031401ea".hexToByteArray()
 
-            shouldThrow<SerializationException> { DER.decodeFromByteArray<GlStringHolder>(wireE9) }
-            shouldThrow<SerializationException> { DER.decodeFromByteArray<GlStringHolder>(wireEA) }
+            DER.decodeFromByteArray<GlStringHolder>(wireE9).s shouldBe "é"
+            DER.decodeFromByteArray<GlStringHolder>(wireEA).s shouldBe "ê"
         }
 
         /*
