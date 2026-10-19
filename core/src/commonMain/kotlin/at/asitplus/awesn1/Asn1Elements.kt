@@ -266,12 +266,12 @@ sealed class Asn1Element(
                     is Asn1Primitive -> {
                         emit(e.prettyPrintHeader(if (pretty) ind else 0))
                         emit(" ")
-                        // Do not force lazy content merely to truncate it.
+                        // Do not encode encapsulated children merely to truncate their content.
                         val length = e.contentLengthLong
                         val buildRoom = (limit - emitted).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
                         emit(
                             if (length * 2 <= buildRoom.toLong()) e.contentToString() // small: full (semantic) render
-                            else if (e.isContentMaterialized) {
+                            else if (e !is Asn1EncapsulatingOctetString) {
                                 e.content.copyOf(((buildRoom - 64) / 2).coerceIn(0, e.content.size))
                                     .toPrefixedHexString() + "… ($length bytes)"
                             } else "… ($length bytes)"
@@ -1336,38 +1336,23 @@ class Asn1SetOf private constructor(
  * ASN.1 primitive. Holds no children, but [content] under [tag]
  */
 @Serializable(with = Asn1PrimitiveFallbackBase64Serializer::class)
-open class Asn1Primitive private constructor(
+open class Asn1Primitive(
     tag: Tag,
-    content: ByteArray?,
-    contentProvider: (() -> ByteArray)
+    content: ByteArray,
 ) : Asn1Element(tag) {
-
-    constructor(tag: Tag, content: ByteArray) : this(tag, content, initImplError)
-    constructor(tag: Tag, contentProvider: () -> ByteArray) : this(tag, null, contentProvider)
 
     init {
         if (tag.isConstructed) throw IllegalArgumentException("A primitive cannot have a CONSTRUCTED tag")
     }
 
-    // Sentinel-cached instead of an `orLazy` delegate (no per-primitive Lazy/closure object).
-    // hold then null-out to free lambda once inited. ugly mess but these tricks cut memory cost SIGNIFICANTLY
-    private var contentProviderOrNull: (() -> ByteArray)? = if (content == null) contentProvider else null
-    // props with explicit backing fields cannot have accessors, so we're left with this mess
-    @Volatile
-    private var contentCache: ByteArray? = content?.shareIfEmpty()
-    open val content: ByteArray
-        get() = contentCache ?: contentProviderOrNull!!().shareIfEmpty()
-            .also { /*order is important here!*/contentCache = it; contentProviderOrNull = null }
-
-    /** Whether reading [content] avoids materializing lazy content. */
-    internal val isContentMaterialized: Boolean get() = contentCache != null
+    open val content: ByteArray = content.shareIfEmpty()
 
     override val contentLengthLong: Long get() = content.size.toLong()
 
-    // leaves cache their encoding (and `content` above is already lazy-cached) — retention is bounded by leaf size.
+    // Leaves cache their encoding — retention is bounded by leaf size.
     // Sentinel-cached instead of `by lazy` (no SynchronizedLazyImpl + closure per primitive); benign idempotent race,
     // Asn1EncapsulatingOctetString overrides `derEncoded` back to a non-caching recompute (it behaves as a structure).
-    // cannot use explicit field because non-final, so we need this ecplicit ugly mess
+    // cannot use explicit field because non-final, so we need this explicit ugly mess
     @Volatile
     private var derEncodedCache: ByteArray? = null
     override val derEncoded: ByteArray
@@ -1416,11 +1401,6 @@ open class Asn1Primitive private constructor(
         }
     }.getOrElse { "Non-compliant content: 0x" + content.toHexString(HexFormat.UpperCase) }
 
-
-
-    companion object {
-        val initImplError: () -> ByteArray = { throw ImplementationError("ASN.1 Element construction") }
-    }
 }
 
 @Throws(IllegalArgumentException::class)
