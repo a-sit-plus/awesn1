@@ -741,11 +741,11 @@ class DerDecoder internal constructor(
     private fun List<Asn1Element>.withoutPendingDiscriminatorOid(): List<Asn1Element> {
         val oid = dropOidFromNextStructure ?: return this
         dropOidFromNextStructure = null
-        val index = indexOfFirst { element ->
-            element is Asn1Primitive && element.tag == Asn1Element.Tag.OID &&
-                    runCatching { element.readOid() }.getOrNull() == oid
+        val first = firstOrNull() as? Asn1Primitive
+        if (first?.tag != Asn1Element.Tag.OID || runCatching { first.readOid() }.getOrNull() != oid) {
+            throw SerializationException("OID discriminator $oid must be the first child")
         }
-        return if (index < 0) this else filterIndexed { childIndex, _ -> childIndex != index }
+        return drop(1)
     }
 
     private fun applyCurrentPropertyContext(
