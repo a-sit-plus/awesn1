@@ -6,6 +6,7 @@ package at.asitplus.awesn1.serialization
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.serialization.internal.isSetDescriptor
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import io.kotest.assertions.throwables.shouldThrow
@@ -38,6 +39,17 @@ val SerializationOidSetAmbiguityRejection by matrixSuite {
         shouldThrow<IllegalArgumentException> {
             asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue") {
                 catchAll<OidSetA>(Asn1Element.Tag.SEQUENCE)
+            }
+        }.message shouldContain "SET"
+    }
+
+    "SET annotation cannot be hidden by explicit SEQUENCE leading tags" {
+        OidRetaggedSequence.serializer().descriptor.isSetDescriptor shouldBe false
+        DER.encodeToByteArray(OidRetaggedSequence(7)).toHexString() shouldBe "3103020107"
+
+        shouldThrow<IllegalArgumentException> {
+            asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue") {
+                subtype<OidRetaggedSequence>(OidRetaggedSequence, Asn1Element.Tag.SEQUENCE)
             }
         }.message shouldContain "SET"
     }
@@ -91,5 +103,13 @@ private data class OidSetA(val values: Set<ObjectIdentifier>) : OidSetValue, Ide
 private data class OidSetB(val values: Set<ObjectIdentifier>) : OidSetValue, Identifiable by Companion {
     companion object : OidProvider<OidSetB> {
         override val oid = ObjectIdentifier("1.2.3.7")
+    }
+}
+
+@Serializable
+@Asn1Tag(tagNumber = 17uL, tagClass = Asn1Tag.Class.UNIVERSAL)
+private data class OidRetaggedSequence(val value: Int) : OidSetValue, Identifiable by Companion {
+    companion object : OidProvider<OidRetaggedSequence> {
+        override val oid = ObjectIdentifier("1.2.3.8")
     }
 }
