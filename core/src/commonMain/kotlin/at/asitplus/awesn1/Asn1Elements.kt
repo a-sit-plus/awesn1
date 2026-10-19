@@ -514,14 +514,13 @@ sealed class Asn1Element(
             }
 
             /** Creates a tag from its number, constructed flag, and class, reusing single-byte tags. */
-            operator fun invoke(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL): Tag {
+            operator fun invoke(tagValue: ULong, constructed: Boolean, tagClass: TagClass = TagClass.UNIVERSAL): Tag =
                 if (tagValue <= 30uL) {
                     val byte = tagValue.toInt() or
                             (if (constructed) BERTags.CONSTRUCTED.toInt() else 0) or tagClass.berTag.toInt()
-                    SINGLE_BYTE_TAGS[byte]?.let { return it }
-                }
-                return Tag(tagValue, encode(tagClass, constructed, tagValue))
-            }
+                    fromEncodedSingleByte(byte.toByte())
+                } else Tag(tagValue, encode(tagClass, constructed, tagValue))
+
 
             private fun universal(tagValue: UByte, constructed: Boolean = false): Tag =
                 checkNotNull(SINGLE_BYTE_TAGS[tagValue.toInt() or

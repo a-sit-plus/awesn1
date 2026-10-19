@@ -199,7 +199,7 @@ class ByteArraySink : Sink {
 }
 
 @InternalAwesn1Api
-val EMPTY_BYTE_ARRAY: ByteArray = ByteArray(0)
+val EMPTY_BYTE_ARRAY: ByteArray = byteArrayOf()
 
 interface Sink {
     fun writeByte(byte: Byte)
