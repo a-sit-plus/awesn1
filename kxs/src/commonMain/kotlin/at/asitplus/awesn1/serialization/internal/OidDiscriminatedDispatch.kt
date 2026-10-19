@@ -55,6 +55,14 @@ internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
         require(subtypes.isNotEmpty() || catchAllRegistration != null) {
             "At least one subtype or catchAll registration is required"
         }
+        (subtypes + listOfNotNull(catchAllRegistration)).forEach { registration ->
+            require(!registration.serializer.descriptor.isSetDescriptor &&
+                    Asn1Element.Tag.SET !in registration.leadingTags &&
+                    inferOpenPolymorphicSubtypeLeadingTagsOrNull(registration.serializer.descriptor)
+                        ?.contains(Asn1Element.Tag.SET) != true) {
+                "SET subtypes are not supported by OID-discriminated polymorphism: ${registration.debugName}"
+            }
+        }
         subtypes.forEach { registration ->
             require(registration.leadingTags.isNotEmpty()) {
                 "Subtype '${registration.debugName}' must declare at least one leading ASN.1 tag"

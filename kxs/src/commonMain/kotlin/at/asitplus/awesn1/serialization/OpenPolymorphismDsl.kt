@@ -101,6 +101,7 @@ class Asn1OpenPolymorphismByTagBuilder<T : Any> internal constructor() {
  * DSL builder for OID-discriminated open polymorphism.
  *
  * Each registered subtype binds one OID plus one or more leading tags.
+ * SET subtypes (including catch-all subtypes) are forbidden.
  */
 @Asn1OpenPolymorphismDsl
 class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() {
