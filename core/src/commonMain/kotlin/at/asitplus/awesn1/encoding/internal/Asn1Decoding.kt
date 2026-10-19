@@ -5,9 +5,7 @@ package at.asitplus.awesn1.encoding.internal
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.toAsn1VarInt
-import kotlin.contracts.ExperimentalContracts
 import kotlin.experimental.and
-import kotlin.jvm.JvmInline
 
 // start defense-in-depth helpers
 // if any of these is ever reached, hardware is either beefy or sensible limits were omitted.
@@ -97,14 +95,23 @@ private class Frame(
     }
 }
 
-/**
- * A raw OCTET STRING discovered during parsing, together with the means to replace it in place once parsing is done.
- * [raw] is the (view-backed, parse-time-only) node to finalize; [replaceWith] swaps in its finalized counterpart —
- * an [Asn1EncapsulatingOctetString] if its content decoded, or a plain owned OCTET STRING if it stays raw — in its
- * containing structure / encapsulating octet string / root list. No view-backed node survives into the handed-out tree.
- */
+/** Parser-only OCTET STRING view. Only its tag may be inspected until it is replaced.
+ * Making this an Asn1Element keeps changes minimal, it's private, so this mess is contained here*/
 @InternalAwesn1Api
-private class OctetSlot(val raw: Asn1OctetString, val replaceWith: (Asn1OctetString) -> Unit)
+private class OctetPlaceholder(val view: Source<*>, val length: Int) :
+    Asn1Primitive(Asn1Element.Tag.OCTET_STRING, EMPTY_BYTE_ARRAY) {
+    // ponytail: reuse the existing child lists; fail before an unfinished tree can populate length/encoding caches.
+    override val content: ByteArray get() = error("Unresolved OCTET STRING placeholder")
+    override val contentLengthLong: Long get() = error("Unresolved OCTET STRING placeholder")
+}
+
+/** Pending view and its destination in a structure or root list; neither survives parsing. */
+@InternalAwesn1Api
+private class OctetSlot(
+    val raw: OctetPlaceholder,
+    val fallback: Asn1OctetString? = null,
+    val replaceWith: (Asn1OctetString) -> Unit,
+)
 
 /**
  * Result of one structural parse pass: the parsed [roots], the number of bytes consumed ([bytesRead]), and every
@@ -154,10 +161,10 @@ private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult
                 val frameLength= frame.totalLength
                 val octetIndices = frame.octetIndices //frame now free for GC
 
-                // a structure copies its children, so translate this frame's discovery-time octet markers into
+                // translate this frame's discovery-time octet markers into
                 // stable slots against the built structure (order is preserved, so recorded indices line up)
                 octetIndices.forEach { i ->
-                    octets.addGuarded(OctetSlot(built.children[i] as Asn1OctetString) { built.replaceChild(i, it) })
+                    octets.addGuarded(OctetSlot(built.children[i] as OctetPlaceholder) { built.replaceChild(i, it) })
                 }
                 val parent = stack.lastOrNull()
                 if (parent == null) {
@@ -190,7 +197,7 @@ private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult
                     parent.children.addGuarded(it)
                     // a leaf consumes header + content immediately; constructed children are credited on close above
                     parent.bytesConsumed += childTotal
-                    if (it is Asn1OctetString) parent.octetIndices.addGuarded(parent.children.lastIndex)
+                    if (it is OctetPlaceholder) parent.octetIndices.addGuarded(parent.children.lastIndex)
                 }
             } ?: run {
                 if (single && roots.isNotEmpty()) break //can only ever land here after parsing a single element
@@ -208,7 +215,7 @@ private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult
                     roots.addGuarded(it)
                     topBytesRead += totalLength
                     // root octets are homed directly to the roots list; the node that later wraps roots adopts it
-                    if (it is Asn1OctetString) {
+                    if (it is OctetPlaceholder) {
                         val index = roots.lastIndex
                         octets.addGuarded(OctetSlot(it) { node -> roots[index] = node })
                     }
@@ -240,7 +247,7 @@ private fun ArrayDeque<Frame>.pushOrPrimitive(
         //leave OCTET STRING content raw here, as a zero-copy view; encapsulated content is decoded iteratively
         //afterwards (see parseOctetStrings). The view shares the source buffer, so re-parsing nested layers never
         //re-copies the remaining content -> decapsulation is O(input), not O(input²).
-        Asn1OctetString.viewBacked(src.readSubSource(length.toInt()), length.toInt())
+        OctetPlaceholder(src.readSubSource(length.toInt()), length.toInt())
     }
 
     else -> {
@@ -287,7 +294,8 @@ fun Source<*>.readAsn1Element(limit: Long?): Pair<Asn1Element, Long> =
 @InternalAwesn1Api
 internal fun Asn1OctetString.decapsulateOrSelf(): Asn1OctetString {
     var holder = this
-    ArrayDeque<OctetSlot>().apply { addLast(OctetSlot(this@decapsulateOrSelf) { holder = it }) }.parseOctetStrings()
+    val raw = OctetPlaceholder(content.wrapInUnsafeSource(), content.size)
+    ArrayDeque<OctetSlot>().apply { addLast(OctetSlot(raw, fallback = this@decapsulateOrSelf) { holder = it }) }.parseOctetStrings()
     return holder
 }
 
@@ -296,10 +304,10 @@ internal fun Asn1OctetString.decapsulateOrSelf(): Asn1OctetString {
  * OCTET STRINGs ([OctetSlot]s) (discovered during parsing — see [doParse]), replacing each whose content is
  * valid DER with an [Asn1EncapsulatingOctetString] and finalizing the rest into a plain owned OCTET STRING. Each
  * peel decodes exactly one layer via the iterative [doParse], re-parsed from a zero-copy view over the raw content
- * ([Asn1OctetString.contentSource]) so reading one layer's header is all it costs — this is what keeps nested
+ * so reading one layer's header is all it costs — this is what keeps nested
  * decapsulation O(input), not O(input²). Any nested OCTET STRING a layer reveals is itself view-backed and queued
  * here. Must run before the tree escapes: no view-backed node (which would pin the whole source buffer) survives it.
- * See `equals`/`hashCode` caveat in [Asn1Structure.replaceChild].
+ * See the cache-access constraint in [Asn1Structure.replaceChild].
  */
 @InternalAwesn1Api
 private fun ArrayDeque<OctetSlot>.parseOctetStrings() {
@@ -307,14 +315,14 @@ private fun ArrayDeque<OctetSlot>.parseOctetStrings() {
         val slot = removeFirst()
         val raw = slot.raw
         val decapsulated = catchingUnwrapped {
-            val layer = raw.contentSource().doParse(raw.contentLengthLong, single = false)
+            val layer = raw.view.peek().doParse(raw.length.toLong(), single = false)
             require(layer.roots.isNotEmpty())
             addAllGuarded(layer.octets)
             Asn1EncapsulatingOctetString.decapsulated(layer.roots)
         }.getOrNull()
         // finalize the parse-time node: encapsulating on success, else an owned (compacted) OCTET STRING that no
         // longer holds a view into — and thus no longer pins — the (potentially far larger) source buffer.
-        slot.replaceWith(decapsulated ?: raw.finalizeRaw())
+        slot.replaceWith(decapsulated ?: slot.fallback ?: Asn1OctetString.temporary(raw.view.peek().readByteArray(raw.length)))
     }
 }
 

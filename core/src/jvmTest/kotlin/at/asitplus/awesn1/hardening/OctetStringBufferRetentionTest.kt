@@ -16,9 +16,9 @@ import java.lang.ref.WeakReference
  * Regression guard for OCTET STRING decapsulation retention (JVM-only; relies on [System.gc]).
  *
  * The parser reads OCTET STRING content as a zero-copy view into the source buffer (see `Source.readSubSource` /
- * `Asn1OctetString.ViewBacked`) so that nested decapsulation stays O(input) instead of O(input²). Those views are
+ * the parser's `OctetPlaceholder`) so that nested decapsulation stays O(input) instead of O(input²). Those views are
  * strictly parse-time: `parseOctetStrings` finalizes every one before the tree is handed out — encapsulating layers
- * retain no bytes, and a layer that stays raw is copied into an exact-size owned array (`finalizeRaw`). Consequently
+ * retain no bytes, and a layer that stays raw is copied into an exact-size owned array on fallback. Consequently
  * a parsed tree must NOT keep the (potentially far larger) input buffer alive through a lingering view.
  *
  * Each test builds and parses inside a helper so the ONLY strong reference to the input array is whatever the parsed

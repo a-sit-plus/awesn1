@@ -786,10 +786,10 @@ sealed class Asn1Structure(
         field: MutableList<Asn1Element> = mutableChildren.apply { if (sortChildren) sortWith(DerEncodedElementComparator) }
 
     /**
-     * Replaces the child at [index] in place. Internal-only: used by the parser to swap a raw OCTET STRING for
-     * its [Asn1EncapsulatingOctetString] counterpart while decoding, before the tree is handed out. The
-     * replacement is byte-identical and same-tag, so it does not alter this structure's encoding. Callers must
-     * not have called `equals`/`hashCode` (directly or via hash collections) on this subtree before teh octet string iteration is through.
+     * Replaces the child at [index] in place. Internal-only: used by the parser to swap an OCTET STRING placeholder for
+     * its finalized counterpart while decoding, before the tree is handed out. The
+     * placeholder has the correct tag but no content yet. Callers must not read lengths, encode, compare, or
+     * hash this subtree until all placeholders have been replaced, otherwise cached values could become stale.
      */
     @Suppress("NOTHING_TO_INLINE")
     internal inline fun replaceChild(index: Int, node: Asn1Element) {
@@ -805,7 +805,7 @@ sealed class Asn1Structure(
     // (sortChildren), the answer is known to be `true` with zero computation. Otherwise it is computed on first read
     // — only prettyPrint of a SET reads it — and cached. The field is just a reference to the interned `true`/`false`
     // (no per-node allocation), no Lazy/closure; benign idempotent race, same @Volatile posture as
-    // cachedContentLength/cachedHash. (replaceChild swaps are byte-identical/same-tag, so a cached result never goes stale.)
+    // cachedContentLength/cachedHash. The parser must finish replacing placeholders before these caches are read.
     @Volatile
     private var isActuallySortedCache: Boolean? = if (sortChildren) true else null
     val isActuallySorted: Boolean
@@ -1149,51 +1149,17 @@ class Asn1CustomStructure internal constructor(
  * May be an [Asn1EncapsulatingOctetString] if the contained bytes are valid ASN.1.
  */
 @Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
-sealed class Asn1OctetString : Asn1Primitive {
+sealed class Asn1OctetString protected constructor(content: ByteArray) : Asn1Primitive(Tag.OCTET_STRING, content) {
 
     /** This is an implementation detail, you shouldn't check for it */
     private class NotEncapsulating(content: ByteArray) : Asn1OctetString(content)
-
-    /**
-     * Parser-only raw OCTET STRING whose content is a zero-copy [view] into the source buffer (see
-     * [Source.readSubSource]). It never materialises its content, so peeling one decapsulation layer costs only that
-     * layer's header — this is what makes nested decapsulation O(input) instead of O(input²). It is a transient
-     * parse-time node: [parseOctetStrings][at.asitplus.awesn1.encoding.internal] always [finalizeRaw]es it (or
-     * swaps in an encapsulating counterpart) before the tree is handed out, so a view — which pins the whole source
-     * buffer — never survives parsing.
-     */
-    private class ViewBacked(private val view: Source<*>, private val length: Int) :
-        Asn1OctetString({ view.peek().readByteArray(length) }) {
-        // report the length without forcing the (lazy) content, so decapsulation never triggers a copy
-        override val contentLengthLong: Long get() = length.toLong()
-        // fresh independent reader over the same shared bytes; the view itself is never consumed
-        override fun contentSource(): Source<*> = view.peek()
-        // transition to an owned, exact-size node (one copy) that holds no view -> releases the source buffer
-        override fun finalizeRaw(): Asn1OctetString = NotEncapsulating(view.peek().readByteArray(length))
-    }
-
-    private constructor(content: ByteArray) : super(Tag.OCTET_STRING, content)
-    constructor(contentProvider: () -> ByteArray) : super(Tag.OCTET_STRING, contentProvider)
-
-    /** Re-reads this OCTET STRING's raw content as a fresh [Source] for decapsulation (zero-copy when view-backed). */
-    internal open fun contentSource(): Source<*> = content.wrapInUnsafeSource()
-
-    /**
-     * The finalized form of this raw OCTET STRING, once decapsulation has decided it stays non-encapsulating: an
-     * owned, exact-size node retaining no view into (and so no longer pinning) the source buffer. Already-owned
-     * instances return `this`.
-     */
-    internal open fun finalizeRaw(): Asn1OctetString = this
 
     override fun prettyPrintHeader(indent: Int) = (" " * indent) + "OCTET STRING " + super.prettyPrintHeader(0)
 
     companion object {
 
-        /**
-         * Constructs a raw (non-encapsulating) OCTET STRING whose [length]-byte content is a zero-copy [view] into
-         * the source buffer. Used by the parser; see [ViewBacked].
-         */
-        internal fun viewBacked(view: Source<*>, length: Int): Asn1OctetString = ViewBacked(view, length)
+        /** Constructs an owned raw OCTET STRING without attempting decapsulation. */
+        internal fun temporary(content: ByteArray): Asn1OctetString = NotEncapsulating(content)
 
         /**
          * Constructs an [Asn1OctetString].
@@ -1217,12 +1183,11 @@ sealed class Asn1OctetString : Asn1Primitive {
  */
 @Serializable(with = Asn1EncapsulatingOctetStringFallbackBase64Serializer::class)
 class Asn1EncapsulatingOctetString private constructor(
-    //the backing sequence is the single source of truth for children; reused for `isActuallySorted`,
-    //`iterator`, and `decodeAs`. A raw and an encapsulating OCTET STRING encode to identical bytes, so a
-    //decoding-time child replacement never changes this element's encoding.
+    // The backing sequence is the single source of truth for children; reused for `isActuallySorted`,
+    // `iterator`, and `decodeAs`. Parser placeholders must be resolved before encoding or reading lengths.
     @PublishedApi
     internal val _sequence: Asn1Sequence,
-) : Asn1OctetString(Asn1Primitive.initImplError), Iterable<Asn1Element> {
+) : Asn1OctetString(/*if it's stupid but it works, it ain't stupid*/EMPTY_BYTE_ARRAY), Iterable<Asn1Element> {
 
     constructor(children: List<Asn1Element>) : this(Asn1Sequence(children))
 
@@ -1241,7 +1206,7 @@ class Asn1EncapsulatingOctetString private constructor(
     val element get() = runRethrowing { children.single() }
 
     // Behaves as a STRUCTURE, not a primitive: it never retains its encoded bytes. The length is taken from the
-    // children (so it does NOT force the `content` provider), and derEncoded re-encodes on each access (stack-safe
+    // children, and derEncoded re-encodes on each access (stack-safe
     // via the dedicated branch in encodeTreeTo). This is what keeps deeply nested encapsulation O(input), not
     // O(input²) — there is no per-layer `rawContent` copy any more.
     override val contentLengthLong: Long get() = _sequence.contentLengthLong

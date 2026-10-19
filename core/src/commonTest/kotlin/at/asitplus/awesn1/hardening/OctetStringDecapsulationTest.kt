@@ -48,7 +48,6 @@ val OctetStringDecapsulationTest by matrixSuite {
             val second = current.content
             first shouldBe second
             (first === second) shouldBe false
-            current.isContentMaterialized shouldBe false
             current = current.children.single()
         }
     }
@@ -95,12 +94,15 @@ val OctetStringDecapsulationTest by matrixSuite {
     }
 
     "octet string whose content has trailing bytes stays raw" {
-        // a valid INT followed by a stray byte -> content does not parse cleanly -> raw
-        val der = octet(int1 + byteArrayOf(0x00))
-        val parsed = Asn1Element.parse(der)
-
-        (parsed is Asn1EncapsulatingOctetString) shouldBe false
-        parsed.shouldBeInstanceOf<Asn1OctetString>()
+        val invalidContent = octet(int1) + byteArrayOf(0x05) // valid nested octet, then an incomplete NULL
+        val childrenDer = octet(invalidContent) + octet(int2)
+        val der = byteArrayOf(0x30) + encodeLen(childrenDer.size) + childrenDer
+        val parsed = Asn1Element.parse(der).shouldBeInstanceOf<Asn1Sequence>()
+        val raw = parsed.children[0].shouldBeInstanceOf<Asn1OctetString>()
+        (raw is Asn1EncapsulatingOctetString) shouldBe false
+        raw.content shouldBe invalidContent
+        parsed.children[1].shouldBeInstanceOf<Asn1EncapsulatingOctetString>().element.asInt() shouldBe 2
+        parsed.overallLengthLong shouldBe der.size.toLong()
         parsed.derEncoded shouldBe der
     }
 
