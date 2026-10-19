@@ -49,6 +49,9 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
     override fun serializerForDecode(decoder: DerDecoder): DeserializationStrategy<T> {
         val element = decoder.peekCurrentElementOrNull()
             ?: throw SerializationException("No ASN.1 element left while decoding ${descriptor.serialName}")
+        if (element.tag == Asn1Element.Tag.SET) throw SerializationException(
+            "SET is not supported by OID-discriminated polymorphism: ${descriptor.serialName}"
+        )
         val oid = oidSelector(element)
             ?: throw SerializationException(
                 "Could not extract discriminator OID from current ASN.1 element while decoding ${descriptor.serialName}"
@@ -57,17 +60,6 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
         // Mirror of encode: drop the injected discriminator only for exact subtypes. For the catch-all
         // the leading OID IS the fallback's own `oid` field — keep it so the fallback reads it back.
         if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) {
-            val discriminatorIndex = (element as? Asn1Structure)?.children?.indexOfFirst {
-                it is Asn1Primitive && it.tag == Asn1Element.Tag.OID &&
-                        runCatching { it.readOid() }.getOrNull() == oid
-            } ?: -1
-            if (discriminatorIndex < 0 ||
-                discriminatorIndex > 0 && element.tag != Asn1Element.Tag.SET) {
-                throw SerializationException(
-                    "OID discriminator for ${descriptor.serialName} must be the first child; " +
-                            "custom selector resolved child index $discriminatorIndex"
-                )
-            }
             decoder.dropOidFromNextStructure(oid)
         }
         @Suppress("UNCHECKED_CAST")
@@ -100,15 +92,14 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
 /**
  * Default OID selector for OID-discriminated open polymorphism.
  *
- * This covers the common shape `SEQUENCE { OBJECT IDENTIFIER, ... }` and canonical SET sorting.
+ * Reads the first child of `SEQUENCE { OBJECT IDENTIFIER, ... }` (including implicitly tagged sequences).
  */
 internal fun oidFrom(element: Asn1Element): ObjectIdentifier? {
 
     val structure = element as? Asn1Structure ?: return null
 
-    return structure.children.asSequence()
-        .filterIsInstance<Asn1Primitive>()
-        .firstOrNull { it.tag == Asn1Element.Tag.OID }
+    return (structure.children.firstOrNull() as? Asn1Primitive)
+        ?.takeIf { it.tag == Asn1Element.Tag.OID }
         ?.let { runCatching { it.readOid() }.getOrNull() }
 }
 
