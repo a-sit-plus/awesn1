@@ -11,7 +11,7 @@ import at.asitplus.awesn1.encoding.parse
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -43,35 +43,36 @@ private fun nestedSequenceDer(levels: Int): ByteArray {
 private data class DsPlainRecursive(val child: DsPlainRecursive? = null)
 
 val depthguard_soe_bypass by matrixSuite {
-    "Deep recursive decoding on a small stack throws a catchable SerializationException" {
-        onThreadWithStack(64 * 1024L) {
-            DER.decodeFromDer<DsPlainRecursive>(nestedSequenceDer(127))
-        }.shouldBeInstanceOf<SerializationException>()
+    val deep = nestedSequenceDer(127)
+
+    "The default depth limit rejects deep recursive decoding" {
+        shouldThrow<SerializationException> {
+            DER.decodeFromDer<DsPlainRecursive>(deep)
+        }.message shouldContain "maxNestingDepth=${DER.configuration.maxNestingDepth}"
+    }
+
+    "A lower configured depth limit rejects deep recursive decoding" {
+        shouldThrow<SerializationException> {
+            DER { maxNestingDepth = 8 }.decodeFromDer<DsPlainRecursive>(deep)
+        }.message shouldContain "maxNestingDepth=8"
     }
 }
 
 val enc_depthguard_soe_smallstack by matrixSuite {
-    "Deep recursive encoding on a small stack throws a catchable SerializationException" {
-        var graph = DsPlainRecursive()
-        repeat(126) { graph = DsPlainRecursive(graph) }
-        onThreadWithStack(64 * 1024L) {
-            DER.encodeToByteArray(graph)
-        }.shouldBeInstanceOf<SerializationException>()
-    }
-}
+    var graph = DsPlainRecursive()
+    repeat(126) { graph = DsPlainRecursive(graph) }
 
-private fun onThreadWithStack(stackSize: Long, block: () -> Unit): Throwable? {
-    var escaped: Throwable? = null
-    val thread = Thread(null, {
-        try {
-            block()
-        } catch (t: Throwable) {
-            escaped = t
-        }
-    }, "awesn1-small-stack", stackSize)
-    thread.start()
-    thread.join()
-    return escaped
+    "The default depth limit rejects deep recursive encoding" {
+        shouldThrow<SerializationException> {
+            DER.encodeToByteArray(graph)
+        }.message shouldContain "maxNestingDepth=${DER.configuration.maxNestingDepth}"
+    }
+
+    "A lower configured depth limit rejects deep recursive encoding" {
+        shouldThrow<SerializationException> {
+            DER { maxNestingDepth = 8 }.encodeToByteArray(graph)
+        }.message shouldContain "maxNestingDepth=8"
+    }
 }
 
 val max_nesting_depth_guard_silent_disable by matrixSuite {
