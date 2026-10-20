@@ -224,5 +224,3 @@ val decodestring_nonutf8_stringtype_misdecode by matrixSuite {
         }
     }
 }
-
-private inline fun <reified T> Der.roundTrip(value: T): T = decodeFromByteArray(encodeToByteArray(value))
