@@ -670,7 +670,7 @@ internal value class VarUInt private constructor(
 
             if (index >= hexString.length) throw NumberFormatException("Not a hex string")
 
-            //count actual jex digits, so we can allocate
+            //count actual hex digits, so we can allocate
             var digits = 0
             for (i in index until hexString.length) {
                 val c = hexString[i]
@@ -681,6 +681,9 @@ internal value class VarUInt private constructor(
                     digits++
                 }
             }
+            if (digits == 0) throw NumberFormatException("Not a hex string")
+            while (hexDigit(hexString[index]) == -1) index++
+
             //alloc words + account for no leading zero
             val result = UByteArray((digits + 1) ushr 1)
 
