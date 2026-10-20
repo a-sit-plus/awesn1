@@ -571,8 +571,8 @@ For strict canonicality expectations in certificate ecosystems, see
 
     `maxNestingDepth` bounds recursion driven by kotlinx.serialization and the ASN.1 element trees consumed or produced
     by built-in `Asn1Encodable`/`Asn1Decodable` handling. It **cannot** observe recursion performed inside custom
-    `KSerializer` code or `Asn1Serializable.doDecode`; trusted custom implementations must enforce their own depth and
-    allocation limits.
+    `KSerializer` code or `Asn1Serializable.doDecode`, Hence custom serializer implementations must enforce their own depth and
+    allocation limits and are considered trusted code.
 
 ```kotlin
 --8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-format-options-definitions"
@@ -593,10 +593,11 @@ For strict canonicality expectations in certificate ecosystems, see
 
 !!! danger "Bound untrusted input with `maxInputLength`"
     
-    `maxInputLength` defaults to the target's largest conservatively addressable `ByteArray` (`Int.MAX_VALUE - 8` on
-    JVM/Android and `Int.MAX_VALUE` elsewhere). It is an addressability backstop, not a small application policy: lower
-    it when your protocol permits smaller payloads. Large CMS/S/MIME objects remain accepted when memory permits. See
-    [Hardening, Fuzzing & Robustness](hardening.md) for the full picture.
+    `maxInputLength` defaults to the target's largest addressable `ByteArray` (`Int.MAX_VALUE - 8` on
+    JVM/Android and `Int.MAX_VALUE` elsewhere). Note that this is still best-effort! Memory can run out still, for example.
+    It is recommended to lower this depending on expected input sizes, but awesn1 cannot make this choice for you.
+    CMS/S/MIME objects, for example tend to get very large, while certificate chains are rather small. See also
+    [Hardening, Fuzzing & Robustness](hardening.md) for the full picture about hardening and hardening assumptions.
     
     When decoding from a `Source` (`kxs-io`), `decodeFromSource(..., limit = …)` clamps the optional per-call byte
     `limit` to `maxInputLength`. This prevents source parsing from attempting to create content that cannot fit in a
