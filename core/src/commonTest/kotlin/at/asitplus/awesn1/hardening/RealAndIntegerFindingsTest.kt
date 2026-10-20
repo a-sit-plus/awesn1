@@ -135,3 +135,26 @@ val tounsignedbytearray_zero_emits_empty by matrixSuite {
         256L.toUnsignedByteArray().toHexString() shouldBe "0100"
     }
 }
+
+val kxs_hex_int_leading_separator_silent_corruption by matrixSuite {
+    for ((input, expected) in listOf(
+        ":8000" to "32768",
+        ":a" to "10",
+        "0x:8000" to "32768",
+        "+0x:80:00" to "32768",
+        "-:8000" to "-32768",
+        " : 80:00 " to "32768",
+        "80:00" to "32768",
+        "8000" to "32768",
+    )) {
+        "Hex INTEGER '$input' retains its numeric value" {
+            Asn1Integer.fromHexString(input).toDecimalString() shouldBe expected
+        }
+    }
+
+    for (input in listOf(":", "0x:", "+:", "-:", " : : ")) {
+        "Hex INTEGER '$input' without digits is rejected" {
+            shouldThrow<Asn1Exception> { Asn1Integer.fromHexString(input) }
+        }
+    }
+}
