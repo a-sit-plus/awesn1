@@ -287,6 +287,14 @@ fun DER(config: DerBuilder.() -> Unit = {}) =
         .build()
         .let { Der(it) }
 
+/**
+ * Startup-only configuration for the process-wide [DER] instance.
+ *
+ * This registry is intentionally not thread-safe or coroutine-safe. Complete all [DefaultDer.register] calls and
+ * [DefaultDer.maxInputLength] configuration on one thread before the first access to [DER]. Concurrent configuration
+ * or configuration racing first use has undefined behaviour; use a separately configured [Der] instance when the
+ * lifecycle cannot be guaranteed.
+ */
 @ExperimentalSerializationApi
 object DefaultDer {
     /**

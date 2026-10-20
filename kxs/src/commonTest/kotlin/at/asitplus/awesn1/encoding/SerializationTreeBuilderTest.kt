@@ -21,7 +21,7 @@ import kotlin.time.Instant
 
 @OptIn(ExperimentalSerializationApi::class)
 val SerializationTreeBuilderTest by matrixSuite {
-    "X509AlgorithmIdentifier unary plus works with and without DER context" {
+    "X509AlgorithmIdentifier supports unary plus and append with and without DER context" {
         val algorithm = X509AlgorithmIdentifier(
             ObjectIdentifier("1.2.840.113549.1.1.11"),
             Asn1.Null(),
@@ -29,18 +29,22 @@ val SerializationTreeBuilderTest by matrixSuite {
         val expected = listOf(DER.encodeToTlv(algorithm))
 
         Asn1.Sequence { +algorithm }.children shouldBe expected
-        with(DER) { Asn1.Sequence { +algorithm } }.children shouldBe expected
+        Asn1.Sequence { add(algorithm) }.children shouldBe expected
+        Asn1.Sequence { +algorithm }.children shouldBe expected
+        Asn1.Sequence { add(algorithm) }.children shouldBe expected
     }
 
-    "X509SignatureValue unary plus works with and without DER context" {
+    "X509SignatureValue supports unary plus and append with and without DER context" {
         val signature = X509SignatureValue(byteArrayOf(1, 2, 3))
         val expected = listOf(DER.encodeToTlv(signature))
 
         Asn1.Sequence { +signature }.children shouldBe expected
-        with(DER) { Asn1.Sequence { +signature } }.children shouldBe expected
+        Asn1.Sequence { add(signature) }.children shouldBe expected
+        Asn1.Sequence { +signature }.children shouldBe expected
+        Asn1.Sequence { add(signature) }.children shouldBe expected
     }
 
-    "unary plus infers serializers for crypto types" {
+    "append infers serializers for crypto types" {
         val publicKey = Pkcs1RsaPublicKeyInfo(Asn1Integer(3233), Asn1Integer(17))
         val algorithm = X509AlgorithmIdentifier(
             ObjectIdentifier("1.2.840.113549.1.1.11"),
@@ -63,8 +67,8 @@ val SerializationTreeBuilderTest by matrixSuite {
 
         with(DER) {
             Asn1.Sequence {
-                +publicKey
-                +certificate
+                append(publicKey)
+                append(certificate)
             }
         }.children shouldBe listOf(
             DER.encodeToTlv(publicKey),
