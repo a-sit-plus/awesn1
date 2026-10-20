@@ -77,7 +77,8 @@ Decode/parse paths run inside `runRethrowing`/`runWrappingAs`, which catch non-f
 - `kxs` shares a `DerDepthGuard` between `DerDecoder`/`DerEncoder` that throws `SerializationException` past
   `DerConfiguration.maxNestingDepth` (default **32**, maximum **65,536**). Built-in ASN.1 element trees are checked
   iteratively on both encode and decode. Raising the limit is supported for runtimes provisioned with a matching stack;
-  choosing a value beyond the available stack remains the caller's responsibility.
+  choosing a value beyond the available stack will still cause an SoE.
+  Adjusting this value based on platform stack limits remains the caller's responsibility.
 - A `MAX_COLLECTION_SIZE` guard (`Int.MAX_VALUE - 8`, checked per append) turns an overfull child list into a catchable
   `Asn1Exception`. This is an addressability backstop, **not** a heap-DoS defense — see input bounding below.
 

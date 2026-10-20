@@ -157,7 +157,7 @@ class Der internal constructor(
  * that deliberately provide a larger stack; the caller is responsible for ensuring sufficient platform stack space.
  *
  * **IMPORTANT:** this limit applies only to recursion driven through kotlinx.serialization's encoder/decoder callbacks.
- * Recursion performed inside trusted custom code, including [Asn1Serializable.doDecode], is outside the format's
+ * Recursion performed inside custom serializer code, including [Asn1Serializable.doDecode], is outside the format's
  * control and is **not bounded by `maxNestingDepth`**. Custom implementations must enforce their own limits.
  * @property serializersModule serializers used for contextual/open-polymorphic resolution.
  */
