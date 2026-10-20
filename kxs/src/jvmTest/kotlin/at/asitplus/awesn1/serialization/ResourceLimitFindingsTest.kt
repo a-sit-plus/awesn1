@@ -5,6 +5,8 @@
 
 package at.asitplus.awesn1.serialization
 
+import at.asitplus.awesn1.Asn1Encodable
+import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Sequence
 import at.asitplus.awesn1.encoding.parse
@@ -103,5 +105,30 @@ val der_maxinput_unbounded by matrixSuite {
 
     "The JVM default input cap is below Int.MAX_VALUE" {
         (DER.configuration.maxInputLength < Int.MAX_VALUE.toLong()) shouldBe true
+    }
+}
+
+@Serializable(with = DsSerializableRecursive.Companion::class)
+private class DsSerializableRecursive(val child: DsSerializableRecursive?) : Asn1Encodable<Asn1Sequence> {
+    override fun encodeToTlv(): Asn1Sequence = Asn1.Sequence { child?.let { +it.encodeToTlv() } }
+
+    companion object : Asn1Serializable<Asn1Sequence, DsSerializableRecursive> {
+        override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
+        override fun doDecode(src: Asn1Sequence): DsSerializableRecursive =
+            DsSerializableRecursive(src.children.firstOrNull()?.let { decodeFromTlv(it as Asn1Sequence) })
+    }
+}
+
+val asm1serializable_depthguard_bypass by matrixSuite {
+    val der = DER { maxNestingDepth = 8 }
+
+    "A custom Asn1Serializable decodes a tree within the depth limit" {
+        der.decodeFromDer<DsSerializableRecursive>(nestedSequenceDer(2)).child?.child shouldBe null
+    }
+
+    "A custom Asn1Serializable cannot bypass the input tree depth limit" {
+        shouldThrow<SerializationException> {
+            der.decodeFromDer<DsSerializableRecursive>(nestedSequenceDer(9))
+        }.message shouldContain "maxNestingDepth=8"
     }
 }
