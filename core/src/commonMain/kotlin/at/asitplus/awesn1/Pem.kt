@@ -38,6 +38,7 @@ data class PemBlock(
 
     init {
         require(pemLabel.isNotBlank()) { "PEM label must not be blank" }
+        require(pemLabel.all { it in ' '..'~' }) { "PEM label must contain only printable ASCII characters" }
         headers.forEach {
             require(it.name.isNotBlank()) { "PEM header names must not be blank" }
         }
