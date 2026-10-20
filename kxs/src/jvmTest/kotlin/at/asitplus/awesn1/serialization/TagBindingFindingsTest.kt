@@ -286,5 +286,3 @@ val asn1tag_infer_class_ambiguity_mispredict by matrixSuite {
         }
     }
 }
-
-private inline fun <reified T> Der.roundTrip(value: T): T = decodeFromByteArray(encodeToByteArray(value))
