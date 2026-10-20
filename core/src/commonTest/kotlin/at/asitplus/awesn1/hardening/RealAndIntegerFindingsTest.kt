@@ -45,30 +45,31 @@ val real_decode_double_nan_for_representable_values by matrixSuite {
 }
 
 val RealBinary64Rounding by matrixSuite {
-    for ((mantissa, expected) in listOf(
+    listOf(
         "20000000000001" to 9007199254740992.0,
         "20000000000003" to 9007199254740996.0,
         "3fffffffffffff" to 18014398509481984.0,
         "40000000000003" to 18014398509481988.0,
-    )) {
-        "Mantissa $mantissa rounds to $expected using nearest-even binary64 rounding" {
-            Asn1Real(Asn1Integer.fromUnsignedByteArray(mantissa.hexToByteArray()), 0).toDouble() shouldBe expected
-        }
+    ).asData(
+        name = "nearest-even binary64 rounding",
+        nameFn = { (mantissa, expected) -> "$mantissa -> $expected" },
+    ) test { (mantissa, expected) ->
+        Asn1Real(Asn1Integer.fromUnsignedByteArray(mantissa.hexToByteArray()), 0).toDouble() shouldBe expected
     }
 }
 
 val real_base_factor_bits_ignored_lenient by matrixSuite {
-    for ((content, expected) in listOf(
+    listOf(
         "900101" to 8.0,
         "a00101" to 16.0,
         "880001" to 4.0,
         "d40101" to -16.0,
-    )) {
-        "Lenient decoding applies the base, scaling factor, and sign of $content" {
+    ).asData(name = "noncanonical REAL content", nameFn = { (content, _) -> content }) - { (content, expected) ->
+        "Lenient decoding applies the base, scaling factor, and sign" {
             Asn1Real.decodeFromAsn1ContentBytes(content.hexToByteArray(), lenient = true).toDouble() shouldBe expected
         }
 
-        "Strict decoding rejects noncanonical REAL content $content" {
+        "Strict decoding rejects noncanonical REAL content" {
             shouldThrow<Asn1Exception> { Asn1Real.decodeFromAsn1ContentBytes(content.hexToByteArray()) }
         }
     }
@@ -79,26 +80,26 @@ val real_lenient_exponent_still_der_strict by matrixSuite {
         Asn1Real.decodeFromAsn1ContentBytes("800101".hexToByteArray(), lenient = true).toDouble() shouldBe 2.0
     }
 
-    for ((content, expected) in listOf(
+    listOf(
         "81000101" to 2.0,
         "8302000101" to 2.0,
         "81ffff01" to 0.5,
-    )) {
-        "Lenient decoding accepts the padded REAL exponent in $content" {
+    ).asData(name = "padded REAL exponent", nameFn = { (content, _) -> content }) - { (content, expected) ->
+        "Lenient decoding accepts the padded REAL exponent" {
             Asn1Real.decodeFromAsn1ContentBytes(content.hexToByteArray(), lenient = true).toDouble() shouldBe expected
         }
 
-        "Strict decoding rejects the padded REAL exponent in $content" {
+        "Strict decoding rejects the padded REAL exponent" {
             shouldThrow<Asn1Exception> { Asn1Real.decodeFromAsn1ContentBytes(content.hexToByteArray()) }
         }
     }
 }
 
 val varint_ulong_decode_overflow_wrap by matrixSuite {
-    for (content in listOf("82ffffffffffffffff01", "90808080808080808000")) {
-        "An overflowing ULong varint $content is rejected before it can wrap" {
-            shouldThrow<IllegalArgumentException> { content.hexToByteArray().decodeAsn1VarULong() }
-        }
+    listOf("82ffffffffffffffff01", "90808080808080808000").asData(
+        name = "rejects overflowing ULong varints",
+    ) test { content ->
+        shouldThrow<IllegalArgumentException> { content.hexToByteArray().decodeAsn1VarULong() }
     }
 
     "The maximum legal ten-octet ULong varint accepts all seven bits in its final octet" {
@@ -129,15 +130,16 @@ val tounsignedbytearray_zero_emits_empty by matrixSuite {
         0L.toUnsignedByteArray().toHexString() shouldBe "00"
     }
 
-    "A positive magnitude drops only its sign-padding octet" {
-        1L.toUnsignedByteArray().toHexString() shouldBe "01"
-        128L.toUnsignedByteArray().toHexString() shouldBe "80"
-        256L.toUnsignedByteArray().toHexString() shouldBe "0100"
+    listOf(1L to "01", 128L to "80", 256L to "0100").asData(
+        name = "positive magnitudes drop only the sign-padding octet",
+        nameFn = { (value, expected) -> "$value -> $expected" },
+    ) test { (value, expected) ->
+        value.toUnsignedByteArray().toHexString() shouldBe expected
     }
 }
 
 val kxs_hex_int_leading_separator_silent_corruption by matrixSuite {
-    for ((input, expected) in listOf(
+    listOf(
         ":8000" to "32768",
         ":a" to "10",
         "0x:8000" to "32768",
@@ -146,15 +148,14 @@ val kxs_hex_int_leading_separator_silent_corruption by matrixSuite {
         " : 80:00 " to "32768",
         "80:00" to "32768",
         "8000" to "32768",
-    )) {
-        "Hex INTEGER '$input' retains its numeric value" {
-            Asn1Integer.fromHexString(input).toDecimalString() shouldBe expected
-        }
+    ).asData(name = "valid hex INTEGER", nameFn = { (input, _) -> "'$input'" }) test { (input, expected) ->
+        Asn1Integer.fromHexString(input).toDecimalString() shouldBe expected
     }
 
-    for (input in listOf(":", "0x:", "+:", "-:", " : : ")) {
-        "Hex INTEGER '$input' without digits is rejected" {
-            shouldThrow<Asn1Exception> { Asn1Integer.fromHexString(input) }
-        }
+    listOf(":", "0x:", "+:", "-:", " : : ").asData(
+        name = "hex INTEGER without digits",
+        nameFn = { "'$it'" },
+    ) test { input ->
+        shouldThrow<Asn1Exception> { Asn1Integer.fromHexString(input) }
     }
 }
