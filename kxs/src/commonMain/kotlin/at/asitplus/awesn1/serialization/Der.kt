@@ -6,7 +6,11 @@
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.parse
+import at.asitplus.awesn1.encoding.internal.Source
+import at.asitplus.awesn1.encoding.internal.Asn1Reader
+import at.asitplus.awesn1.serialization.internal.SourceDerInput
+import at.asitplus.awesn1.serialization.internal.IteratorDerInput
+import at.asitplus.awesn1.serialization.internal.TreeDerValue
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerDepthGuard
@@ -53,15 +57,8 @@ class Der internal constructor(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
     ): T = runWrappingAs(a = ::SerializationException) {
-        val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
-        val decoder = DerDecoder(
-            if (bytes.isEmpty()) emptyList() else listOf(
-                Asn1Element.parse(source = bytes, limit = configuration.maxInputLength)
-            ),
-            der = this,
-            layoutPlan = layoutPlan,
-        )
-        return decoder.decodeSerializableValue(deserializer)
+        require(bytes.size.toLong() <= configuration.maxInputLength) { "DER input exceeds maxInputLength" }
+        decodeFromAsn1Source(deserializer, bytes.wrapInUnsafeSource(), bytes.size.toLong())
     }
 
     /**
@@ -126,11 +123,11 @@ class Der internal constructor(
         runWrappingAs(a = ::SerializationException) {
             val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
             val decoder = DerDecoder(
-                listOf(source),
+                IteratorDerInput(listOf(TreeDerValue(source)).iterator()),
                 der = this,
                 layoutPlan = layoutPlan,
             )
-            return decoder.decodeSerializableValue(deserializer)
+            return decoder.decodeSerializableValue(deserializer).also { decoder.finish() }
         }
 }
 
@@ -146,7 +143,7 @@ class Der internal constructor(
  * @property maxInputLength maximum allowed DER byte-array size. Defaults to the platform's conservative array ceiling;
  * lower it when the application or protocol has a smaller bound. Streaming `Source` APIs may use a tighter per-call
  * limit.
- * @property maxNestingDepth maximum structural nesting depth the **typed** encoder/decoder will descend before
+ * @property maxNestingDepth maximum structural nesting depth the typed encoder/decoder and incremental parser permit before
  * throwing a [kotlinx.serialization.SerializationException]. The raw parser/encoder are iterative and stack-safe, but
  * kotlinx.serialization's encode/decode contract is recursive descent (`deserialize` -> `decodeSerializableElement` ->
  * `deserialize` -> ...; and the mirror on encode), so a *self-referential* `@Serializable` type that is deeply nested
@@ -156,7 +153,7 @@ class Der internal constructor(
  * The default is 32, which is conservative across supported runtimes. Values up to 65,536 are accepted for callers
  * that deliberately provide a larger stack; the caller is responsible for ensuring sufficient platform stack space.
  *
- * **IMPORTANT:** this limit applies only to recursion driven through kotlinx.serialization's encoder/decoder callbacks.
+ * Parsing limits also cover explicit/OCTET content traversal and materialized fallback trees.
  * Recursion performed inside trusted custom code, including [Asn1Serializable.doDecode], is outside the format's
  * control and is **not bounded by `maxNestingDepth`**. Custom implementations must enforce their own limits.
  * @property serializersModule serializers used for contextual/open-polymorphic resolution.
@@ -326,4 +323,21 @@ val DER: Der by lazy {
         serializersModule = DefaultDer.consumeSerializers()
         maxInputLength = DefaultDer.maxInputLength
     }
+}
+
+/** Internal bridge: partially parsed input must not escape without exact completion. */
+@InternalAwesn1Api
+@OptIn(ExperimentalSerializationApi::class)
+fun <T> Der.decodeFromAsn1Source(
+    deserializer: DeserializationStrategy<T>,
+    source: Source<*>,
+    limit: Long,
+): T = runWrappingAs(a = ::SerializationException) {
+    require(limit >= 0) { "Limit must be non-negative" }
+    val input = SourceDerInput(Asn1Reader(
+        source, minOf(limit, configuration.maxInputLength), configuration.maxNestingDepth, maxChildren = 1,
+    ))
+    val layoutPlan = DerLayoutPlanContext(configuration).also { it.prime(deserializer.descriptor) }
+    val decoder = DerDecoder(input, this, layoutPlan)
+    decoder.decodeSerializableValue(deserializer).also { decoder.finish() }
 }

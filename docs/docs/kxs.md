@@ -552,6 +552,27 @@ This pattern is the complex extension of the implicit-tagging workaround shown i
    asn1js.eu</a>
 
 
+## Incremental Typed Decoding
+
+Byte-array and `kxs-io` source decoding let the existing typed decoder read one ASN.1 child at a time.
+Classes reject surplus children before inspecting their headers or payloads. Lists and maps have no fixed
+descriptor-derived size cap. Successful decoding requires complete consumption of the root and rejects trailing bytes;
+custom serializers that end a structure with unread children are rejected too.
+
+ASN.1 element serializers, Base64 tree fallbacks, `Asn1Serializable`, and custom OID selectors still receive complete
+trees, materialized within the remaining byte and nesting budgets. The built-in OID selector only looks ahead at the
+first discriminator. `decodeFromTlv` traverses the supplied tree directly.
+
+`maxNestingDepth` also bounds explicit wrappers, OCTET content interpreted as ASN.1, and fallback materialization.
+Raw `ByteArray` OCTET content remains arbitrary bytes and is not probed for nested ASN.1. During tree materialization,
+a speculative OCTET probe that reaches its resource limit fails even if later bytes would invalidate that probe.
+
+Ordinary classes with primitive wire-tag overrides remain unsupported. Existing in-memory structures with a primitive
+tag retain their tree-path behavior, as do the specifically supported primitive-content tag-dispatch cases.
+
+Custom serializer code can execute before a later malformed element or trailing byte is discovered. Decoding does
+not roll back custom serializer side effects.
+
 ## Format Options
 
 DER format behaviour can be tuned with the DER builder:
@@ -560,7 +581,7 @@ DER format behaviour can be tuned with the DER builder:
 - `encodeDefaults = false`: omit default-valued properties
 - `maxInputLength = …`: maximum number of encoded DER bytes to consume before refusing to parse (enforced before
   reading from the source)
-- `maxNestingDepth = …`: typed recursion limit from 1 through 65,536 (default 32; raising it requires matching stack space)
+- `maxNestingDepth = …`: typed recursion and parsing depth limit from 1 through 65,536 (default 32; raising it requires matching stack space)
 
 These switches are important when you need to align with profile-specific encoding expectations or with legacy systems
 that depend on a specific wire form.
