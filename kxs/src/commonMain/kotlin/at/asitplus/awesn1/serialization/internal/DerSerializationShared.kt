@@ -6,7 +6,6 @@
 package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1TagMismatchException
 import at.asitplus.awesn1.ASN1_DESCRIPTOR_ELEMENT_TREE
 import at.asitplus.awesn1.TagClass
@@ -364,7 +363,7 @@ internal fun requireNoAsn1TagOnGenericAsn1String(
     )
 }
 
-internal fun Asn1Element.isAsn1NullElement(): Boolean =
-    this is Asn1Primitive &&
+internal fun DerValue.isAsn1NullElement(): Boolean =
+    isPrimitive &&
             tag == Asn1Element.Tag.NULL &&
-            contentLength == 0
+            contentLength == 0L

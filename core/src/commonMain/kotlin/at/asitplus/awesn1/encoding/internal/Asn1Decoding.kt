@@ -98,7 +98,7 @@ private class Frame(
 /** Parser-only OCTET STRING view. Only its tag may be inspected until it is replaced.
  * Making this an Asn1Element keeps changes minimal, it's private, so this mess is contained here*/
 @InternalAwesn1Api
-private class OctetPlaceholder(val view: Source<*>, val length: Int) :
+private class OctetPlaceholder(val view: Source<*>, val length: Int, val depth: Int = 0) :
     Asn1Primitive(Asn1Element.Tag.OCTET_STRING, EMPTY_BYTE_ARRAY) {
     // ponytail: reuse the existing child lists; fail before an unfinished tree can populate length/encoding caches.
     override val content: ByteArray get() = error("Unresolved OCTET STRING placeholder")
@@ -145,8 +145,11 @@ private class ParseResult(
 //called only in three other functions with no other body, so we inline here
 @Suppress("NOTHING_TO_INLINE")
 @InternalAwesn1Api
-private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult =
+private inline fun Source<*>.doParse(
+    limit: Long?, single: Boolean, maxNestingDepth: Int? = null, baseDepth: Int = 0,
+): ParseResult =
     runRethrowing {
+        maxNestingDepth?.let { require(it >= 0) { "Nesting limit must be non-negative" } }
         val rootSrc = BoundedSource(this, limit)
         val roots = ArrayList<Asn1Element>()
         val stack = ArrayDeque<Frame>()
@@ -181,8 +184,7 @@ private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult
                 // bound only the header peek to the parent's remaining content, so a malformed header cannot read
                 // past the boundary; this wraps the single root source (constant depth), not the parent frame
                 val remaining = parent.contentLength - parent.bytesConsumed
-                val (tagAndLength, headerBytes) = BoundedSource(rootSrc, remaining).peek().readTagAndLength()
-                val (tag, length) = tagAndLength
+                val (tag, length, headerBytes) = BoundedSource(rootSrc, remaining).peek().readAsn1Header()
                 require(length <= parent.contentLength - headerBytes) {
                     "ASN.1 element length for tag $tag exceeds parent length: $length > ${parent.contentLength - headerBytes}"
                 }
@@ -193,7 +195,7 @@ private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult
                     )
                 }
                 rootSrc.skip(headerBytes.toLong())
-                stack.pushOrPrimitive(tag, length, rootSrc, headerBytes)?.let {
+                stack.pushOrPrimitive(tag, length, rootSrc, headerBytes, maxNestingDepth, baseDepth)?.let {
                     parent.children.addGuarded(it)
                     // a leaf consumes header + content immediately; constructed children are credited on close above
                     parent.bytesConsumed += childTotal
@@ -203,15 +205,14 @@ private inline fun Source<*>.doParse(limit: Long?, single: Boolean): ParseResult
                 if (single && roots.isNotEmpty()) break //can only ever land here after parsing a single element
                 if (rootSrc.exhausted()) break //done anywys
 
-                val (tagAndLength, headerBytes) = rootSrc.readTagAndLength()
-                val (tag, length) = tagAndLength
+                val (tag, length, headerBytes) = rootSrc.readAsn1Header()
                 val totalLength = length.plusExact(headerBytes.toLong())
                 limit?.let {
                     require(totalLength <= it - topBytesRead) {
                         "Length of ASN.1 element exceeds limit: $totalLength > ${it - topBytesRead}"
                     }
                 }
-                stack.pushOrPrimitive(tag, length, rootSrc, headerBytes)?.let {
+                stack.pushOrPrimitive(tag, length, rootSrc, headerBytes, maxNestingDepth, baseDepth)?.let {
                     roots.addGuarded(it)
                     topBytesRead += totalLength
                     // root octets are homed directly to the roots list; the node that later wraps roots adopts it
@@ -234,10 +235,15 @@ private fun ArrayDeque<Frame>.pushOrPrimitive(
     tag: Asn1Element.Tag,
     length: Long,
     src: Source<*>,
-    numHeaderBytes: Int
+    numHeaderBytes: Int,
+    maxNestingDepth: Int?,
+    baseDepth: Int,
 ): Asn1Element? = when {
     //SET, SEQUENCE, EXPLICITLY-TAGGED, Asn1CustomStructure
     tag.isConstructed -> {
+        if (maxNestingDepth != null && baseDepth + size >= maxNestingDepth) {
+            throw Asn1ParseLimitException("ASN.1 nesting depth exceeds $maxNestingDepth")
+        }
         this.addGuarded(Frame(tag, length, numHeaderBytes)) // ArrayDeque is a MutableList; appends to the end
         null
     }
@@ -247,7 +253,7 @@ private fun ArrayDeque<Frame>.pushOrPrimitive(
         //leave OCTET STRING content raw here, as a zero-copy view; encapsulated content is decoded iteratively
         //afterwards (see parseOctetStrings). The view shares the source buffer, so re-parsing nested layers never
         //re-copies the remaining content -> decapsulation is O(input), not O(input²).
-        OctetPlaceholder(src.readSubSource(length.toInt()), length.toInt())
+        OctetPlaceholder(src.readSubSource(length.toInt()), length.toInt(), baseDepth + size)
     }
 
     else -> {
@@ -279,11 +285,16 @@ fun Source<*>.readFullyToAsn1Elements(limit: Long?): Pair<List<Asn1Element>, Lon
 @Throws(Asn1Exception::class)
 @InternalAwesn1Api
 fun Source<*>.readAsn1Element(limit: Long?): Pair<Asn1Element, Long> =
-    doParse(limit, single = true).let {
+    readAsn1Element(limit, maxNestingDepth = null)
+
+/** Materializes one tree, including speculative OCTET layers, within the nesting budget. */
+@InternalAwesn1Api
+fun Source<*>.readAsn1Element(limit: Long?, maxNestingDepth: Int?): Pair<Asn1Element, Long> =
+    doParse(limit, single = true, maxNestingDepth = maxNestingDepth).let {
         // a single element was requested; empty input cannot satisfy that, so fail with an Asn1Exception
         // (rather than letting roots.first() throw a raw NoSuchElementException)
         if (it.roots.isEmpty()) throw Asn1Exception("Cannot decode an ASN.1 element from empty input")
-        ArrayDeque(it.octets).parseOctetStrings()
+        ArrayDeque(it.octets).parseOctetStrings(maxNestingDepth)
         it.roots.first() to it.bytesRead
     }
 
@@ -310,16 +321,22 @@ internal fun Asn1OctetString.decapsulateOrSelf(): Asn1OctetString {
  * See the cache-access constraint in [Asn1Structure.replaceChild].
  */
 @InternalAwesn1Api
-private fun ArrayDeque<OctetSlot>.parseOctetStrings() {
+private fun ArrayDeque<OctetSlot>.parseOctetStrings(maxNestingDepth: Int? = null) {
     while (isNotEmpty()) {
         val slot = removeFirst()
         val raw = slot.raw
         val decapsulated = catchingUnwrapped {
-            val layer = raw.view.peek().doParse(raw.length.toLong(), single = false)
+            require(raw.length > 0)
+            if (maxNestingDepth != null && raw.depth >= maxNestingDepth) {
+                throw Asn1ParseLimitException("ASN.1 nesting depth exceeds $maxNestingDepth in OCTET content")
+            }
+            val layer = raw.view.peek().doParse(
+                raw.length.toLong(), single = false, maxNestingDepth, baseDepth = raw.depth + 1
+            )
             require(layer.roots.isNotEmpty())
             addAllGuarded(layer.octets)
             Asn1EncapsulatingOctetString.decapsulated(layer.roots)
-        }.getOrNull()
+        }.getOrElse { if (it is Asn1ParseLimitException) throw it else null }
         // finalize the parse-time node: encapsulating on success, else an owned (compacted) OCTET STRING that no
         // longer holds a view into — and thus no longer pins — the (potentially far larger) source buffer.
         slot.replaceWith(decapsulated ?: slot.fallback ?: Asn1OctetString.temporary(raw.view.peek().readByteArray(raw.length)))
@@ -330,22 +347,25 @@ private fun Asn1Element.Tag.isSet() = this == Asn1Element.Tag.SET
 private fun Asn1Element.Tag.isSequence() = (this == Asn1Element.Tag.SEQUENCE)
 
 
-/**
- * [Asn1Element.Tag] to the decoded length
- */
-private typealias TagAndLength = Pair<Asn1Element.Tag, Long>
-
-/**
- * Reads [TagAndLength] and the number of consumed bytes from the source
- */
+/** A validated header; its payload has not necessarily been read or validated. */
 @InternalAwesn1Api
-private fun Source<*>.readTagAndLength(): Pair<TagAndLength, Int> = runRethrowing {
-    if (exhausted()) throw IllegalArgumentException("Can't read TLV, input empty")
+data class Asn1TlvHeader internal constructor(
+    val tag: Asn1Element.Tag,
+    val contentLength: Long,
+    val headerLength: Int,
+) {
+    val totalLength: Long get() = contentLength.plusExact(headerLength)
+}
 
+internal class Asn1ParseLimitException(message: String) : Asn1Exception(message)
+
+@InternalAwesn1Api
+internal fun Source<*>.readAsn1Header(): Asn1TlvHeader = runRethrowing {
+    if (exhausted()) throw IllegalArgumentException("Can't read TLV, input empty")
     val tag = readAsn1Tag()
     val length = decodeLength()
     require(length.first >= 0L) { "Illegal length: $length" }
-    return Pair((tag to length.first), (length.second + tag.encodedTagLength))
+    Asn1TlvHeader(tag, length.first, length.second + tag.encodedTagLength)
 }
 
 /**

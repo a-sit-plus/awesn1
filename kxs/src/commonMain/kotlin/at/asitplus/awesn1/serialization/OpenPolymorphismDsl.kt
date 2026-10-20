@@ -12,7 +12,7 @@ import at.asitplus.awesn1.serialization.internal.Asn1TagDiscriminatedOpenPolymor
 import at.asitplus.awesn1.serialization.internal.Asn1TagDiscriminatedSubtypeRegistration
 import at.asitplus.awesn1.serialization.internal.cannotInferOpenPolymorphicSubtypeLeadingTagsMessage
 import at.asitplus.awesn1.serialization.internal.inferOpenPolymorphicSubtypeLeadingTagsOrNull
-import at.asitplus.awesn1.serialization.internal.oidFrom
+import at.asitplus.awesn1.serialization.internal.defaultOidSelector
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.PolymorphicSerializer
@@ -235,7 +235,7 @@ fun <T : Any> asn1OpenPolymorphicByTagSerializer(
 @Throws(SerializationException::class, IllegalArgumentException::class)
 fun <T : Identifiable> asn1OpenPolymorphicByOidSerializer(
     serialName: String,
-    oidSelector: (Asn1Element) -> ObjectIdentifier? = ::oidFrom,
+    oidSelector: (Asn1Element) -> ObjectIdentifier? = defaultOidSelector,
     block: Asn1OpenPolymorphismByOidBuilder<T>.() -> Unit,
 ): KSerializer<T> = Asn1OpenPolymorphismByOidBuilder<T>()
     .apply(block)
@@ -281,7 +281,7 @@ fun <T : Any> SerializersModuleBuilder.polymorphicByTag(
 fun <T : Identifiable> SerializersModuleBuilder.polymorphicByOid(
     baseClass: KClass<T>,
     serialName: String = "Asn1OpenPolymorphicByOid",
-    oidSelector: (Asn1Element) -> ObjectIdentifier? = ::oidFrom,
+    oidSelector: (Asn1Element) -> ObjectIdentifier? = defaultOidSelector,
     block: Asn1OpenPolymorphismByOidBuilder<T>.() -> Unit,
 ) {
     contextual(baseClass, asn1OpenPolymorphicByOidSerializer(serialName, oidSelector, block))

@@ -19,7 +19,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
     serialName: String,
     subtypes: List<Asn1OidDiscriminatedSubtypeRegistration.Exact<T>>,
     catchAll: Asn1OidDiscriminatedSubtypeRegistration.CatchAll<T>? = null,
-    private val oidSelector: (Asn1Element) -> ObjectIdentifier? = ::oidFrom,
+    private val oidSelector: (Asn1Element) -> ObjectIdentifier? = defaultOidSelector,
 ) : Asn1DiscriminatedOpenPolymorphicSerializer<T>(serialName) {
 
     private val dispatch = Asn1OidDiscriminatedDispatch(
@@ -47,15 +47,20 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
      */
     @Throws(SerializationException::class)
     override fun serializerForDecode(decoder: DerDecoder): DeserializationStrategy<T> {
-        val element = decoder.peekCurrentElementOrNull()
+        val tag = decoder.peekCurrentElementTagOrNull()
             ?: throw SerializationException("No ASN.1 element left while decoding ${descriptor.serialName}")
-        if (element.tag == Asn1Element.Tag.SET) throw SerializationException(
+        if (tag == Asn1Element.Tag.SET) throw SerializationException(
             "SET is not supported by OID-discriminated polymorphism: ${descriptor.serialName}"
         )
-        val oid = oidSelector(element)
-            ?: throw SerializationException(
-                "Could not extract discriminator OID from current ASN.1 element while decoding ${descriptor.serialName}"
-            )
+        val oid = if (oidSelector === defaultOidSelector) {
+            decoder.peekFirstPrimitive(Asn1Element.Tag.OID)?.let {
+                runCatching { it.readOid() }.getOrNull()
+            }
+        } else {
+            decoder.peekCurrentElementOrNull()?.let(oidSelector)
+        } ?: throw SerializationException(
+            "Could not extract discriminator OID from current ASN.1 element while decoding ${descriptor.serialName}"
+        )
         val reg = dispatch.registrationForDecode(oid)
         // Mirror of encode: drop the injected discriminator only for exact subtypes. For the catch-all
         // the leading OID IS the fallback's own `oid` field — keep it so the fallback reads it back.
@@ -94,6 +99,8 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
  *
  * Reads the first child of `SEQUENCE { OBJECT IDENTIFIER, ... }` (including implicitly tagged sequences).
  */
+internal val defaultOidSelector: (Asn1Element) -> ObjectIdentifier? = ::oidFrom
+
 internal fun oidFrom(element: Asn1Element): ObjectIdentifier? {
 
     val structure = element as? Asn1Structure ?: return null
