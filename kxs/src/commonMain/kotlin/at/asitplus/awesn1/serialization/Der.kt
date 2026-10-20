@@ -153,7 +153,7 @@ class Der internal constructor(
  * (decoded from deeply nested input, or serialized from a deeply nested in-memory value) would otherwise overflow the
  * call stack with an unrecoverable [StackOverflowError]. A limit chosen within the runtime's actual stack headroom
  * rejects the input with a clean, catchable exception before exhaustion.
- * The default is 32, which is conservative across supported runtimes. Values up to 65,536 are accepted for callers
+ * The default is 32; unusually small thread stacks may require a lower limit. Values up to 65,536 are accepted for callers
  * that deliberately provide a larger stack; the caller is responsible for ensuring sufficient platform stack space.
  *
  * **IMPORTANT:** this limit applies only to recursion driven through kotlinx.serialization's encoder/decoder callbacks.
