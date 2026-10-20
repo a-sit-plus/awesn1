@@ -210,15 +210,15 @@ val decodestring_nonutf8_stringtype_misdecode by matrixSuite {
         ).s.value shouldBe "admin"
     }
 
-    "A BMPString with an incomplete code unit is rejected" {
-        shouldThrow<SerializationException> {
-            DER.decodeFromByteArray<GlAsn1StringHolder>("30031e0100".hexToByteArray())
+    "A BMPString with an incomplete code unit is rejected when its text is read" {
+        shouldThrow<at.asitplus.awesn1.Asn1Exception> {
+            DER.decodeFromByteArray<GlAsn1StringHolder>("30031e0100".hexToByteArray()).s.value
         }
     }
 
-    "A BMPString surrogate is rejected" {
-        shouldThrow<SerializationException> {
-            DER.decodeFromByteArray<GlAsn1StringHolder>("30041e02d800".hexToByteArray())
+    "A BMPString surrogate is rejected when its text is read" {
+        shouldThrow<at.asitplus.awesn1.Asn1Exception> {
+            DER.decodeFromByteArray<GlAsn1StringHolder>("30041e02d800".hexToByteArray()).s.value
         }
     }
 
@@ -228,21 +228,21 @@ val decodestring_nonutf8_stringtype_misdecode by matrixSuite {
         ).s.value shouldBe "A\uD83D\uDE00B"
     }
 
-    "A UniversalString with an incomplete code point is rejected" {
-        shouldThrow<SerializationException> {
-            DER.decodeFromByteArray<GlAsn1StringHolder>("30051c03000041".hexToByteArray())
+    "A UniversalString with an incomplete code point is rejected when its text is read" {
+        shouldThrow<at.asitplus.awesn1.Asn1Exception> {
+            DER.decodeFromByteArray<GlAsn1StringHolder>("30051c03000041".hexToByteArray()).s.value
         }
     }
 
-    "A UniversalString surrogate is rejected" {
-        shouldThrow<SerializationException> {
-            DER.decodeFromByteArray<GlAsn1StringHolder>("30061c040000d800".hexToByteArray())
+    "A UniversalString surrogate is rejected when its text is read" {
+        shouldThrow<at.asitplus.awesn1.Asn1Exception> {
+            DER.decodeFromByteArray<GlAsn1StringHolder>("30061c040000d800".hexToByteArray()).s.value
         }
     }
 
-    "A UniversalString code point above the Unicode range is rejected" {
-        shouldThrow<SerializationException> {
-            DER.decodeFromByteArray<GlAsn1StringHolder>("30061c0400110000".hexToByteArray())
+    "A UniversalString code point above the Unicode range is rejected when its text is read" {
+        shouldThrow<at.asitplus.awesn1.Asn1Exception> {
+            DER.decodeFromByteArray<GlAsn1StringHolder>("30061c0400110000".hexToByteArray()).s.value
         }
     }
 }
