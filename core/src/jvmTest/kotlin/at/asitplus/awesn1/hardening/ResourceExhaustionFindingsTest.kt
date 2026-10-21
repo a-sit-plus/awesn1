@@ -12,7 +12,7 @@ import io.kotest.matchers.shouldBe
 import kotlinx.serialization.json.Json
 
 val ResourceExhaustionFindings by matrixSuite {
-    "rejection diagnostics stay bounded" {
+    "rejection diagnostics are truncated" {
         val bogusNull = Asn1Primitive(Asn1Element.Tag.NULL, ByteArray(4 * 1024 * 1024))
         ((shouldThrow<Asn1Exception> { bogusNull.readNull() }.message?.length ?: 0) < 4096) shouldBe true
 
