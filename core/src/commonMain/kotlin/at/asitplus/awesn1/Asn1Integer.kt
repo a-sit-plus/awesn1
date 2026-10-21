@@ -140,10 +140,10 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
 
         /**
          * Constructs an [Asn1Integer] from a decimal string.
-         * O(n²) in the size, so bounded by [maxInputLength].
+         * O(n²) in the significant digit count, so bounded by [maxInputLength], excluding the sign and leading zeros.
          * Input beyond this will throw.
          *
-         * @throws Asn1Exception if the input length exceeds [maxInputLength]
+         * @throws Asn1Exception if the significant digit count exceeds [maxInputLength]
          */
         @Throws(Asn1Exception::class, NumberFormatException::class)
         fun fromDecimalString(input: String, maxInputLength: Int = DEFAULT_MAX_INPUT_LENGTH): Asn1Integer =
@@ -570,7 +570,7 @@ internal value class VarUInt private constructor(
 
         /**
          * Parse decimal string [value] (starting at position [fromOffset] to VarUInt.
-         * O(n²) in input length. Therefore, bounded to [maxInputLength] characters.
+         * O(n²) in the significant digit count. Therefore, bounded to [maxInputLength] digits, excluding leading zeros.
          * Excessive inputs throw.
          * @throws Asn1Exception on invalid or overlong input */
         @Throws(Asn1Exception::class)
@@ -578,15 +578,20 @@ internal value class VarUInt private constructor(
             value: String, fromOffset: Int = 0,
             maxInputLength: Int = DEFAULT_MAX_INPUT_LENGTH
         ): VarUInt = runRethrowing {
-            if (value.length > maxInputLength)
-                throw Asn1Exception("Decimal string of ${value.length} characters exceeds limit ($maxInputLength).")
-            if (REGEX_BASE10.matchAt(value, fromOffset)?.range?.last != value.lastIndex)
+            //yes, it's verbose, but this way it is only an additional counter and no copying around
+            if (fromOffset !in value.indices)
                 throw NumberFormatException("Illegal input (not numerical)")
-            val firstNonZero = value.indexOfFirst(startIndex = fromOffset) { it != '0' }
-            if (firstNonZero == -1) return ZERO // input is all zeroes
+            var firstNonZero = fromOffset
+            while (firstNonZero < value.length && value[firstNonZero] == '0') firstNonZero++
+            val digitCount = value.length - firstNonZero
+            if (digitCount > maxInputLength)
+                throw Asn1Exception("Decimal string of $digitCount significant digits exceeds limit ($maxInputLength).")
+            if (digitCount == 0) return ZERO // input is all zeroes
+            if (REGEX_BASE10.matchAt(value, firstNonZero)?.range?.last != value.lastIndex)
+                throw NumberFormatException("Illegal input (not numerical)")
 
             // Pack decimal digits into little-endian base-10^9 limbs, grouping 9 digits from the least significant end.
-            val limbCount = (value.length - firstNonZero + DECIMAL_RADIX_DIGITS - 1) / DECIMAL_RADIX_DIGITS
+            val limbCount = (digitCount + DECIMAL_RADIX_DIGITS - 1) / DECIMAL_RADIX_DIGITS
             val limbs = IntArray(limbCount)
             var end = value.length
             var limbIndex = 0
