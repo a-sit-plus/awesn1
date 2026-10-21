@@ -28,7 +28,7 @@ val ResourceExhaustionFindings by matrixSuite {
 
     "base64 fallback applies no hidden input limit" {
         val children = 100_000
-        val content = ByteArray(children * 2).also { bytes -> repeat(children) { bytes[it * 2] = 0x80.toByte() } }
+        val content = ByteArray(children * 2) { (if (it%2 == 0) 0x80 else 0x00).toByte() }
         val der = byteArrayOf(0x85.toByte(), 0x83.toByte(), 0x03, 0x0D, 0x40) + content
         val json = "\"${java.util.Base64.getEncoder().encodeToString(der)}\""
 
