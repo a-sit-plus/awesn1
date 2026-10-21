@@ -26,6 +26,7 @@ val SerializerCapTest by matrixSuite {
         val thrown = shouldThrow<SerializationException> {
             Json.encodeToString(Asn1IntegerDecimalStringSerializer, overCap)
         }
+        check(Asn1IntegerDecimalStringSerializer.magnitudeLimit >= 500)
         thrown.cause.shouldBeInstanceOf<Asn1Exception>()
     }
 
