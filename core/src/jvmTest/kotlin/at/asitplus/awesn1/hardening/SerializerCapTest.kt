@@ -41,7 +41,7 @@ val SerializerCapTest by matrixSuite {
     listOf(
         "9".repeat(digits),
         "0".repeat(digits + 3)
-    ).asData("decimal serializer rejects excessive magnitude and input padding") - { input ->
+    ).asData("decimal serializer rejects excessive magnitude and input padding") test { input ->
         shouldThrow<SerializationException> {
             Json.decodeFromString(Asn1IntegerDecimalStringSerializer, "\"$input\"")
         }
