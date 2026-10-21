@@ -36,14 +36,17 @@ val SerializerCapTest by matrixSuite {
         Json.decodeFromString(Asn1IntegerDecimalStringSerializer, json) shouldBe v
     }
 
-    "decimal serializer rejects excessive magnitude and input padding" {
-        val digits = (Asn1IntegerDecimalStringSerializer.magnitudeLimit.toLong() * 2410 / 1000).toInt()
-        for (input in listOf("9".repeat(digits), "0".repeat(digits + 3))) {
-            shouldThrow<SerializationException> {
-                Json.decodeFromString(Asn1IntegerDecimalStringSerializer, "\"$input\"")
-            }
+
+    val digits = (Asn1IntegerDecimalStringSerializer.magnitudeLimit.toLong() * 2410 / 1000).toInt()
+    listOf(
+        "9".repeat(digits),
+        "0".repeat(digits + 3)
+    ).asData("decimal serializer rejects excessive magnitude and input padding") - { input ->
+        shouldThrow<SerializationException> {
+            Json.decodeFromString(Asn1IntegerDecimalStringSerializer, "\"$input\"")
         }
     }
+
 
     "decimal input budget allows a negative value at the magnitude limit" {
         val value = Asn1Integer.fromUnsignedByteArray(
@@ -55,7 +58,7 @@ val SerializerCapTest by matrixSuite {
     }
 
     "ObjectIdentifier construction rejects an excessive sub-identifier" {
-        shouldThrow<Asn1Exception> { ObjectIdentifier("2.25." + "9".repeat(ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS+1)) }
+        shouldThrow<Asn1Exception> { ObjectIdentifier("2.25." + "9".repeat(ObjectIdentifier.MAX_SUBIDENTIFIER_CHARS + 1)) }
     }
 
     "over-cap OIDs cannot be constructed, so string (de)serialization stays bounded by construction" {
