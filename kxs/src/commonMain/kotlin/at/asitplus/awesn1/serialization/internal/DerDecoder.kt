@@ -7,9 +7,7 @@ package at.asitplus.awesn1.serialization.internal
 
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.internal.Source
 import at.asitplus.awesn1.encoding.*
-import at.asitplus.awesn1.encoding.internal.readFullyToAsn1Elements
 import at.asitplus.awesn1.serialization.Asn1ElementSerializer
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Asn1Serializable
@@ -26,7 +24,6 @@ import kotlinx.serialization.encoding.AbstractDecoder
 import kotlinx.serialization.encoding.CompositeDecoder
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.internal.AbstractPolymorphicSerializer
-import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
 import kotlin.time.Instant
 
