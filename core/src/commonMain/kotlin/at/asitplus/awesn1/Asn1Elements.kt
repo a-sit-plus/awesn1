@@ -789,7 +789,7 @@ sealed class Asn1Structure(
      * Replaces the child at [index] in place. Internal-only: used by the parser to swap an OCTET STRING placeholder for
      * its finalized counterpart while decoding, before the tree is handed out. The
      * placeholder has the correct tag but no content yet. Callers must not read lengths, encode, compare, or
-     * hash this subtree until all placeholders have been replaced, otherwise cached values could become stale.
+     * hash this subtree until all placeholders have been replaced.
      */
     @Suppress("NOTHING_TO_INLINE")
     internal inline fun replaceChild(index: Int, node: Asn1Element) {
@@ -1149,7 +1149,7 @@ class Asn1CustomStructure internal constructor(
  * May be an [Asn1EncapsulatingOctetString] if the contained bytes are valid ASN.1.
  */
 @Serializable(with = Asn1OctetStringFallbackBase64Serializer::class)
-sealed class Asn1OctetString protected constructor(content: ByteArray) : Asn1Primitive(Tag.OCTET_STRING, content) {
+sealed class Asn1OctetString(content: ByteArray) : Asn1Primitive(Tag.OCTET_STRING, content) {
 
     /** This is an implementation detail, you shouldn't check for it */
     private class NotEncapsulating(content: ByteArray) : Asn1OctetString(content)
@@ -1349,7 +1349,7 @@ open class Asn1Primitive(
 
     override val contentLengthLong: Long get() = content.size.toLong()
 
-    // Leaves cache their encoding — retention is bounded by leaf size.
+    // Leaf nodes cache their encoding — retention is bounded by leaf size.
     // Sentinel-cached instead of `by lazy` (no SynchronizedLazyImpl + closure per primitive); benign idempotent race,
     // Asn1EncapsulatingOctetString overrides `derEncoded` back to a non-caching recompute (it behaves as a structure).
     // cannot use explicit field because non-final, so we need this explicit ugly mess

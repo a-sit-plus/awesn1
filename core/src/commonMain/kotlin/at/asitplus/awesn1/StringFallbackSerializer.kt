@@ -18,13 +18,10 @@ interface StringFallbackSerializer<T> : KSerializer<T> {
         decodeFallback(decoder.decodeString())
     }
 
-    fun serializeFallback(encoder: Encoder, value: T) {
-        encoder.encodeString(
-            runWrappingAs(a = ::SerializationException) {
-                encodeFallback(value)
-            }
-        )
+    fun serializeFallback(encoder: Encoder, value: T) = runWrappingAs(a = ::SerializationException) {
+        encoder.encodeString(encodeFallback(value))
     }
+
 
     override fun deserialize(decoder: Decoder): T = deserializeFallback(decoder)
 

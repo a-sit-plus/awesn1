@@ -100,7 +100,6 @@ private class Frame(
 @InternalAwesn1Api
 private class OctetPlaceholder(val view: Source<*>, val length: Int) :
     Asn1Primitive(Asn1Element.Tag.OCTET_STRING, EMPTY_BYTE_ARRAY) {
-    // ponytail: reuse the existing child lists; fail before an unfinished tree can populate length/encoding caches.
     override val content: ByteArray get() = error("Unresolved OCTET STRING placeholder")
     override val contentLengthLong: Long get() = error("Unresolved OCTET STRING placeholder")
 }

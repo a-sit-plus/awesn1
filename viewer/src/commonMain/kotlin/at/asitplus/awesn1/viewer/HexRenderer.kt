@@ -44,7 +44,6 @@ fun coloredHex(elements: List<Asn1Element>): Pair<List<ColoredHexByte>, Boolean>
             current.derEncoded.drop(headerSize).forEach { result.add(ColoredHexByte(it, HexByteKind.VALUE, depth, path)) }
         } else for (index in children.indices.reversed()) stack.addLast(Triple(children[index], depth + 1, path + index))
     }
-    // ponytail: cap DOM nodes; use canvas rendering if full multi-megabyte hex output becomes necessary.
     return result.take(MAX_RENDERED_HEX_BYTES) to (totalLength > MAX_RENDERED_HEX_BYTES)
 }
 

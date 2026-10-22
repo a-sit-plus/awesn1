@@ -715,7 +715,7 @@ internal value class VarUInt private constructor(
             readAsn1VarBigUIntBytes(limit).let { it.decodeAsn1VarBigUIntValue(0, it.size).first }
 
         internal fun Source<*>.decodeAsn1VarBigUInt(limit: Long?): Pair<VarUInt, ByteArray> =
-            readAsn1VarBigUIntBytes(limit).let { it.decodeAsn1VarBigUIntValue(0, it.size).first to it }
+            readAsn1VarBigUIntBytes(limit).let { Pair(it.decodeAsn1VarBigUIntValue(0, it.size).first, it) }
 
         /** Reads one complete big-varint, bounded before each source read. */
         private fun Source<*>.readAsn1VarBigUIntBytes(limit: Long?): ByteArray {

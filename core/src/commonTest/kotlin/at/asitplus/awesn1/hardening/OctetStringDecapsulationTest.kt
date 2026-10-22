@@ -17,6 +17,7 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldNotBeInstanceOf
 
 /** Minimal DER length encoding (short form, else long form). */
 private fun encodeLen(length: Int): ByteArray = when {
@@ -99,7 +100,7 @@ val OctetStringDecapsulationTest by matrixSuite {
         val der = byteArrayOf(0x30) + encodeLen(childrenDer.size) + childrenDer
         val parsed = Asn1Element.parse(der).shouldBeInstanceOf<Asn1Sequence>()
         val raw = parsed.children[0].shouldBeInstanceOf<Asn1OctetString>()
-        (raw is Asn1EncapsulatingOctetString) shouldBe false
+        raw.shouldNotBeInstanceOf<Asn1EncapsulatingOctetString>()
         raw.content shouldBe invalidContent
         parsed.children[1].shouldBeInstanceOf<Asn1EncapsulatingOctetString>().element.asInt() shouldBe 2
         parsed.overallLengthLong shouldBe der.size.toLong()

@@ -139,7 +139,6 @@ inline fun Source<*>.readUByte() = readByte().toUByte()
 
 @InternalAwesn1Api
 class ByteArraySink : Sink {
-    // ponytail: storage owner for both ByteArraySink and composing ByteArrayBuffer; grow math is in nextCapacity()
     internal var buffer: ByteArray = ByteArray(32)
         private set
     internal var index: Int = 0

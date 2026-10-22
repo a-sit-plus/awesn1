@@ -53,22 +53,21 @@ import kotlin.time.Instant
  * ```
  */
 class Asn1TreeBuilder {
-    internal val elements = ArrayList<Asn1Element>()
-
-    internal fun adoptable(): ArrayList<Asn1Element> = elements.also { it.trimToSize() }
+    private val elems = ArrayList<Asn1Element>()
+    internal val elements get() = elems.apply { trimToSize() }
 
     /**
      * appends a single [Asn1Element] to this ASN.1 structure
      */
     operator fun Asn1Element.unaryPlus() {
-        elements += this
+        elems += this
     }
 
     /**
      * Appends the [Asn1Element] exposed by this transparent wrapper.
      */
     operator fun WrappedElement<*>.unaryPlus() {
-        elements += element
+        elems += element
     }
 
     /**
@@ -111,7 +110,7 @@ object Asn1 {
     fun Sequence(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
         val seq = Asn1TreeBuilder()
         seq.root()
-        return Asn1Sequence.adopting(seq.adoptable())
+        return Asn1Sequence.adopting(seq.elements)
     }
 
 
@@ -146,7 +145,7 @@ object Asn1 {
     fun SequenceOf(root: Asn1TreeBuilder.() -> Unit): Asn1Sequence {
         val seq = Asn1TreeBuilder()
         seq.root()
-        return Asn1SequenceOf.adopting(seq.adoptable())
+        return Asn1SequenceOf.adopting(seq.elements)
     }
 
     /**
@@ -247,7 +246,6 @@ object Asn1 {
      */
     fun ExplicitlyTaggedOrNull(tag: ULong, root: Asn1TreeBuilder.() -> Unit) =
         catchingUnwrapped { ExplicitlyTagged(tag, root) }.getOrNull()
-
 
 
     /** Creates an ENUMERATED [Asn1Primitive] from [ordinal]*/
