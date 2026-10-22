@@ -945,7 +945,7 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
 
             Asn1Element.Tag.STRING_UNIVERSAL -> content.decodeUniversalString()
 
-            Asn1Element.Tag.STRING_T61 -> content.decodeSupportedTeletexString()
+            Asn1Element.Tag.STRING_T61 -> decodeToTeletextString().value
 
             Asn1Element.Tag.STRING_UTF8,
             Asn1Element.Tag.STRING_NUMERIC,
@@ -992,12 +992,6 @@ private fun ByteArray.decodeUniversalString(): String {
     return result.toString()
 }
 
-private fun ByteArray.decodeSupportedTeletexString(): String {
-    if (any { it.toInt() and 0x80 != 0 }) {
-        throw SerializationException("Non-ASCII TeletexString content is unsupported; use Asn1String to preserve raw bytes")
-    }
-    return decodeToString()
-}
 private fun Int.toStrictByte(): Byte =
     if (this in Byte.MIN_VALUE..Byte.MAX_VALUE) toByte()
     else throw SerializationException("ASN.1 INTEGER value $this is out of range for Byte")
