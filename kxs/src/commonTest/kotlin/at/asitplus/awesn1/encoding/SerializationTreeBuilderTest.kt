@@ -40,8 +40,6 @@ val SerializationTreeBuilderTest by matrixSuite {
 
         Asn1.Sequence { +signature }.children shouldBe expected
         Asn1.Sequence { add(signature) }.children shouldBe expected
-        Asn1.Sequence { +signature }.children shouldBe expected
-        Asn1.Sequence { add(signature) }.children shouldBe expected
     }
 
     "append infers serializers for crypto types" {
