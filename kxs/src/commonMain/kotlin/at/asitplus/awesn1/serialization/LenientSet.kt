@@ -36,7 +36,8 @@ class LenientSet<T> private constructor(
 
     override fun equals(other: Any?): Boolean = when {
         this === other -> true
-        other !is LenientSet<*> || preserveWireOrder != other.preserveWireOrder -> false
+        other !is LenientSet<*> -> false
+        preserveWireOrder != other.preserveWireOrder -> false
         preserveWireOrder -> elements.toList() == other.elements.toList()
         else -> elements.toSet() == other.elements.toSet()
     }
