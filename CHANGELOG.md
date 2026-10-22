@@ -22,7 +22,7 @@
       order/multiplicity while canonical decoded sets remain equal to their programmatic equivalents, and prevent
       non-DER decoders from creating wire-preserving malformed SET states.
     * Decode and construct BMPString (UCS-2BE) and UniversalString (UCS-4BE) with strict value conversion, equality, and re-encoding; malformed code units/code points are rejected while raw `Asn1Element` remains available.
-    * Decode TeletexString wire content using the BoringSSL/OpenSSL Latin-1 compatibility profile while retaining permissive String construction and `isValid == null` semantics.
+    * Decode and construct TeletexString using the BoringSSL/OpenSSL Latin-1 compatibility profile. String construction rejects characters above U+00FF; `isValid` remains `null` because this compatibility encoding does not establish full T.61 validity.
     * Generic `Asn1String` DER decoding now preserves malformed content and reports tri-state validity without throwing; concrete subtype and Kotlin `String` decoding remain strict, and equality/hashing no longer interpret malformed bytes.
     * Preserve compatibility UTC TIME values ending in lowercase `z` when decoding and re-encoding, while programmatically constructed values continue to emit canonical uppercase `Z`.
     * Preserve the UTC/GENERALIZED TIME subtype and exact fractional seconds in non-DER `Asn1Time` serialization; the former ISO-8601 input remains accepted.
