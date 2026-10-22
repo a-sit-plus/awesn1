@@ -941,20 +941,18 @@ private fun Asn1Primitive.decodeInstantWithOptionalImplicitTag(expectedTag: Asn1
 private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): String =
     if (implicitTagOverride == null) {
         when (tag) {
+            Asn1Element.Tag.STRING_BMP -> content.decodeBmpString()
+
+            Asn1Element.Tag.STRING_UNIVERSAL -> content.decodeUniversalString()
+
+            Asn1Element.Tag.STRING_T61 -> content.decodeSupportedTeletexString()
+
             Asn1Element.Tag.STRING_UTF8,
-            Asn1Element.Tag.STRING_BMP,
             Asn1Element.Tag.STRING_NUMERIC,
-            Asn1Element.Tag.STRING_T61,
             Asn1Element.Tag.STRING_VISIBLE,
-            Asn1Element.Tag.STRING_UNIVERSAL,
             Asn1Element.Tag.STRING_PRINTABLE,
             Asn1Element.Tag.STRING_IA5,
-                -> when (tag) {
-                    Asn1Element.Tag.STRING_BMP -> content.decodeBmpString()
-                    Asn1Element.Tag.STRING_UNIVERSAL -> content.decodeUniversalString()
-                    Asn1Element.Tag.STRING_T61 -> content.decodeSupportedTeletexString()
-                    else -> decodeToString()
-                }
+                -> this.decodeToString()
 
             else -> throw SerializationException(Asn1TagMismatchException(Asn1Element.Tag.STRING_UTF8, tag))
         }
