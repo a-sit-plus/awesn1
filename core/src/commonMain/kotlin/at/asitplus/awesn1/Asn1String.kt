@@ -48,6 +48,12 @@ import kotlinx.serialization.encoding.Encoder
 private fun decodeTeletexContent(bytes: ByteArray): String =
     CharArray(bytes.size) { (bytes[it].toInt() and 0xff).toChar() }.concatToString()
 
+private fun encodeTeletexContent(value: String): ByteArray = ByteArray(value.length) { index ->
+    val char = value[index]
+    if (char.code > 0xff) throw Asn1Exception("TeletexString cannot represent U+${char.code.toString(16)} in Latin-1")
+    char.code.toByte()
+}
+
 private fun decodeBmpContent(bytes: ByteArray): String {
     if (bytes.size % 2 != 0) throw Asn1Exception("BMPString content length must be divisible by 2")
     return CharArray(bytes.size / 2) { i ->
@@ -157,8 +163,9 @@ sealed class Asn1String(
      * [UTF8], [BMP], and [Universal] validate their wire encodings directly; repertoire-based types validate the
      * decoded [value].
      *
-     * **Accuracy caveat:** [Teletex], [General], and [Graphic] cannot be validated exactly (their true repertoires
-     * are multi-byte / ISO 2022). They perform *best-effort* recognition: `true` for a recognized subset, `null`
+     * **Accuracy caveat:** [Teletex] always reports `null`; its Latin-1 compatibility encoding does not validate T.61.
+     * [General] and [Graphic] perform *best-effort* recognition of their multi-byte / ISO 2022 repertoires:
+     * `true` for a recognized subset, `null`
      * for anything else, and **never `false`** — so they never reject potentially-valid input. [UTF8], [IA5],
      * [Visible], [Printable], and [Numeric] validate their exact repertoires and do report `false` for violations.
      */
@@ -297,8 +304,9 @@ sealed class Asn1String(
      *
      * Deprecated for HTTPS certificates; prefer UTF-8 (see [Asn1String.UTF8]).
      *
-     * Wire decoding follows the BoringSSL/OpenSSL compatibility interpretation: every octet is one Latin-1 code
-     * point. String construction remains permissive for compatibility and does not validate the full T.61 repertoire.
+     * Encoding and decoding follow the BoringSSL/OpenSSL compatibility interpretation: every octet is one Latin-1
+     * code point. String construction rejects characters outside Latin-1; [isValid] remains `null` because this
+     * compatibility encoding does not establish full T.61 repertoire validity.
      */
     @Serializable(with = Asn1StringSerializer::class)
     class Teletex private constructor(
@@ -311,7 +319,8 @@ sealed class Asn1String(
         override val isValid: Boolean? = null
 
         /** Creates a compatibility value without claiming complete T.61 validation. */
-        constructor(value: String) : this(value.encodeToByteArray(), true)
+        @Throws(Asn1Exception::class)
+        constructor(value: String) : this(encodeTeletexContent(value), true)
 
         @PublishedApi
         internal constructor(rawValue: ByteArray) : this(rawValue, false)

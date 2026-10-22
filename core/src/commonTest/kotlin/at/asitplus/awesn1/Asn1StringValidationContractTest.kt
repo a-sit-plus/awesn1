@@ -33,7 +33,7 @@ val Asn1StringValidationContractTest by matrixSuite {
         generic.isValid shouldBe null
         generic.value shouldBe "é"
         primitive.decodeToTeletextString().value shouldBe "é"
-        Asn1String.Teletex("テスト").isValid shouldBe null
+        Asn1String.Teletex("é").isValid shouldBe null
     }
 
     "equality and hashing do not interpret malformed content" {
