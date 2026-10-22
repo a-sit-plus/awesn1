@@ -9,6 +9,13 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.serializer
 
+
+@Throws(Throwable::class)
+@Deprecated("Renamed", ReplaceWith("add(serializer, value)"))
+context(der: Der)
+fun <Serializable> Asn1TreeBuilder.append(serializer: KSerializer<Serializable>, value: Serializable) =
+    add(serializer, value)
+
 /**
  * Encodes [value] with [serializer] and the contextual [der], then appends the resulting TLV element.
  *
@@ -19,9 +26,14 @@ import kotlinx.serialization.serializer
  */
 @Throws(Throwable::class)
 context(der: Der)
-fun <Serializable> Asn1TreeBuilder.append(serializer: KSerializer<Serializable>, value: Serializable) {
+fun <Serializable> Asn1TreeBuilder.add(serializer: KSerializer<Serializable>, value: Serializable) {
     der.encodeToTlv(serializer, value)?.let { +it }
 }
+
+@Throws(Throwable::class)
+@Deprecated("Renamed", ReplaceWith("add(value)"))
+context(der: Der)
+inline fun <reified Serializable> Asn1TreeBuilder.append(value: Serializable) = add(serializer(), value)
 
 /**
  * Encodes [value] with its inferred serializer and the contextual [der], then appends the resulting TLV element.
@@ -30,8 +42,7 @@ fun <Serializable> Asn1TreeBuilder.append(serializer: KSerializer<Serializable>,
  *
  * @throws SerializationException if serialization constraints are violated
  */
-@OptIn(ExperimentalSerializationApi::class)
 @Throws(Throwable::class)
 context(der: Der)
-inline fun <reified Serializable> Asn1TreeBuilder.append(value: Serializable) =
+inline fun <reified Serializable> Asn1TreeBuilder.add(value: Serializable) =
     append(serializer(), value)
