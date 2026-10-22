@@ -3,6 +3,7 @@ package at.asitplus.awesn1.hardening
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Primitive
+import at.asitplus.awesn1.Asn1String
 import at.asitplus.awesn1.encoding.decodeToTeletextString
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -42,23 +43,43 @@ val T61StringFindingsTest by matrixSuite {
         "BoringSSL T61 vectors",
         t61Vectors,
         nameFn = { "${if (it.shouldParse) "valid" else "invalid"}-${it.der.ifEmpty { "empty-input" }}" },
-    ) test { vector ->
+    ) - { vector ->
         if (!vector.shouldParse) {
-            shouldThrow<Asn1Exception> {
-                val primitive = Asn1Element.parse(vector.der.hexToByteArray()) as Asn1Primitive
-                primitive.decodeToTeletextString().value
+            "unparsable" {
+                shouldThrow<Asn1Exception> {
+                    val primitive = Asn1Element.parse(vector.der.hexToByteArray()) as Asn1Primitive
+                    primitive.decodeToTeletextString().value
+                }
             }
         } else {
             val expected = requireNotNull(vector.expectedUtf8)
             val primitive = Asn1Element.parse(vector.der.hexToByteArray()) as Asn1Primitive
-            primitive.tag shouldBe Asn1Element.Tag.STRING_T61
-            primitive.derEncoded.toHexString() shouldBe vector.der
+            "Correct Tag" {
+                primitive.tag shouldBe Asn1Element.Tag.STRING_T61
+            }
 
+            "correct DER-encoding" {
+                primitive.derEncoded.toHexString() shouldBe vector.der
+            }
             val decoded = primitive.decodeToTeletextString()
-            decoded.value shouldBe expected
-            decoded.isValid shouldBe null
-            decoded.rawValue.contentEquals(primitive.content) shouldBe true
-            decoded.encodeToTlv().derEncoded.toHexString() shouldBe vector.der
+            "correct decoding" {
+                decoded.value shouldBe expected
+            }
+            "no overclaiming" {
+                decoded.isValid shouldBe null
+            }
+            "byte-identical raw data" {
+                decoded.rawValue shouldBe primitive.content
+            }
+            "Re-encodes correctly" {
+                decoded.encodeToTlv().derEncoded.toHexString() shouldBe vector.der
+            }
+            "String constructor preserves decoded text" {
+                Asn1String.Teletex(decoded.value).value shouldBe expected
+            }
+            "String constructor reproduces original DER" {
+                Asn1String.Teletex(decoded.value).encodeToTlv().derEncoded.toHexString() shouldBe vector.der
+            }
         }
     }
 }
