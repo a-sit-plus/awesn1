@@ -65,8 +65,8 @@ val SerializationTreeBuilderTest by matrixSuite {
 
         with(DER) {
             Asn1.Sequence {
-                append(publicKey)
-                append(certificate)
+                add(publicKey)
+                add(certificate)
             }
         }.children shouldBe listOf(
             DER.encodeToTlv(publicKey),
