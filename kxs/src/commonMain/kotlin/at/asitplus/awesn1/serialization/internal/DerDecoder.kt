@@ -64,11 +64,11 @@ class DerDecoder internal constructor(
     private var currentPropertyName: String? = null
     private var currentPropertyIndex: Int? = null
     private var currentPropertyIsTrailing = true
-    private var dropOidFromNextStructure: ObjectIdentifier? = null
+    private var dropOidFromNextStructure: Boolean = false
     private var inheritedOpenPolymorphicTag: Asn1Tag? = null
     private var dispatchedTagAccepted = false
-    internal fun dropOidFromNextStructure(oid: ObjectIdentifier) {
-        dropOidFromNextStructure = oid
+    internal fun dropOidFromNextStructure() {
+        dropOidFromNextStructure = true
     }
     internal fun acceptDispatchedTagForNextValue() {
         dispatchedTagAccepted = true
@@ -143,7 +143,7 @@ class DerDecoder internal constructor(
         isolated.inheritedOpenPolymorphicTag = this.inheritedOpenPolymorphicTag
         isolated.dispatchedTagAccepted = this.dispatchedTagAccepted
         this.dispatchedTagAccepted = false
-        this.dropOidFromNextStructure = null
+        this.dropOidFromNextStructure = false
         val decoded = isolated.decodeSerializableValue(deserializer)
         elementIndex++
         return decoded
@@ -717,9 +717,9 @@ class DerDecoder internal constructor(
             layoutPlan = layoutPlan,
             depthGuard = depthGuard,
         )
-        if (dropOidFromNextStructure != null) {
+        if (dropOidFromNextStructure) {
             childDecoder.dropOidFromNextStructure = dropOidFromNextStructure
-            dropOidFromNextStructure = null
+            dropOidFromNextStructure = false
         }
         val value = deserializer.deserialize(childDecoder)
         if (deserializer.descriptor.isKotlinSetDescriptor &&
@@ -740,15 +740,15 @@ class DerDecoder internal constructor(
         propertyAsBitString = descriptor.isAsn1BitString
     }
 
-    private fun List<Asn1Element>.withoutPendingDiscriminatorOid(): List<Asn1Element> {
-        val oid = dropOidFromNextStructure ?: return this
-        dropOidFromNextStructure = null
+    private fun List<Asn1Element>.withoutPendingDiscriminatorOid(): List<Asn1Element> = if (dropOidFromNextStructure) {
+        dropOidFromNextStructure = false
         val first = firstOrNull() as? Asn1Primitive
-        if (first?.tag != Asn1Element.Tag.OID || runCatching { first.readOid() }.getOrNull() != oid) {
-            throw SerializationException("OID discriminator $oid must be the first child")
+        if (first?.tag != Asn1Element.Tag.OID) {
+            throw SerializationException("OID discriminator must be the first child")
         }
-        return drop(1)
-    }
+        drop(1)
+    } else this
+
 
     private fun applyCurrentPropertyContext(
         ownerDescriptor: SerialDescriptor,
@@ -884,21 +884,6 @@ private fun Asn1Primitive.decodeInstantWithOptionalImplicitTag(expectedTag: Asn1
                 "content is neither UTCTime nor GeneralizedTime"
     )
 }
-
-@Throws(SerializationException::class)
-private fun Asn1Primitive.decodeAsn1TimeWithOptionalImplicitTag(expectedTag: Asn1Element.Tag?): Asn1Time =
-    when (expectedTag) {
-        null -> Asn1Time.decodeFromTlv(this)
-        Asn1Element.Tag.TIME_UTC -> Asn1Time(
-            instant = decodeInstantWithOptionalImplicitTag(expectedTag),
-            formatOverride = Asn1Time.Format.UTC,
-        )
-        Asn1Element.Tag.TIME_GENERALIZED -> Asn1Time(
-            instant = decodeInstantWithOptionalImplicitTag(expectedTag),
-            formatOverride = Asn1Time.Format.GENERALIZED,
-        )
-        else -> Asn1Time(decodeInstantWithOptionalImplicitTag(expectedTag))
-    }
 
 /**
  * Decodes ASN.1 string content while honoring optional implicit tag override.
