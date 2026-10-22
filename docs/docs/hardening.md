@@ -61,14 +61,14 @@ decapsulated iteratively and without per-layer byte copies, so nested octet stri
 - All length sums go through `plusExact`, and every attacker-influenced `Long`→`Int` narrowing goes through
   `toNonnegativeIntChecked` — so a size computation can never quietly turn a bounds check into a bypass.
 
-By default `DerConfiguration.maxInputLength` is the target's conservative `ByteArray` ceiling (`Int.MAX_VALUE - 8` on
-JVM/Android and `Int.MAX_VALUE` elsewhere). It prevents source parsing from attempting an impossible backing-array
-allocation; it is not a small application-level payload policy.
+By default everything stays `Int`-based: `DerConfiguration.maxInputLength` defaults to `Int.MAX_VALUE`, so any input
+decoded with the defaults produces only `Int`-sized lengths and never trips the guards — the `…Long` accessors and
+`encodeTo(sink)` are only relevant once you deliberately raise that limit to work with multi-gigabyte structures.
 
 ### Catchable Errors Only
 
 Every failure on hostile input surfaces as a catchable `Asn1Exception` (core), `SerializationException` (kxs), `NumberFormatException`, `IllegalArgumentException`, etc.
-but never a fatal VM error, *unless you forget to bound custom code or raise the built-in limits*, in which case you can
+but never a fatal VM error, *unless you forget to bound custom code, or you raise the built-in limits*, in which case you can
 still exhaust memory or the call stack.
 Decode/parse paths run inside `runRethrowing`/`runWrappingAs`, which catch non-fatal `Throwable`s and wrap them; only VM-fatal errors are rethrown.
 
