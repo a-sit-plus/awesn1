@@ -60,7 +60,7 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
         // Mirror of encode: drop the injected discriminator only for exact subtypes. For the catch-all
         // the leading OID IS the fallback's own `oid` field — keep it so the fallback reads it back.
         if (reg is Asn1OidDiscriminatedSubtypeRegistration.Exact) {
-            decoder.dropOidFromNextStructure(oid)
+            decoder.dropOidFromNextStructure()
         }
         @Suppress("UNCHECKED_CAST")
         return reg.serializer as DeserializationStrategy<T>
