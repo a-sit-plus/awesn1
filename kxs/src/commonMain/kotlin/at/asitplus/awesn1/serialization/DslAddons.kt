@@ -33,4 +33,4 @@ fun <Serializable> Asn1TreeBuilder.add(serializer: KSerializer<Serializable>, va
 @Throws(Throwable::class)
 context(der: Der)
 inline fun <reified Serializable> Asn1TreeBuilder.add(value: Serializable) =
-    append(serializer(), value)
+    add(serializer(), value)
