@@ -38,7 +38,7 @@ val ParserEdgeCaseTest by matrixSuite {
 
     "limit of 0" - {
         "rejects non-empty input" {
-            shouldThrow<Throwable> { Asn1Element.parse(byteArrayOf(0x05, 0x00), limit = 0L) }
+            shouldThrow<Asn1Exception> { Asn1Element.parse(byteArrayOf(0x05, 0x00), limit = 0L) }
         }
         "rejects empty input with Asn1Exception" {
             shouldThrow<Asn1Exception> { Asn1Element.parse(byteArrayOf(), limit = 0L) }
