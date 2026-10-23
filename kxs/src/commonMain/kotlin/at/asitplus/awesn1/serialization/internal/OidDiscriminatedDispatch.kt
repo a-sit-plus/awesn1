@@ -55,6 +55,16 @@ internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
         require(subtypes.isNotEmpty() || catchAllRegistration != null) {
             "At least one subtype or catchAll registration is required"
         }
+        //see test  "SET annotation cannot be hidden by explicit SEQUENCE leading tags" in kxs/src/jvmTest/kotlin/at/asitplus/awesn1/serialization/OidSetAmbiguityTest.kt
+        //we really need all those checks.
+        (subtypes + listOfNotNull(catchAllRegistration)).forEach { registration ->
+            require(!registration.serializer.descriptor.isSetDescriptor &&
+                    Asn1Element.Tag.SET !in registration.leadingTags &&
+                    inferOpenPolymorphicSubtypeLeadingTagsOrNull(registration.serializer.descriptor)
+                        ?.contains(Asn1Element.Tag.SET) != true) {
+                "SET subtypes are not supported by OID-discriminated polymorphism: ${registration.debugName}"
+            }
+        }
         subtypes.forEach { registration ->
             require(registration.leadingTags.isNotEmpty()) {
                 "Subtype '${registration.debugName}' must declare at least one leading ASN.1 tag"
@@ -93,6 +103,8 @@ internal class Asn1OidDiscriminatedDispatch<T : Identifiable>(
      */
     @Throws(SerializationException::class)
     fun registrationForEncode(value: T): Asn1OidDiscriminatedSubtypeRegistration<T> {
+        serializersByOid.values.firstOrNull { it.runtimeClass == value::class }?.let { return it }
+
         serializersByOid[value.oid]?.let { exactRegistration ->
             if (exactRegistration.runtimeClass.isInstance(value)) {
                 return exactRegistration
