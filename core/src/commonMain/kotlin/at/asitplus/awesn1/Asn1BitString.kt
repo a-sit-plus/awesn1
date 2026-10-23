@@ -204,19 +204,16 @@ data class Asn1BitString private constructor(
  * encoding/decoding is used.
  */
 @OptIn(ExperimentalEncodingApi::class)
-private object Asn1BitStringComponentSerializer : KSerializer<Asn1BitString> {
+private object Asn1BitStringComponentSerializer : StringFallbackSerializer<Asn1BitString> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_BIT_STRING, PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: Asn1BitString) {
-        val encodedRaw = Base64.encode(value.bitCarryingBytes)
-        encoder.encodeString("${value.numPaddingBits}:$encodedRaw")
-    }
+    override fun encodeFallback(value: Asn1BitString): String =
+        "${value.numPaddingBits}:${Base64.encode(value.bitCarryingBytes)}"
 
-    override fun deserialize(decoder: Decoder): Asn1BitString {
-        val serialized = decoder.decodeString()
-        val parts = serialized.split(':', limit = 2)
-        require(parts.size == 2) { "Invalid Asn1BitString format: '$serialized'" }
+    override fun decodeFallback(encoded: String): Asn1BitString {
+        val parts = encoded.split(':', limit = 2)
+        require(parts.size == 2) { "Invalid Asn1BitString format: '$encoded'" }
         val padding = parts[0].toInt()
         val raw = Base64.decode(parts[1])
         return Asn1BitString.fromRawParts(padding.toByte(), raw)

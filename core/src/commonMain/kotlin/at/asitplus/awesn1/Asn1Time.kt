@@ -232,17 +232,13 @@ private fun fromUtc(content: ByteArray): Asn1Time =
  * In non-DER formats this serializer stores only nanosecond precision, and the
  * UTC-vs-Generalized choice is not preserved.
  */
-internal object Asn1TimeSerializer : KSerializer<Asn1Time> {
+internal object Asn1TimeSerializer : StringFallbackSerializer<Asn1Time> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_TIME, PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: Asn1Time) {
-        encoder.encodeString(value.instant.toString())
-    }
+    override fun encodeFallback(value: Asn1Time): String = value.instant.toString()
 
-    override fun deserialize(decoder: Decoder): Asn1Time {
-        return Asn1Time(Instant.parse(decoder.decodeString()))
-    }
+    override fun decodeFallback(encoded: String): Asn1Time = Asn1Time(Instant.parse(encoded))
 }
 
 /**

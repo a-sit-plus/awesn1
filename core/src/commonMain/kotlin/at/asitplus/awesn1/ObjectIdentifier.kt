@@ -305,14 +305,11 @@ fun Asn1Primitive.readOid() = runRethrowing {
  * When used with the `awesn1.kxs` DER format, this fallback representation is bypassed and native OBJECT IDENTIFIER
  * DER TLV encoding/decoding is used.
  */
-object ObjectIdentifierStringSerializer : KSerializer<ObjectIdentifier> {
+object ObjectIdentifierStringSerializer : StringFallbackSerializer<ObjectIdentifier> {
     override val descriptor = PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_OBJECT_IDENTIFIER, PrimitiveKind.STRING)
 
-    override fun deserialize(decoder: Decoder): ObjectIdentifier =
-        ObjectIdentifier(decoder.decodeString())
+    override fun decodeFallback(encoded: String): ObjectIdentifier = ObjectIdentifier(encoded)
 
-    override fun serialize(encoder: Encoder, value: ObjectIdentifier) {
-        encoder.encodeString(value.toString())
-    }
+    override fun encodeFallback(value: ObjectIdentifier): String = value.toString()
 
 }

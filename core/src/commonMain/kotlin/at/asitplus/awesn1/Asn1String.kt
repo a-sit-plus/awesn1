@@ -453,7 +453,7 @@ sealed class Asn1String(
         return result
     }
 
-    companion object : Asn1Serializable<Asn1Primitive, Asn1String> {
+    companion object : Asn1Serializable<Asn1Primitive, Asn1String>, StringFallbackSerializer<Asn1String> {
         override val leadingTags: Set<Asn1Element.Tag> = setOf(
             Asn1Element.Tag.STRING_UTF8,
             Asn1Element.Tag.STRING_UNIVERSAL,
@@ -503,18 +503,19 @@ sealed class Asn1String(
         }
 
         override fun serialize(encoder: Encoder, value: Asn1String) {
-            if (encoder is Asn1DerEncoder) {
-                encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
-            } else {
-                encoder.encodeString(value.value)
-            }
+            if (encoder is Asn1DerEncoder) encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
+            else serializeFallback(encoder, value)
         }
+
+        override fun decodeFallback(encoded: String): Asn1String = Asn1String.UTF8(encoded)
+
+        override fun encodeFallback(value: Asn1String): String = value.value
 
         override fun deserialize(decoder: Decoder): Asn1String =
             if (decoder is Asn1DerDecoder) {
                 ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
             } else {
-                Asn1String.UTF8(decoder.decodeString())
+                deserializeFallback(decoder)
             }
 
     }
@@ -545,7 +546,8 @@ private inline fun <T : Asn1String> decodeImplicitlyTaggedAsn1StringSubtype(
     }
 }
 
-object Asn1Utf8StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.UTF8> {
+object Asn1Utf8StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.UTF8>,
+    StringFallbackSerializer<Asn1String.UTF8> {
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_UTF8)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
@@ -562,19 +564,21 @@ object Asn1Utf8StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.UTF
     override fun doDecode(src: Asn1Primitive): Asn1String.UTF8 = src.decodeToUtf8String()
 
     override fun serialize(encoder: Encoder, value: Asn1String.UTF8) {
-        if (encoder is Asn1DerEncoder) {
-            encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
-        } else {
-            encoder.encodeString(value.value)
-        }
+        if (encoder is Asn1DerEncoder) encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
+        else serializeFallback(encoder, value)
     }
+
+    override fun decodeFallback(encoded: String): Asn1String.UTF8 = Asn1String.UTF8(encoded)
+
+    override fun encodeFallback(value: Asn1String.UTF8): String = value.value
 
     override fun deserialize(decoder: Decoder): Asn1String.UTF8 =
         if (decoder is Asn1DerDecoder) ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
-        else Asn1String.UTF8(decoder.decodeString())
+        else deserializeFallback(decoder)
 }
 
-object Asn1VisibleStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.Visible> {
+object Asn1VisibleStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.Visible>,
+    StringFallbackSerializer<Asn1String.Visible> {
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_VISIBLE)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
@@ -591,19 +595,21 @@ object Asn1VisibleStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.
     override fun doDecode(src: Asn1Primitive): Asn1String.Visible = src.decodeToVisibleString()
 
     override fun serialize(encoder: Encoder, value: Asn1String.Visible) {
-        if (encoder is Asn1DerEncoder) {
-            encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
-        } else {
-            encoder.encodeString(value.value)
-        }
+        if (encoder is Asn1DerEncoder) encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
+        else serializeFallback(encoder, value)
     }
+
+    override fun decodeFallback(encoded: String): Asn1String.Visible = Asn1String.Visible(encoded)
+
+    override fun encodeFallback(value: Asn1String.Visible): String = value.value
 
     override fun deserialize(decoder: Decoder): Asn1String.Visible =
         if (decoder is Asn1DerDecoder) ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
-        else Asn1String.Visible(decoder.decodeString())
+        else deserializeFallback(decoder)
 }
 
-object Asn1Ia5StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.IA5> {
+object Asn1Ia5StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.IA5>,
+    StringFallbackSerializer<Asn1String.IA5> {
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_IA5)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
@@ -620,19 +626,21 @@ object Asn1Ia5StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.IA5>
     override fun doDecode(src: Asn1Primitive): Asn1String.IA5 = src.decodeToIa5String()
 
     override fun serialize(encoder: Encoder, value: Asn1String.IA5) {
-        if (encoder is Asn1DerEncoder) {
-            encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
-        } else {
-            encoder.encodeString(value.value)
-        }
+        if (encoder is Asn1DerEncoder) encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
+        else serializeFallback(encoder, value)
     }
+
+    override fun decodeFallback(encoded: String): Asn1String.IA5 = Asn1String.IA5(encoded)
+
+    override fun encodeFallback(value: Asn1String.IA5): String = value.value
 
     override fun deserialize(decoder: Decoder): Asn1String.IA5 =
         if (decoder is Asn1DerDecoder) ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
-        else Asn1String.IA5(decoder.decodeString())
+        else deserializeFallback(decoder)
 }
 
-object Asn1PrintableStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.Printable> {
+object Asn1PrintableStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.Printable>,
+    StringFallbackSerializer<Asn1String.Printable> {
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_PRINTABLE)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
@@ -649,19 +657,21 @@ object Asn1PrintableStringSerializer : Asn1Serializable<Asn1Primitive, Asn1Strin
     override fun doDecode(src: Asn1Primitive): Asn1String.Printable = src.decodeToPrintableString()
 
     override fun serialize(encoder: Encoder, value: Asn1String.Printable) {
-        if (encoder is Asn1DerEncoder) {
-            encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
-        } else {
-            encoder.encodeString(value.value)
-        }
+        if (encoder is Asn1DerEncoder) encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
+        else serializeFallback(encoder, value)
     }
+
+    override fun decodeFallback(encoded: String): Asn1String.Printable = Asn1String.Printable(encoded)
+
+    override fun encodeFallback(value: Asn1String.Printable): String = value.value
 
     override fun deserialize(decoder: Decoder): Asn1String.Printable =
         if (decoder is Asn1DerDecoder) ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
-        else Asn1String.Printable(decoder.decodeString())
+        else deserializeFallback(decoder)
 }
 
-object Asn1NumericStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.Numeric> {
+object Asn1NumericStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.Numeric>,
+    StringFallbackSerializer<Asn1String.Numeric> {
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_NUMERIC)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
@@ -678,14 +688,15 @@ object Asn1NumericStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.
     override fun doDecode(src: Asn1Primitive): Asn1String.Numeric = src.decodeToNumericString()
 
     override fun serialize(encoder: Encoder, value: Asn1String.Numeric) {
-        if (encoder is Asn1DerEncoder) {
-            encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
-        } else {
-            encoder.encodeString(value.value)
-        }
+        if (encoder is Asn1DerEncoder) encoder.encodeSerializableValue(ByteArraySerializer(), value.encodeToDer())
+        else serializeFallback(encoder, value)
     }
+
+    override fun decodeFallback(encoded: String): Asn1String.Numeric = Asn1String.Numeric(encoded)
+
+    override fun encodeFallback(value: Asn1String.Numeric): String = value.value
 
     override fun deserialize(decoder: Decoder): Asn1String.Numeric =
         if (decoder is Asn1DerDecoder) ByteArraySerializer().deserialize(decoder).let { decodeFromDer(it) }
-        else Asn1String.Numeric(decoder.decodeString())
+        else deserializeFallback(decoder)
 }

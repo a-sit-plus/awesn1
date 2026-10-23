@@ -17,6 +17,7 @@ import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldNotBeInstanceOf
 
 /** Minimal DER length encoding (short form, else long form). */
 private fun encodeLen(length: Int): ByteArray = when {
@@ -40,6 +41,17 @@ private val int2 = Asn1.Int(2).derEncoded
 private fun Asn1Element.asInt() = (this as Asn1Primitive).decodeToInt()
 
 val OctetStringDecapsulationTest by matrixSuite {
+
+    "nested encapsulating octet strings do not retain materialized content" {
+        var current = Asn1Element.parse(octet(octet(int1)))
+        while (current is Asn1EncapsulatingOctetString) {
+            val first = current.content
+            val second = current.content
+            first shouldBe second
+            (first === second) shouldBe false
+            current = current.children.single()
+        }
+    }
 
     "octet string wrapping a single DER element decapsulates" {
         val der = octet(int1)
@@ -83,12 +95,15 @@ val OctetStringDecapsulationTest by matrixSuite {
     }
 
     "octet string whose content has trailing bytes stays raw" {
-        // a valid INT followed by a stray byte -> content does not parse cleanly -> raw
-        val der = octet(int1 + byteArrayOf(0x00))
-        val parsed = Asn1Element.parse(der)
-
-        (parsed is Asn1EncapsulatingOctetString) shouldBe false
-        parsed.shouldBeInstanceOf<Asn1OctetString>()
+        val invalidContent = octet(int1) + byteArrayOf(0x05) // valid nested octet, then an incomplete NULL
+        val childrenDer = octet(invalidContent) + octet(int2)
+        val der = byteArrayOf(0x30) + encodeLen(childrenDer.size) + childrenDer
+        val parsed = Asn1Element.parse(der).shouldBeInstanceOf<Asn1Sequence>()
+        val raw = parsed.children[0].shouldBeInstanceOf<Asn1OctetString>()
+        raw.shouldNotBeInstanceOf<Asn1EncapsulatingOctetString>()
+        raw.content shouldBe invalidContent
+        parsed.children[1].shouldBeInstanceOf<Asn1EncapsulatingOctetString>().element.asInt() shouldBe 2
+        parsed.overallLengthLong shouldBe der.size.toLong()
         parsed.derEncoded shouldBe der
     }
 

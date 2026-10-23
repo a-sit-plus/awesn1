@@ -46,14 +46,15 @@ val ConversionCapTests by matrixSuite {
         Asn1Integer(-0x987654321L).toString() shouldBe "-0x0987654321"
     }
 
-    "toString truncates only above 48 bytes for both signs" {
+    "toString truncates only above 48 bytes for both signs" - {
         val exact = ByteArray(48).also { it[0] = 0x01 }
         val over = ByteArray(49).also { it[0] = 0x01 }
-        for ((sign, prefix) in listOf(Asn1Integer.Sign.POSITIVE to "0x", Asn1Integer.Sign.NEGATIVE to "-0x")) {
-            Asn1Integer.fromByteArray(exact, sign).toString() shouldBe prefix + "01" + "00".repeat(47)
-            Asn1Integer.fromByteArray(over, sign).toString() shouldBe "[truncated, 49 bytes total] " +prefix + "01" + "00".repeat(47) + "…"
-            Asn1Integer.fromByteArray(over, sign).toHexString() shouldBe prefix + "01" + "00".repeat(48)
-        }
+        listOf(Asn1Integer.Sign.POSITIVE to "0x", Asn1Integer.Sign.NEGATIVE to "-0x")
+            .asData(name = "sign", nameFn = { (sign, _) -> sign.toString() }) test { (sign, prefix) ->
+                Asn1Integer.fromByteArray(exact, sign).toString() shouldBe prefix + "01" + "00".repeat(47)
+                Asn1Integer.fromByteArray(over, sign).toString() shouldBe "[truncated, 49 bytes total] " + prefix + "01" + "00".repeat(47) + "…"
+                Asn1Integer.fromByteArray(over, sign).toHexString() shouldBe prefix + "01" + "00".repeat(48)
+            }
     }
 
     "fromDecimalString rejects an over-cap digit string up front" {
@@ -66,6 +67,25 @@ val ConversionCapTests by matrixSuite {
         // 1233 decimal digits ~ 512-byte modulus; well within the cap.
         val digits = "1234567890".repeat(123) + "7"
         Asn1Integer.fromDecimalString(digits).toDecimalString() shouldBe digits
+    }
+
+    "fromDecimalString excludes the sign and leading zeros from the digit cap" - {
+        val padding = "0".repeat(100_000)
+        listOf("", "+", "-").asData(name = "sign", nameFn = { it.ifEmpty { "unsigned" } }) test { sign ->
+            Asn1Integer.fromDecimalString("${sign}${padding}123", maxInputLength = 3) shouldBe
+                    Asn1Integer(if (sign == "-") -123 else 123)
+            Asn1Integer.fromDecimalString("$sign$padding", maxInputLength = 0) shouldBe Asn1Integer.ZERO
+            shouldThrow<Asn1Exception> {
+                Asn1Integer.fromDecimalString("${sign}${padding}1234", maxInputLength = 3)
+            }
+        }
+    }
+
+    "fromDecimalString rejects malformed input" - {
+        listOf("", "+", "-", "000x", "+000-1", "-0001x", "000 ")
+            .asData(name = "input", nameFn = { "\"$it\"" }) test { invalid ->
+                shouldThrow<Asn1Exception> { Asn1Integer.fromDecimalString(invalid) }
+            }
     }
 
     "ObjectIdentifier rejects a sub-identifier beyond the cap" {

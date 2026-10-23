@@ -1,6 +1,13 @@
 # Changelog
 
 ## NEXT
+* **Security Hardening:**
+    * **Breaking:** `Source.decodeAsn1VarBigInt()` now requires a byte limit; all big-varint decoders reject
+      unterminated input.
+    * Diagnostic messages and `prettyPrint` no longer materialize unbounded content.
+* Reduced `Asn1Element` allocation through tag and empty-array sharing, trimmed child lists, and allocation-free
+  hashing.
+* Avoid repeated regex compilation and unnecessary string copies when decoding `Asn1Real`.
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer

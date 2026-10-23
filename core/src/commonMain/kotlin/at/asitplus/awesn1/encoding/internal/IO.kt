@@ -139,7 +139,6 @@ inline fun Source<*>.readUByte() = readByte().toUByte()
 
 @InternalAwesn1Api
 class ByteArraySink : Sink {
-    // ponytail: storage owner for both ByteArraySink and composing ByteArrayBuffer; grow math is in nextCapacity()
     internal var buffer: ByteArray = ByteArray(32)
         private set
     internal var index: Int = 0
@@ -199,6 +198,8 @@ class ByteArraySink : Sink {
 }
 
 @InternalAwesn1Api
+val EMPTY_BYTE_ARRAY: ByteArray = byteArrayOf()
+
 interface Sink {
     fun writeByte(byte: Byte)
     fun write(bytes: ByteArray, startIndex: Int = 0, endIndex: Int = bytes.size)
@@ -298,6 +299,7 @@ class ByteArrayBuffer private constructor(
     override fun readByteArray(nBytes: Int): ByteArray {
         ensureValidPeek()
         require(nBytes >= 0) { "nBytes must be non-negative" }
+        if (nBytes == 0) return EMPTY_BYTE_ARRAY
         if (owner == null) invalidatePeeks()
         val endIndexExclusive = readIndex.toLong() + nBytes.toLong()
         require(endIndexExclusive <= limit.toLong()) { "Cannot read beyond available bytes" }
