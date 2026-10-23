@@ -7,7 +7,7 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.PemBlock
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.append
+import at.asitplus.awesn1.encoding.add
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -19,8 +19,8 @@ val dsl_unaryplus_numeric_operand_drop by matrixSuite {
     "Explicit serializers append numeric values to a SEQUENCE" {
         with(DER) {
             Asn1.Sequence {
-                append(Int.serializer(), 5)
-                append(Long.serializer(), 6L)
+                add(Int.serializer(), 5)
+                add(Long.serializer(), 6L)
             }
         }.derEncoded.toHexString() shouldBe "3006020105020106"
     }
@@ -28,8 +28,8 @@ val dsl_unaryplus_numeric_operand_drop by matrixSuite {
     "Inferred serializers append numeric values to a canonically sorted SET" {
         with(DER) {
             Asn1.Set {
-                append(2)
-                append(1)
+                add(2)
+                add(1)
             }
         }.derEncoded.toHexString() shouldBe "3106020101020102"
     }

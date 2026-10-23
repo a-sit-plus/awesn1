@@ -31,9 +31,6 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.modules.SerializersModule
 
 
-//hot take: make this a test-only helper shared across all test sources in all modules?
-private inline fun <reified T> Der.roundTrip(value: T): T = decodeFromByteArray(encodeToByteArray(value))
-
 private interface GlRequest
 
 @Serializable

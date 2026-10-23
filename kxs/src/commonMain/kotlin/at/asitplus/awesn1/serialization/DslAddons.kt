@@ -19,7 +19,7 @@ import kotlinx.serialization.serializer
  */
 @Throws(Throwable::class)
 context(der: Der)
-fun <Serializable> Asn1TreeBuilder.append(serializer: KSerializer<Serializable>, value: Serializable) {
+fun <Serializable> Asn1TreeBuilder.add(serializer: KSerializer<Serializable>, value: Serializable) {
     der.encodeToTlv(serializer, value)?.let { +it }
 }
 
@@ -30,8 +30,7 @@ fun <Serializable> Asn1TreeBuilder.append(serializer: KSerializer<Serializable>,
  *
  * @throws SerializationException if serialization constraints are violated
  */
-@OptIn(ExperimentalSerializationApi::class)
 @Throws(Throwable::class)
 context(der: Der)
-inline fun <reified Serializable> Asn1TreeBuilder.append(value: Serializable) =
-    append(serializer(), value)
+inline fun <reified Serializable> Asn1TreeBuilder.add(value: Serializable) =
+    add(serializer(), value)
