@@ -560,11 +560,19 @@ DER format behaviour can be tuned with the DER builder:
 - `encodeDefaults = false`: omit default-valued properties
 - `maxInputLength = …`: maximum number of encoded DER bytes to consume before refusing to parse (enforced before
   reading from the source)
+- `maxNestingDepth = …`: typed recursion limit from 1 through 65,536 (default 32; raising it requires matching stack space)
 
 These switches are important when you need to align with profile-specific encoding expectations or with legacy systems
 that depend on a specific wire form.
 For strict canonicality expectations in certificate ecosystems, see
 [X.509 (RFC 5280)](https://www.rfc-editor.org/rfc/rfc5280).
+
+!!! danger "Custom decoder recursion is not bounded"
+
+    `maxNestingDepth` bounds recursion driven by kotlinx.serialization and the ASN.1 element trees consumed or produced
+    by built-in `Asn1Encodable`/`Asn1Decodable` handling. It **cannot** observe recursion performed inside custom
+    `KSerializer` code or `Asn1Serializable.doDecode`, Hence custom serializer implementations must enforce their own depth and
+    allocation limits and are considered trusted code.
 
 ```kotlin
 --8<-- "at/asitplus/awesn1/serialization/tutorial/SerializationDocumentationTutorialTest.kt:kxs-format-options-definitions"
@@ -585,16 +593,15 @@ For strict canonicality expectations in certificate ecosystems, see
 
 !!! danger "Bound untrusted input with `maxInputLength`"
     
-    `maxInputLength` defaults to `Int.MAX_VALUE` (~2 GiB). This keeps every decoded element's lengths `Int`-sized (so
-    parsing and re-encoding stay fully `Int`-based), but it is **not** a small safety cap: decoding parses into an
-    in-memory tree, so input size bounds memory. When decoding untrusted data — especially from a `Source` —
-    **lower `maxInputLength`** to a value appropriate to your payload. Raise it past `Int.MAX_VALUE` only to deliberately
-    handle multi-gigabyte input (which requires a `Source`, since a `ByteArray` cannot exceed `Int.MAX_VALUE` bytes). See
-    [Hardening, Fuzzing & Robustness](hardening.md) for the full picture.
+    `maxInputLength` defaults to the target's largest addressable `ByteArray` (`Int.MAX_VALUE - 8` on
+    JVM/Android and `Int.MAX_VALUE` elsewhere). Note that this is still best-effort! Memory can run out still, for example.
+    It is recommended to lower this depending on expected input sizes, but awesn1 cannot make this choice for you.
+    CMS/S/MIME objects, for example tend to get very large, while certificate chains are rather small. See also
+    [Hardening, Fuzzing & Robustness](hardening.md) for the full picture about hardening and hardening assumptions.
     
-    When decoding from a `Source` (`kxs-io`), `decodeFromSource(..., limit = …)` accepts a per-call byte `limit`. It
-    defaults to `maxInputLength` and is **clamped** to it — a per-call `limit` can only *tighten* the bound, never raise
-    it above the configured maximum (just as a shorter `ByteArray` lowers the effective bound when decoding from bytes).
+    When decoding from a `Source` (`kxs-io`), `decodeFromSource(..., limit = …)` clamps the optional per-call byte
+    `limit` to `maxInputLength`. This prevents source parsing from attempting to create content that cannot fit in a
+    target `ByteArray`; callers should normally pass a much smaller protocol-specific limit for untrusted data.
 
 ## `Asn1Serializer` with Low-Level Types
 
