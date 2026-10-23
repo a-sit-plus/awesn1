@@ -56,18 +56,40 @@ class Asn1TreeBuilder {
     private val elems = ArrayList<Asn1Element>()
     internal val elements get() = elems.apply { trimToSize() }
 
+    /** Appends [element] to this ASN.1 structure. */
+    fun add(element: Asn1Element) {
+        elems += element
+    }
+
+    /** Appends the element exposed by [wrapped]. */
+    fun add(wrapped: WrappedElement<*>) {
+        add(wrapped.element)
+    }
+
+    /** Encodes [value] and appends the resulting element. */
+    @Throws(Asn1Exception::class)
+    fun add(value: Asn1Encodable<*>) {
+        add(value.encodeToTlv())
+    }
+
+    /** Encodes the value exposed by [wrapped] and appends the resulting element. */
+    @Throws(Asn1Exception::class)
+    fun add(wrapped: WrappedEncodable<*>) {
+        add(wrapped.value)
+    }
+
     /**
      * appends a single [Asn1Element] to this ASN.1 structure
      */
     operator fun Asn1Element.unaryPlus() {
-        elems += this
+        add(this)
     }
 
     /**
      * Appends the [Asn1Element] exposed by this transparent wrapper.
      */
     operator fun WrappedElement<*>.unaryPlus() {
-        elems += element
+        add(this)
     }
 
     /**
@@ -76,7 +98,7 @@ class Asn1TreeBuilder {
      */
     @Throws(Asn1Exception::class)
     operator fun Asn1Encodable<*>.unaryPlus() {
-        +encodeToTlv()
+        add(this)
     }
 
     /**
@@ -86,7 +108,7 @@ class Asn1TreeBuilder {
      */
     @Throws(Asn1Exception::class)
     operator fun WrappedEncodable<*>.unaryPlus() {
-        +(value.encodeToTlv())
+        add(this)
     }
 }
 
@@ -246,6 +268,7 @@ object Asn1 {
      */
     fun ExplicitlyTaggedOrNull(tag: ULong, root: Asn1TreeBuilder.() -> Unit) =
         catchingUnwrapped { ExplicitlyTagged(tag, root) }.getOrNull()
+
 
 
     /** Creates an ENUMERATED [Asn1Primitive] from [ordinal]*/
