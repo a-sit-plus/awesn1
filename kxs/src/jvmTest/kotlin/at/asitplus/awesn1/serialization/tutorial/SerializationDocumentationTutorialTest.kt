@@ -417,7 +417,7 @@ private object TutorialDocScalarLeftSerializer : KSerializer<TutorialDocScalarLe
 private object TutorialDocScalarRightSerializer : KSerializer<TutorialDocScalarRight> {
     private val baseDescriptor = PrimitiveSerialDescriptor("TutorialDocScalarRight", PrimitiveKind.STRING)
     override val descriptor: SerialDescriptor =
-        baseDescriptor.withDynamicAsn1LeadingTags { setOf(Asn1Element.Tag.STRING_UTF8) }
+        baseDescriptor.withAsn1LeadingTags(setOf(Asn1Element.Tag.STRING_UTF8))
 
     override fun serialize(encoder: Encoder, value: TutorialDocScalarRight) {
         encoder.encodeString(value.value)

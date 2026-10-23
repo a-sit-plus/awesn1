@@ -2,6 +2,12 @@
 
 ## NEXT
 * **Fixes:**
+    * **Breaking:** `@Asn1Tag(tagClass = INFER)` now resolves to and validates `CONTEXT_SPECIFIC` on decode; use an explicit tag class for APPLICATION, PRIVATE, or UNIVERSAL tags.
+    * **Breaking:** the string-based fallback serializers (`Asn1IntegerDecimalStringSerializer`, `Asn1IntegerHexStringSerializer`, `Asn1RealStringSerializer`, `ObjectIdentifierStringSerializer` and friends) are now rejected by the DER format on both encode and decode. Previously an explicit `@Serializable(with = ...)` naming one was silently ignored on encode and then rejected on decode, so the format emitted output it could not read back. Remove the explicit annotation to use the type's own ASN.1 serializer; the fallbacks remain available for string-based formats such as JSON.
+    * **Breaking:** a Kotlin `String`/`Char` property now maps to exactly `UTF8String` in both directions; previously it encoded as `UTF8String` but decoded eight different string types, silently rewriting the tag on re-encode. Declare `Asn1String` to tolerate and preserve any string type, a concrete subtype to require one, or `@Asn1Tag` to pin the wire tag while keeping the Kotlin type.
+    * **Breaking:** a property typed as a concrete `Asn1String` subtype (`Asn1String.UTF8`, `.Printable`, `.IA5`, `.Visible`, `.Numeric`) now only accepts its own ASN.1 string tag when it carries no `@Asn1Tag` override; previously any of the twelve string tags was silently reinterpreted. Declare the `Asn1String` base type to keep tolerating a producer that picked a different string type than the spec demands.
+    * Serializer-declared `leadingTags` now reach the DER format through the descriptor, so disjoint concrete string subtypes no longer collide in the ambiguity gate and `Asn1Serializable` implementations get precise layout analysis instead of "undecidable".
+    * Fixed DER null and optional handling: null sentinels round-trip without swallowing data or colliding with empty values, defaulted fields are detected by tag, enum/SET tag inference is accurate, and layout checks keep distinct annotated descriptors separate.
     * Fixed tag-discriminated open polymorphism to emit registered subtype tags, preserve them through enclosing properties, resolve nullable/nested dispatch correctly, and avoid leaking tag state to later fields.
     * Fixed OID-discriminated open polymorphism to prefer exact subtype registrations, emit the registered discriminator, survive canonical SET sorting, and reject non-leading selectors that cannot be decoded losslessly.
     * Fixed sealed CHOICE serialization so selected serializers are honored, inline wrappers retain CHOICE tag inference, and ambiguous nullable layouts are rejected.
@@ -15,7 +21,7 @@
       order/multiplicity while canonical decoded sets remain equal to their programmatic equivalents, and prevent
       non-DER decoders from creating wire-preserving malformed SET states.
     * Decode and construct BMPString (UCS-2BE) and UniversalString (UCS-4BE) with strict value conversion, equality, and re-encoding; malformed code units/code points are rejected while raw `Asn1Element` remains available.
-    * Decode TeletexString wire content using the BoringSSL/OpenSSL Latin-1 compatibility profile while retaining permissive String construction and `isValid == null` semantics.
+    * Decode and construct TeletexString using the BoringSSL/OpenSSL Latin-1 compatibility profile. String construction rejects characters above U+00FF; `isValid` remains `null` because this compatibility encoding does not establish full T.61 validity.
     * Generic `Asn1String` DER decoding now preserves malformed content and reports tri-state validity without throwing; concrete subtype and Kotlin `String` decoding remain strict, and equality/hashing no longer interpret malformed bytes.
     * Preserve compatibility UTC TIME values ending in lowercase `z` when decoding and re-encoding, while programmatically constructed values continue to emit canonical uppercase `Z`.
     * Preserve the UTC/GENERALIZED TIME subtype and exact fractional seconds in non-DER `Asn1Time` serialization; the former ISO-8601 input remains accepted.
@@ -31,6 +37,8 @@
 * Reduced `Asn1Element` allocation through tag and empty-array sharing, trimmed child lists, and allocation-free
   hashing.
 * Avoid repeated regex compilation and unnecessary string copies when decoding `Asn1Real`.
+* Update to Conventions 20260918 with TestBalloon 1.1.0 and TestBalloon Addons 0.17.0
+* Update to Bouncy Castle 1.86
 
 ## 0.8.1
 * Add an experimental ASN.1 JS viewer
