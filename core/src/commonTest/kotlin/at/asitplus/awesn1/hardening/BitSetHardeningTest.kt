@@ -27,11 +27,9 @@ val BitSetCompactionHardeningTest by matrixSuite {
         var visited = 0
         bits.forEachIndexed { _, _ -> visited++ }
 
-        bits.bytes.toByteArray() shouldBe byteArrayOf()
-        bits.toByteArray() shouldBe byteArrayOf()
-        bits.toBitStringView() shouldBe ""
+        bits.toLsb0ByteArray() shouldBe byteArrayOf()
+        bits.toLogicalBitString() shouldBe ""
         bits.memDumpView() shouldBe ""
-        bits.copyOf().toByteArray() shouldBe byteArrayOf()
         bits.iterator().hasNext() shouldBe false
         visited shouldBe 0
     }
@@ -39,15 +37,25 @@ val BitSetCompactionHardeningTest by matrixSuite {
     "trailing zero backing bytes are removed from public byte views" {
         val bits = BitSet(byteArrayOf(0x04, 0x00, 0x00))
 
-        bits.bytes.toByteArray() shouldBe byteArrayOf(0x04)
-        bits.toByteArray() shouldBe byteArrayOf(0x04)
-        bits.copyOf().toByteArray() shouldBe byteArrayOf(0x04)
-        bits.toBitStringView() shouldBe "001"
+        bits.toLsb0ByteArray() shouldBe byteArrayOf(0x04)
+        bits.toLogicalBitString() shouldBe "001"
         bits.memDumpView() shouldBe "00000100"
         bits.nextSetBit(0) shouldBe 2
         bits.nextSetBit(2) shouldBe 2
         bits.nextSetBitAfter(2) shouldBe -1
         bits.nextSetBit(3) shouldBe -1
+    }
+
+    "bulk byte mutation is LSB0 and restores compact storage" {
+        val bits = BitSet()
+
+        bits.mutateLsb0Bytes {
+            add(0x04)
+            add(0x00)
+        }
+
+        bits.toLogicalBitString() shouldBe "001"
+        bits.toLsb0ByteArray() shouldBe byteArrayOf(0x04)
     }
 
     "Asn1BitString from preallocated BitSet does not encode backing zero bytes" {
@@ -65,9 +73,9 @@ val BitSetCompactionHardeningTest by matrixSuite {
 
     "BitSet equality compares both directions and hash uses compact content" {
         val empty = BitSet()
-        val nonEmpty = BitSet.fromString("1")
+        val nonEmpty = BitSet.fromLogicalBitString("1")
         val padded = BitSet(byteArrayOf(0x04, 0x00, 0x00))
-        val compact = BitSet.fromString("001")
+        val compact = BitSet.fromLogicalBitString("001")
 
         empty shouldNotBe nonEmpty
         nonEmpty shouldNotBe empty
@@ -104,15 +112,15 @@ val BitSetCompactionHardeningTest by matrixSuite {
         "all false" {
             val bits = BitSet(8) { false }
 
-            bits.toByteArray() shouldBe byteArrayOf()
-            bits.toBitStringView() shouldBe ""
+            bits.toLsb0ByteArray() shouldBe byteArrayOf()
+            bits.toLogicalBitString() shouldBe ""
         }
 
         "last false" {
             val bits = BitSet(8) { it == 2 }
 
-            bits.toByteArray() shouldBe byteArrayOf(0x04)
-            bits.toBitStringView() shouldBe "001"
+            bits.toLsb0ByteArray() shouldBe byteArrayOf(0x04)
+            bits.toLogicalBitString() shouldBe "001"
         }
     }
 }
