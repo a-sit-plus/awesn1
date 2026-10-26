@@ -104,26 +104,6 @@ val SerializationTestCoverageGaps by matrixSuite(
         }
     }
 
-    "Open polymorphism by OID supports custom OID selector wiring" {
-        val selectorDer = DER {
-            serializersModule = SerializersModule {
-                polymorphicByOid(
-                    CustomSelectorBase::class,
-                    serialName = "CustomSelectorBase",
-                    oidSelector = ::oidFromTopLevelOnly,
-                ) {
-                    subtype<CustomSelectorA>(CustomSelectorA)
-                    subtype<CustomSelectorB>(CustomSelectorB)
-                }
-            }
-        }
-
-        val valueA: CustomSelectorBase = CustomSelectorA(payload = 10)
-        val valueB: CustomSelectorBase = CustomSelectorB(payload = "x")
-        selectorDer.decodeFromSource<CustomSelectorBase>(Buffer().apply { write(Buffer().apply { selectorDer.encodeToSink(valueA, this) }.readByteArray()) }) shouldBe valueA
-        selectorDer.decodeFromSource<CustomSelectorBase>(Buffer().apply { write(Buffer().apply { selectorDer.encodeToSink(valueB, this) }.readByteArray()) }) shouldBe valueB
-    }
-
     "encodeDefaults=false and explicitNulls=true compose as expected" {
         val der = DER {
             encodeDefaults = false
@@ -212,33 +192,6 @@ private data class DuplicateOidB(val value: String) : DuplicateOidBase, Identifi
     companion object : OidProvider<DuplicateOidB> {
         override val oid: ObjectIdentifier = ObjectIdentifier("1.2.3.4.5")
     }
-}
-
-private interface CustomSelectorBase : Identifiable
-
-@Serializable
-private data class CustomSelectorA(
-    val payload: Int,
-) : CustomSelectorBase, Identifiable by Companion {
-    companion object : OidProvider<CustomSelectorA> {
-        override val oid: ObjectIdentifier = ObjectIdentifier("1.2.840.113549.1.1.1")
-    }
-}
-
-@Serializable
-private data class CustomSelectorB(
-    val payload: String,
-) : CustomSelectorBase, Identifiable by Companion {
-    companion object : OidProvider<CustomSelectorB> {
-        override val oid: ObjectIdentifier = ObjectIdentifier("1.2.840.10045.2.1")
-    }
-}
-
-private fun oidFromTopLevelOnly(element: Asn1Element): ObjectIdentifier? {
-    val structure = element as? Asn1Structure ?: return null
-    val oid = structure.firstOrNull() as? Asn1Primitive ?: return null
-    if (oid.tag != Asn1Element.Tag.OID) return null
-    return runCatching { oid.readOid() }.getOrNull()
 }
 
 @Serializable

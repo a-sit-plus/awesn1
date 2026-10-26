@@ -60,6 +60,8 @@ val UniversalStringEncoding by matrixSuite {
     }
 
     "A lone surrogate in a Kotlin String is rejected" {
-        shouldThrow<Asn1Exception> { Asn1String.Universal("\uD800") }
+        // Preserve the unpaired code unit even when the JS emitter normalizes string literals.
+        val loneSurrogate = charArrayOf(0xd800.toChar()).concatToString()
+        shouldThrow<Asn1Exception> { Asn1String.Universal(loneSurrogate) }
     }
 }

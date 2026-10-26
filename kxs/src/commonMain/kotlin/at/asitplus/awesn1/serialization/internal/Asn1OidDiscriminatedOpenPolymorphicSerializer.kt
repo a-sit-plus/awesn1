@@ -4,10 +4,7 @@
 package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1Structure
 import at.asitplus.awesn1.Identifiable
-import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.readOid
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
@@ -18,7 +15,6 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
     serialName: String,
     subtypes: List<Asn1OidDiscriminatedSubtypeRegistration.Exact<T>>,
     catchAll: Asn1OidDiscriminatedSubtypeRegistration.CatchAll<T>? = null,
-    private val oidSelector: (Asn1Element) -> ObjectIdentifier? = ::oidFrom,
 ) : Asn1DiscriminatedOpenPolymorphicSerializer<T>(serialName) {
 
     private val dispatch = Asn1OidDiscriminatedDispatch(
@@ -54,12 +50,13 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
      */
     @Throws(SerializationException::class)
     override fun selectionForDecode(decoder: DerDecoder): DerDecodeSelection<T> {
-        val element = decoder.peekCurrentElementOrNull()
+        val tag = decoder.peekCurrentElementTagOrNull()
             ?: throw SerializationException("No ASN.1 element left while decoding ${descriptor.serialName}")
-        if (element.tag == Asn1Element.Tag.SET) throw SerializationException(
+        if (tag == Asn1Element.Tag.SET) throw SerializationException(
             "SET is not supported by OID-discriminated polymorphism: ${descriptor.serialName}"
         )
-        val oid = oidSelector(element)
+        val oid = decoder.peekFirstPrimitive(Asn1Element.Tag.OID)
+            ?.let { runCatching { it.readOid() }.getOrNull() }
             ?: throw SerializationException(
                 "Could not extract discriminator OID from current ASN.1 element while decoding ${descriptor.serialName}"
             )
@@ -73,20 +70,6 @@ internal class Asn1OidDiscriminatedOpenPolymorphicSerializer<T : Identifiable>(
         )
     }
 
-}
-
-/**
- * Default OID selector for OID-discriminated open polymorphism.
- *
- * Reads the first child of `SEQUENCE { OBJECT IDENTIFIER, ... }` (including implicitly tagged sequences).
- */
-internal fun oidFrom(element: Asn1Element): ObjectIdentifier? {
-
-    val structure = element as? Asn1Structure ?: return null
-
-    return (structure.children.firstOrNull() as? Asn1Primitive)
-        ?.takeIf { it.tag == Asn1Element.Tag.OID }
-        ?.let { runCatching { it.readOid() }.getOrNull() }
 }
 
 internal fun inferOpenPolymorphicSubtypeLeadingTagsOrNull(

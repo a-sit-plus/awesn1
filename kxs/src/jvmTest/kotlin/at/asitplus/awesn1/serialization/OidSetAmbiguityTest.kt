@@ -54,19 +54,13 @@ val SerializationOidSetAmbiguityRejection by matrixSuite {
         }.message shouldContain "SET"
     }
 
-    "SET input is rejected even with a custom OID selector" {
-        for (customSelector in listOf(false, true)) {
-            val serializer = if (customSelector) {
-                asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue", oidSelector = { OidSetB.oid }) {
-                    subtype<OidSetB>(OidSetB)
-                }
-            } else asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue") {
-                subtype<OidSetB>(OidSetB)
-            }
-            shouldThrow<SerializationException> {
-                DER.decodeFromByteArray(serializer, "310a06032a030406032a0307".hexToByteArray())
-            }.message shouldContain "SET"
+    "SET input is rejected" {
+        val serializer = asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue") {
+            subtype<OidSetB>(OidSetB)
         }
+        shouldThrow<SerializationException> {
+            DER.decodeFromByteArray(serializer, "310a06032a030406032a0307".hexToByteArray())
+        }.message shouldContain "SET"
     }
 
     "SEQUENCE subtypes may still contain SET payloads" {
