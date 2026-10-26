@@ -71,10 +71,13 @@ internal sealed interface Asn1NullSentinel {
         is Tagged -> Asn1.Null() withImplicitTag tag
     }
 
-    fun matches(element: Asn1Element): Boolean = when (this) {
-        Absent -> false
-        RawNull -> element.isAsn1NullElement()
-        is Tagged -> element.isAsn1NullElement() || element.tag == tag && element.contentLength == 0
+    fun matches(actualTag: Asn1Element.Tag, contentLength: Long, isPrimitive: Boolean): Boolean {
+        val rawNull = isPrimitive && actualTag == Asn1Element.Tag.NULL && contentLength == 0L
+        return when (this) {
+            Absent -> false
+            RawNull -> rawNull
+            is Tagged -> rawNull || actualTag == tag && contentLength == 0L
+        }
     }
 }
 
@@ -91,7 +94,8 @@ internal data class Asn1NullEncodingAnalysis(
                 !baseIsConstructed &&
                 baseCanEncodeEmptyContent
 
-    fun matchesEncodedNull(element: Asn1Element): Boolean = sentinel.matches(element)
+    fun matchesEncodedNull(tag: Asn1Element.Tag, contentLength: Long, isPrimitive: Boolean): Boolean =
+        sentinel.matches(tag, contentLength, isPrimitive)
 }
 
 private const val KotlinTimeInstantSerialName = "kotlin.time.Instant"

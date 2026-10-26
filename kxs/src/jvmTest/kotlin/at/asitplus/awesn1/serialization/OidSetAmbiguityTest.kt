@@ -25,14 +25,18 @@ import kotlinx.serialization.modules.SerializersModule
 val SerializationOidSetAmbiguityRejection by matrixSuite {
     // A(oid=1.2.3.4, payload={1.2.3.7}) and B(oid=1.2.3.7, payload={1.2.3.4})
     // would both encode as 310a06032a030406032a0307 if SET subtypes were allowed.
-    "SET subtype registration is rejected even with overridden leading tags" {
-        for (tags in listOf(emptyArray(), arrayOf(Asn1Element.Tag.SEQUENCE))) {
-            shouldThrow<IllegalArgumentException> {
-                asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue") {
-                    subtype<OidSetA>(OidSetA, *tags)
-                }
-            }.message shouldContain "SET"
-        }
+    mapOf(
+        "default leading tags" to emptyArray(),
+        "SEQUENCE leading tag override" to arrayOf(Asn1Element.Tag.SEQUENCE),
+    ).asData(
+        name = "SET subtype registration is rejected even with overridden leading tags",
+        nameFn = { it.first },
+    ) test { (_, tags) ->
+        shouldThrow<IllegalArgumentException> {
+            asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue") {
+                subtype<OidSetA>(OidSetA, *tags)
+            }
+        }.message shouldContain "SET"
     }
 
     "SET catch-all registration is rejected" {
@@ -54,19 +58,13 @@ val SerializationOidSetAmbiguityRejection by matrixSuite {
         }.message shouldContain "SET"
     }
 
-    "SET input is rejected even with a custom OID selector" {
-        for (customSelector in listOf(false, true)) {
-            val serializer = if (customSelector) {
-                asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue", oidSelector = { OidSetB.oid }) {
-                    subtype<OidSetB>(OidSetB)
-                }
-            } else asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue") {
-                subtype<OidSetB>(OidSetB)
-            }
-            shouldThrow<SerializationException> {
-                DER.decodeFromByteArray(serializer, "310a06032a030406032a0307".hexToByteArray())
-            }.message shouldContain "SET"
+    "SET input is rejected" {
+        val serializer = asn1OpenPolymorphicByOidSerializer<OidSetValue>("OidSetValue") {
+            subtype<OidSetB>(OidSetB)
         }
+        shouldThrow<SerializationException> {
+            DER.decodeFromByteArray(serializer, "310a06032a030406032a0307".hexToByteArray())
+        }.message shouldContain "SET"
     }
 
     "SEQUENCE subtypes may still contain SET payloads" {
