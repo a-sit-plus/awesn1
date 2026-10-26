@@ -576,6 +576,21 @@ This pattern is the complex extension of the implicit-tagging workaround shown i
    asn1js.eu</a>
 
 
+## Incremental Decoding
+
+Starting with awesn1 0.9.0, `ByteArray` and `Source` deserialization enforced serializer limits directly on the bytes consumed.
+Classes and objects reject excess children early, as they are encountered. Successful decoding hence still requires complete consumption
+of an ASN.1 tree rejects trailing bytes, including a surplus valid DER bytes.  
+`decodeFromTlv` operates on a fully parsed ASN.1 tree. Therefore, incremental parsing does not apply.
+
+Byte limits apply before header inspection or payload reads. Nesting limits also cover explicit wrappers,
+OCTET content interpreted as TLVs, and materialized subtrees. A speculative OCTET decapsulation probe stops at its
+resource limit even if later bytes might have disproved encapsulation. Raw `ByteArray` OCTET content stays arbitrary
+bytes and is never probed for nested ASN.1. Ordinary classes with primitive tag overrides remain unsupported using generated serializers.
+
+Custom serializer code can execute before a later malformed child or trailing byte is discovered. An eventual decode
+failure does not roll back serializer side effects.
+
 ## Format Options
 
 DER format behaviour can be tuned with the DER builder:
@@ -584,7 +599,7 @@ DER format behaviour can be tuned with the DER builder:
 - `encodeDefaults = false`: omit default-valued properties
 - `maxInputLength = …`: maximum number of encoded DER bytes to consume before refusing to parse (enforced before
   reading from the source)
-- `maxNestingDepth = …`: typed structural-nesting limit from 1 through 65,536 (default 32)
+- `maxNestingDepth = …`: structural-nesting limit for typed decoding, parsing, and materialization from 1 through 65,536 (default 32)
 
 These switches are important when you need to align with profile-specific encoding expectations or with legacy systems
 that depend on a specific wire form.
