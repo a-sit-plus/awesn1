@@ -416,7 +416,7 @@ inline fun Asn1Primitive.decodeToUtf8String(assertTag: Asn1Element.Tag = Asn1Ele
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToUniversalString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_UNIVERSAL) =
-    runRethrowing { decode(assertTag) { Asn1String.Universal(content).requireValidStringContent() } }
+    runRethrowing { decode(assertTag) { Asn1String.Universal(content).apply { value } } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.IA5]. [assertTag] defaults to [Asn1Element.Tag.STRING_IA5], but can be
@@ -434,7 +434,7 @@ inline fun Asn1Primitive.decodeToIa5String(assertTag: Asn1Element.Tag = Asn1Elem
  */
 @Throws(Asn1Exception::class)
 inline fun Asn1Primitive.decodeToBmpString(assertTag: Asn1Element.Tag = Asn1Element.Tag.STRING_BMP) =
-    runRethrowing { decode(assertTag) { Asn1String.BMP(content).requireValidStringContent() } }
+    runRethrowing { decode(assertTag) { Asn1String.BMP(content).apply { value } } }
 
 /**
  * decodes this [Asn1Primitive]'s content into a [Asn1String.Teletex]. [assertTag] defaults to [Asn1Element.Tag.STRING_T61], but can be

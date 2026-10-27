@@ -232,7 +232,7 @@ sealed class Asn1String(
         override val tag = BERTags.UNIVERSAL_STRING.toULong()
 
         override val value: String by lazy { decodeUniversalContent(rawValue) }
-        override val isValid: Boolean by lazy { runCatching { decodeUniversalContent(rawValue) }.isSuccess }
+        override val isValid: Boolean by lazy { runCatching { value }.isSuccess }
 
         constructor(value: String) : this(encodeUniversalContent(value), true)
 
@@ -337,7 +337,7 @@ sealed class Asn1String(
         override val tag = BERTags.BMP_STRING.toULong()
 
         override val value: String by lazy { decodeBmpContent(rawValue) }
-        override val isValid: Boolean by lazy { runCatching { decodeBmpContent(rawValue) }.isSuccess }
+        override val isValid: Boolean by lazy { runCatching { value }.isSuccess }
 
         constructor(value: String) : this(encodeBmpContent(value), true)
 

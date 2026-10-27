@@ -16,13 +16,15 @@ val BmpStringEncoding by matrixSuite {
     }
 
     "An incomplete code unit is rejected" {
-        shouldThrow<Asn1Exception> { Asn1Primitive(Asn1Element.Tag.STRING_BMP, byteArrayOf(0)).decodeToBmpString() }
+        shouldThrow<Asn1Exception> {
+            Asn1Primitive(Asn1Element.Tag.STRING_BMP, byteArrayOf(0)).decodeToBmpString()
+        }.message shouldBe "BMPString content length must be divisible by 2"
     }
 
     "A surrogate code unit is rejected" {
         shouldThrow<Asn1Exception> {
             Asn1Primitive(Asn1Element.Tag.STRING_BMP, byteArrayOf(0xd8.toByte(), 0)).decodeToBmpString()
-        }
+        }.message shouldBe "BMPString contains surrogate U+d800"
     }
 
     "A supplementary character cannot be represented by BMPString" {
@@ -44,19 +46,19 @@ val UniversalStringEncoding by matrixSuite {
     "An incomplete code point is rejected" {
         shouldThrow<Asn1Exception> {
             Asn1Primitive(Asn1Element.Tag.STRING_UNIVERSAL, byteArrayOf(0)).decodeToUniversalString()
-        }
+        }.message shouldBe "UniversalString content length must be divisible by 4"
     }
 
     "A code point above the Unicode range is rejected" {
         shouldThrow<Asn1Exception> {
             Asn1Primitive(Asn1Element.Tag.STRING_UNIVERSAL, byteArrayOf(0, 0x11, 0, 0)).decodeToUniversalString()
-        }
+        }.message shouldBe "Invalid UniversalString code point U+110000"
     }
 
     "A surrogate code point is rejected" {
         shouldThrow<Asn1Exception> {
             Asn1Primitive(Asn1Element.Tag.STRING_UNIVERSAL, byteArrayOf(0, 0, 0xd8.toByte(), 0)).decodeToUniversalString()
-        }
+        }.message shouldBe "Invalid UniversalString code point U+d800"
     }
 
     "A lone surrogate in a Kotlin String is rejected" {
