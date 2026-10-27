@@ -4,6 +4,7 @@
 package at.asitplus.awesn1.hardening
 
 import at.asitplus.awesn1.*
+import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.decodeToInt
 import at.asitplus.awesn1.encoding.internal.ByteArraySink
 import at.asitplus.awesn1.encoding.internal.Source
@@ -18,6 +19,14 @@ import io.kotest.matchers.types.shouldNotBeInstanceOf
 
 @OptIn(InternalAwesn1Api::class)
 val ConstructedStructureLimitTest by matrixSuite {
+    "public hex parsing rejects roots declaring more bytes than are available" {
+        listOf("3003aabb", "30040500", "30030500", "0403aabb", "0203aabb").forEach { hex ->
+            shouldThrow<Asn1Exception> {
+                Asn1Element.parseFromDerHexString(hex)
+            }.message shouldContain "exceeds limit"
+        }
+    }
+
     val tags = mapOf(
         "SEQUENCE" to "30",
         "SET" to "31",
@@ -58,17 +67,23 @@ val ConstructedStructureLimitTest by matrixSuite {
         }
 
         "$name cannot read malformed child headers or payloads beyond its boundary" {
-            // Truncated high tag, truncated long length, and a child payload exceeding its parent.
-            listOf("021f81", "020281", "03020205").forEach { content ->
+            // Truncated high tag/long length, oversized payload, and a truncated header after a valid NULL.
+            listOf(
+                Triple("021f81", 2, 0),
+                Triple("020281", 2, 0),
+                Triple("03020205", 2, 0),
+                Triple("03050001", 3, 2),
+            ).forEach { (content, inspected, consumed) ->
                 val bytes = (tag + content + "020109").hexToByteArray()
-                val audit = ReadAudit(readableUntil = headerSize + 2)
+                val audit = ReadAudit(readableUntil = headerSize + inspected)
                 val source = AuditedSource(bytes, audit)
                 shouldThrow<Asn1Exception> {
                     source.readAsn1Element(bytes.size.toLong(), maxNestingDepth = 1)
                 }
-                source.position shouldBe headerSize
-                audit.inspectedUntil shouldBe headerSize + 2
+                source.position shouldBe headerSize + consumed
+                audit.inspectedUntil shouldBe headerSize + inspected
                 audit.forbiddenReads shouldBe 0
+                shouldThrow<Asn1Exception> { Asn1Element.parseFromDerHexString(tag + content) }
             }
         }
 
@@ -122,7 +137,7 @@ val ConstructedStructureLimitTest by matrixSuite {
 
 @OptIn(InternalAwesn1Api::class)
 val OctetStringLimitTest by matrixSuite {
-    "depth limits stop OCTET probes before reading the next layer's content" {
+    "OCTET probes accept the exact depth allowance and stop before disallowed content" {
         // OCTET(OCTET(INTEGER)) and OCTET(SEQUENCE(INTEGER)) both need two levels.
         listOf("04050403020105", "04053003020105").forEach { hex ->
             val bytes = hex.hexToByteArray()
@@ -135,20 +150,35 @@ val OctetStringLimitTest by matrixSuite {
                 audit.inspectedUntil shouldBe readableUntil
                 audit.forbiddenReads shouldBe 0
             }
+            val parsed = bytes.wrapInUnsafeSource().readAsn1Element(null, maxNestingDepth = 2)
+                .first.asEncapsulatingOctetString()
+            val leaf = when (val inner = parsed.element) {
+                is Asn1EncapsulatingOctetString -> inner.element
+                else -> inner.asStructure().children.single()
+            }
+            leaf.asPrimitive().decodeToInt() shouldBe 5
+            parsed.derEncoded shouldBe bytes
         }
     }
 
-    "the exact depth allowance decapsulates OCTET and constructed layers" {
-        val octets = "04050403020105".hexToByteArray().wrapInUnsafeSource()
-            .readAsn1Element(null, maxNestingDepth = 2).first.asEncapsulatingOctetString()
-        octets.element.asEncapsulatingOctetString().element.asPrimitive().decodeToInt() shouldBe 5
-
-        val sequence = "04053003020105".hexToByteArray().wrapInUnsafeSource()
-            .readAsn1Element(null, maxNestingDepth = 2).first.asEncapsulatingOctetString()
-        sequence.element.asStructure().children.single().asPrimitive().decodeToInt() shouldBe 5
-
+    "a primitive needs no nesting allowance" {
         "020105".hexToByteArray().wrapInUnsafeSource()
             .readAsn1Element(null, maxNestingDepth = 0).first.asPrimitive().decodeToInt() shouldBe 5
+    }
+
+    "oversized children fail directly, remain raw when encapsulated, and cannot hide trailing bytes" {
+        listOf("300302083003020101000000", "300302053003020101", "300302020000").forEach { hex ->
+            shouldThrow<Asn1Exception> {
+                Asn1Element.parseFromDerHexString(hex)
+            }.message shouldContain "exceeds parent length"
+
+            val raw = Asn1.OctetString(hex.hexToByteArray())
+            Asn1Element.parse(raw.derEncoded) shouldBe raw
+
+            shouldThrow<Asn1Exception> {
+                Asn1Element.parseFromDerHexString("04" + hex.drop(2))
+            }.message shouldBe "Trailing bytes found after the first ASN.1 element"
+        }
     }
 
     "a depth error escapes OCTET fallback before later malformed content is inspected" {

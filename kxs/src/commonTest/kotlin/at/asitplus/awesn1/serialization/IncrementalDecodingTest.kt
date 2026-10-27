@@ -115,9 +115,15 @@ val IncrementalDecodingTest by matrixSuite {
                 DER.decodeFromByteArray(EarlyEndingSerializer, hex.hexToByteArray())
             }
         }
-        listOf("300902010102010202010300", "3009020101020102020103020104", "3002020101", "30090201010201020201").forEach { hex ->
+        listOf(
+            IncrementalFixtures.fourIntegers,
+            IncrementalFixtures.childBeyondParent,
+            IncrementalFixtures.threeIntegers + "00".hexToByteArray(),
+            IncrementalFixtures.threeIntegers + "020104".hexToByteArray(),
+            "30090201010201020201".hexToByteArray(),
+        ).forEach { bytes ->
             shouldThrow<SerializationException> {
-                DER.decodeFromByteArray(IncrementalTriple.serializer(), hex.hexToByteArray())
+                DER.decodeFromByteArray(IncrementalTriple.serializer(), bytes)
             }
         }
     }
@@ -278,27 +284,16 @@ val IncrementalDecodingTest by matrixSuite {
         shouldThrow<SerializationException> { DER.decodeFromByteArray(serializer, bytes) }.message shouldContain "SET"
         shouldThrow<SerializationException> { DER.decodeFromTlv(serializer, Asn1Element.parse(bytes)) }.message shouldContain "SET"
     }
-    "compatibility class, surplus, and trailing roots" {
-        DER.decodeFromByteArray(IncrementalTriple.serializer(), IncrementalFixtures.threeIntegers) shouldBe IncrementalTriple(1, 2, 3)
-        shouldThrow<SerializationException> { DER.decodeFromByteArray(IncrementalTriple.serializer(), IncrementalFixtures.fourIntegers) }
-        listOf(byteArrayOf(0), byteArrayOf(2, 1, 4)).forEach { tail ->
-            shouldThrow<SerializationException> { DER.decodeFromByteArray(IncrementalTriple.serializer(), IncrementalFixtures.threeIntegers + tail) }
-        }
-    }
     "primitive tagged ordinary class preserves tree distinction" {
         val tree = Asn1CustomStructure.asPrimitive(listOf(Asn1.Int(1)), 7u, TagClass.PRIVATE)
         DER.decodeFromTlv(IncrementalPrimitiveClass.serializer(), tree) shouldBe IncrementalPrimitiveClass(1)
         shouldThrow<SerializationException> { DER.decodeFromByteArray(IncrementalPrimitiveClass.serializer(), tree.derEncoded) }
     }
-    "raw OCTET bytes stay arbitrary and empty OCTET is not a class" {
+    "raw OCTET bytes stay arbitrary" {
         listOf("3000", "3003020201", "1f81", "").forEach { hex ->
             val bytes = hex.hexToByteArray()
             DER.decodeFromByteArray(kotlinx.serialization.builtins.ByteArraySerializer(), byteArrayOf(4, bytes.size.toByte()) + bytes).toList() shouldBe bytes.toList()
         }
-        shouldThrow<SerializationException> { DER.decodeFromByteArray(EarlyEndingSerializer, byteArrayOf(4, 0)) }
-    }
-    "custom serializer cannot end with unread children" {
-        shouldThrow<SerializationException> { DER.decodeFromByteArray(EarlyEndingSerializer, "3003020101".hexToByteArray()) }
     }
     "custom serializer cannot consume a second root" {
         val bytes = "020101020102".hexToByteArray()

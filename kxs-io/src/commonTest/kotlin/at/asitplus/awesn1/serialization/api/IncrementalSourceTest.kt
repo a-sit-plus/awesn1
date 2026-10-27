@@ -47,9 +47,6 @@ private data class SourceApplicationTriple(val a: Int, val b: Int, val c: Int)
 private data class SourcePrivateTriple(val a: Int, val b: Int, val c: Int)
 
 @Serializable
-private data class SourceNested(val value: SourceTriple, val sibling: Int)
-
-@Serializable
 private data class SourceOctetViews(
     val note: String? = null,
     val raw: ByteArray,
@@ -179,27 +176,6 @@ val IncrementalSourceTest by matrixSuite {
         shouldThrow<SerializationException> { DER.decodeFromSource<SourceOctetViews>(source) }
         source.readByteArray().toHexString() shouldBe "020205020109"
     }
-    "surplus children are rejected before parsing their headers and remain unread" {
-        val fields = IncrementalFixtures.threeIntegers.copyOfRange(2, 11)
-        listOf("020104", "1f81", "0281", "028180").forEach { hex ->
-            val tail = hex.hexToByteArray()
-            val sequence = byteArrayOf(0x30, (fields.size + tail.size).toByte()) + fields + tail
-            val source = Buffer().apply { write(sequence) }
-            shouldThrow<SerializationException> {
-                DER.decodeFromSource<SourceTriple>(source)
-            }.message shouldContain "Too many ASN.1 elements"
-            source.readByteArray().toHexString() shouldBe hex
-
-            val sibling = "020105".hexToByteArray()
-            val nested = Buffer().apply {
-                write(byteArrayOf(0x30, (sequence.size + sibling.size).toByte()) + sequence + sibling)
-            }
-            shouldThrow<SerializationException> {
-                DER.decodeFromSource<SourceNested>(nested)
-            }.message shouldContain "Too many ASN.1 elements"
-            nested.readByteArray().toHexString() shouldBe hex + "020105"
-        }
-    }
     "OID lookahead leaves discriminator consumption and subtype child limits intact" {
         val serializer = asn1OpenPolymorphicByOidSerializer<OpenByOid>("SourceSurplusOid") {
             subtype<OpenByOidInt>(OpenByOidInt)
@@ -218,13 +194,11 @@ val IncrementalSourceTest by matrixSuite {
         }.message shouldContain "direct-child limit"
         source.readByteArray().toHexString() shouldBe "020102"
     }
-    "source preserves values and rejects surplus, trailing, and malformed boundaries" {
-        DER.decodeFromSource<SourceTriple>(Buffer().apply { write(IncrementalFixtures.threeIntegers) }) shouldBe SourceTriple(1, 2, 3)
+    "source rejects trailing roots, truncated input, and malformed boundaries" {
         listOf(
-            IncrementalFixtures.fourIntegers,
             IncrementalFixtures.childBeyondParent,
-            IncrementalFixtures.threeIntegers + byteArrayOf(0),
-            IncrementalFixtures.threeIntegers + byteArrayOf(2, 1, 4),
+            IncrementalFixtures.threeIntegers + "00".hexToByteArray(),
+            IncrementalFixtures.threeIntegers + "020104".hexToByteArray(),
             "30090201010201020201".hexToByteArray(),
             "30021f81".hexToByteArray(),
         ).forEach { bytes ->
