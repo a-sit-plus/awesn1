@@ -11,6 +11,7 @@ import at.asitplus.awesn1.serialization.asn1OpenPolymorphicByOidSerializer
 import at.asitplus.awesn1.hardening.IncrementalFixtures
 import at.asitplus.awesn1.io.decodeFromSource
 import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.OctetStringEncapsulated
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
@@ -20,6 +21,7 @@ import kotlinx.io.Buffer
 import kotlinx.io.readByteArray
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.ByteArraySerializer
+import kotlinx.serialization.builtins.PairSerializer
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.*
@@ -27,6 +29,22 @@ import kotlinx.serialization.encoding.*
 
 @Serializable
 private data class SourceTriple(val a: Int, val b: Int, val c: Int)
+
+@Serializable
+@Asn1Tag(17u, Asn1Tag.Class.UNIVERSAL, Asn1Tag.ConstructedBit.CONSTRUCTED)
+private data class SourceSetTriple(val a: Int, val b: Int, val c: Int)
+
+@Serializable
+@Asn1Tag(0u, Asn1Tag.Class.CONTEXT_SPECIFIC, Asn1Tag.ConstructedBit.CONSTRUCTED)
+private data class SourceContextTriple(val a: Int, val b: Int, val c: Int)
+
+@Serializable
+@Asn1Tag(0u, Asn1Tag.Class.APPLICATION, Asn1Tag.ConstructedBit.CONSTRUCTED)
+private data class SourceApplicationTriple(val a: Int, val b: Int, val c: Int)
+
+@Serializable
+@Asn1Tag(201u, Asn1Tag.Class.PRIVATE, Asn1Tag.ConstructedBit.CONSTRUCTED)
+private data class SourcePrivateTriple(val a: Int, val b: Int, val c: Int)
 
 @Serializable
 private data class SourceNested(val value: SourceTriple, val sibling: Int)
@@ -69,6 +87,71 @@ private object TwoSourceRootsSerializer : KSerializer<Int> {
 }
 
 val IncrementalSourceTest by matrixSuite {
+    listOf(
+        Triple("30", SourceTriple.serializer(), SourceTriple(1, 2, 3)),
+        Triple("31", SourceSetTriple.serializer(), SourceSetTriple(1, 2, 3)),
+        Triple("a0", SourceContextTriple.serializer(), SourceContextTriple(1, 2, 3)),
+        Triple("60", SourceApplicationTriple.serializer(), SourceApplicationTriple(1, 2, 3)),
+        Triple("ff8149", SourcePrivateTriple.serializer(), SourcePrivateTriple(1, 2, 3)),
+    ).forEach { (tag, serializer, expected) ->
+        val fields = "020101020102020103"
+
+        "structure $tag accepts exactly its declared fields" {
+            val source = Buffer().apply { write("${tag}09$fields".hexToByteArray()) }
+            DER.decodeFromSource(serializer, source) shouldBe expected
+            source.exhausted() shouldBe true
+        }
+
+        "structure $tag rejects surplus children before their headers at root and nested levels" {
+            listOf("020104", "1f81", "0281", "028180").forEach { surplus ->
+                val content = fields + surplus
+                val encoded = "$tag${(content.length / 2).toString(16).padStart(2, '0')}$content"
+                val source = Buffer().apply { write(encoded.hexToByteArray()) }
+                shouldThrow<SerializationException> {
+                    DER.decodeFromSource(serializer, source)
+                }.message shouldContain "Too many ASN.1 elements"
+                source.readByteArray().toHexString() shouldBe surplus
+
+                val nestedContent = encoded + "020109"
+                val nested = Buffer().apply {
+                    write("30${(nestedContent.length / 2).toString(16).padStart(2, '0')}$nestedContent".hexToByteArray())
+                }
+                shouldThrow<SerializationException> {
+                    DER.decodeFromSource(PairSerializer(serializer, Int.serializer()), nested)
+                }.message shouldContain "Too many ASN.1 elements"
+                nested.readByteArray().toHexString() shouldBe surplus + "020109"
+            }
+        }
+
+        "structure $tag shares the enclosing structure's depth budget" {
+            val content = "${tag}09${fields}020109"
+            val bytes = "30${(content.length / 2).toString(16).padStart(2, '0')}$content".hexToByteArray()
+            val nestedSerializer = PairSerializer(serializer, Int.serializer())
+            val complete = Buffer().apply { write(bytes) }
+            DER { maxNestingDepth = 2 }.decodeFromSource(nestedSerializer, complete) shouldBe (expected to 9)
+            complete.exhausted() shouldBe true
+
+            val source = Buffer().apply { write(bytes) }
+            shouldThrow<SerializationException> {
+                DER { maxNestingDepth = 1 }.decodeFromSource(nestedSerializer, source)
+            }.message shouldContain "depth"
+            source.readByteArray().toHexString() shouldBe content
+        }
+
+        "structure $tag cannot borrow child header or payload bytes from its sibling" {
+            listOf("021f81", "020281", "03020205").forEach { malformed ->
+                val content = tag + malformed + "020109"
+                val source = Buffer().apply {
+                    write("30${(content.length / 2).toString(16).padStart(2, '0')}$content".hexToByteArray())
+                }
+                shouldThrow<SerializationException> {
+                    DER.decodeFromSource(PairSerializer(serializer, Int.serializer()), source)
+                }
+                source.readByteArray().toHexString() shouldBe malformed.drop(2) + "020109"
+            }
+        }
+    }
+
     "optional peeks distinguish adjacent raw and encapsulating OCTETs and preserve their sibling" {
         val source = Buffer().apply { write("300d04030201050403020105020109".hexToByteArray()) }
         val value = DER.decodeFromSource<SourceOctetViews>(source)
