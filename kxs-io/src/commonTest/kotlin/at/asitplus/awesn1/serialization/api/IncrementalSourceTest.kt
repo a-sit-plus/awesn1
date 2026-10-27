@@ -31,6 +31,14 @@ private data class SourceTriple(val a: Int, val b: Int, val c: Int)
 @Serializable
 private data class SourceNested(val value: SourceTriple, val sibling: Int)
 
+@Serializable
+private data class SourceOctetViews(
+    val note: String? = null,
+    val raw: ByteArray,
+    val wrapped: OctetStringEncapsulated<Int>,
+    val after: Int,
+)
+
 private object UnreadSourceSerializer : KSerializer<Unit> {
     override val descriptor = buildClassSerialDescriptor("UnreadSource") { element<Int>("a") }
     override fun serialize(encoder: Encoder, value: Unit) = error("decode only")
@@ -61,6 +69,33 @@ private object TwoSourceRootsSerializer : KSerializer<Int> {
 }
 
 val IncrementalSourceTest by matrixSuite {
+    "optional peeks distinguish adjacent raw and encapsulating OCTETs and preserve their sibling" {
+        val source = Buffer().apply { write("300d04030201050403020105020109".hexToByteArray()) }
+        val value = DER.decodeFromSource<SourceOctetViews>(source)
+        value.note shouldBe null
+        value.raw.toHexString() shouldBe "020105"
+        value.wrapped shouldBe OctetStringEncapsulated(5)
+        value.after shouldBe 9
+        source.exhausted() shouldBe true
+    }
+    "surplus content inside an OCTET is rejected before its header and following sibling are consumed" {
+        listOf(
+            "301004030201050406020105020106020109" to "020106",
+            "300f040302010504050201051f81020109" to "1f81",
+            "300f040302010504050201050281020109" to "0281",
+        ).forEach { (hex, surplus) ->
+            val source = Buffer().apply { write(hex.hexToByteArray()) }
+            shouldThrow<SerializationException> {
+                DER.decodeFromSource<SourceOctetViews>(source)
+            }.message shouldContain "Too many ASN.1 elements"
+            source.readByteArray().toHexString() shouldBe surplus + "020109"
+        }
+    }
+    "an encapsulated child cannot borrow payload bytes from the OCTET's following sibling" {
+        val source = Buffer().apply { write("300d04030201050403020205020109".hexToByteArray()) }
+        shouldThrow<SerializationException> { DER.decodeFromSource<SourceOctetViews>(source) }
+        source.readByteArray().toHexString() shouldBe "020205020109"
+    }
     "surplus children are rejected before parsing their headers and remain unread" {
         val fields = IncrementalFixtures.threeIntegers.copyOfRange(2, 11)
         listOf("020104", "1f81", "0281", "028180").forEach { hex ->

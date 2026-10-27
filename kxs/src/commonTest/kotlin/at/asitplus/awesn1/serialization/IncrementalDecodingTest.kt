@@ -13,6 +13,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.*
+import kotlinx.serialization.builtins.ByteArraySerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.descriptors.*
@@ -37,6 +38,14 @@ private data class IncrementalExplicit(
 private data class IncrementalOpaque(val value: Asn1Element)
 
 @Serializable
+private data class IncrementalOctetViews(
+    val note: String? = null,
+    val raw: ByteArray,
+    val wrapped: OctetStringEncapsulated<Int>,
+    val after: Int,
+)
+
+@Serializable
 private data class IncrementalSingle(val value: Int)
 
 @Serializable
@@ -50,6 +59,16 @@ private data class IncrementalOidTree(val tree: Asn1Sequence) : Identifiable, As
         override val oid = ObjectIdentifier("1.2.3")
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
         override fun doDecode(src: Asn1Sequence) = IncrementalOidTree(src)
+    }
+}
+
+private data class IncrementalOidOctets(val octets: Asn1Primitive) : Identifiable, Asn1Encodable<Asn1Primitive> {
+    override val oid get() = Companion.oid
+    override fun encodeToTlv() = octets
+    companion object : Asn1Serializable<Asn1Primitive, IncrementalOidOctets>, OidProvider<IncrementalOidOctets> {
+        override val oid = ObjectIdentifier("1.2.3")
+        override val leadingTags = setOf(Asn1Element.Tag.OCTET_STRING)
+        override fun doDecode(src: Asn1Primitive) = IncrementalOidOctets(src)
     }
 }
 
@@ -105,6 +124,55 @@ val IncrementalDecodingTest by matrixSuite {
     "optional nonmatching peeks retain the next value" {
         val bytes = "3003020105".hexToByteArray()
         DER.decodeFromByteArray(IncrementalOptional.serializer(), bytes) shouldBe IncrementalOptional(b = 5)
+    }
+    "the same OCTET remains raw bytes and exposes children only when requested" {
+        val bytes = "0403020105".hexToByteArray()
+        val serializer = OctetStringEncapsulated.serializer(Int.serializer())
+        DER.decodeFromByteArray(ByteArraySerializer(), bytes).toHexString() shouldBe "020105"
+        DER.decodeFromByteArray(serializer, bytes) shouldBe OctetStringEncapsulated(5)
+        val materialized = DER.decodeFromByteArray(Asn1EncapsulatingOctetString.serializer(), bytes)
+        materialized.element.asPrimitive().decodeToInt() shouldBe 5
+
+        val trees = listOf(
+            Asn1Primitive(Asn1Element.Tag.OCTET_STRING, "020105".hexToByteArray()),
+            Asn1EncapsulatingOctetString(listOf(Asn1.Int(5))),
+            Asn1Element.parse(bytes),
+        )
+        trees.forEach { tree ->
+            DER.decodeFromTlv(ByteArraySerializer(), tree).toHexString() shouldBe "020105"
+            DER.decodeFromTlv(serializer, tree) shouldBe OctetStringEncapsulated(5)
+        }
+    }
+    "optional peeks and adjacent raw and encapsulating OCTETs preserve the following sibling" {
+        val bytes = "300d04030201050403020105020109".hexToByteArray()
+        val serializer = IncrementalOctetViews.serializer()
+        val directTree = Asn1Sequence(listOf(
+            Asn1Primitive(Asn1Element.Tag.OCTET_STRING, "020105".hexToByteArray()),
+            Asn1EncapsulatingOctetString(listOf(Asn1.Int(5))),
+            Asn1.Int(9),
+        ))
+        listOf(
+            DER.decodeFromByteArray(serializer, bytes),
+            DER.decodeFromTlv(serializer, Asn1Element.parse(bytes)),
+            DER.decodeFromTlv(serializer, directTree),
+        ).forEach { value ->
+            value.note shouldBe null
+            value.raw.toHexString() shouldBe "020105"
+            value.wrapped shouldBe OctetStringEncapsulated(5)
+            value.after shouldBe 9
+        }
+    }
+    "an OCTET with OID children does not become an OID-dispatched structure" {
+        val bytes = "040706022a03020107".hexToByteArray()
+        val tree = Asn1Element.parse(bytes)
+        DER.decodeFromByteArray(IncrementalOidOctets, bytes).octets.content.toHexString() shouldBe "06022a03020107"
+        val serializer = asn1OpenPolymorphicByOidSerializer<IncrementalOidOctets>("IncrementalOidOctets") {
+            subtype(IncrementalOidOctets::class, IncrementalOidOctets, IncrementalOidOctets, setOf(Asn1Element.Tag.OCTET_STRING))
+        }
+        shouldThrow<SerializationException> { DER.decodeFromByteArray(serializer, bytes) }
+            .message shouldContain "Could not extract discriminator OID"
+        shouldThrow<SerializationException> { DER.decodeFromTlv(serializer, tree) }
+            .message shouldContain "Could not extract discriminator OID"
     }
     "explicit and OCTET wrapper boundaries" {
         val explicit = IncrementalExplicit(ExplicitlyTagged(5))
