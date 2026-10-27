@@ -575,23 +575,17 @@ This pattern is the complex extension of the implicit-tagging workaround shown i
    asn1js.eu</a>
 
 
-## Incremental decoding
+## Incremental Decoding
 
-Byte-array and `Source` decoding let the existing serializer consume ASN.1 values incrementally from a bounded source. Classes and objects
-reject excess direct children before inspecting the next child's header. Collections read to their container boundary;
-their descriptor's `elementsCount` is not a collection-size limit. Successful decoding requires complete consumption
-of the root and rejects trailing bytes, including a second valid TLV. `decodeFromTlv` uses the same decoder directly
-against the supplied tree.
-
-`Asn1Element` serializers, fallback Base64 serializers, and `Asn1Serializable` materialize the selected subtree using
-the existing iterative parser. OID-based open polymorphism looks ahead at the first child, which must be an OID,
-and continues to reject SET representations.
+Starting with awesn1 0.9.0, `ByteArray` and `Source` deserialization enforced serializer limits directly on the bytes consumed.
+Classes and objects reject excess children early, as they are encountered. Successful decoding hence still requires complete consumption
+of an ASN.1 tree rejects trailing bytes, including a surplus valid DER bytes.  
+`decodeFromTlv` operates on a fully parsed ASN.1 tree. Therefore, incremental parsing does not apply.
 
 Byte limits apply before header inspection or payload reads. Nesting limits also cover explicit wrappers,
 OCTET content interpreted as TLVs, and materialized subtrees. A speculative OCTET decapsulation probe stops at its
 resource limit even if later bytes might have disproved encapsulation. Raw `ByteArray` OCTET content stays arbitrary
-bytes and is never probed for nested ASN.1. Ordinary classes with primitive tag overrides remain unsupported on the
-byte/source path; existing in-memory `Asn1CustomStructure.asPrimitive` behavior is preserved.
+bytes and is never probed for nested ASN.1. Ordinary classes with primitive tag overrides remain unsupported using generated serializers.
 
 Custom serializer code can execute before a later malformed child or trailing byte is discovered. An eventual decode
 failure does not roll back serializer side effects.
