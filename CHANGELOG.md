@@ -22,6 +22,7 @@
     * Normalize failures from non-DER ASN.1 serializers to `SerializationException`, including Base64 fallback, numeric, string, OID, and time serializers.
     * Corrected integer text/magnitude and varint edge cases and lenient empty INTEGER decoding.
     * Corrected REAL base/factor and lenient exponent decoding, and finite REAL-to-`Double` conversion with IEEE rounding.
+    * `BitSet`'s index range operations (`set(from, to)`, `flip(from, to)`, `clear(from, to)`) now exclude `to`; this matches Java's `BitSet`.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**

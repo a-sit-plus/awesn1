@@ -73,9 +73,9 @@ val BitSetTest by matrixSuite {
         }
 
         "memDump manual tests" {
-            byteArrayOf(4).memDumpView() shouldBe "00000100"
-            byteArrayOf(7).memDumpView() shouldBe "00000111"
-            byteArrayOf(17, 31).memDumpView() shouldBe "00010001 00011111"
+            KmpBitSet(byteArrayOf(4)).memDumpView() shouldBe "00000100"
+            KmpBitSet(byteArrayOf(7)).memDumpView() shouldBe "00000111"
+            KmpBitSet(byteArrayOf(17, 31)).memDumpView() shouldBe "00010001 00011111"
 
             val kmm = KmpBitSet(0)
             val jvm = BitSet(0)
@@ -241,6 +241,4 @@ val BitSetTest by matrixSuite {
         }
     }
 }
-
-fun BitSet.toString(): String = toByteArray().toBitStringView()
-fun BitSet.memDump(): String = toByteArray().memDumpView()
+fun BitSet.memDump(): String = toByteArray().joinToString(separator = " ") { it.toUByte().toString(2).padStart(8, '0') }
