@@ -139,28 +139,6 @@ val tounsignedbytearray_zero_emits_empty by matrixSuite {
 }
 
 val kxs_hex_int_leading_separator_silent_corruption by matrixSuite {
-    listOf(
-        ":8000" to "32768",
-        ":a" to "10",
-        "0x:8000" to "32768",
-        "+0x:80:00" to "32768",
-        "-:8000" to "-32768",
-        " : 80:00 " to "32768",
-        "80:00" to "32768",
-        "8000" to "32768",
-    ).asData(name = "valid hex INTEGER", nameFn = { (input, _) -> "'$input'" }) test { (input, expected) ->
-        Asn1Integer.fromHexString(input).toDecimalString() shouldBe expected
-    }
-
-    listOf(":", "0x:", "+:", "-:", " : : ").asData(
-        name = "hex INTEGER without digits",
-        nameFn = { "'$it'" },
-    ) test { input ->
-        shouldThrow<Asn1Exception> { Asn1Integer.fromHexString(input) }
-    }
-}
-
-val kxs_hex_int_leading_separator_silent_corruption by matrixSuite {
     for ((input, expected) in listOf(
         ":8000" to "32768",
         ":a" to "10",

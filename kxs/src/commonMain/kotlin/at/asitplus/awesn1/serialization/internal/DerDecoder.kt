@@ -9,7 +9,6 @@ package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.*
-import at.asitplus.awesn1.serialization.Asn1ElementSerializer
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Der

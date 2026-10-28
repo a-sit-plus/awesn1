@@ -34,7 +34,10 @@ val Asn1StringValidationContractTest by matrixSuite {
         generic.value shouldBe "é"
         primitive.decodeToTeletextString().value shouldBe "é"
         Asn1String.Teletex("é").isValid shouldBe null
-        Asn1String.Teletex("テスト").isValid shouldBe null
+    }
+
+    "characters outside Latin-1 are rejected" {
+        shouldThrow<Asn1Exception> { Asn1String.Teletex("テスト") }
     }
 
     "equality and hashing do not interpret malformed content" {
