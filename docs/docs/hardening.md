@@ -41,6 +41,7 @@ guarantees below (no leak, no amplification, no overflow).
 ## Hardening Scope
 This section describes which parts of awesn1 are hardened against hostile input and to what extent.
 
+
 ### Purely Iterative Parsing and Encoding (New since 0.5.0)
 
 Parsing, encoding (`derEncoded`/`encodeTo`), `prettyPrint`/`toString`, `equals`/`hashCode`, and SET ordering are all
@@ -212,6 +213,7 @@ The `kxs` module implements a `kotlinx.serialization` format, which means that s
 cannot be fully controlled by awesn1 during deserialization:
 
 !!! danger "Custom decoder recursion is not bounded"
+
     **`maxNestingDepth` does not apply to recursion performed inside custom `KSerializer` code or
     `Asn1Serializable.doDecode`.** Those functions are trusted application code: awesn1 receives control only before
     and after the call, so it cannot observe or count recursive calls made inside it. Such implementations must

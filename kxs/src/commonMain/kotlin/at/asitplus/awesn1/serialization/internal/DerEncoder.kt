@@ -570,5 +570,4 @@ class DerEncoder internal constructor(
 
         }
     }
-
 }

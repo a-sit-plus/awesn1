@@ -29,7 +29,6 @@ private const val DEFAULT_MAX_INPUT_LENGTH = (DEFAULT_MAX_MAGNITUDE_BYTES * 2410
 
 // number of bytes rendered for debugging before truncation
 private const val DEBUGGING_MAGNITUDE_BYTES = 48
-
 // 2^53: binary64 has 53 significant bits; rounding to this value carries into a new exponent.
 private const val DOUBLE_SIGNIFICAND_CARRY = 9007199254740992.0
 
@@ -535,7 +534,6 @@ internal value class VarUInt private constructor(
         if (shift > 0) {
             fun bitAt(index: Int): Boolean =
                 ((words[words.lastIndex - index / 8].toInt() ushr (index % 8)) and 1) != 0
-
             val guard = bitAt(shift - 1)
             val sticky = (0 until shift - 1).any(::bitAt)
             if (guard && (sticky || (significand.toLong() and 1L) != 0L)) significand += 1.0
