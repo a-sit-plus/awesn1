@@ -28,6 +28,8 @@ private const val DEFAULT_MAX_INPUT_LENGTH = (DEFAULT_MAX_MAGNITUDE_BYTES * 2410
 
 // number of bytes rendered for debugging before truncation
 private const val DEBUGGING_MAGNITUDE_BYTES = 48
+// 2^53: binary64 has 53 significant bits; rounding to this value carries into a new exponent.
+private const val DOUBLE_SIGNIFICAND_CARRY = 9007199254740992.0
 
 fun Asn1Integer(number: Int) = Asn1Integer(number.toLong())
 fun Asn1Integer(number: Long) =
@@ -523,6 +525,22 @@ internal value class VarUInt private constructor(
         return result
     }
 
+    /** Converts this magnitude to the nearest IEEE-754 binary64 value scaled by [binaryExponent]. */
+    fun toDoubleScaled(binaryExponent: Long = 0): Double {
+        val shift = maxOf(bitLength() - 53, 0)
+        var significand = (this shr shift).toDouble()
+        if (shift > 0) {
+            fun bitAt(index: Int): Boolean =
+                ((words[words.lastIndex - index / 8].toInt() ushr (index % 8)) and 1) != 0
+            val guard = bitAt(shift - 1)
+            val sticky = (0 until shift - 1).any(::bitAt)
+            if (guard && (sticky || (significand.toLong() and 1L) != 0L)) significand += 1.0
+        }
+        val carry = if (significand >= DOUBLE_SIGNIFICAND_CARRY) 1 else 0
+        if (carry != 0) significand /= 2.0
+        return significand * 2.0.pow((binaryExponent + shift + carry).toDouble())
+    }
+
 
     companion object {
         val ZERO = VarUInt(ubyteArrayOf(0x00u))
@@ -652,7 +670,7 @@ internal value class VarUInt private constructor(
 
             if (index >= hexString.length) throw NumberFormatException("Not a hex string")
 
-            //count actual jex digits, so we can allocate
+            //count actual hex digits, so we can allocate
             var digits = 0
             for (i in index until hexString.length) {
                 val c = hexString[i]
@@ -663,6 +681,9 @@ internal value class VarUInt private constructor(
                     digits++
                 }
             }
+            if (digits == 0) throw NumberFormatException("Not a hex string")
+            while (hexDigit(hexString[index]) == -1) index++
+
             //alloc words + account for no leading zero
             val result = UByteArray((digits + 1) ushr 1)
 
