@@ -1167,6 +1167,7 @@ sealed class Asn1OctetString(content: ByteArray) : Asn1Primitive(Tag.OCTET_STRIN
          * Will construct an [Asn1EncapsulatingOctetString] if the contained bytes are valid ASN.1.
          */
         operator fun invoke(source: Source<*>, length: Long): Asn1OctetString {
+            require(length >= 0) { "OCTET STRING length must not be negative" }
             require(length <= Int.MAX_VALUE) { "Cannot read more than ${Int.MAX_VALUE} into an OCTET STRING" }
             return invoke(source.readByteArray(length.toInt()))
         }
