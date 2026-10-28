@@ -1,0 +1,67 @@
+// SPDX-FileCopyrightText: Copyright (c) A-SIT Plus GmbH
+// SPDX-License-Identifier: Apache-2.0
+
+package at.asitplus.awesn1
+
+import at.asitplus.awesn1.encoding.decodeToBmpString
+import at.asitplus.awesn1.encoding.decodeToUniversalString
+import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.matchers.shouldBe
+
+val BmpStringEncoding by matrixSuite {
+    "Encoding uses UCS-2BE" {
+        Asn1String.BMP("A").encodeToTlv().derEncoded.toHexString() shouldBe "1e020041"
+        Asn1String.BMP("Müller").value shouldBe "Müller"
+    }
+
+    "An incomplete code unit is rejected" {
+        shouldThrow<Asn1Exception> {
+            Asn1Primitive(Asn1Element.Tag.STRING_BMP, byteArrayOf(0)).decodeToBmpString()
+        }.message shouldBe "BMPString content length must be divisible by 2"
+    }
+
+    "A surrogate code unit is rejected" {
+        shouldThrow<Asn1Exception> {
+            Asn1Primitive(Asn1Element.Tag.STRING_BMP, byteArrayOf(0xd8.toByte(), 0)).decodeToBmpString()
+        }.message shouldBe "BMPString contains surrogate U+d800"
+    }
+
+    "A supplementary character cannot be represented by BMPString" {
+        shouldThrow<Asn1Exception> { Asn1String.BMP("\uD83D\uDE00") }
+    }
+}
+
+val UniversalStringEncoding by matrixSuite {
+    "Encoding uses UCS-4BE" {
+        Asn1String.Universal("A").encodeToTlv().derEncoded.toHexString() shouldBe "1c0400000041"
+    }
+
+    "A supplementary character encodes and decodes without mutation" {
+        val smile = Asn1String.Universal("\uD83D\uDE00")
+        smile.encodeToTlv().derEncoded.toHexString() shouldBe "1c040001f600"
+        smile.value shouldBe "\uD83D\uDE00"
+    }
+
+    "An incomplete code point is rejected" {
+        shouldThrow<Asn1Exception> {
+            Asn1Primitive(Asn1Element.Tag.STRING_UNIVERSAL, byteArrayOf(0)).decodeToUniversalString()
+        }.message shouldBe "UniversalString content length must be divisible by 4"
+    }
+
+    "A code point above the Unicode range is rejected" {
+        shouldThrow<Asn1Exception> {
+            Asn1Primitive(Asn1Element.Tag.STRING_UNIVERSAL, byteArrayOf(0, 0x11, 0, 0)).decodeToUniversalString()
+        }.message shouldBe "Invalid UniversalString code point U+110000"
+    }
+
+    "A surrogate code point is rejected" {
+        shouldThrow<Asn1Exception> {
+            Asn1Primitive(Asn1Element.Tag.STRING_UNIVERSAL, byteArrayOf(0, 0, 0xd8.toByte(), 0)).decodeToUniversalString()
+        }.message shouldBe "Invalid UniversalString code point U+d800"
+    }
+
+    "A lone surrogate in a Kotlin String is rejected" {
+        shouldThrow<Asn1Exception> { Asn1String.Universal("\uD800") }
+    }
+}

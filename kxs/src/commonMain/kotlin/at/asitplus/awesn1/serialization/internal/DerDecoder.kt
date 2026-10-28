@@ -116,7 +116,7 @@ class DerDecoder internal constructor(
             val structureDecoder = serializer as? Asn1Decodable<Asn1Structure, *>
                 ?: throw SerializationException(
                     "Serializer ${serializer.descriptor.serialName} cannot decode ASN.1 structure values"
-            )
+                )
             structureDecoder.decodeFromTlv(processedElement, expectedTag)
         }
     } }
@@ -541,7 +541,7 @@ class DerDecoder internal constructor(
             val previousInheritedTag = inheritedOpenPolymorphicTag
             //@formatter:off
             inheritedOpenPolymorphicTag = if (openSerializer is Asn1TagDiscriminatedOpenPolymorphicSerializer<*>) null
-                                        else previousInheritedTag ?: inlineHints.tag ?: propertyAsn1Tag
+            else previousInheritedTag ?: inlineHints.tag ?: propertyAsn1Tag
             //@formatter:on
             @Suppress("UNCHECKED_CAST")
             return try {
@@ -941,11 +941,11 @@ private fun Asn1Primitive.decodeInstantWithOptionalImplicitTag(expectedTag: Asn1
 private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): String =
     if (implicitTagOverride == null) {
         when (tag) {
-            Asn1Element.Tag.STRING_BMP -> content.decodeBmpString()
+            Asn1Element.Tag.STRING_BMP -> decodeToBmpString().value
 
-            Asn1Element.Tag.STRING_UNIVERSAL -> content.decodeUniversalString()
+            Asn1Element.Tag.STRING_UNIVERSAL -> decodeToUniversalString().value
 
-            Asn1Element.Tag.STRING_T61 -> content.decodeSupportedTeletexString()
+            Asn1Element.Tag.STRING_T61 -> decodeToTeletextString().value
 
             Asn1Element.Tag.STRING_UTF8,
             Asn1Element.Tag.STRING_NUMERIC,
@@ -961,46 +961,6 @@ private fun Asn1Primitive.decodeString(implicitTagOverride: Asn1Element.Tag?): S
         String.decodeFromAsn1ContentBytes(content)
     }
 
-//cleaned up in follow-up PR
-private fun ByteArray.decodeBmpString(): String {
-    if (size % 2 != 0) throw SerializationException("BMPString content length must be divisible by 2")
-    return CharArray(size / 2) { index ->
-        val offset = index * 2
-        val value = ((this[offset].toInt() and 0xff) shl 8) or (this[offset + 1].toInt() and 0xff)
-        if (value in 0xd800..0xdfff) throw SerializationException("BMPString contains surrogate U+${value.toString(16)}")
-        value.toChar()
-    }.concatToString()
-}
-
-//cleaned up in follow-up PR
-private fun ByteArray.decodeUniversalString(): String {
-    if (size % 4 != 0) throw SerializationException("UniversalString content length must be divisible by 4")
-    val result = StringBuilder(size / 4)
-    for (offset in indices step 4) {
-        val codePoint = ((this[offset].toLong() and 0xff) shl 24) or
-                ((this[offset + 1].toLong() and 0xff) shl 16) or
-                ((this[offset + 2].toLong() and 0xff) shl 8) or
-                (this[offset + 3].toLong() and 0xff)
-        if (codePoint > 0x10ffffL || codePoint in 0xd800L..0xdfffL) {
-            throw SerializationException("Invalid UniversalString code point U+${codePoint.toString(16)}")
-        }
-        if (codePoint <= 0xffffL) result.append(codePoint.toInt().toChar())
-        else {
-            val supplementary = codePoint.toInt() - 0x10000
-            result.append(((supplementary ushr 10) + 0xd800).toChar())
-            result.append(((supplementary and 0x3ff) + 0xdc00).toChar())
-        }
-    }
-    return result.toString()
-}
-
-//cleaned up in follow-up PR
-private fun ByteArray.decodeSupportedTeletexString(): String {
-    if (any { it.toInt() and 0x80 != 0 }) {
-        throw SerializationException("Non-ASCII TeletexString content is unsupported; use Asn1String to preserve raw bytes")
-    }
-    return decodeToString()
-}
 
 private fun Int.toStrictByte(): Byte =
     if (this in Byte.MIN_VALUE..Byte.MAX_VALUE) toByte()

@@ -66,7 +66,7 @@ val Asn1StringValidatorFixTest by matrixSuite {
         Asn1String.UTF8(byteArrayOf(0x41)).isValid shouldBe true       // 'A'
     }
 
-    // ---- Best-effort types (Teletex, General, Graphic): never reject potentially-valid input ----
+    // ---- Best-effort types (General, Graphic): never reject potentially-valid input ----
     //
     // Their true repertoires are multi-byte / ISO 2022 and cannot be validated exactly, so isValid returns
     // `true` for a recognized subset and `null` ("unknown") otherwise, and NEVER `false`. The String constructor
@@ -88,8 +88,11 @@ val Asn1StringValidatorFixTest by matrixSuite {
         Asn1String.General("é").isValid shouldBe null               // 8-bit content: unknown, not rejected
     }
 
-    "Teletex recognizes its Latin-1 subset and never rejects beyond it" {
-        Asn1String.Teletex("é").isValid shouldBe true               // within the Latin-1 recognized subset
-        Asn1String.Teletex("テスト").isValid shouldBe null           // beyond Latin-1: unknown, not rejected
+    "Teletex construction enforces Latin-1 without claiming full T.61 validation" {
+        Asn1String.Teletex("é").isValid shouldBe null
+        // BoringSSL ASN1Test.MBString rejects U+0100 when T61 is the widest permitted type:
+        // https://github.com/google/boringssl/blob/6b7525a9fab38f408651bf5c39804c65103969f6/crypto/asn1/asn1_test.cc#L1009
+        shouldThrow<Asn1Exception> { Asn1String.Teletex("\u0100") }
+        shouldThrow<Asn1Exception> { Asn1String.Teletex("テスト") }
     }
 }

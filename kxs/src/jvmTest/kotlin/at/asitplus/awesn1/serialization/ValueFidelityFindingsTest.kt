@@ -166,12 +166,12 @@ val decodestring_lenient_lossy_string_normalization by matrixSuite {
     val wireE9 = "30031401e9".hexToByteArray()
     val wireEA = "30031401ea".hexToByteArray()
 
-    "Unsupported TeletexString byte E9 is rejected" {
-        shouldThrow<SerializationException> { DER.decodeFromByteArray<GlStringHolder>(wireE9) }
+    "TeletexString byte E9 decodes using the Latin-1 compatibility profile" {
+        DER.decodeFromByteArray<GlStringHolder>(wireE9).s shouldBe "é"
     }
 
-    "Unsupported TeletexString byte EA is rejected" {
-        shouldThrow<SerializationException> { DER.decodeFromByteArray<GlStringHolder>(wireEA) }
+    "TeletexString byte EA decodes using the Latin-1 compatibility profile" {
+        DER.decodeFromByteArray<GlStringHolder>(wireEA).s shouldBe "ê"
     }
 }
 
