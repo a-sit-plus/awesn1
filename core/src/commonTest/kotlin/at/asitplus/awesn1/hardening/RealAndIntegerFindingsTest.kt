@@ -139,7 +139,7 @@ val tounsignedbytearray_zero_emits_empty by matrixSuite {
 }
 
 val kxs_hex_int_leading_separator_silent_corruption by matrixSuite {
-    for ((input, expected) in listOf(
+    listOf(
         ":8000" to "32768",
         ":a" to "10",
         "0x:8000" to "32768",
@@ -148,15 +148,17 @@ val kxs_hex_int_leading_separator_silent_corruption by matrixSuite {
         " : 80:00 " to "32768",
         "80:00" to "32768",
         "8000" to "32768",
-    )) {
-        "Hex INTEGER '$input' retains its numeric value" {
-            Asn1Integer.fromHexString(input).toDecimalString() shouldBe expected
-        }
+    ).asData(
+        name = "Hex INTEGER retains its numeric value",
+        nameFn = { (input, expected) -> "'$input' -> $expected" },
+    ) test { (input, expected) ->
+        Asn1Integer.fromHexString(input).toDecimalString() shouldBe expected
     }
 
-    for (input in listOf(":", "0x:", "+:", "-:", " : : ")) {
-        "Hex INTEGER '$input' without digits is rejected" {
-            shouldThrow<Asn1Exception> { Asn1Integer.fromHexString(input) }
-        }
+    listOf(":", "0x:", "+:", "-:", " : : ").asData(
+        name = "Hex INTEGER without digits is rejected",
+        nameFn = { "'$it'" },
+    ) test { input ->
+        shouldThrow<Asn1Exception> { Asn1Integer.fromHexString(input) }
     }
 }
