@@ -307,18 +307,16 @@ object Asn1 {
     fun Real(value: Double) = value.encodeToAsn1Primitive()
 
     /** Creates an OCTET STRING [Asn1Element] from [bytes] */
-    fun OctetString(bytes: ByteArray) = bytes.encodeToAsn1OctetStringPrimitive()
-
+    fun OctetString(bytes: ByteArray) = Asn1OctetString(bytes)
 
     /** Creates an BIT STRING [Asn1Primitive] from [bytes] */
-    fun BitString(bytes: ByteArray) = bytes.encodeToAsn1BitStringPrimitive()
-
+    fun BitString(bytes: ByteArray) = Asn1BitString.fromByteArray(bytes).encodeToTlv()
 
     /**
      * Creates an BIT STRING [Asn1Primitive] from [bitSet].
      * **Left-Aligned and right-padded (see [Asn1BitString])**
      */
-    fun BitString(bitSet: BitSet) = Asn1BitString(bitSet).encodeToTlv()
+    fun BitString(bitSet: BitSet) = Asn1BitString.fromBitSet(bitSet).encodeToTlv()
 
     /** Creates an UTF8 STRING [Asn1Primitive] from [value] */
     fun Utf8String(value: String) = Asn1String.UTF8(value).encodeToTlv()
@@ -443,22 +441,6 @@ fun Float.encodeToAsn1PrimitiveOrNull() = catchingUnwrapped { encodeToAsn1Primit
 
 /** Produces an ASN.1 UTF8 STRING as [Asn1Primitive] */
 fun String.encodeToAsn1Primitive() = Asn1String.UTF8(this).encodeToTlv()
-
-/**
- * Produces an OCTET STRING as [Asn1Primitive]
- */
-fun ByteArray.encodeToAsn1OctetStringPrimitive() = Asn1OctetString(this)
-
-/**
- * Produces a BIT STRING as [Asn1Primitive]
- */
-fun ByteArray.encodeToAsn1BitStringPrimitive() =
-    Asn1Primitive(Asn1Element.Tag.BIT_STRING, encodeToAsn1BitStringContentBytes())
-
-/**
- * Prepends 0x00 to this ByteArray for encoding it into a BIT STRING. No inverse function is implemented, since `.drop(1)` does the job.
- */
-fun ByteArray.encodeToAsn1BitStringContentBytes() = byteArrayOf(0x00) + this
 
 
 /** Encodes this boolean into a [ByteArray] using the same encoding as the [Asn1Primitive.content] property of an [Asn1Primitive] containing an ASN.1 BOOLEAN */

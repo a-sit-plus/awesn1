@@ -5,8 +5,8 @@ package at.asitplus.awesn1.serialization.internal
 
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.Asn1OctetString
+import at.asitplus.awesn1.Asn1Primitive
 import at.asitplus.awesn1.encoding.asAsn1BitString
 import at.asitplus.awesn1.serialization.isAsn1BitString
 import kotlinx.serialization.SerializationException
@@ -150,7 +150,7 @@ internal object ByteArrayShapePolicy {
         bytes: ByteArray,
         shape: ByteArrayShape,
     ): Asn1Element = when (shape) {
-        ByteArrayShape.BIT_STRING -> Asn1BitString(bytes).encodeToTlv()
+        ByteArrayShape.BIT_STRING -> Asn1BitString.fromByteArray(bytes).encodeToTlv()
         ByteArrayShape.OCTET_STRING -> Asn1OctetString(bytes)
         ByteArrayShape.NOT_APPLICABLE -> throw SerializationException("Byte-array shape is not applicable")
     }
@@ -169,7 +169,7 @@ internal object ByteArrayShapePolicy {
     ): ByteArray = when (shape) {
         ByteArrayShape.BIT_STRING ->
             primitive.asAsn1BitString(tagToValidate ?: Asn1Element.Tag.BIT_STRING).apply {
-                if (numPaddingBits != 0.toByte()) throw SerializationException(
+                if (numPaddingBits != 0) throw SerializationException(
                     "Byte Arrays deserialized from BIT STRING must not have padding bits. Found $numPaddingBits padding bits. " +
                             "If you require padding, directly use Asn1BitString to represent the property."
                 )

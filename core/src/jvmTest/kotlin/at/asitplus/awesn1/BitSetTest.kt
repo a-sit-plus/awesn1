@@ -8,8 +8,8 @@ import io.kotest.property.Arb
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.booleanArray
 import io.kotest.property.arbitrary.int
-import java.util.BitSet as JavaBitSet
 import at.asitplus.awesn1.BitSet as KmpBitSet
+import java.util.BitSet as JavaBitSet
 
 val BitSetTest by matrixSuite {
 
@@ -24,7 +24,7 @@ val BitSetTest by matrixSuite {
     }
 
     "NextSetBit test" {
-        val set = KmpBitSet(byteArrayOf(0b00101000, 0, 1))
+        val set = KmpBitSet.fromBytes(byteArrayOf(0b00101000, 0, 1))
         set.nextSetBitAfter(3) shouldBe 5
         set.nextSetBitAfter(5) shouldBe 16
     }
@@ -91,7 +91,7 @@ val BitSetTest by matrixSuite {
         }
 
         "memDump manual tests" {
-            KmpBitSet(byteArrayOf(4)).memDumpView() shouldBe "00000100"
+            KmpBitSet.fromBytes(byteArrayOf(4)).memDumpView() shouldBe "00000100"
             KmpBitSet(byteArrayOf(7)).memDumpView() shouldBe "00000111"
             KmpBitSet(byteArrayOf(17, 31)).memDumpView() shouldBe "00010001 00011111"
 

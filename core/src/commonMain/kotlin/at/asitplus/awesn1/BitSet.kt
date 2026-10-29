@@ -279,7 +279,7 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
             invoke(bits.size) { bits[it] }
 
         @Deprecated("Renamed to disambiguate between bits and bytes", level = DeprecationLevel.WARNING,
-            replaceWith = ReplaceWith("BitSet.fromBytes(bytes)"))
+            replaceWith = ReplaceWith("fromBytes(bytes)"))
         operator fun invoke(bytes: ByteArray) = fromBytes(bytes)
 
         /** Wraps [bytes] (with the same semantics as [BitSet.toByteArray]) into a BitSet. Copies all bytes. */

@@ -16,13 +16,13 @@ import kotlin.jvm.JvmInline
 @Serializable(with = SignatureValue.Companion::class)
 value class SignatureValue
 @Throws(Asn1Exception::class)
-private constructor(val rawBitString: Asn1BitString) : Asn1Encodable<Asn1Primitive> {
+private constructor(val rawBitString: Asn1BitString.General) : Asn1Encodable<Asn1Primitive> {
 
     init {
-        if (rawBitString.numPaddingBits != 0.toByte()) throw Asn1Exception("The signature value must have padding bits")
+        if (rawBitString.numPaddingBits != 0) throw Asn1Exception("The signature value must have padding bits")
     }
 
-    constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
+    constructor(rawBytes: ByteArray) : this(Asn1BitString.fromByteArray(rawBytes))
 
     val rawBytes: ByteArray get() = rawBitString.bitCarryingBytes
 

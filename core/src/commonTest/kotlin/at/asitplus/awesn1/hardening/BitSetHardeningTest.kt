@@ -51,8 +51,8 @@ val BitSetCompactionHardeningTest by matrixSuite {
     }
 
     "Asn1BitString from preallocated BitSet does not encode backing zero bytes" {
-        val empty = Asn1BitString(BitSet(64))
-        val sparse = Asn1BitString(BitSet(64).also { it[2] = true })
+        val empty = Asn1BitString.fromBitSet(BitSet(64))
+        val sparse = Asn1BitString.fromBitSet(BitSet(64).also { it[2] = true })
 
         empty.numPaddingBits shouldBe 0
         empty.bitCarryingBytes shouldBe byteArrayOf()

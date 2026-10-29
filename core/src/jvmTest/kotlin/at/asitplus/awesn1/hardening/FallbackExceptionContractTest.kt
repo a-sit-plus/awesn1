@@ -28,13 +28,6 @@ val FallbackExceptionContract by matrixSuite {
         }
     }
 
-    "malformed bit strings fail as SerializationException" {
-        for (value in listOf("6:IA==", "1", "99999999999999:AAAA", "1:!!!", "8:AAAA")) {
-            shouldFailSerialization { Json.decodeFromString(Asn1BitString.serializer(), "\"$value\"") }
-        }
-        Json.decodeFromString(Asn1BitString.serializer(), "\"0:AAAA\"").bitCarryingBytes.size shouldBe 3
-    }
-
     "malformed decimal INTEGERs fail as SerializationException" {
         for (value in listOf("12x34", "")) {
             shouldFailSerialization {

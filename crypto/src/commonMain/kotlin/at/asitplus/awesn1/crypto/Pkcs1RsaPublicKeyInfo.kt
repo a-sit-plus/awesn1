@@ -3,13 +3,7 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.Asn1Null
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.WithPemLabel
-import at.asitplus.awesn1.PemLabelSpec
-import at.asitplus.awesn1.runRethrowing
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.Der
 import at.asitplus.awesn1.serialization.decodeFromDer
@@ -44,7 +38,7 @@ data class Pkcs1RsaPublicKeyInfo(
                 { "SubjectPublicKeyInfo is not an RSA public key" }
             require(publicKeyInfo.algorithmParameters == Asn1Null)
                 { "RSA SubjectPublicKeyInfo must contain NULL params" }
-            require (publicKeyInfo.subjectPublicKey.numPaddingBits == 0.toByte())
+            require (publicKeyInfo.subjectPublicKey.numPaddingBits == 0)
                 { "RSA SubjectPublicKeyInfo must have full octets (no padding bits)" }
             der.decodeFromDer<Pkcs1RsaPublicKeyInfo>(publicKeyInfo.subjectPublicKey.bitCarryingBytes)
         }
@@ -52,7 +46,7 @@ data class Pkcs1RsaPublicKeyInfo(
         fun SubjectPublicKeyInfo.Companion.from(publicKey: Pkcs1RsaPublicKeyInfo, der: Der = DER) = runRethrowing {
             SubjectPublicKeyInfo(
                 X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, Asn1Null),
-                Asn1BitString(der.encodeToByteArray(publicKey))
+                Asn1BitString.fromByteArray(der.encodeToByteArray(publicKey))
             )
         }
 

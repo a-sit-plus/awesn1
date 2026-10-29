@@ -554,7 +554,7 @@ fun Asn1Primitive.decodeToInstantOrNull() = catchingUnwrapped { decodeToInstant(
  */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.asAsn1BitString(assertTag: Asn1Element.Tag = Asn1Element.Tag.BIT_STRING) =
-    Asn1BitString.decodeFromTlv(this, assertTag)
+    Asn1BitString.General.decodeFromTlv(this, assertTag)
 
 /**
  * decodes this [Asn1Primitive] to null (i.e. verifies the tag to be [BERTags.ASN1_NULL] and the content to be empty
