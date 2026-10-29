@@ -23,10 +23,8 @@ private fun getByteIndex(i: Long) : Int {
 
 private fun List<Byte>.getBit(index: Long): Boolean {
     if (index < 0) throw IndexOutOfBoundsException("index = $index")
-    val byteIndex = index/8
-    if (byteIndex >= size) return false
-    val byte = this[byteIndex.toInt()]
-    return (byte and getBitMask(index)) != 0.toByte()
+    val byteIndex = index / 8
+    return byteIndex < size && (this[byteIndex.toInt()] and getBitMask(index)) != 0.toByte()
 }
 
 private fun getBitMask(index: Long) =
@@ -85,7 +83,7 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
         if ((fromIndex / 8) >= buffer.size) return -1
 
         var index = fromIndex
-        while ((index%8) != 0L) {
+        while ((index % 8) != 0L) {
             if (this[index]) return index
             index++
         }
