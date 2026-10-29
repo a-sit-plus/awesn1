@@ -107,8 +107,7 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
     /** Using this is not required, but doing so before invoking [internalSet] is more efficient */
     private fun ensureCapacityForIndex(bitIndex: Long) {
         val requiredIndex = getByteIndex(bitIndex)
-        if (requiredIndex >= buffer.size)
-        buffer.ensureCapacity(requiredIndex + 1)
+        if (requiredIndex >= buffer.size) buffer.ensureCapacity(requiredIndex + 1)
     }
 
     /** does not compact the set; caller needs to ensure that if internalSet was called with a `false` [value],
