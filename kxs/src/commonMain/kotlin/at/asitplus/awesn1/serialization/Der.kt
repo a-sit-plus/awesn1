@@ -279,7 +279,7 @@ interface DerDecoder : Decoder, Asn1DerDecoder {
  * Factory for the ASN.1 DER kotlinx-serialization format.
  *
  * @param config optional builder block for DER settings
- * (for example `encodeDefaults`, `explicitNulls`, or `reEmitAsn1Backed`)
+ * (for example `encodeDefaults`, `explicitNulls`, or `maxNestingDepth`)
  */
 fun DER(config: DerBuilder.() -> Unit = {}) =
     DerBuilder()
