@@ -1,23 +1,41 @@
 package at.asitplus.awesn1
 
 import at.asitplus.testballoon.matrix.matrixSuite
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.assertions.withClue
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.boolean
 import io.kotest.property.arbitrary.booleanArray
 import io.kotest.property.arbitrary.int
-import java.util.BitSet
+import java.util.BitSet as JavaBitSet
 import at.asitplus.awesn1.BitSet as KmpBitSet
 
 val BitSetTest by matrixSuite {
 
+    "Negative indices throw for accessors and setters" {
+        shouldThrow<IndexOutOfBoundsException> { KmpBitSet()[-1] }
+        shouldThrow<IndexOutOfBoundsException> { KmpBitSet()[-1] = true }
+        shouldThrow<IndexOutOfBoundsException> { KmpBitSet()[-1..5] = true }
+    }
+    "Positive large indices throw only for setters" {
+        KmpBitSet()[Long.MAX_VALUE] shouldBe false
+        shouldThrow<Asn1Exception> { KmpBitSet()[Long.MAX_VALUE] = false }
+    }
+
+    "NextSetBit test" {
+        val set = KmpBitSet(byteArrayOf(0b00101000, 0, 1))
+        set.nextSetBitAfter(3) shouldBe 5
+        set.nextSetBitAfter(5) shouldBe 16
+    }
+
     "Custom BitSet Implementation" - {
+
         "manual tests" {
             KmpBitSet.fromString("011011100101110111").toBitStringView() shouldBe "011011100101110111"
 
             val kmm = KmpBitSet(0)
-            val jvm = BitSet(0)
+            val jvm = JavaBitSet(0)
 
             2.let {
                 kmm[it.toLong()] = true
@@ -65,11 +83,11 @@ val BitSetTest by matrixSuite {
             KmpBitSet.fromString(kmm.toBitStringView()) shouldBe kmm
 
 
-            val bits = BitSet()
-            bits[2] = true; bits.memDump() shouldBe "00000100"
-            bits[1] = true; bits.memDump() shouldBe "00000110"
-            bits[0] = true; bits.memDump() shouldBe "00000111"
-            bits[8] = true; bits.memDump() shouldBe "00000111 00000001"
+            val bits = KmpBitSet()
+            bits[2] = true; bits.memDumpView() shouldBe "00000100"
+            bits[1] = true; bits.memDumpView() shouldBe "00000110"
+            bits[0] = true; bits.memDumpView() shouldBe "00000111"
+            bits[8] = true; bits.memDumpView() shouldBe "00000111 00000001"
         }
 
         "memDump manual tests" {
@@ -78,20 +96,20 @@ val BitSetTest by matrixSuite {
             KmpBitSet(byteArrayOf(17, 31)).memDumpView() shouldBe "00010001 00011111"
 
             val kmm = KmpBitSet(0)
-            val jvm = BitSet(0)
+            val jvm = JavaBitSet(0)
 
             2.let {
                 kmm[it.toLong()] = true
                 jvm[it] = true
             }
-            jvm.memDump() shouldBe "00000100"
+            jvm.memDumpView() shouldBe "00000100"
             kmm.memDumpView() shouldBe "00000100"
 
             8.let {
                 kmm[it.toLong()] = true
                 jvm[it] = true
             }
-            jvm.memDump() shouldBe "00000100 00000001"
+            jvm.memDumpView() shouldBe "00000100 00000001"
             kmm.memDumpView() shouldBe "00000100 00000001"
 
 
@@ -100,7 +118,7 @@ val BitSetTest by matrixSuite {
                 jvm[it] = false
             }
 
-            jvm.memDump() shouldBe "00000000 00000001"
+            jvm.memDumpView() shouldBe "00000000 00000001"
             kmm.memDumpView() shouldBe "00000000 00000001"
 
             10.let {
@@ -108,7 +126,7 @@ val BitSetTest by matrixSuite {
                 jvm[it] = false
             }
 
-            jvm.memDump() shouldBe "00000000 00000001"
+            jvm.memDumpView() shouldBe "00000000 00000001"
             kmm.memDumpView() shouldBe "00000000 00000001"
 
 
@@ -117,7 +135,7 @@ val BitSetTest by matrixSuite {
                 jvm[it] = false
             }
 
-            jvm.memDump() shouldBe ""
+            jvm.memDumpView() shouldBe ""
             kmm.memDumpView() shouldBe ""
         }
         compact("automated") - {
@@ -140,7 +158,7 @@ val BitSetTest by matrixSuite {
                         input.size * 2,
                         input.size * 4,
                     ).asData(name = "size") test { size: Int ->
-                    val jvm = BitSet(size).also {
+                    val jvm = JavaBitSet(size).also {
                         input.indices.shuffled().forEach { i -> it.set(i, input[i]) }
                     }
                     val kmm = withClue("size: $size") {
@@ -179,17 +197,8 @@ val BitSetTest by matrixSuite {
                         kmm.nextSetBit(4L * i.toLong() / 5L).toInt() shouldBe jvm.nextSetBit(4 * i / 5)
                     }
                     kmm.toByteArray() shouldBe jvm.toByteArray()
-
-
-                    BitSet.valueOf(kmm.toByteArray()).toByteArray() shouldBe jvm.toByteArray()
-                    kmm.toByteArray().toBitSet().toByteArray() shouldBe jvm.toByteArray()
-                    jvm.toByteArray().toBitSet().toByteArray() shouldBe jvm.toByteArray()
-                    kmm.toByteArray().toBitSet().toByteArray() shouldBe kmm.toByteArray()
-
-                    jvm.toByteArray().toBitSet().toByteArray() shouldBe kmm.toByteArray()
-                    BitSet.valueOf(jvm.toByteArray()).toByteArray() shouldBe kmm.toByteArray()
-                    BitSet.valueOf(kmm.toByteArray()).toByteArray() shouldBe kmm.toByteArray()
-                    BitSet.valueOf(jvm.toByteArray()).toByteArray() shouldBe jvm.toByteArray()
+                    kmm.toJavaBitSet().toByteArray() shouldBe jvm.toByteArray()
+                    jvm.toKmpBitSet().toByteArray() shouldBe kmm.toByteArray()
                 }
             }
         }
@@ -214,7 +223,7 @@ val BitSetTest by matrixSuite {
                         input.size * 2,
                         input.size * 4,
                     ).asData(name = "size") test { size ->
-                    val jvm = BitSet(size).also {
+                    val jvm = JavaBitSet(size).also {
                         input.indices.shuffled().forEach { i -> it.set(i, input[i]) }
                     }
                     val kmm = withClue("size: $size") {
@@ -241,4 +250,4 @@ val BitSetTest by matrixSuite {
         }
     }
 }
-fun BitSet.memDump(): String = toByteArray().joinToString(separator = " ") { it.toUByte().toString(2).padStart(8, '0') }
+private fun JavaBitSet.memDumpView(): String = toByteArray().joinToString(separator = " ") { it.toUByte().toString(2).padStart(8, '0') }

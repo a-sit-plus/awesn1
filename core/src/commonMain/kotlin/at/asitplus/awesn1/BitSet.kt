@@ -20,16 +20,26 @@ private fun getByteIndex(i: Long) : Int {
         if (it == Int.MAX_VALUE) throw IndexOutOfBoundsException("index = $i")
     }
 }
-private fun getBitIndex(i: Long) = (i % 8).toInt()
 
 private fun List<Byte>.getBit(index: Long): Boolean {
-    val byteIndex = getByteIndex(index)
-    return byteIndex < size && this[byteIndex].getBit(getBitIndex(index))
+    if (index < 0) throw IndexOutOfBoundsException("index = $index")
+    val byteIndex = index/8
+    if (byteIndex >= size) return false
+    val byte = this[byteIndex.toInt()]
+    return (byte and getBitMask(index)) != 0.toByte()
 }
 
-private fun Byte.getBit(index: Int): Boolean =
-    if (index !in 0..7) throw IndexOutOfBoundsException("bit index $index out of bounds.")
-    else (((1 shl index).toByte() and this) != 0.toByte())
+private fun getBitMask(index: Long) = when (index%8) {
+    0L -> 1.toByte()
+    1L -> 2.toByte()
+    2L -> 4.toByte()
+    3L -> 8.toByte()
+    4L -> 16.toByte()
+    5L -> 32.toByte()
+    6L -> 64.toByte()
+    7L -> 128.toByte()
+    else -> throw IndexOutOfBoundsException("bit index $index out of bounds.")
+}
 
 /**
  * Pure Kotlin Bit Set created by throwing a bunch of extension functions at a `MutableList<Byte>`.
@@ -58,13 +68,15 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
     fun copyOf(): BitSet = BitSet(ArrayList(buffer))
 
     /** List view on the bytes backing this bit set. */
-    val bytes: List<Byte> get() = ArrayList(buffer)
+    val bytes: List<Byte> = object : AbstractList<Byte>() {
+        override val size: Int get() = buffer.size
+        override fun get(index: Int): Byte = buffer[index]
+    }
 
-    /**
-     * Preallocates a buffer capable of holding [nBits] many bits
-     */
+    /** Preallocates a buffer capable of holding [nBits] many bits */
     constructor(nBits: Long = 0) : this(
-        ArrayList((getByteIndex(nBits).toLong() + 1).toNonnegativeIntChecked("BitSet preallocate size")))
+        ArrayList(getByteIndex(nBits).toLong().toNonnegativeIntChecked("BitSet preallocate size"))
+    )
 
     /**
      * Returns the bit at [index]. Never throws an exception when [index]>=0, as getting a bit outside the underlying
@@ -79,14 +91,27 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
      */
     fun nextSetBit(fromIndex: Long): Long {
         if (fromIndex < 0) throw IndexOutOfBoundsException("fromIndex = $fromIndex")
-        return (fromIndex until buffer.size.toLong()*8L).firstOrNull(buffer::getBit) ?: -1
+        if ((fromIndex / 8) >= buffer.size) return -1
+
+        var index = fromIndex
+        while ((index%8) != 0L) {
+            if (this[index]) return index
+            index++
+        }
+
+        for (i in getByteIndex(index) until buffer.size) {
+            val byte = buffer[i]
+            if (byte == 0.toByte()) continue
+            return i * 8L + byte.countTrailingZeroBits()
+        }
+        return -1
     }
 
     /**
      * Returns the first bit set to true *after* [index] (= exclusive).
      * @return the index of the first bit set to true, or -1 if there are no bits set to true
      */
-    fun nextSetBitAfter(index: Long):Long = nextSetBit(index+1)
+    fun nextSetBitAfter(index: Long): Long = if (index == Long.MAX_VALUE) -1 else nextSetBit(index+1)
 
     /** Using this is not required, but doing so before invoking [internalSet] is more efficient */
     private fun ensureCapacityForIndex(bitIndex: Long) {
@@ -101,10 +126,10 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
         val byteIndex = getByteIndex(index)
         if (value) {
             while (buffer.size <= byteIndex) buffer.add(0)
-            buffer[byteIndex] = buffer[byteIndex] or (1 shl getBitIndex(index)).toByte()
+            buffer[byteIndex] = buffer[byteIndex] or getBitMask(index)
         } else {
             if (buffer.size <= byteIndex) return
-            buffer[byteIndex] = buffer[byteIndex] and (1 shl getBitIndex(index)).toByte().inv()
+            buffer[byteIndex] = buffer[byteIndex] and getBitMask(index).inv()
         }
     }
     /** Sets the bit at [index] to [value] */
@@ -117,14 +142,17 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
     operator fun set(index: Int, value: Boolean) = set(index.toLong(), value)
     /** Sets the bits in [indexes] to [value] */
     operator fun set(indexes: LongRange, value: Boolean) {
-        if (value) indexes.maxOrNull()?.let(this::ensureCapacityForIndex)
+        if (indexes.isEmpty()) return
+        if (value) ensureCapacityForIndex(indexes.last)
         indexes.forEach { internalSet(it, value) }
         if (!value) compact()
     }
+    operator fun set(indexes: IntRange, value: Boolean) = set(indexes.toLongRange(), value)
 
     fun flip(index: Long) { this[index] = !this[index] }
     fun flip(indexes: LongRange) {
-        indexes.maxOrNull()?.let(this::ensureCapacityForIndex)
+        if (indexes.isEmpty()) return
+        ensureCapacityForIndex(indexes.last)
         indexes.forEach { internalSet(it, !get(it)) }
         compact()
     }
@@ -147,7 +175,7 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
     /**
      * Allocates a fresh byte array and writes the values of this bitset's underlying bytes to it.
      * Within each byte, index 0 is the least significant bit, while index 7 is the most significant bit.
-     * (This matches Java's `java.util.ByteArray`.)
+     * (This matches Java's `java.util.BitSet::toByteArray`.)
      */
     fun toByteArray(): ByteArray = buffer.toByteArray()
 
@@ -163,9 +191,11 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
         }
     }
 
+    val indices: LongRange get() = (0L..highestSetIndex())
+
     fun highestSetIndex() =
         if (buffer.isEmpty()) -1
-        else (buffer.size * 8L) - buffer.last().countLeadingZeroBits() + 1
+        else (buffer.size * 8L) - buffer.last().countLeadingZeroBits() - 1
 
     /**
      * Returns all bits as they are accessible by the global bit index
@@ -233,17 +263,20 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
 
 
     /**
-     * returns an iterator over bits. use [bytes]`.iterator()` to iterate over bytes. modifying the [BitSet] invalidates the iterator.
+     * returns an iterator over bits. use [bytes]`.iterator()` to iterate over bytes. modifying the [BitSet] invalidates the iterator, causing undefined behavior.
      */
     override fun iterator(): Iterator<Boolean> = object : Iterator<Boolean> {
         var index = 0L
         val max = highestSetIndex()
         override fun hasNext(): Boolean = index <= max
-        override fun next(): Boolean = get(index++)
+        override fun next(): Boolean = if (hasNext()) get(index++) else throw NoSuchElementException()
     }
 
     companion object {
 
+        @Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+        @kotlin.internal.LowPriorityInOverloadResolution
+        // marking this one as low priority because the Int one is older; it will still be selected if you explicitly pass a Long
         operator fun invoke(nBits: Long, initializer: (Long) -> Boolean): BitSet =
             BitSet(nBits).apply {
                 (0 until nBits).forEach {
@@ -260,7 +293,9 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
          * Wraps [bytes] into a BitSet. Copies all bytes.
          * Hence, modifications to [bytes] are **not** reflected in the newly created BitSet.
          */
-        operator fun invoke(bytes: ByteArray) = BitSet(bytes.toMutableList() as ArrayList)
+        operator fun invoke(bytes: ByteArray) =
+            BitSet(bytes.toCollection(ArrayList(bytes.size)))
+                .also(BitSet::compact)
 
         /**
          * Creates bitset from hunan-readably bit string representation
@@ -305,11 +340,7 @@ fun BitSet.clear(fromIndex: Long, toIndex: Long) = clear(fromIndex until toIndex
 fun BitSet.flip(index: Int) = flip(index.toLong())
 fun BitSet.flip(fromIndex: Long, toIndex: Long) = flip(fromIndex until toIndex)
 
-/**
- * copies this byteArray into a [BitSet]
- */
-fun ByteArray.toBitSet(): BitSet = BitSet(this)
-
+private fun IntRange.toLongRange() = LongRange(start.toLong(), endInclusive.toLong())
 
 /**
  * Serializer for [BitSet], behaving the same as serializing an [Asn1BitString]

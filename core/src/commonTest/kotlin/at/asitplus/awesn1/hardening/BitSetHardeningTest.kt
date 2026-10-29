@@ -114,5 +114,12 @@ val BitSetCompactionHardeningTest by matrixSuite {
             bits.toByteArray() shouldBe byteArrayOf(0x04)
             bits.toBitStringView() shouldBe "001"
         }
+
+        "long constructor" {
+            val bits = BitSet(8.toLong()) { it == 2L }
+
+            bits.toByteArray() shouldBe byteArrayOf(0x04)
+            bits.toBitStringView() shouldBe "001"
+        }
     }
 }
