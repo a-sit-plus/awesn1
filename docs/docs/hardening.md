@@ -164,7 +164,7 @@ The test harness includes:
       Even a small blob of tiny nested elements can allocate a large object graph (but never causes a stack overflow).
     - **`Source`** (streaming) parsing is always bounded by `maxInputLength`; its optional per-call byte `limit` can
       tighten that ceiling. The same holds for `Source.decodeAsn1VarBigInt(limit)`: a big varint has no inherent size
-      ceiling, unlike `decodeAsn1VarUInt`/`decodeAsn1VarULong`, which their target type caps at 5 resp. 9 continuation
+      ceiling, unlike `decodeAsn1VarUInt`/`decodeAsn1VarULong`, which their target type caps at 5 resp. 10 total
       bytes.
     - Via `kotlinx.serialization`, the cap is `DER { maxInputLength = … }` (default: target `ByteArray` ceiling); lower it for
       untrusted decode.
