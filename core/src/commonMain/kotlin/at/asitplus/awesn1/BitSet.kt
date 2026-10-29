@@ -29,17 +29,8 @@ private fun List<Byte>.getBit(index: Long): Boolean {
     return (byte and getBitMask(index)) != 0.toByte()
 }
 
-private fun getBitMask(index: Long) = when (index%8) {
-    0L -> 1.toByte()
-    1L -> 2.toByte()
-    2L -> 4.toByte()
-    3L -> 8.toByte()
-    4L -> 16.toByte()
-    5L -> 32.toByte()
-    6L -> 64.toByte()
-    7L -> 128.toByte()
-    else -> throw IndexOutOfBoundsException("bit index $index out of bounds.")
-}
+private fun getBitMask(index: Long) =
+    (1 shl (index.toInt() and 7)).toByte()
 
 /**
  * Pure Kotlin Bit Set created by throwing a bunch of extension functions at a `MutableList<Byte>`.
@@ -75,7 +66,7 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
 
     /** Preallocates a buffer capable of holding [nBits] many bits */
     constructor(nBits: Long = 0) : this(
-        ArrayList(getByteIndex(nBits).toLong().toNonnegativeIntChecked("BitSet preallocate size"))
+        ArrayList(getByteIndex(nBits) + if (nBits % 8 == 0L) 0 else 1)
     )
 
     /**

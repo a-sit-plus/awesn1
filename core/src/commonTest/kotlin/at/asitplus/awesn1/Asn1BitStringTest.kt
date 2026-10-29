@@ -26,12 +26,15 @@ val Asn1BitStringTest by matrixSuite {
     }
 
     "Bit String Test 2" {
-        val bitString = Asn1BitString(false)
-        bitString.numPaddingBits shouldBe 7.toByte()
+        val bitString = Asn1BitString(false, true)
+        bitString.numPaddingBits shouldBe 6.toByte()
         val encoded = bitString.encodeToDer()
         val decoded = Asn1BitString.decodeFromDer(encoded)
-        decoded.numPaddingBits shouldBe 7.toByte()
+        decoded shouldBe bitString
+        decoded.numPaddingBits shouldBe 6.toByte()
+        shouldThrow<IndexOutOfBoundsException> { decoded[-1] }
         decoded[0] shouldBe false
-        shouldThrow<IndexOutOfBoundsException> { decoded[1] }
+        decoded[1] shouldBe true
+        shouldThrow<IndexOutOfBoundsException> { decoded[2] }
     }
 }
