@@ -8,7 +8,6 @@ package at.asitplus.awesn1.serialization.internal
 
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import at.asitplus.awesn1.serialization.Der
@@ -131,8 +130,8 @@ class DerDecoder internal constructor(
 
     /*single call site; code is more legible like that and inline saves a stack frame*/
     internal inline fun peekCurrentElementTagOrNull(): Asn1Element.Tag? = cursor.currentOrNull()?.tag
-    /*single call site; code is more legible like that and inline saves a stack frame*/
-    internal fun peekCurrentElementOrNull(): Asn1Element? = cursor.currentOrNull()?.readTree(
+    /** Inspects the current value as a full tree. Materializes source-backed subtrees up to the remaining depth. */
+    internal fun materializeCurrentElementOrNull(): Asn1Element? = cursor.currentOrNull()?.readTree(
         depthGuard.remainingDepth(der.configuration.maxNestingDepth)
     )
 

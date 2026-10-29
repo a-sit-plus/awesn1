@@ -8,6 +8,8 @@ package at.asitplus.awesn1.serialization
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.hardening.IncrementalFixtures
+import at.asitplus.awesn1.serialization.internal.FailOnce
+import at.asitplus.awesn1.serialization.internal.FailedState
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -329,5 +331,14 @@ val IncrementalDecodingTest by matrixSuite {
         shouldThrow<SerializationException> {
             DER.decodeFromByteArray(TwoRootsSerializer, bytes)
         }.message shouldContain "direct-child limit"
+    }
+
+    "poisoned state machine keeps its originating failure" {
+        val failures = FailOnce()
+        val origin = IllegalStateException("origin")
+        shouldThrow<IllegalStateException> { failures.operation("peek") { throw origin } }
+        val poison = shouldThrow<FailedState> { failures.operation("advance") { error("must not run") } }
+        poison.message shouldContain "origin"
+        poison.cause shouldBe origin
     }
 }

@@ -8,6 +8,28 @@ package at.asitplus.awesn1.serialization.internal
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.internal.*
 
+/**
+ * One-shot poison: after any failure the state machine's position is unknowable, so every later operation fails
+ * fast. Carries the originating failure along so the poison message names the real problem.
+ */
+internal class FailedState(failure: Throwable, operation: String) : IllegalStateException(
+    "ASN.1 " + operation + " is unavailable after a previous failure: " + failure.message, failure,
+)
+
+internal class FailOnce {
+    // internal (not private) so the state machines in this file can share the inline guard
+    internal var failure: Throwable? = null
+    internal inline fun <T> operation(name: String, block: () -> T): T {
+        failure?.let { throw FailedState(it, name) }
+        try {
+            return block()
+        } catch (t: Throwable) {
+            if (failure == null) failure = t
+            throw t
+        }
+    }
+}
+
 internal sealed interface DerValue {
     val tag: Asn1Element.Tag
     val contentLength: Long
@@ -54,11 +76,7 @@ internal sealed interface DerValue {
         private val start = source.bytesRead
         private var cached: TreeBacked? = null
         private var consumed = false
-        private var failed = false
-        private inline fun <T> operation(block: () -> T): T {
-            check(!failed) { "ASN.1 value has failed" }
-            return try { block() } catch (failure: Throwable) { failed = true; throw failure }
-        }
+        private val failed = FailOnce()
         private fun requireUnread() {
             check(source.bytesRead == start) { "ASN.1 value was already entered or consumed" }
         }
@@ -68,13 +86,13 @@ internal sealed interface DerValue {
         override val tag get() = header.tag
         override val contentLength get() = header.contentLength
         override val isPrimitive get() = !tag.isConstructed
-        override fun readPrimitive(): Asn1Primitive = operation {
+        override fun readPrimitive(): Asn1Primitive = failed.operation("value") {
             cached?.readPrimitive() ?: run {
                 requireUnread()
                 source.readAsn1Primitive(header).also { consumed = true }
             }
         }
-        override fun readTree(maxNestingDepth: Int): Asn1Element = operation {
+        override fun readTree(maxNestingDepth: Int): Asn1Element = failed.operation("value tree") {
             if (cached == null) {
                 requireUnread()
                 cached = TreeBacked(source.readAsn1Element(
@@ -83,7 +101,7 @@ internal sealed interface DerValue {
             }
             cached!!.readTree(maxNestingDepth)
         }
-        override fun children(maxChildren: Int?, allowPrimitiveContent: Boolean): DerInput = operation {
+        override fun children(maxChildren: Int?, allowPrimitiveContent: Boolean): DerInput = failed.operation("value children") {
             cached?.children(maxChildren, allowPrimitiveContent) ?: run {
                 requireUnread()
                 check(!isPrimitive || allowPrimitiveContent || (tag == Asn1Element.Tag.OCTET_STRING && contentLength > 0)) {
@@ -96,7 +114,7 @@ internal sealed interface DerValue {
                 source.wrapInDerInput(remainingDepth?.minus(1), maxChildren, end) { consumed = true }
             }
         }
-        override fun peekFirstPrimitive(expectedTag: Asn1Element.Tag): Asn1Primitive? = operation {
+        override fun peekFirstPrimitive(expectedTag: Asn1Element.Tag): Asn1Primitive? = failed.operation("value peek") {
             if (cached != null) cached!!.peekFirstPrimitive(expectedTag)
             else if (contentLength == 0L) null
             else {
@@ -108,7 +126,7 @@ internal sealed interface DerValue {
                 if (child.tag != expectedTag || child.tag.isConstructed) null else view.readAsn1Primitive(child)
             }
         }
-        override fun requireConsumed() = operation {
+        override fun requireConsumed() = failed.operation("value consume") {
             cached?.let { it.requireConsumed() } ?: check(consumed) { "ASN.1 value was not consumed" }
         }
     }
@@ -120,29 +138,25 @@ internal class DerInput(
     private val onFinish: () -> Unit = {},
 ) {
     private var current: DerValue? = null
-    private var failed = false
+    private val failed = FailOnce()
     private var consumedElements = 0
     init {
         require(maxChildren == null || maxChildren >= 0) { "Child limit must be non-negative" }
     }
-    private inline fun <T> operation(block: () -> T): T {
-        check(!failed) { "ASN.1 input has failed" }
-        return try { block() } catch (failure: Throwable) { failed = true; throw failure }
-    }
-    fun hasNext() = operation { current != null || values.hasNext() }
-    fun peek(): DerValue? = operation {
+    fun hasNext() = failed.operation("input") { current != null || values.hasNext() }
+    fun peek(): DerValue? = failed.operation("input peek") {
         if (current == null && values.hasNext()) {
             check(maxChildren == null || consumedElements < maxChildren) { "ASN.1 direct-child limit exceeded" }
             current = values.next()
         }
         current
     }
-    fun advance() = operation {
+    fun advance() = failed.operation("input advance") {
         checkNotNull(current) { "No current ASN.1 value" }.requireConsumed()
         consumedElements++
         current = null
     }
-    fun finish() = operation {
+    fun finish() = failed.operation("input finish") {
         check(!hasNext()) { "Unread ASN.1 content" }
         onFinish()
     }

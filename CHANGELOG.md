@@ -2,6 +2,14 @@
 
 ## NEXT
 * **Fixes:**
+    * **Breaking:** DER decoding of `ByteArray` and `Source` input is now incremental: `maxInputLength` and
+      `maxNestingDepth` apply to headers before any payload materializes, and success requires consuming exactly
+      one complete root value. Trailing bytes after the root element (previously silently ignored by
+      `decodeFromByteArray`) and any unread content inside decoded containers are now rejected. `decodeFromTlv`
+      keeps operating on a fully parsed tree.
+    * **Breaking:** Removed the `oidSelector` parameter of `asn1OpenPolymorphicByOidSerializer` and
+      `polymorphicByOid`. The OID discriminator is now consumed as the first child during decoding, so custom
+      selectors cannot be honored anymore.
     * **Breaking:** `@Asn1Tag(tagClass = INFER)` now resolves to and validates `CONTEXT_SPECIFIC` on decode; use an explicit tag class for APPLICATION, PRIVATE, or UNIVERSAL tags.
     * **Breaking:** the string-based fallback serializers (`Asn1IntegerDecimalStringSerializer`, `Asn1IntegerHexStringSerializer`, `Asn1RealStringSerializer`, `ObjectIdentifierStringSerializer` and friends) are now rejected by the DER format on both encode and decode. Previously an explicit `@Serializable(with = ...)` naming one was silently ignored on encode and then rejected on decode, so the format emitted output it could not read back. Remove the explicit annotation to use the type's own ASN.1 serializer; the fallbacks remain available for string-based formats such as JSON.
     * **Breaking:** a Kotlin `String`/`Char` property now maps to exactly `UTF8String` in both directions; previously it encoded as `UTF8String` but decoded eight different string types, silently rewriting the tag on re-encode. Declare `Asn1String` to tolerate and preserve any string type, a concrete subtype to require one, or `@Asn1Tag` to pin the wire tag while keeping the Kotlin type.
