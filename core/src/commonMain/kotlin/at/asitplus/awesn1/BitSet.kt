@@ -63,9 +63,9 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
     }
 
     /** Preallocates a buffer capable of holding [nBits] many bits */
-    constructor(nBits: Long = 0) : this(
-        ArrayList(getByteIndex(nBits) + if (nBits % 8 == 0L) 0 else 1)
-    )
+    constructor(nBits: Long = 0) : this(ArrayList()) {
+        if (nBits > 0) ensureCapacityForIndex(nBits-1)
+    }
 
     /**
      * Returns the bit at [index]. Never throws an exception when [index]>=0, as getting a bit outside the underlying
