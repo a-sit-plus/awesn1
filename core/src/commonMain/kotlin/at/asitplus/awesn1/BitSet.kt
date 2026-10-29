@@ -181,6 +181,7 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
 
     val indices: LongRange get() = (0L..highestSetIndex())
 
+    fun isEmpty() = buffer.isEmpty()
     fun highestSetIndex() =
         if (buffer.isEmpty()) -1
         else (buffer.size * 8L) - buffer.last().countLeadingZeroBits() - 1
@@ -277,13 +278,18 @@ class BitSet private constructor(private val buffer: ArrayList<Byte>) : Iterable
         operator fun invoke(vararg bits: Boolean) =
             invoke(bits.size) { bits[it] }
 
-        /**
-         * Wraps [bytes] into a BitSet. Copies all bytes.
-         * Hence, modifications to [bytes] are **not** reflected in the newly created BitSet.
-         */
-        operator fun invoke(bytes: ByteArray) =
+        @Deprecated("Renamed to disambiguate between bits and bytes", level = DeprecationLevel.WARNING,
+            replaceWith = ReplaceWith("BitSet.fromBytes(bytes)"))
+        operator fun invoke(bytes: ByteArray) = fromBytes(bytes)
+
+        /** Wraps [bytes] (with the same semantics as [BitSet.toByteArray]) into a BitSet. Copies all bytes. */
+        fun fromBytes(bytes: ByteArray) =
             BitSet(bytes.toCollection(ArrayList(bytes.size)))
                 .also(BitSet::compact)
+
+        /** Constructs a [BitSet] from the supplied bytes (with the same semantics as [BitSet.toByteArray]). Copies all bytes. */
+        fun fromBytes(nBytes: Int, valueSupplier: (Int)->Byte) =
+            BitSet(ArrayList<Byte>(nBytes).also { repeat(nBytes) { i -> it.add(valueSupplier(i)) } })
 
         /**
          * Creates bitset from hunan-readably bit string representation
@@ -337,9 +343,9 @@ object BitSetSerializer : KSerializer<BitSet> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("at.asitplus.awesn1.BitSet", PrimitiveKind.STRING)
 
     override fun deserialize(decoder: Decoder): BitSet =
-        decoder.decodeSerializableValue(Asn1BitString.serializer()).toBitSet()
+        decoder.decodeSerializableValue(Asn1BitString.NamedBitList.serializer()).toBitSet()
 
     override fun serialize(encoder: Encoder, value: BitSet) =
-        encoder.encodeSerializableValue(Asn1BitString.serializer(), Asn1BitString(value))
+        encoder.encodeSerializableValue(Asn1BitString.NamedBitList.serializer(), Asn1BitString.fromBitSet(value))
 
 }

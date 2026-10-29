@@ -56,6 +56,7 @@ fun Uuid.Companion.fromBigintOrNull(bigInteger: BigInteger): Uuid? =
  */
 @InternalAwesn1Api
 @Throws(IllegalArgumentException::class)
+@IgnorableReturnValue
 fun Sink.writeAsn1VarInt(number: BigInteger): Int {
     if (number == BigInteger.ZERO) { //fast case
         writeByte(0)
