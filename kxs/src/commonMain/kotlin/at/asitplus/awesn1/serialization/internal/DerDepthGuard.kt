@@ -12,6 +12,11 @@ import kotlinx.serialization.SerializationException
  * Guards structural recursion shared by a root DER encoder/decoder and all of its children.
  */
 internal class DerDepthGuard(private var depth: Int = 0) {
+    fun remainingDepth(maxNestingDepth: Int): Int {
+        check(depth in 0..maxNestingDepth) { "Invalid ASN.1 typed nesting depth" }
+        return maxNestingDepth - depth
+    }
+
     fun enter(maxNestingDepth: Int, serialName: String) {
         depth++
         if (depth > maxNestingDepth) {
