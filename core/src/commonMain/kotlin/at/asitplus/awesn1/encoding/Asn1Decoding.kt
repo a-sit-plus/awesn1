@@ -549,7 +549,7 @@ fun Asn1Primitive.decodeToInstant() =
 fun Asn1Primitive.decodeToInstantOrNull() = catchingUnwrapped { decodeToInstant() }.getOrNull()
 
 /**
- * Transforms this [Asn1Primitive]' into an [Asn1BitString], assuming it was encoded as BIT STRING
+ * Transforms this [Asn1Primitive]' into an [Asn1AbstractBitString], assuming it was encoded as BIT STRING
  * @throws Asn1Exception  on invalid input
  */
 @Throws(Asn1Exception::class)

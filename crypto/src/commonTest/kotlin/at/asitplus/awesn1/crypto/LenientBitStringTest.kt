@@ -1,10 +1,8 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
-import at.asitplus.awesn1.BitSet
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.crypto.Sec1EcPublicKeyInfo.Companion.ec
 import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
@@ -13,7 +11,6 @@ import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
 import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.testballoon.matrix.matrixSuite
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -21,22 +18,20 @@ import kotlin.time.Instant
 
 val LenientBitStringTest by matrixSuite {
 
-    "malformed unique ID decodes but strict getter throws lazily" {
-        val validDer = DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = BitSet.fromString("111").let(::Asn1BitString)))
+    "malformed unique ID decodes and round trips" {
+        val validDer = DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = Asn1BitString(byteArrayOf(0xe0.toByte()), 5)))
         val malformedDer = validDer.replaceFirst(
             byteArrayOf(0x81.toByte(), 0x02, 0x05, 0xE0.toByte()),
             byteArrayOf(0x81.toByte(), 0x02, 0x05, 0xE1.toByte()),
         )
 
-        val decoded = DER.decodeFromByteArray<X509TbsCertificate>(malformedDer)
-        val decodedAgain = DER.decodeFromByteArray<X509TbsCertificate>(malformedDer)
+        val decodedValid = DER.decodeFromByteArray<X509TbsCertificate>(validDer)
+        val decodedInvalid = DER.decodeFromByteArray<X509TbsCertificate>(malformedDer)
 
-        decoded shouldBe decodedAgain
-        decoded.hashCode() shouldBe decodedAgain.hashCode()
-        DER.encodeToByteArray(decoded) shouldBe malformedDer
-        shouldThrow<Asn1Exception> {
-            decoded.issuerUniqueID
-        }.message shouldBe "Last 5 padding bits must be zeroed out. Last byte is: 11100001"
+        decodedValid shouldBe decodedInvalid
+        decodedValid.hashCode() shouldBe decodedInvalid.hashCode()
+        DER.encodeToByteArray(decodedInvalid) shouldBe malformedDer
+        decodedValid.issuerUniqueID shouldBe decodedInvalid.issuerUniqueID
     }
 
     "absent unique ID remains null" {
@@ -47,8 +42,8 @@ val LenientBitStringTest by matrixSuite {
     }
 
     "valid unique IDs round-trip through semantic getters" {
-        val issuer = Asn1BitString(BitSet.fromString("101"))
-        val subject = Asn1BitString(BitSet.fromString("111000001"))
+        val issuer = Asn1BitString(true, false, true)
+        val subject = Asn1BitString(true, true, true, false, false, false, false, false, true)
         val decoded = DER.decodeFromByteArray<X509TbsCertificate>(
             DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = issuer, subjectUniqueID = subject))
         )

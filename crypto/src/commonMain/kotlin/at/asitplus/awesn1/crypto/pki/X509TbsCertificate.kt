@@ -6,13 +6,12 @@ package at.asitplus.awesn1.crypto.pki
 import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1Time
-import at.asitplus.awesn1.crypto.*
+import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
+import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.serialization.Asn1Tag
 import at.asitplus.awesn1.serialization.ExplicitlyTagged
 import at.asitplus.awesn1.serialization.getValue
 import kotlinx.serialization.Serializable
-import kotlin.experimental.ExperimentalObjCRefinement
-import kotlin.native.HiddenFromObjC
 
 
 /**
@@ -86,9 +85,9 @@ data class X509TbsCertificate internal constructor(
     val subjectName: X500Name,
     val subjectPublicKeyInfo: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 1u)
-    val rawIssuerUniqueID: LenientBitString? = null,
+    val issuerUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 2u)
-    val rawSubjectUniqueID: LenientBitString? = null,
+    val subjectUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 3u)
     private val taggedExtensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
 ) {
@@ -112,8 +111,8 @@ data class X509TbsCertificate internal constructor(
         validity = Validity(validFrom, validUntil),
         subjectName = subjectName,
         subjectPublicKeyInfo = subjectPublicKeyInfo,
-        rawIssuerUniqueID = issuerUniqueID?.let(::LenientBitString),
-        rawSubjectUniqueID = subjectUniqueID?.let(::LenientBitString),
+        issuerUniqueID = issuerUniqueID,
+        subjectUniqueID = subjectUniqueID,
         taggedExtensions = extensions?.takeIf { it.isNotEmpty() }?.let(::ExplicitlyTagged),
     )
 
@@ -126,34 +125,6 @@ data class X509TbsCertificate internal constructor(
 
     val version: Version get() = rawVersion ?: Version.V1
 
-    /**
-     * Hidden from Objective-C because a throwing getter cannot be bridged (see
-     * [KT-63047](https://youtrack.jetbrains.com/issue/KT-63047)); from Swift/Objective-C use the
-     * throwing `issuerUniqueID()` accessor instead.
-     *
-     * @throws IllegalArgumentException if the encoded issuer unique ID is structurally invalid
-     */
-    @OptIn(ExperimentalObjCRefinement::class)
-    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
-    @get:Throws(IllegalArgumentException::class)
-    @HiddenFromObjC
-    @get:HiddenFromObjC
-    val issuerUniqueID: Asn1BitString? by rawIssuerUniqueID
-
-    /**
-     * Hidden from Objective-C because a throwing getter cannot be bridged (see
-     * [KT-63047](https://youtrack.jetbrains.com/issue/KT-63047)); from Swift/Objective-C use the
-     * throwing `subjectUniqueID()` accessor instead.
-     *
-     * @throws IllegalArgumentException if the encoded subject unique ID is structurally invalid
-     */
-    @OptIn(ExperimentalObjCRefinement::class)
-    @Suppress("WRONG_ANNOTATION_TARGET_WITH_USE_SITE_TARGET")
-    @get:Throws(IllegalArgumentException::class)
-    @HiddenFromObjC
-    @get:HiddenFromObjC
-    val subjectUniqueID: Asn1BitString? by rawSubjectUniqueID
-
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is X509TbsCertificate) return false
@@ -165,8 +136,8 @@ data class X509TbsCertificate internal constructor(
         if (validity != other.validity) return false
         if (subjectName != other.subjectName) return false
         if (subjectPublicKeyInfo != other.subjectPublicKeyInfo) return false
-        if (rawIssuerUniqueID != other.rawIssuerUniqueID) return false
-        if (rawSubjectUniqueID != other.rawSubjectUniqueID) return false
+        if (issuerUniqueID != other.issuerUniqueID) return false
+        if (subjectUniqueID != other.subjectUniqueID) return false
         if (taggedExtensions != other.taggedExtensions) return false
 
         return true
@@ -180,9 +151,9 @@ data class X509TbsCertificate internal constructor(
         result = 31 * result + validity.hashCode()
         result = 31 * result + subjectName.hashCode()
         result = 31 * result + subjectPublicKeyInfo.hashCode()
-        result = 31 * result + (rawIssuerUniqueID?.hashCode() ?: 0)
-        result = 31 * result + (rawSubjectUniqueID?.hashCode() ?: 0)
-        result = 31 * result + (taggedExtensions?.hashCode() ?: 0)
+        result = 31 * result + issuerUniqueID.hashCode()
+        result = 31 * result + subjectUniqueID.hashCode()
+        result = 31 * result + taggedExtensions.hashCode()
         return result
     }
 
@@ -204,16 +175,6 @@ data class X509TbsCertificate internal constructor(
 
 
 }
-
-/**
- * Non-throwing variant of [X509TbsCertificate.issuerUniqueID] that returns null if the bit string is malformed.
- */
-val X509TbsCertificate.issuerUniqueIdOrNull: Asn1BitString? get() = rawIssuerUniqueID?.strictOrNull
-
-/**
- * Non-throwing variant of [X509TbsCertificate.subjectUniqueID] that returns null if the bit string is malformed.
- */
-val X509TbsCertificate.subjectUniqueIdOrNull: Asn1BitString? get() = rawSubjectUniqueID?.strictOrNull
 
 /**
  * As per [RFC5280](https://www.rfc-editor.org/rfc/rfc5280.html#section-4.1):

@@ -4,15 +4,8 @@
 package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.catchingUnwrapped
-import at.asitplus.awesn1.runRethrowing
-import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.WrappedEncodable
-import at.asitplus.awesn1.encoding.decodeToAsn1Integer
-import at.asitplus.awesn1.encoding.parse
 import kotlinx.serialization.Serializable
 import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.jvm.JvmInline
@@ -46,7 +39,7 @@ value class X509SignatureValue(val rawBitString: Asn1BitString): WrappedEncodabl
     @HiddenFromObjC
     @get:HiddenFromObjC
     val rawBytes: ByteArray get() = rawBitString.also {
-        if (it.numPaddingBits != 0.toByte())
+        if (it.numPaddingBits != 0)
             throw Asn1Exception("The signature value must not have padding bits")
     }.bitCarryingBytes
 }

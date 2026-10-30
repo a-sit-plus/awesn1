@@ -13,6 +13,8 @@ import kotlin.experimental.or
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+import java.util.BitSet as JavaBitSet
+
 private fun Asn1Integer.Sign.toJavaBigIntegerSign() = when (this) {
     Asn1Integer.Sign.POSITIVE -> 1
     Asn1Integer.Sign.NEGATIVE -> -1
@@ -54,6 +56,7 @@ fun Uuid.Companion.fromBigintOrNull(bigInteger: BigInteger): Uuid? =
  */
 @InternalAwesn1Api
 @Throws(IllegalArgumentException::class)
+@IgnorableReturnValue
 fun Sink.writeAsn1VarInt(number: BigInteger): Int {
     if (number == BigInteger.ZERO) { //fast case
         writeByte(0)
@@ -77,3 +80,6 @@ fun Sink.writeAsn1VarInt(number: BigInteger): Int {
 @OptIn(InternalAwesn1Api::class)
 @Throws(IllegalArgumentException::class)
 fun BigInteger.toAsn1VarInt(): ByteArray = ByteArraySink().also { it.writeAsn1VarInt(this) }.readByteArray()
+
+fun BitSet.toJavaBitSet() : JavaBitSet = JavaBitSet.valueOf(this.toByteArray())
+fun JavaBitSet.toKmpBitSet() : BitSet = BitSet(this.toByteArray())

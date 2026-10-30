@@ -224,6 +224,7 @@ interface Buffer : Source<Buffer>, Sink {
 }
 
 @InternalAwesn1Api
+@IgnorableReturnValue
 inline fun Sink.writeUByte(uByte: UByte) = writeByte(uByte.toByte())
 
 //turns out, we never used ByteArraySource. it was just dead code.

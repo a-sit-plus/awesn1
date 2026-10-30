@@ -19,7 +19,7 @@ value class SignatureValue
 private constructor(val rawBitString: Asn1BitString) : Asn1Encodable<Asn1Primitive> {
 
     init {
-        if (rawBitString.numPaddingBits != 0.toByte()) throw Asn1Exception("The signature value must have padding bits")
+        if (rawBitString.numPaddingBits != 0) throw Asn1Exception("The signature value must have padding bits")
     }
 
     constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
@@ -41,12 +41,12 @@ private constructor(val rawBitString: Asn1BitString) : Asn1Encodable<Asn1Primiti
     override fun encodeToTlv(): Asn1Primitive = rawBitString.encodeToTlv()
 
     companion object : Asn1Serializable<Asn1Primitive, SignatureValue> {
-        override val leadingTags = Asn1BitString.leadingTags
+        override val leadingTags = Asn1AbstractBitString.leadingTags
         override fun doDecode(src: Asn1Primitive): SignatureValue {
             return SignatureValue(src.asAsn1BitString())
         }
 
-        operator fun invoke(rawBitString: Asn1BitString) : SignatureValue = SignatureValue(rawBitString)
+        operator fun invoke(rawBitString: Asn1AbstractBitString) : SignatureValue = SignatureValue(rawBitString)
         /**
          * Constructs a Signature value from [r] and [s] coordinates (as used by ECDSA, and DSA, for example)
          */

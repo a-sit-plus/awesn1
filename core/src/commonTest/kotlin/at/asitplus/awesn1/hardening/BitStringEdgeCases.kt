@@ -13,19 +13,18 @@ import kotlin.random.Random
 val bitStringEdgeCases by matrixSuite {
     testSuite("empty") {
         "legal (03 01 00)" {
-            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 01 00") as Asn1Primitive) shouldBe Asn1BitString(
+            Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 01 00") as Asn1Primitive) shouldBe Asn1BitString(
                 byteArrayOf()
             )
         }
         "illegal (03 00)" {
-            shouldThrow<Asn1Exception> { Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00") as Asn1Primitive) }.message shouldBe "Empty ASN.1 BIT STRING found"
+            shouldThrow<Asn1Exception> { Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00") as Asn1Primitive) }.message shouldBe "Empty ASN.1 BIT STRING found"
         }
-
         "illegal (03 00 00)" {
-            shouldThrow<Asn1Exception> { Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00 00") as Asn1Primitive) }.message shouldBe "Trailing bytes found after the first ASN.1 element"
+            shouldThrow<Asn1Exception> { Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00 00") as Asn1Primitive) }.message shouldBe "Trailing bytes found after the first ASN.1 element"
         }
         "legal (03 20 00 00)" {
-            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 00 00") as Asn1Primitive) shouldBe Asn1BitString(
+            Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 00 00") as Asn1Primitive) shouldBe Asn1BitString(
                 byteArrayOf(0)
             )
         }
@@ -38,36 +37,35 @@ val bitStringEdgeCases by matrixSuite {
             val bitStringStart = "03 0${len + 1} ${numPaddingBits.hexPadded()} "
             data("prefix", List(40) { _ ->
                 var name = bitStringStart
-                repeat(len - 1) { name += Random.nextInt(0, 255).toByte().hexPadded() + " " }
+                repeat(len - 1) { name += Random.nextInt(0, 256).toByte().hexPadded() + " " }
                 name
             }, nameFn = {
                 it + "xx"
             }) { execution = ExecutionMode.Sequential } - { hexBytes ->
                 compact("generated") - {
                     val legal = legalFinalBytes(numPaddingBits.toInt())
-                    val illegal = List(255) { it.toByte() }.filterNot { it in legal }
+                    val illegal = List(256) { it.toByte() }.filterNot { it in legal }
 
                     if (legal.isNotEmpty()) "zero-ed out (legal)" - {
                         data("byte", legal, nameFn = { "xx = ${it.hexPadded()}" }) test { i ->
                             val derEncoded = "$hexBytes${i.hexPadded()}"
-                            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded) as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
-                                numPaddingBits,
-                                derEncoded.replace(" ", "").substring(6).hexToByteArray(HexFormat.UpperCase)
+                            Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded) as Asn1Primitive) shouldBe Asn1BitString(
+                                derEncoded.replace(" ", "").substring(6).hexToByteArray(HexFormat.UpperCase),
+                                numPaddingBits.toInt()
                             )
                         }
                     }
 
-                    if (illegal.isNotEmpty()) "not zeroed-out illegal" - {
+                    if (illegal.isNotEmpty()) "not zeroed-out (lenient)" - {
                         data(
                             "byte",
                             illegal,
                             nameFn = { "xx = ${it.hexPadded()}" },
                         ) test { i ->
-                            shouldThrow<Asn1Exception> {
-                                Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("$hexBytes${i.hexPadded()}") as Asn1Primitive)
-                            }.message shouldBe "Last $numPaddingBits padding bits must be zeroed out. Last byte is: ${
-                                i.toUByte().toString(2).padStart(8, '0')
-                            }"
+                            val der = "$hexBytes${i.hexPadded()}"
+                            val bytes = der.replace(" ", "").substring(6).hexToByteArray(HexFormat.UpperCase)
+                            bytes[bytes.lastIndex] = (i.toInt() and (0xFF shl numPaddingBits.toInt())).toByte()
+                            assertLenientRoundTrip(der, bytes)
                         }
                     }
                 }
@@ -75,14 +73,12 @@ val bitStringEdgeCases by matrixSuite {
         }
     }
 
-    compact("Illegal number of padding bits") - {
+    compact("Noncanonical padding-count octet") - {
         data(
-            List(255) { it.toByte() }.filterNot { it < 8.toByte() },
+            List(256) { it.toByte() }.filterNot { it.toInt() in 0..7 },
             nameFn = { "numPaddingBits = $it" },
         ) test { numPaddingBits ->
-            shouldThrow<Asn1Exception> {
-                Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 ${numPaddingBits.hexPadded()} 00") as Asn1Primitive)
-            }.message shouldBe "Number of padding bits must be in range 0..7. Found: $numPaddingBits"
+            assertLenientRoundTrip("03 02 ${numPaddingBits.hexPadded()} 00", byteArrayOf(0))
         }
     }
 
@@ -90,15 +86,13 @@ val bitStringEdgeCases by matrixSuite {
 
         val legal = "03 01 00"
         legal {
-            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(legal) as Asn1Primitive) shouldBe Asn1BitString(
+            Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString(legal) as Asn1Primitive) shouldBe Asn1BitString(
                 byteArrayOf()
             )
         }
 
-        data("hex", List(7) { "03 01 ${(it + 1).toByte().hexPadded()}" }) test { illegal ->
-            shouldThrow<Asn1Exception> {
-                Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(illegal) as Asn1Primitive)
-            }.message shouldBe "Raw bytes must not be empty if padding bits are set"
+        data("hex", List(7) { "03 01 ${(it + 1).toByte().hexPadded()}" }) test { noncanonical ->
+            assertLenientRoundTrip(noncanonical, byteArrayOf())
         }
     }
 
@@ -111,26 +105,31 @@ val manualBitStringPadding by matrixSuite {
         }
         compact("zero (legal)") - {
             data( legal, nameFn = { "xx = ${it.hexPadded()}" }) test { i ->
-                Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive) shouldBe Asn1BitString.fromRawParts(
-                    0x03.toByte(), byteArrayOf(i)
+                Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive) shouldBe Asn1BitString(
+                    byteArrayOf(i), 0x03
                 )
             }
         }
 
-        compact("illegal") - {
-            data(                List(255) { it.toByte() }.filterNot { it in legal },
+        compact("noncanonical") - {
+            data(List(256) { it.toByte() }.filterNot { it in legal },
                 nameFn = { "xx = ${it.hexPadded()}" },
             ) test { i ->
-                shouldThrow<Asn1Exception> {
-                    Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive)
-                }.message shouldBe "Last 3 padding bits must be zeroed out. Last byte is: ${
-                    i.toUByte().toString(2).padStart(8, '0')
-                }"
+                assertLenientRoundTrip(
+                    "03 02 03 ${i.hexPadded()}",
+                    byteArrayOf((i.toInt() and 0xF8).toByte())
+                )
             }
 
         }
 
     }
+}
+
+private fun assertLenientRoundTrip(der: String, expectedBytes: ByteArray) {
+    val decoded = Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString(der) as Asn1Primitive)
+    decoded.encodeToTlv().derEncoded.toHexString(HexFormat.UpperCase) shouldBe der.replace(" ", "")
+    decoded.bitCarryingBytes.toList() shouldBe expectedBytes.toList()
 }
 
 private fun Byte.hexPadded(): String = toUByte().toHexString(HexFormat.UpperCase).padStart(2, '0')
