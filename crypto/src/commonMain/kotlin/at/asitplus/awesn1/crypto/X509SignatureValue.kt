@@ -22,11 +22,11 @@ import kotlin.native.HiddenFromObjC
  */
 @JvmInline
 @Serializable
-value class X509SignatureValue(val rawBitString: Asn1BitString.General): WrappedEncodable<Asn1BitString.General> {
+value class X509SignatureValue(val rawBitString: Asn1BitString): WrappedEncodable<Asn1BitString> {
 
-    override val value: Asn1BitString.General get() = rawBitString
+    override val value: Asn1BitString get() = rawBitString
 
-    constructor(rawBytes: ByteArray) : this(Asn1BitString.fromByteArray(rawBytes))
+    constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
     /**
      * The bytes carried in the signature value.

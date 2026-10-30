@@ -36,12 +36,12 @@ val Asn1EncodingTest by matrixSuite {
 
     val bitSet = BitSet.fromString("011011100101110111")
     "Bit String" {
-        val fromBitSet = Asn1BitString.fromBitSet(bitSet)
+        val fromBitSet = Asn1NamedBitList(bitSet)
         fromBitSet.encodeToTlv().toDerHexString() shouldBe "0304066E5DC0"
         fromBitSet.toBitSet().toBitStringView() shouldBe "011011100101110111"
         fromBitSet.toBitSet() shouldBe bitSet
 
-        Asn1BitString.NamedBitList.decodeFromTlv(Asn1.Sequence { +Asn1.BitString(bitSet) }.children.first() as Asn1Primitive)
+        Asn1NamedBitList.decodeFromTlv(Asn1.Sequence { +Asn1.BitString(bitSet) }.children.first() as Asn1Primitive)
             .toBitSet() shouldBe bitSet
     }
 

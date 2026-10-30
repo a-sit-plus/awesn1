@@ -1,7 +1,7 @@
 package at.asitplus.awesn1.hardening
 
-import at.asitplus.awesn1.Asn1BitString
 import at.asitplus.awesn1.Asn1Exception
+import at.asitplus.awesn1.Asn1NamedBitList
 import at.asitplus.awesn1.BitSet
 import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.testballoon.matrix.matrixSuite
@@ -51,8 +51,8 @@ val BitSetCompactionHardeningTest by matrixSuite {
     }
 
     "Asn1BitString from preallocated BitSet does not encode backing zero bytes" {
-        val empty = Asn1BitString.fromBitSet(BitSet(64))
-        val sparse = Asn1BitString.fromBitSet(BitSet(64).also { it[2] = true })
+        val empty = Asn1NamedBitList(BitSet(64))
+        val sparse = Asn1NamedBitList(BitSet(64).also { it[2] = true })
 
         empty.numPaddingBits shouldBe 0
         empty.bitCarryingBytes shouldBe byteArrayOf()

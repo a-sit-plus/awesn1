@@ -23,7 +23,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SubjectPublicKeyInfo(
     val algorithmIdentifier: X509AlgorithmIdentifier,
-    val subjectPublicKey: Asn1BitString.General,
+    val subjectPublicKey: Asn1BitString,
 ) : WithPemLabel {
 
     val algorithmOid: ObjectIdentifier get() = algorithmIdentifier.oid

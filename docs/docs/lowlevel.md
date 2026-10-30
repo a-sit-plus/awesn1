@@ -88,7 +88,7 @@ The core module includes rich semantic types beyond raw TLV primitives:
 - `Asn1Real`: ASN.1 REAL with arbitrary precision model and IEEE-754 bridges.
 - `Asn1String` hierarchy: UTF8, Printable, IA5, BMP, Numeric, etc. See [ASN.1 String Types and Validation](#asn1-string-types-and-validation).
 - `Asn1Time`: bridges `Instant` to UTC/Generalized Time.
-- `Asn1BitString`: bit-level representation with padding-bit tracking.
+- `Asn1AbstractBitString`: bit-level representation with padding-bit tracking.
 - `BitSet`: pure-Kotlin bitset implementation.
 - `ObjectIdentifier`: OID support (string/components/bytes/UUID-based constructors). See [Object Identifiers (OID) Deep Dive](#object-identifiers-oid-deep-dive).
 
@@ -114,7 +114,7 @@ The `String` constructors (e.g. `Asn1String.IA5("…")`) are the only place that
 | `Visible`       | 26  | T.50 graphic subset + SPACE, `0x20`–`0x7E`                | exact           |
 | `Teletex` (T61) | 20  | ITU-T T.61 (multi-byte)                                   | best-effort (`true`/`null`) |
 | `Graphic`       | 25  | ISO 2022 registered G-sets + SPACE                        | best-effort (`true`/`null`) |
-| `General`       | 27  | ISO 2022 registered G/C-sets + SPACE + DELETE             | best-effort (`true`/`null`) |
+| `Asn1BitString`       | 27  | ISO 2022 registered G/C-sets + SPACE + DELETE             | best-effort (`true`/`null`) |
 | `Universal`     | 28  | UCS-4 / UTF-32                                            | none (`null`)   |
 | `Videotex`      | 21  | T.100 / T.101 (obsolete)                                  | none (`null`)   |
 | `Unrestricted`  | 29  | CHARACTER STRING                                          | none (`null`)   |
@@ -376,7 +376,7 @@ also participate without exposing their backing value at each call site:
 
 Use these marker interfaces only when the wrapper has exactly the same ASN.1 representation as the exposed value.
 For example, the `crypto` module's `X509AlgorithmIdentifier` wraps an `Asn1Sequence`, while `X509SignatureValue` wraps an
-`Asn1BitString`; both can therefore be added without a serialization context:
+`Asn1AbstractBitString`; both can therefore be added without a serialization context:
 
 ```kotlin
 val sequence = Asn1.Sequence {

@@ -85,9 +85,9 @@ data class X509TbsCertificate internal constructor(
     val subjectName: X500Name,
     val subjectPublicKeyInfo: SubjectPublicKeyInfo,
     @Asn1Tag(tagNumber = 1u)
-    val issuerUniqueID: Asn1BitString.General? = null,
+    val issuerUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 2u)
-    val subjectUniqueID: Asn1BitString.General? = null,
+    val subjectUniqueID: Asn1BitString? = null,
     @Asn1Tag(tagNumber = 3u)
     private val taggedExtensions: ExplicitlyTagged<List<X509CertificateExtension>>? = null,
 ) {
@@ -100,8 +100,8 @@ data class X509TbsCertificate internal constructor(
         validUntil: Asn1Time.SecondsCapped,
         subjectName: X500Name,
         subjectPublicKeyInfo: SubjectPublicKeyInfo,
-        issuerUniqueID: Asn1BitString.General? = null,
-        subjectUniqueID: Asn1BitString.General? = null,
+        issuerUniqueID: Asn1BitString? = null,
+        subjectUniqueID: Asn1BitString? = null,
         extensions: List<X509CertificateExtension>? = null,
     ) : this(
         taggedVersion = version?.let { ExplicitlyTagged(it) },

@@ -310,13 +310,16 @@ object Asn1 {
     fun OctetString(bytes: ByteArray) = Asn1OctetString(bytes)
 
     /** Creates an BIT STRING [Asn1Primitive] from [bytes] */
-    fun BitString(bytes: ByteArray) = Asn1BitString.fromByteArray(bytes).encodeToTlv()
+    fun BitString(bytes: ByteArray) = Asn1BitString(bytes).encodeToTlv()
 
     /**
      * Creates an BIT STRING [Asn1Primitive] from [bitSet].
-     * **Left-Aligned and right-padded (see [Asn1BitString])**
+     * **Left-Aligned and right-padded (see [Asn1AbstractBitString])**
      */
-    fun BitString(bitSet: BitSet) = Asn1BitString.fromBitSet(bitSet).encodeToTlv()
+    fun NamedBitList(bitSet: BitSet) = Asn1NamedBitList(bitSet).encodeToTlv()
+
+    @Deprecated("Renamed to better align with its functionality", replaceWith = ReplaceWith("NamedBitList(bitSet)"))
+    fun BitString(bitSet: BitSet) = NamedBitList(bitSet)
 
     /** Creates an UTF8 STRING [Asn1Primitive] from [value] */
     fun Utf8String(value: String) = Asn1String.UTF8(value).encodeToTlv()

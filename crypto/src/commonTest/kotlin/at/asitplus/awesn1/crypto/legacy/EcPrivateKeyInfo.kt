@@ -15,7 +15,7 @@ open class EcPrivateKeyInfo(
     val version: Int,
     val privateKey: ByteArray,
     val parameters: ObjectIdentifier? = null,
-    val publicKey: Asn1BitString.General? = null,
+    val publicKey: Asn1BitString? = null,
 ) : Asn1Encodable<Asn1Sequence> {
 
     override fun encodeToTlv() = Asn1.Sequence {
@@ -49,7 +49,7 @@ open class EcPrivateKeyInfo(
             val privateKey = next().asOctetString().content
 
             var parameters: ObjectIdentifier? = null
-            var publicKey: Asn1BitString.General? = null
+            var publicKey: Asn1BitString? = null
             while (hasNext()) {
                 val field = next().asExplicitlyTagged()
                 when (field.tag.tagValue) {

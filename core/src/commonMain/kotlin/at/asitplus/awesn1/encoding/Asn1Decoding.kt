@@ -549,12 +549,12 @@ fun Asn1Primitive.decodeToInstant() =
 fun Asn1Primitive.decodeToInstantOrNull() = catchingUnwrapped { decodeToInstant() }.getOrNull()
 
 /**
- * Transforms this [Asn1Primitive]' into an [Asn1BitString], assuming it was encoded as BIT STRING
+ * Transforms this [Asn1Primitive]' into an [Asn1AbstractBitString], assuming it was encoded as BIT STRING
  * @throws Asn1Exception  on invalid input
  */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.asAsn1BitString(assertTag: Asn1Element.Tag = Asn1Element.Tag.BIT_STRING) =
-    Asn1BitString.General.decodeFromTlv(this, assertTag)
+    Asn1BitString.decodeFromTlv(this, assertTag)
 
 /**
  * decodes this [Asn1Primitive] to null (i.e. verifies the tag to be [BERTags.ASN1_NULL] and the content to be empty

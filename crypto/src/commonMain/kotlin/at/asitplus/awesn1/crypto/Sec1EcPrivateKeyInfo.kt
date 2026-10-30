@@ -38,14 +38,14 @@ data class Sec1EcPrivateKeyInfo internal constructor(
     @Asn1Tag(tagNumber = 0u)
     private val taggedParameters: ExplicitlyTagged<ObjectIdentifier>? = null,
     @Asn1Tag(tagNumber = 1u)
-    private val taggedPublicKey: ExplicitlyTagged<Asn1BitString.General>? = null,
+    private val taggedPublicKey: ExplicitlyTagged<Asn1BitString>? = null,
 ) : WithPemLabel {
 
     constructor(
         version: Version = Version.V1,
         privateKey: ByteArray,
         parameters: ObjectIdentifier?,
-        publicKey: Asn1BitString.General? = null,
+        publicKey: Asn1BitString? = null,
     ) : this(
         version = Version.V1,
         privateKey = privateKey,
@@ -64,7 +64,7 @@ data class Sec1EcPrivateKeyInfo internal constructor(
 
     val parameters: ObjectIdentifier? by taggedParameters
 
-    val publicKey: Asn1BitString.General? by taggedPublicKey
+    val publicKey: Asn1BitString? by taggedPublicKey
 
     override fun equals(other: Any?): Boolean =
         other is Sec1EcPrivateKeyInfo &&

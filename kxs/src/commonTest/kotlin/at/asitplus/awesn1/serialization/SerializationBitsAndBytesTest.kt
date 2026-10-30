@@ -8,7 +8,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.*
 import kotlin.jvm.JvmInline
-import at.asitplus.awesn1.Asn1BitString as Asn1BitStringValue
+import at.asitplus.awesn1.Asn1AbstractBitString as Asn1BitStringValue
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestBitsAndBytes by matrixSuite(

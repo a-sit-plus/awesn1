@@ -15,7 +15,7 @@ import kotlinx.serialization.Serializable
 @Serializable(with = SubjectPublicKeyInfo.Companion::class)
 open class SubjectPublicKeyInfo(
     val algorithmIdentifier: Asn1Sequence,
-    val subjectPublicKey: Asn1BitString.General,
+    val subjectPublicKey: Asn1BitString,
 ) : at.asitplus.awesn1.Asn1Encodable<Asn1Sequence> {
 
     val algorithmOid: ObjectIdentifier

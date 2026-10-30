@@ -13,19 +13,18 @@ import kotlin.random.Random
 val bitStringEdgeCases by matrixSuite {
     testSuite("empty") {
         "legal (03 01 00)" {
-            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 01 00") as Asn1Primitive) shouldBe Asn1BitString.fromByteArray(
+            Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 01 00") as Asn1Primitive) shouldBe Asn1BitString(
                 byteArrayOf()
             )
         }
         "illegal (03 00)" {
-            shouldThrow<Asn1Exception> { Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00") as Asn1Primitive) }.message shouldBe "Empty ASN.1 BIT STRING found"
+            shouldThrow<Asn1Exception> { Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00") as Asn1Primitive) }.message shouldBe "Empty ASN.1 BIT STRING found"
         }
-
         "illegal (03 00 00)" {
-            shouldThrow<Asn1Exception> { Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00 00") as Asn1Primitive) }.message shouldBe "Trailing bytes found after the first ASN.1 element"
+            shouldThrow<Asn1Exception> { Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 00 00") as Asn1Primitive) }.message shouldBe "Trailing bytes found after the first ASN.1 element"
         }
         "legal (03 20 00 00)" {
-            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 00 00") as Asn1Primitive) shouldBe Asn1BitString.fromByteArray(
+            Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 00 00") as Asn1Primitive) shouldBe Asn1BitString(
                 byteArrayOf(0)
             )
         }
@@ -50,7 +49,7 @@ val bitStringEdgeCases by matrixSuite {
                     if (legal.isNotEmpty()) "zero-ed out (legal)" - {
                         data("byte", legal, nameFn = { "xx = ${it.hexPadded()}" }) test { i ->
                             val derEncoded = "$hexBytes${i.hexPadded()}"
-                            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded) as Asn1Primitive) shouldBe Asn1BitString.fromByteArray(
+                            Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString(derEncoded) as Asn1Primitive) shouldBe Asn1BitString(
                                 derEncoded.replace(" ", "").substring(6).hexToByteArray(HexFormat.UpperCase),
                                 numPaddingBits.toInt()
                             )
@@ -87,7 +86,7 @@ val bitStringEdgeCases by matrixSuite {
 
         val legal = "03 01 00"
         legal {
-            Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(legal) as Asn1Primitive) shouldBe Asn1BitString.fromByteArray(
+            Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString(legal) as Asn1Primitive) shouldBe Asn1BitString(
                 byteArrayOf()
             )
         }
@@ -106,7 +105,7 @@ val manualBitStringPadding by matrixSuite {
         }
         compact("zero (legal)") - {
             data( legal, nameFn = { "xx = ${it.hexPadded()}" }) test { i ->
-                Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive) shouldBe Asn1BitString.fromByteArray(
+                Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString("03 02 03 ${i.hexPadded()}") as Asn1Primitive) shouldBe Asn1BitString(
                     byteArrayOf(i), 0x03
                 )
             }
@@ -128,7 +127,7 @@ val manualBitStringPadding by matrixSuite {
 }
 
 private fun assertLenientRoundTrip(der: String, expectedBytes: ByteArray) {
-    val decoded = Asn1BitString.decodeFromTlv(Asn1Element.parseFromDerHexString(der) as Asn1Primitive)
+    val decoded = Asn1AbstractBitString.decodeFromTlv(Asn1Element.parseFromDerHexString(der) as Asn1Primitive)
     decoded.encodeToTlv().derEncoded.toHexString(HexFormat.UpperCase) shouldBe der.replace(" ", "")
     decoded.bitCarryingBytes.toList() shouldBe expectedBytes.toList()
 }

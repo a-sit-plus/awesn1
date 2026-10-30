@@ -1,6 +1,9 @@
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.*
+import at.asitplus.awesn1.Asn1BitString
+import at.asitplus.awesn1.Asn1Integer
+import at.asitplus.awesn1.Asn1Time
+import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.crypto.Sec1EcPublicKeyInfo.Companion.ec
 import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
 import at.asitplus.awesn1.crypto.pki.X500Name
@@ -16,7 +19,7 @@ import kotlin.time.Instant
 val LenientBitStringTest by matrixSuite {
 
     "malformed unique ID decodes and round trips" {
-        val validDer = DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = Asn1BitString.fromByteArray(byteArrayOf(0xe0.toByte()), 5)))
+        val validDer = DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = Asn1BitString(byteArrayOf(0xe0.toByte()), 5)))
         val malformedDer = validDer.replaceFirst(
             byteArrayOf(0x81.toByte(), 0x02, 0x05, 0xE0.toByte()),
             byteArrayOf(0x81.toByte(), 0x02, 0x05, 0xE1.toByte()),
@@ -39,8 +42,8 @@ val LenientBitStringTest by matrixSuite {
     }
 
     "valid unique IDs round-trip through semantic getters" {
-        val issuer = Asn1BitString.fromBitSet(BitSet.fromString("101")).asGeneral()
-        val subject = Asn1BitString.fromBitSet(BitSet.fromString("111000001")).asGeneral()
+        val issuer = Asn1BitString(true, false, true)
+        val subject = Asn1BitString(true, true, true, false, false, false, false, false, true)
         val decoded = DER.decodeFromByteArray<X509TbsCertificate>(
             DER.encodeToByteArray(minimalTbsCertificate(issuerUniqueID = issuer, subjectUniqueID = subject))
         )
@@ -51,8 +54,8 @@ val LenientBitStringTest by matrixSuite {
 }
 
 private fun minimalTbsCertificate(
-    issuerUniqueID: Asn1BitString.General? = null,
-    subjectUniqueID: Asn1BitString.General? = null,
+    issuerUniqueID: Asn1BitString? = null,
+    subjectUniqueID: Asn1BitString? = null,
 ) = X509TbsCertificate(
     serialNumber = Asn1Integer(1u),
     signatureAlgorithm = X509AlgorithmIdentifier(ObjectIdentifier("1.2.840.113549.1.1.11"), null),

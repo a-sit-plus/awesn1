@@ -86,7 +86,7 @@ sealed class Sec1EcPublicKeyInfo(val curveOid: ObjectIdentifier, val x: ByteArra
                         false -> byteArrayOf(COMPRESSED_MINUS_PREFIX, *publicKey.x)
                     }
                     is Uncompressed -> byteArrayOf(UNCOMPRESSED_PREFIX, *publicKey.x, *publicKey.y)
-                }.let(Asn1BitString::fromByteArray)
+                }.let(Asn1BitString::invoke)
             )
         }
 

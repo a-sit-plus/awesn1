@@ -16,13 +16,13 @@ import kotlin.jvm.JvmInline
 @Serializable(with = SignatureValue.Companion::class)
 value class SignatureValue
 @Throws(Asn1Exception::class)
-private constructor(val rawBitString: Asn1BitString.General) : Asn1Encodable<Asn1Primitive> {
+private constructor(val rawBitString: Asn1BitString) : Asn1Encodable<Asn1Primitive> {
 
     init {
         if (rawBitString.numPaddingBits != 0) throw Asn1Exception("The signature value must have padding bits")
     }
 
-    constructor(rawBytes: ByteArray) : this(Asn1BitString.fromByteArray(rawBytes))
+    constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))
 
     val rawBytes: ByteArray get() = rawBitString.bitCarryingBytes
 
@@ -41,12 +41,12 @@ private constructor(val rawBitString: Asn1BitString.General) : Asn1Encodable<Asn
     override fun encodeToTlv(): Asn1Primitive = rawBitString.encodeToTlv()
 
     companion object : Asn1Serializable<Asn1Primitive, SignatureValue> {
-        override val leadingTags = Asn1BitString.leadingTags
+        override val leadingTags = Asn1AbstractBitString.leadingTags
         override fun doDecode(src: Asn1Primitive): SignatureValue {
             return SignatureValue(src.asAsn1BitString())
         }
 
-        operator fun invoke(rawBitString: Asn1BitString) : SignatureValue = SignatureValue(rawBitString)
+        operator fun invoke(rawBitString: Asn1AbstractBitString) : SignatureValue = SignatureValue(rawBitString)
         /**
          * Constructs a Signature value from [r] and [s] coordinates (as used by ECDSA, and DSA, for example)
          */

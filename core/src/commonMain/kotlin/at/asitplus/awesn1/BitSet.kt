@@ -338,15 +338,15 @@ fun BitSet.flip(fromIndex: Long, toIndex: Long) = flip(fromIndex until toIndex)
 private fun IntRange.toLongRange() = LongRange(start.toLong(), endInclusive.toLong())
 
 /**
- * Serializer for [BitSet], behaving the same as serializing an [Asn1BitString]
+ * Serializer for [BitSet], behaving the same as serializing an [Asn1AbstractBitString]
  */
 object BitSetSerializer : KSerializer<BitSet> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("at.asitplus.awesn1.BitSet", PrimitiveKind.STRING)
 
     override fun deserialize(decoder: Decoder): BitSet =
-        decoder.decodeSerializableValue(Asn1BitString.NamedBitList.serializer()).toBitSet()
+        decoder.decodeSerializableValue(Asn1NamedBitList.serializer()).toBitSet()
 
     override fun serialize(encoder: Encoder, value: BitSet) =
-        encoder.encodeSerializableValue(Asn1BitString.NamedBitList.serializer(), Asn1BitString.fromBitSet(value))
+        encoder.encodeSerializableValue(Asn1NamedBitList.serializer(), Asn1NamedBitList(value))
 
 }

@@ -150,7 +150,7 @@ internal object ByteArrayShapePolicy {
         bytes: ByteArray,
         shape: ByteArrayShape,
     ): Asn1Element = when (shape) {
-        ByteArrayShape.BIT_STRING -> Asn1BitString.fromByteArray(bytes).encodeToTlv()
+        ByteArrayShape.BIT_STRING -> Asn1BitString(bytes).encodeToTlv()
         ByteArrayShape.OCTET_STRING -> Asn1OctetString(bytes)
         ByteArrayShape.NOT_APPLICABLE -> throw SerializationException("Byte-array shape is not applicable")
     }

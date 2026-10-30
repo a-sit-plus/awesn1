@@ -46,7 +46,7 @@ data class Pkcs1RsaPublicKeyInfo(
         fun SubjectPublicKeyInfo.Companion.from(publicKey: Pkcs1RsaPublicKeyInfo, der: Der = DER) = runRethrowing {
             SubjectPublicKeyInfo(
                 X509AlgorithmIdentifier(RSA_ENCRYPTION_OID, Asn1Null),
-                Asn1BitString.fromByteArray(der.encodeToByteArray(publicKey))
+                Asn1BitString(der.encodeToByteArray(publicKey))
             )
         }
 

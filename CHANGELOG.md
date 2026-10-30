@@ -23,10 +23,12 @@
     * Corrected integer text/magnitude and varint edge cases and lenient empty INTEGER decoding.
     * Corrected REAL base/factor and lenient exponent decoding, and finite REAL-to-`Double` conversion with IEEE rounding.
     * `BitSet`'s index range operations (`set(from, to)`, `flip(from, to)`, `clear(from, to)`) now exclude `to`; this matches Java's `BitSet`.
-    * `Asn1BitString` has been split into `Asn1BitString.General` and `Asn1BitString.NamedBitSet`
+    * `Asn1BitString`'s abstract functionality has been moved into `Asn1AbstractBitString`.
+      * `Asn1NamedBitSet` has been added, which models named-bit-set semantics.
       * Both decode permissively. Both round-trip non-canonical bytes. Both are DER canonical if constructed programmatically.
-      * `Asn1BitString.General` is a generalized BIT STRING. It has a fixed length, and encodes trailing zeroes. This is the same as the old `Asn1BitString`.
-      * `Asn1BitString.NamedBitSet` is a named bit set. It has infinite logical length, and omits trailing zeroes.
+      * `Asn1BitString` is a generalized BIT STRING. It has a fixed length, and encodes trailing zeroes. This is the same as the old behavior.
+      * `Asn1NamedBitSet` is a named bit set. It has infinite logical length, and omits trailing zeroes.
+      * The primary behavioral change is that the `BitSet`-taking constructor now constructs an `Asn1NamedBitSet`.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**
@@ -45,7 +47,7 @@
 * Moved the faux-constructor extensions on `SubjectPublicKeyInfo` to `from` extensions
     * This avoids pathological autocomplete behavior
 * Added `Sec1EcPublicKeyInfo` to match `Pkcs1RsaPublicKeyInfo`
-* Usability improvements to `Asn1BitString`
+* Usability improvements to `Asn1AbstractBitString`
     * Added indexing operators and size
     * Added utility constructor from vararg bits
 * Usability improvements to `Pkcs8PrivateKeyInfo`
@@ -213,7 +215,7 @@
     * `BitSet`
         * new `copyOf()` function that returns a new deep-copied `BitSet` with the same content as the original
         * new `nextSetBitAfter(index)` function for exclusive "next bit after this index" searches
-        * Is now directly serializable also from/to ASN.1 as `Asn1BitString`
+        * Is now directly serializable also from/to ASN.1 as `Asn1AbstractBitString`
 * **Fixes:**
     * Deserializing from ByteArray must consume all bytes now, otherwise it will throw. This is how it should have always been.
     * X.509 General Names parsing 
@@ -227,7 +229,7 @@
         * Add `hashCode` consistent with compact byte equality
         * Fix `BitSet(nBits) { ... }` creating a bogus final bit when the initializer returned `false` for the last index
         * Make `nextSetBit` search compact logical bytes instead of raw backing buffer
-    * Preserve malformed X.509 certificate unique IDs during DER decoding and re-encoding, while exposing strict `Asn1BitString` semantic getters that throw lazily on invalid padding
+    * Preserve malformed X.509 certificate unique IDs during DER decoding and re-encoding, while exposing strict `Asn1AbstractBitString` semantic getters that throw lazily on invalid padding
 * Hardening:
     * Reject UNIVERSAL zero tagged asn.1 elements
     * Fail hard for unterminated ASN.1 varints even below the maximum number of bytes to decode
@@ -245,7 +247,7 @@
     * `BitSet`:
         * Clarify `nextSetBit` docs: search starts inclusively from `fromIndex`
         * Clarify `forEachIndexed`
-        * Now serializes like `Asn1BitString` (and not as binary string any more) and can thus be used interoperably in serializable ASN.1 structures (but not `Asn1Encodable`s)
+        * Now serializes like `Asn1AbstractBitString` (and not as binary string any more) and can thus be used interoperably in serializable ASN.1 structures (but not `Asn1Encodable`s)
     * Core renames:
         * `Asn1TagClass` -> `Asn1Tag.Class`
         * `Asn1TagConstructedBit` -> `Asn1Tag.ConstructedBit`
