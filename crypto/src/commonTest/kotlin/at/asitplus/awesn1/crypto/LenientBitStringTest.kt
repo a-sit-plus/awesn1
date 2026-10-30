@@ -28,7 +28,7 @@ val LenientBitStringTest by matrixSuite {
         decodedValid shouldBe decodedInvalid
         decodedValid.hashCode() shouldBe decodedInvalid.hashCode()
         DER.encodeToByteArray(decodedInvalid) shouldBe malformedDer
-        decodedValid.issuerUniqueID shouldBe decodedInvalid
+        decodedValid.issuerUniqueID shouldBe decodedInvalid.issuerUniqueID
     }
 
     "absent unique ID remains null" {

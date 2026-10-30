@@ -87,8 +87,8 @@ val Asn1BitStringTest by matrixSuite {
     }
 
     "AI-suggested regression tests" {
-        fun general(hexString: String, block: Asn1BitString.General.()->Unit = {}) = Asn1BitString.General.decodeFromDer(hexString.hexToByteArray()).also(block)
-        fun namedBitList(hexString: String, block: Asn1BitString.NamedBitList.()->Unit = {}) = Asn1BitString.NamedBitList.decodeFromDer(hexString.hexToByteArray()).also(block)
+        fun general(hexString: String, block: Asn1BitString.General.()->Unit = {}) = Asn1BitString.General.decodeFromDer(hexString.replace(" ", "").hexToByteArray()).also(block)
+        fun namedBitList(hexString: String, block: Asn1BitString.NamedBitList.()->Unit = {}) = Asn1BitString.NamedBitList.decodeFromDer(hexString.replace(" ","").hexToByteArray()).also(block)
         general("03 02 07 80") { shouldThrow<IndexOutOfBoundsException> { get(1) }}
         general("03 02 07 80") { sizeBits shouldBe 1 }
         namedBitList("03 03 00 80 01") { get(15) shouldBe true }

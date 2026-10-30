@@ -3,18 +3,11 @@
 
 package at.asitplus.awesn1.crypto.legacy.pki
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1ExplicitlyTagged
-import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1Sequence
-import at.asitplus.awesn1.decodeRethrowing
-import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.encoding.decodeToInt
-import at.asitplus.awesn1.Asn1Time
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.legacy.SignatureAlgorithmIdentifier
 import at.asitplus.awesn1.crypto.legacy.SubjectPublicKeyInfo
+import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.encoding.decodeToInt
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
 
@@ -28,8 +21,8 @@ open class TbsCertificate(
     val validUntil: Asn1Time,
     val subjectName: List<RelativeDistinguishedName>,
     val subjectPublicKeyInfo: SubjectPublicKeyInfo,
-    val issuerUniqueID: Asn1BitString? = null,
-    val subjectUniqueID: Asn1BitString? = null,
+    val issuerUniqueID: Asn1BitString.General? = null,
+    val subjectUniqueID: Asn1BitString.General? = null,
     val extensions: List<X509CertificateExtension>? = null,
 ) : at.asitplus.awesn1.Asn1Encodable<Asn1Sequence> {
 
@@ -106,8 +99,8 @@ open class TbsCertificate(
             }
             val subjectNames = next().asSequence().children.map { RelativeDistinguishedName.decodeFromTlv(it.asSet()) }
             val publicKey = SubjectPublicKeyInfo.decodeFromTlv(next().asSequence())
-            val issuerUniqueID = peek()?.let { if (it.tag == Asn1.ImplicitTag(1uL)) Asn1BitString.decodeFromTlv(next().asPrimitive(), Asn1.ImplicitTag(1uL)) else null }
-            val subjectUniqueID = peek()?.let { if (it.tag == Asn1.ImplicitTag(2uL)) Asn1BitString.decodeFromTlv(next().asPrimitive(), Asn1.ImplicitTag(2uL)) else null }
+            val issuerUniqueID = peek()?.let { if (it.tag == Asn1.ImplicitTag(1uL)) Asn1BitString.General.decodeFromTlv(next().asPrimitive(), Asn1.ImplicitTag(1uL)) else null }
+            val subjectUniqueID = peek()?.let { if (it.tag == Asn1.ImplicitTag(2uL)) Asn1BitString.General.decodeFromTlv(next().asPrimitive(), Asn1.ImplicitTag(2uL)) else null }
             val extensions = if (hasNext()) {
                 next().asExplicitlyTagged().verifyTag(3uL).single().asSequence().children.map {
                     X509CertificateExtension.decodeFromTlv(it.asSequence())

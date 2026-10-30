@@ -17,7 +17,8 @@ import kotlin.experimental.or
 private fun getByteIndex(i: Long) : Int {
     if (i < 0) throw IndexOutOfBoundsException("index = $i")
     return (i / 8).toNonnegativeIntChecked("BitSet byte index").also {
-        if (it == Int.MAX_VALUE) throw IndexOutOfBoundsException("index = $i")
+        // we can allocate up to Int.MAX_VALUE-2 bytes on the JVM
+        if (it >= Int.MAX_VALUE-1) throw Asn1Exception("index = $i")
     }
 }
 

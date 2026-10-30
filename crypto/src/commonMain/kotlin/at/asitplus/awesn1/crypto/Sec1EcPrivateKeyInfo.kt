@@ -64,7 +64,7 @@ data class Sec1EcPrivateKeyInfo internal constructor(
 
     val parameters: ObjectIdentifier? by taggedParameters
 
-    val publicKey: Asn1BitString? by taggedPublicKey
+    val publicKey: Asn1BitString.General? by taggedPublicKey
 
     override fun equals(other: Any?): Boolean =
         other is Sec1EcPrivateKeyInfo &&

@@ -123,6 +123,8 @@ data class X509TbsCertificate internal constructor(
      */
     val rawVersion: Version? by taggedVersion
 
+    val version: Version get() = rawVersion ?: Version.V1
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is X509TbsCertificate) return false

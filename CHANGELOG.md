@@ -23,6 +23,10 @@
     * Corrected integer text/magnitude and varint edge cases and lenient empty INTEGER decoding.
     * Corrected REAL base/factor and lenient exponent decoding, and finite REAL-to-`Double` conversion with IEEE rounding.
     * `BitSet`'s index range operations (`set(from, to)`, `flip(from, to)`, `clear(from, to)`) now exclude `to`; this matches Java's `BitSet`.
+    * `Asn1BitString` has been split into `Asn1BitString.General` and `Asn1BitString.NamedBitSet`
+      * Both decode permissively. Both round-trip non-canonical bytes. Both are DER canonical if constructed programmatically.
+      * `Asn1BitString.General` is a generalized BIT STRING. It has a fixed length, and encodes trailing zeroes. This is the same as the old `Asn1BitString`.
+      * `Asn1BitString.NamedBitSet` is a named bit set. It has infinite logical length, and omits trailing zeroes.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**

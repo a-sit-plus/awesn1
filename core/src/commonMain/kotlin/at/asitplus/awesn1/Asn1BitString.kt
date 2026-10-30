@@ -36,6 +36,7 @@ private fun Byte.reverseBits(): Byte {
 
 /** ASN.1 BIT STRING. When serialized to a non-DER format, uses: `base64Strict(content octets)`.
  * Different encoding rules apply for [General] bit strings, and [NamedBitList] bit strings. */
+@Serializable(with=Asn1BitString.Companion::class)
 sealed class Asn1BitString(
     /** the encoded raw bytes (lenient, if decoded from DER); number of padding bits followed by raw bytes */
     protected val rawBytes: ByteArray,
@@ -57,7 +58,7 @@ sealed class Asn1BitString(
 
     abstract operator fun get(bitIndex: Long): Boolean
 
-    sealed class Serializer<T: Asn1BitString>(ctor: (ByteArray)->T) : Asn1Serializer<Asn1Primitive, T>(
+    private class Serializer<T: Asn1BitString>(ctor: (ByteArray)->T) : Asn1Serializer<Asn1Primitive, T>(
         leadingTags = setOf(Asn1Element.Tag.BIT_STRING),
         decodable = object : Asn1Decodable<Asn1Primitive, T> {
             @Throws(Asn1Exception::class)
@@ -71,7 +72,10 @@ sealed class Asn1BitString(
             override fun decodeFallback(encoded: String): T =
                 ctor(Base64.decode(encoded))
         },
-    )
+    ) {
+        override val descriptor: SerialDescriptor =
+            PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_BIT_STRING, PrimitiveKind.STRING)
+    }
 
     override fun encodeToTlv() = Asn1Primitive(Asn1Element.Tag.BIT_STRING, rawBytes)
 
@@ -118,7 +122,7 @@ sealed class Asn1BitString(
                 }
             }
 
-        companion object : Serializer<General>(::General) {
+        companion object : Asn1Serializable<Asn1Primitive, General> by Serializer(::General) {
             fun fromByteArray(bytes: ByteArray, numPaddingBits: Int = 0): General {
                 if (numPaddingBits !in 0..7) throw Asn1Exception("Invalid numPaddingBits = $numPaddingBits")
                 if (numPaddingBits != 0) {
@@ -140,6 +144,8 @@ sealed class Asn1BitString(
                 }
                 return General(data)
             }
+            @InternalAwesn1Api
+            internal fun adoptingTLVContentBytes(bytes: ByteArray) = General(bytes)
         }
     }
 
@@ -209,9 +215,7 @@ sealed class Asn1BitString(
             }.reverseBits()
         }
 
-        fun asGeneral() = General.decodeFromTlv(encodeToTlv())
-
-        companion object : Serializer<NamedBitList>(::NamedBitList) {
+        companion object : Asn1Serializable<Asn1Primitive, NamedBitList> by Serializer(::NamedBitList) {
             fun fromBitSet(bits: BitSet): NamedBitList {
                 if (bits.isEmpty()) return NamedBitList(byteArrayOf(0x00))
                 val bytes = bits.bytes
@@ -224,7 +228,12 @@ sealed class Asn1BitString(
         }
     }
 
-    companion object : Asn1Serializable<Asn1Primitive, General> by General.Companion {
+    fun asGeneral() = when (this) {
+        is General -> this
+        else -> General.decodeFromTlv(encodeToTlv())
+    }
+
+    companion object : Asn1Serializable<Asn1Primitive, Asn1BitString> by Serializer({ General.adoptingTLVContentBytes(it) }) {
         /** Constructs a [General] BIT STRING from [bytes] (with the same indexing semantics as [General.bitCarryingBytes]).
          * @throws Asn1Exception if the padding bits are nonzero */
         fun fromByteArray(bytes: ByteArray, numPaddingBits: Int = 0) = General.fromByteArray(bytes, numPaddingBits)
@@ -232,8 +241,12 @@ sealed class Asn1BitString(
         fun fromGeneralBits(vararg bits: Boolean) = General.fromBits(*bits)
         /** Constructs a [NamedBitList] from [bits]. Since this is a NamedBitList, trailing false is discarded. */
         fun fromNamedBits(vararg bits: Boolean) = NamedBitList.fromBits(*bits)
+        fun fromBitSet(bits: BitSet) = NamedBitList.fromBitSet(bits)
+        @Deprecated("Renamed to more clearly distinguish between general and named-bit-list strings", ReplaceWith("fromGeneralBits(bits)"))
+        operator fun invoke(vararg bits: Boolean) = fromGeneralBits(*bits)
         @Deprecated("Renamed to more clearly distinguish between bits and bytes", ReplaceWith("fromBitSet(bits)"))
         operator fun invoke(bits: BitSet) = fromBitSet(bits)
-        fun fromBitSet(bits: BitSet) = NamedBitList.fromBitSet(bits)
+        @Deprecated("Renamed to more clearly distinguish between bits and bytes", ReplaceWith("fromByteArray(bytes)"))
+        operator fun invoke(bytes: ByteArray) = fromByteArray(bytes)
     }
 }

@@ -217,7 +217,7 @@ private fun randomRawElement(random: Random): Asn1Element = when (random.nextInt
     0 -> Asn1Integer(random.nextLong(-10_000L, 10_000L)).encodeToTlv()
     1 -> Asn1String.UTF8(randomAscii(random)).encodeToTlv()
     2 -> Asn1OctetString(randomBytes(random))
-    else -> Asn1BitString(randomBytes(random)).encodeToTlv()
+    else -> Asn1BitString.fromByteArray(randomBytes(random)).encodeToTlv()
 }
 
 private fun randomAlgorithmIdentifier(random: Random) = Asn1.Sequence {
@@ -226,7 +226,7 @@ private fun randomAlgorithmIdentifier(random: Random) = Asn1.Sequence {
 }
 
 private fun randomRawBitStringSignatureValue(random: Random) =
-    X509SignatureValue(Asn1BitString(randomBytes(random)))
+    X509SignatureValue(Asn1BitString.fromByteArray(randomBytes(random)))
 
 private fun randomBitStringSignatureValue(random: Random) =
     X509SignatureValue(randomBytes(random))
@@ -237,7 +237,7 @@ private fun randomEcdsaSignatureValue(random: Random) =
 private fun randomEcPrivateKey(random: Random) = Sec1EcPrivateKeyInfo(
     privateKey = randomBytes(random, 32),
     parameters = randomOid(random).takeIf { random.nextBoolean() },
-    publicKey = Asn1BitString(randomBytes(random, 33)).takeIf { random.nextBoolean() },
+    publicKey = Asn1BitString.fromByteArray(randomBytes(random, 33)).takeIf { random.nextBoolean() },
 )
 
 private fun randomEncryptedPrivateKeyInfo(random: Random) = EncryptedPrivateKeyInfo(
