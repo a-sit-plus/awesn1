@@ -118,6 +118,8 @@ class Asn1BitString private constructor(rawBytes: ByteArray) : Asn1AbstractBitSt
         }
     }
 
+    override fun toString() = "Asn1BitString($sizeBits bits ($numPaddingBits padding): ${bitCarryingBytes.contentToString()})"
+
     override fun hashCode() =
         rawBytes.foldIndexed(0) { idx, acc, next ->
             31 * acc + when (idx) {
@@ -204,6 +206,8 @@ class Asn1NamedBitList private constructor(rawBytes: ByteArray) : Asn1AbstractBi
             (rawBytes[neededBytes] and mask) == (other.rawBytes[neededBytes] and mask)
         )
     }
+
+    override fun toString() = "Asn1NamedBitList(${bitCarryingBytes.contentToString()})"
 
     override fun hashCode() =
         (1..neededBytes).fold(numPaddingBits.hashCode()) { acc, idx ->
