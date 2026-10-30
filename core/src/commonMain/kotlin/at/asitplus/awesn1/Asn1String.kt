@@ -19,23 +19,18 @@ import at.asitplus.awesn1.BERTags.UTF8_STRING
 import at.asitplus.awesn1.BERTags.VIDEOTEX_STRING
 import at.asitplus.awesn1.BERTags.VISIBLE_STRING
 import at.asitplus.awesn1.encoding.decodeFromAsn1ContentBytes
-import at.asitplus.awesn1.encoding.decodeToBmpString
-import at.asitplus.awesn1.encoding.decodeToGeneralString
-import at.asitplus.awesn1.encoding.decodeToGraphicString
 import at.asitplus.awesn1.encoding.decodeToIa5String
 import at.asitplus.awesn1.encoding.decodeToNumericString
 import at.asitplus.awesn1.encoding.decodeToPrintableString
-import at.asitplus.awesn1.encoding.decodeToTeletextString
-import at.asitplus.awesn1.encoding.decodeToUniversalString
-import at.asitplus.awesn1.encoding.decodeToUnrestrictedString
 import at.asitplus.awesn1.encoding.decodeToUtf8String
-import at.asitplus.awesn1.encoding.decodeToVideotexString
 import at.asitplus.awesn1.encoding.decodeToVisibleString
 import at.asitplus.awesn1.encoding.decodeFromDer
 import at.asitplus.awesn1.encoding.encodeToDer
 import at.asitplus.awesn1.serialization.Asn1DerDecoder
 import at.asitplus.awesn1.serialization.Asn1DerEncoder
 import at.asitplus.awesn1.serialization.Asn1Serializable
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
+import at.asitplus.awesn1.serialization.withDynamicAsn1LeadingTags
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ByteArraySerializer
@@ -135,9 +130,10 @@ private fun encodeUniversalContent(value: String): ByteArray {
  * be recoverable from the wire representation. Use a concrete subtype like [UTF8], [IA5],
  * [Printable], [Visible], or [Numeric] when implicit tagging is required.
  *
- * String values are internally represented as raw [ByteArray]. Generic [Asn1String] decoding preserves even
- * malformed string content and reports its status through [isValid]. Decoding to a concrete subtype is strict and
- * throws when validation returns `false`; `null` means that no complete validator exists and is therefore accepted.
+ * To enable parsing of non-compliant strings without exploding, every String is internally represented
+ * as raw [ByteArray] and not validated during decoding from ASN.1.
+ * The [isValid] property indicates whether the bytes contained in an ASN.1 String object type are valid
+ * according to the validation rules of that type.
  */
 @Serializable(with = Asn1String.Companion::class)
 sealed class Asn1String(
@@ -232,7 +228,7 @@ sealed class Asn1String(
         override val tag = BERTags.UNIVERSAL_STRING.toULong()
 
         override val value: String by lazy { decodeUniversalContent(rawValue) }
-        override val isValid: Boolean by lazy { runCatching { value }.isSuccess }
+        override val isValid: Boolean by lazy { catchingUnwrapped { value }.isSuccess }
 
         constructor(value: String) : this(encodeUniversalContent(value), true)
 
@@ -337,7 +333,7 @@ sealed class Asn1String(
         override val tag = BERTags.BMP_STRING.toULong()
 
         override val value: String by lazy { decodeBmpContent(rawValue) }
-        override val isValid: Boolean by lazy { runCatching { value }.isSuccess }
+        override val isValid: Boolean by lazy { catchingUnwrapped { value }.isSuccess }
 
         constructor(value: String) : this(encodeBmpContent(value), true)
 
@@ -549,6 +545,7 @@ sealed class Asn1String(
 
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
+            .withAsn1LeadingTags(leadingTags)
 
         /**
          * Decodes an [Asn1Primitive] into a specific [Asn1String] subtype based on its tag.
@@ -620,6 +617,12 @@ private inline fun <T : Asn1String> decodeImplicitlyTaggedAsn1StringSubtype(
     if (assertTag != null && src.tag != assertTag) {
         throw Asn1TagMismatchException(assertTag, src.tag)
     }
+    // Without an implicit-tag override the wire tag IS the type declaration, so a concrete subtype must see its
+    // own tag. Accepting any string tag here would silently reinterpret, say, a PrintableString as a UTF8String.
+    // Use the generic Asn1String when a non-conforming producer's tag choice has to be tolerated.
+    if (assertTag == null && src.tag != semanticTag) {
+        throw Asn1TagMismatchException(semanticTag, src.tag)
+    }
     val result = if (src.tag == semanticTag) {
         decodeWithSemanticTag(src)
     } else {
@@ -634,6 +637,7 @@ object Asn1Utf8StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.UTF
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_UTF8)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.UTF8 =
         decodeImplicitlyTaggedAsn1StringSubtype(
@@ -665,6 +669,7 @@ object Asn1VisibleStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_VISIBLE)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.Visible =
         decodeImplicitlyTaggedAsn1StringSubtype(
@@ -696,6 +701,7 @@ object Asn1Ia5StringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.IA5>
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_IA5)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.IA5 =
         decodeImplicitlyTaggedAsn1StringSubtype(
@@ -727,6 +733,7 @@ object Asn1PrintableStringSerializer : Asn1Serializable<Asn1Primitive, Asn1Strin
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_PRINTABLE)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.Printable =
         decodeImplicitlyTaggedAsn1StringSubtype(
@@ -758,6 +765,7 @@ object Asn1NumericStringSerializer : Asn1Serializable<Asn1Primitive, Asn1String.
     override val leadingTags: Set<Asn1Element.Tag> = setOf(Asn1Element.Tag.STRING_NUMERIC)
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_STRING, PrimitiveKind.STRING)
+            .withAsn1LeadingTags(leadingTags)
 
     override fun decodeFromTlv(src: Asn1Primitive, assertTag: Asn1Element.Tag?): Asn1String.Numeric =
         decodeImplicitlyTaggedAsn1StringSubtype(

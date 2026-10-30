@@ -8,6 +8,7 @@ package at.asitplus.awesn1
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.encoding.internal.*
 import at.asitplus.awesn1.serialization.Asn1Serializer
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -136,6 +137,7 @@ sealed class Asn1Integer(internal val uint: VarUInt, val sign: Sign) : Asn1Encod
     ) {
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_INTEGER, PrimitiveKind.STRING)
+                .withAsn1LeadingTags(leadingTags)
 
         val ONE by lazy { Asn1Integer.Positive(VarUInt(1u)) }
         val ZERO by lazy { Asn1Integer.Positive(VarUInt(0u)) }

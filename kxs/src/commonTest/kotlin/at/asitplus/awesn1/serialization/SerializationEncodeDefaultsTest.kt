@@ -2,7 +2,6 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.testballoon.matrix.ExecutionMode
 import at.asitplus.testballoon.matrix.matrixConfig
-import de.infix.testBalloon.framework.core.invocation
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
@@ -51,6 +50,24 @@ val SerializationTestEncodeDefaults by matrixSuite(
         val withOverridesEncoded = derNoDefaults.encodeToByteArray(withOverrides)
         withOverridesEncoded.toHexString() shouldBe "30090201050201080c0161"
         derNoDefaults.decodeFromByteArray<EncodeDefaultsMixed>(withOverridesEncoded) shouldBe withOverrides
+    }
+
+    "Omitted default followed by required field" {
+        @Serializable
+        data class Example(
+            @Asn1Tag(0u) val optional: Int? = null,
+            @Asn1Tag(1u) val required: Int,
+        )
+
+        val codec = DER {
+            encodeDefaults = false
+            explicitNulls = true
+        }
+
+        val original = Example(required = 7)
+        val encoded = codec.encodeToByteArray(original)
+        val decoded = codec.decodeFromByteArray<Example>(encoded)
+        decoded shouldBe original
     }
 }
 

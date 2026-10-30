@@ -36,6 +36,10 @@ val Asn1StringValidationContractTest by matrixSuite {
         Asn1String.Teletex("é").isValid shouldBe null
     }
 
+    "characters outside Latin-1 are rejected" {
+        shouldThrow<Asn1Exception> { Asn1String.Teletex("テスト") }
+    }
+
     "equality and hashing do not interpret malformed content" {
         val a = Asn1String.decodeFromTlv(Asn1Primitive(Asn1Element.Tag.STRING_BMP, byteArrayOf(0)))
         val same = Asn1String.decodeFromTlv(Asn1Primitive(Asn1Element.Tag.STRING_BMP, byteArrayOf(0)))

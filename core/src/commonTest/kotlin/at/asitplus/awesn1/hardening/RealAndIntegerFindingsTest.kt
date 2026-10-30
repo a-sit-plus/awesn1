@@ -148,12 +148,15 @@ val kxs_hex_int_leading_separator_silent_corruption by matrixSuite {
         " : 80:00 " to "32768",
         "80:00" to "32768",
         "8000" to "32768",
-    ).asData(name = "valid hex INTEGER", nameFn = { (input, _) -> "'$input'" }) test { (input, expected) ->
+    ).asData(
+        name = "Hex INTEGER retains its numeric value",
+        nameFn = { (input, expected) -> "'$input' -> $expected" },
+    ) test { (input, expected) ->
         Asn1Integer.fromHexString(input).toDecimalString() shouldBe expected
     }
 
     listOf(":", "0x:", "+:", "-:", " : : ").asData(
-        name = "hex INTEGER without digits",
+        name = "Hex INTEGER without digits is rejected",
         nameFn = { "'$it'" },
     ) test { input ->
         shouldThrow<Asn1Exception> { Asn1Integer.fromHexString(input) }

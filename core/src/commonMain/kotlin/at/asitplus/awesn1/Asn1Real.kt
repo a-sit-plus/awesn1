@@ -8,14 +8,11 @@ package at.asitplus.awesn1
 
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.serialization.Asn1Serializer
-import kotlinx.serialization.KSerializer
+import at.asitplus.awesn1.serialization.withAsn1LeadingTags
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
-import kotlin.math.pow
 import kotlin.math.sign
 
 
@@ -132,6 +129,7 @@ sealed interface Asn1Real : Asn1Encodable<Asn1Primitive> {
 
         override val descriptor: SerialDescriptor =
             PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_REAL, PrimitiveKind.STRING)
+                .withAsn1LeadingTags(leadingTags)
 
         /**
          * Converts a Double into an ASN.1 REAL.
