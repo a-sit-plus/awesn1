@@ -60,7 +60,7 @@ class LenientSet<T> private constructor(
 
         override fun deserialize(decoder: Decoder): LenientSet<T> {
             val wireWasCanonical =
-                (decoder as? InternalDerDecoder)?.peekCurrentElementOrNull()?.asStructure()?.isActuallySorted == true
+                (decoder as? InternalDerDecoder)?.materializeCurrentElementOrNull()?.asStructure()?.isActuallySorted == true
             return decoder.decodeStructure(descriptor) {
                 val elements = mutableListOf<T>()
                 while (true) {

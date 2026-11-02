@@ -59,7 +59,7 @@ interface Source<S : Sink> {
 }
 
 @InternalAwesn1Api
-internal class BoundedSource<S : Sink>(
+class BoundedSource<S : Sink>(
     private val source: Source<S>,
     val limit: Long?,
 ) : Source<S> {

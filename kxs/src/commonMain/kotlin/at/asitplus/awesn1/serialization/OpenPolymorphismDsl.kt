@@ -5,14 +5,12 @@ package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Identifiable
-import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.serialization.internal.Asn1OidDiscriminatedOpenPolymorphicSerializer
 import at.asitplus.awesn1.serialization.internal.Asn1OidDiscriminatedSubtypeRegistration
 import at.asitplus.awesn1.serialization.internal.Asn1TagDiscriminatedOpenPolymorphicSerializer
 import at.asitplus.awesn1.serialization.internal.Asn1TagDiscriminatedSubtypeRegistration
 import at.asitplus.awesn1.serialization.internal.cannotInferOpenPolymorphicSubtypeLeadingTagsMessage
 import at.asitplus.awesn1.serialization.internal.inferOpenPolymorphicSubtypeLeadingTagsOrNull
-import at.asitplus.awesn1.serialization.internal.oidFrom
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.PolymorphicSerializer
@@ -196,10 +194,7 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
      * @throws SerializationException if no subtype has been registered
      */
     @Throws(SerializationException::class)
-    internal fun build(
-        serialName: String,
-        oidSelector: (Asn1Element) -> ObjectIdentifier?,
-    ): KSerializer<T> {
+    internal fun build(serialName: String): KSerializer<T> {
         if (registrations.isEmpty() && catchAllRegistration == null) {
             throw SerializationException("At least one subtype or catchAll registration is required for $serialName")
         }
@@ -207,7 +202,6 @@ class Asn1OpenPolymorphismByOidBuilder<T : Identifiable> internal constructor() 
             serialName = serialName,
             subtypes = registrations.toList(),
             catchAll = catchAllRegistration,
-            oidSelector = oidSelector,
         )
     }
 }
@@ -235,11 +229,10 @@ fun <T : Any> asn1OpenPolymorphicByTagSerializer(
 @Throws(SerializationException::class, IllegalArgumentException::class)
 fun <T : Identifiable> asn1OpenPolymorphicByOidSerializer(
     serialName: String,
-    oidSelector: (Asn1Element) -> ObjectIdentifier? = ::oidFrom,
     block: Asn1OpenPolymorphismByOidBuilder<T>.() -> Unit,
 ): KSerializer<T> = Asn1OpenPolymorphismByOidBuilder<T>()
     .apply(block)
-    .build(serialName, oidSelector)
+    .build(serialName)
 
 /**
  * Uses a contextual ASN.1 open-polymorphic serializer for [baseClass] when one is registered in the active DER
@@ -281,8 +274,7 @@ fun <T : Any> SerializersModuleBuilder.polymorphicByTag(
 fun <T : Identifiable> SerializersModuleBuilder.polymorphicByOid(
     baseClass: KClass<T>,
     serialName: String = "Asn1OpenPolymorphicByOid",
-    oidSelector: (Asn1Element) -> ObjectIdentifier? = ::oidFrom,
     block: Asn1OpenPolymorphismByOidBuilder<T>.() -> Unit,
 ) {
-    contextual(baseClass, asn1OpenPolymorphicByOidSerializer(serialName, oidSelector, block))
+    contextual(baseClass, asn1OpenPolymorphicByOidSerializer(serialName, block))
 }

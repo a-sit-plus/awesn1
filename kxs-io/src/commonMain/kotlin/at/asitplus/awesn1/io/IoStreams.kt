@@ -5,7 +5,8 @@
 
 package at.asitplus.awesn1.io
 
-import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.encoding.KxIoSource
+import at.asitplus.awesn1.serialization.decodeFromAsn1Source
 import at.asitplus.awesn1.serialization.Der
 import kotlinx.serialization.*
 import kotlin.reflect.typeOf
@@ -44,17 +45,7 @@ fun <T> Der.decodeFromSource(
     deserializer: DeserializationStrategy<T>,
     source: kotlinx.io.Source,
     limit: Long = configuration.maxInputLength,
-): T {
-    if (source.exhausted()) {
-        // Keep nullable top-level semantics consistent with Der.decodeFromByteArray(empty).
-        return decodeFromByteArray(deserializer, byteArrayOf())
-    }
-    val element = Asn1Element.parse(source, minOf(limit, configuration.maxInputLength))
-    if (!source.exhausted()) {
-        throw SerializationException("Expected a single ASN.1 value in source")
-    }
-    return decodeFromTlv(deserializer, element)
-}
+): T = decodeFromAsn1Source(deserializer, KxIoSource(source), minOf(limit, configuration.maxInputLength))
 
 @OptIn(ExperimentalSerializationApi::class)
 inline fun <reified T> Der.encodeToSink(

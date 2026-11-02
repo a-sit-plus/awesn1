@@ -1,12 +1,9 @@
 package at.asitplus.awesn1.hardening
 
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.InternalAwesn1Api
 import at.asitplus.awesn1.encoding.internal.BoundedSource
 import at.asitplus.awesn1.encoding.internal.ByteArraySink
 import at.asitplus.awesn1.encoding.internal.Source
-import at.asitplus.awesn1.encoding.internal.parse
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -68,15 +65,6 @@ val BoundedSourceTest by matrixSuite {
 
         bounded.transferTo(sink) shouldBe 4L
         sink.readByteArray().toList() shouldBe listOf<Byte>(1, 2, 3, 4)
-        source.readCount shouldBe 4
-    }
-
-    "der parser does not peek past bounded parent length" {
-        val source = CountingSource(byteArrayOf(0x30, 0x02, 0x1f, 0x81.toByte(), 0x00))
-
-        shouldThrow<Asn1Exception> {
-            Asn1Element.parse(source, 5)
-        }
         source.readCount shouldBe 4
     }
 }

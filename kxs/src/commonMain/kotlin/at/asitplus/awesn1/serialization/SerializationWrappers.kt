@@ -35,7 +35,8 @@ fun <T> ExplicitlyTagged<T>?.orValue(default: T): ExplicitlyTagged<T> =
  * OCTET STRING encapsulation wrapper.
  *
  * This is encoded as UNIVERSAL OCTET STRING with primitive form and the
- * encoded payload value bytes as content.
+ * encoded payload value bytes as content. It is provided as a convenience wrapper,
+ * given how widely OCTET STRING encapsulation is used.
  */
 @Serializable
 @Asn1Tag(

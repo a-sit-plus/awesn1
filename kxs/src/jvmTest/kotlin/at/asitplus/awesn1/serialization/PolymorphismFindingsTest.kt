@@ -10,7 +10,6 @@ import at.asitplus.awesn1.Asn1Encodable
 import at.asitplus.awesn1.Identifiable
 import at.asitplus.awesn1.ObjectIdentifier
 import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.readOid
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -321,18 +320,12 @@ private data class GlSubOidExact(val ref: ObjectIdentifier, val value: Int) : Gl
 }
 
 // A non-leading OID discriminator in a SEQUENCE is rejected.
-val custom_oidselector_drop_misalignment by matrixSuite {
+val oid_discriminator_must_be_leading by matrixSuite {
     val der = DER {
         serializersModule = SerializersModule {
             polymorphicByOid(
                 GlSelBase::class,
                 serialName = "GlSelBase",
-                oidSelector = { element ->
-                    (element as? at.asitplus.awesn1.Asn1Structure)?.children?.getOrNull(1)
-                        ?.let { it as? at.asitplus.awesn1.Asn1Primitive }
-                        ?.takeIf { it.tag == Asn1Element.Tag.OID }
-                        ?.let { runCatching { it.readOid() }.getOrNull() }
-                },
             ) { subtype<GlSubOidExact>(GlSubOidExact) }
         }
     }

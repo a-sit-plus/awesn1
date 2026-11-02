@@ -6,11 +6,15 @@
 package at.asitplus.awesn1.serialization
 
 import at.asitplus.awesn1.*
-import at.asitplus.awesn1.encoding.parse
+import at.asitplus.awesn1.encoding.internal.BoundedSource
+import at.asitplus.awesn1.encoding.internal.Source
+import at.asitplus.awesn1.serialization.internal.wrapInDerInput
 import at.asitplus.awesn1.serialization.internal.DerDecoder
 import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerDepthGuard
 import at.asitplus.awesn1.serialization.internal.DerAnalysisContext
+import at.asitplus.awesn1.serialization.internal.DerInput
+import at.asitplus.awesn1.serialization.internal.DerValue
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
@@ -53,15 +57,11 @@ class Der internal constructor(
     override fun <T> decodeFromByteArray(
         deserializer: DeserializationStrategy<T>,
         bytes: ByteArray
-    ): T = withAnalysis(deserializer.descriptor) { analysis ->
-        val decoder = DerDecoder(
-            if (bytes.isEmpty()) emptyList() else listOf(
-                Asn1Element.parse(source = bytes, limit = configuration.maxInputLength)
-            ),
-            der = this,
-            analysis = analysis,
-        )
-        decoder.decodeSerializableValue(deserializer)
+    ): T = runWrappingAs(a = ::SerializationException) {
+        require(bytes.size.toLong() <= configuration.maxInputLength) {
+            "Input length exceeds maxInputLength=${configuration.maxInputLength}"
+        }
+        decodeFromAsn1Source(deserializer, bytes.wrapInUnsafeSource(), bytes.size.toLong())
     }
 
     /**
@@ -121,12 +121,33 @@ class Der internal constructor(
     fun <T> decodeFromTlv(deserializer: DeserializationStrategy<T>, source: Asn1Element): T =
         withAnalysis(deserializer.descriptor) { analysis ->
             val decoder = DerDecoder(
-                listOf(source),
+                DerInput(listOf(DerValue.TreeBacked(source)).iterator()),
                 der = this,
                 analysis = analysis,
             )
-            decoder.decodeSerializableValue(deserializer)
+            decoder.decodeSerializableValue(deserializer).also { decoder.finish() }
         }
+}
+
+/**
+ * Internal bridge shared by byte-array and IO entry points. Partial input is never a successful result:
+ * the serializer must consume its root, and finishing rejects unread content and trailing bytes.
+ */
+@InternalAwesn1Api
+fun <T> Der.decodeFromAsn1Source(
+    deserializer: DeserializationStrategy<T>,
+    source: Source<*>,
+    limit: Long,
+): T = withAnalysis(deserializer.descriptor) { analysis ->
+    val decoder = DerDecoder(
+        BoundedSource(source, minOf(limit, configuration.maxInputLength)).wrapInDerInput(
+            configuration.maxNestingDepth,
+            maxChildren = 1,
+        ),
+        der = this,
+        analysis = analysis,
+    )
+    decoder.decodeSerializableValue(deserializer).also { decoder.finish() }
 }
 
 private inline fun <R> Der.withAnalysis(
@@ -148,8 +169,8 @@ private inline fun <R> Der.withAnalysis(
  * @property maxInputLength maximum allowed DER byte-array size. Defaults to the platform's conservative array ceiling;
  * lower it when the application or protocol has a smaller bound. Streaming `Source` APIs may use a tighter per-call
  * limit.
- * @property maxNestingDepth maximum structural nesting depth the **typed** encoder/decoder will enter before throwing
- * a [kotlinx.serialization.SerializationException]. Every nested structure counts, not only a self-reference. A fixed
+ * @property maxNestingDepth maximum structural nesting depth the typed encoder/decoder or incremental parser will enter
+ * before throwing a [kotlinx.serialization.SerializationException]. Every nested structure counts, not only a self-reference. A fixed
  * schema has an inherently bounded depth; self-referential `@Serializable` types are the usual way for input or an
  * in-memory value to drive that depth arbitrarily high.
  *
@@ -167,7 +188,7 @@ private inline fun <R> Der.withAnalysis(
  * The guard prevents stack exhaustion only when the configured limit fits the available headroom. Stack exhaustion
  * itself is deliberately neither caught nor converted.
  *
- * **IMPORTANT:** this limit applies only to recursion driven through kotlinx.serialization's encoder/decoder callbacks.
+ * The limit covers framework callbacks and ASN.1 subtrees materialized for custom serializers.
  * Recursion performed inside custom serializer code, including [Asn1Serializable.doDecode], is outside the format's
  * control and is **not bounded by `maxNestingDepth`**. Custom implementations must enforce their own limits.
  * @property serializersModule serializers used for contextual/open-polymorphic resolution.
