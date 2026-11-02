@@ -1,6 +1,6 @@
 # Changelog
 
-## NEXT
+## 0.9.0
 * **Fixes:**
     * Fixed tag-discriminated open polymorphism to emit registered subtype tags, preserve them through enclosing properties, resolve nullable/nested dispatch correctly, and avoid leaking tag state to later fields.
     * Fixed OID-discriminated open polymorphism to prefer exact subtype registrations, emit the registered discriminator, survive canonical SET sorting, and reject non-leading selectors that cannot be decoded losslessly.
