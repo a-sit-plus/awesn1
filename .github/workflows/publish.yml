@@ -38,6 +38,7 @@ jobs:
           ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.PUBLISH_SONATYPE_USER }}
           ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.PUBLISH_SONATYPE_PASSWORD }}
   deploy-docs:
+    needs: publish
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -56,9 +57,6 @@ jobs:
         with:
           python-version: 3.x
       - run: pip install -r docs/requirements.txt
-      - name: Set up Homebrew
-        id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
       - name: Install deps
         run: brew install cairo freetype libffi libjpeg libpng zlib
       - name: Build Dokka HTML
