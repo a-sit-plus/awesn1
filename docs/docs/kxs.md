@@ -100,14 +100,10 @@ implementation("at.asitplus.awesn1:kxs:$version")
 ## Serializable Values in the Builder DSL
 
 The `kxs` module lets an `Asn1TreeBuilder` encode values whose static type has an available kotlinx serializer. Use
-`append`; the serializer is inferred from the static type:
+`add`; the serializer is inferred from the static type:
 
 ```kotlin
-val envelope = with(DER) {
-    Asn1.Sequence {
-        append(certificate)
-    }
-}
+--8<-- "at/asitplus/awesn1/serialization/tutorial/BuilderDslDocumentationTest.kt:kxs-dsl-add-inferred"
 ```
 
 Here `certificate` may be an `@Serializable` application type or, for example, the `X509Certificate` model from the
@@ -117,43 +113,32 @@ an additional outer sequence.
 An explicit serializer can also be supplied:
 
 ```kotlin
-with(DER) {
-    Asn1.Sequence {
-        append(certificate)                           // inferred serializer
-        append(X509Certificate.serializer(), other)   // explicit serializer
-    }
-}
+--8<-- "at/asitplus/awesn1/serialization/tutorial/BuilderDslDocumentationTest.kt:kxs-dsl-add-explicit"
 ```
 
 Nullable values follow the selected `Der` configuration. If encoding omits a nullable `null` because
 `explicitNulls` is disabled, the builder appends nothing.
 
+```kotlin
+--8<-- "at/asitplus/awesn1/serialization/tutorial/BuilderDslDocumentationTest.kt:kxs-dsl-add-nullable"
+```
+
 !!! warning "Unary `+` is not a generic serialization operator"
 
     Kotlin always prefers an operand's member `unaryPlus` over extensions. Consequently, a generic serialization
     operator cannot reliably support values such as `Int`: `+5` invokes `Int.unaryPlus()` and appends nothing. The
-    former generic extension was removed; use `with(der) { Asn1.Sequence { append(value) } }` for
+    former generic extension was removed; use `with(der) { Asn1.Sequence { add(value) } }` for
     kotlinx-serializable values.
 
 Core builder operands do not need a `Der` context. `Asn1Element`, `Asn1Encodable`, `WrappedElement`, and
-`WrappedEncodable` values work directly with `append` or the legacy unary `+`. In particular, the `crypto` module's
+`WrappedEncodable` values work directly with `add` or the legacy unary `+`. In particular, the `crypto` module's
 `X509AlgorithmIdentifier` and `X509SignatureValue` are transparent wrappers:
 
 ```kotlin
-val withoutContext = Asn1.Sequence {
-    append(algorithmIdentifier)
-    append(signatureValue)
-}
-
-val withContext = with(DER) {
-    Asn1.Sequence {
-        append(algorithmIdentifier)
-        append(signatureValue)
-    }
-}
+--8<-- "at/asitplus/awesn1/serialization/tutorial/BuilderDslDocumentationTest.kt:kxs-dsl-wrapper-forms"
 ```
 
-Both forms append the wrappers' existing ASN.1 representation. A `Der` context is required only by `append` calls
+Both forms append the wrappers' existing ASN.1 representation. A `Der` context is required only by `add` calls
 that use the serialization bridge.
 
 ## Baseline Mapping
@@ -592,7 +577,6 @@ For strict canonicality expectations in certificate ecosystems, see
 [X.509 (RFC 5280)](https://www.rfc-editor.org/rfc/rfc5280).
 
 !!! danger "Custom decoder recursion is not bounded"
-
     `maxNestingDepth` bounds recursion driven by kotlinx.serialization and the ASN.1 element trees consumed or produced
     by built-in `Asn1Encodable`/`Asn1Decodable` handling. It **cannot** observe recursion performed inside custom
     `KSerializer` code or `Asn1Serializable.doDecode`, Hence custom serializer implementations must enforce their own depth and
