@@ -54,13 +54,14 @@ sealed class Asn1AbstractBitString(
     /** A copy of the bytes containing the BitString. Within each byte, bit 0 is the most significant.
      * This is normalized to comply with the type's canonical encoding (per DER), regardless of what the wire bytes were. */
     abstract val bitCarryingBytes: ByteArray
+
     /** The number of trailing meaningless zero padding bits at the end of [bitCarryingBytes]. Always in `0..7`. */
     abstract val numPaddingBits: Int
 
     /** Retrieves a single bit from the BIT STRING. Bits are addressed as per ASN.1, with index 0 being the most significant bit. */
     abstract operator fun get(bitIndex: Long): Boolean
 
-    protected class Serializer<T: Asn1AbstractBitString>(ctor: (ByteArray)->T) : Asn1Serializer<Asn1Primitive, T>(
+    protected class Serializer<T : Asn1AbstractBitString>(ctor: (ByteArray) -> T) : Asn1Serializer<Asn1Primitive, T>(
         leadingTags = setOf(Asn1Element.Tag.BIT_STRING),
         decodable = object : Asn1Decodable<Asn1Primitive, T> {
             @Throws(Asn1Exception::class)
@@ -69,8 +70,10 @@ sealed class Asn1AbstractBitString(
         fallbackSerializer = object : StringFallbackSerializer<T> {
             override val descriptor: SerialDescriptor =
                 PrimitiveSerialDescriptor(ASN1_DESCRIPTOR_BIT_STRING, PrimitiveKind.STRING)
+
             override fun encodeFallback(value: T): String =
                 Base64.encode(value.rawBytes)
+
             override fun decodeFallback(encoded: String): T =
                 ctor(Base64.decode(encoded))
         },
@@ -86,10 +89,13 @@ sealed class Asn1AbstractBitString(
 @Serializable(with = Asn1BitString.Companion::class)
 class Asn1BitString private constructor(rawBytes: ByteArray) : Asn1AbstractBitString(rawBytes) {
     override val numPaddingBits: Int = if (rawBytes.size == 1) 0 else rawNumPaddingBits
+
     /** The size of the BIT STRING in bytes. */
-    val sizeBytes: Int = rawBytes.size-1
+    val sizeBytes: Int = rawBytes.size - 1
+
     /** The size of the BIT STRING in bits. */
     val sizeBits: Long get() = sizeBytes * 8L - numPaddingBits
+
     /** The available indices into the BIT STRING. */
     val indices get() = (0 until sizeBits)
 
@@ -143,21 +149,26 @@ class Asn1BitString private constructor(rawBytes: ByteArray) : Asn1AbstractBitSt
          * The string's length is `bytes.size / 8 - numPaddingBits`. [bytes] is copied.
          * If [numPaddingBits] is specified, the trailing bits must already be zeroed out in [bytes]. */
         operator fun invoke(bytes: ByteArray, numPaddingBits: Byte) = invoke(bytes, numPaddingBits.toInt())
+
         /** Constructs a generalized ASN.1 BIT STRING containing the specified bytes. */
         operator fun invoke(vararg bits: Boolean): Asn1BitString {
             if (bits.isEmpty()) return Asn1BitString(byteArrayOf(0x00))
-            val paddingBits = 7-((bits.size-1)%8)
-            val numBytes = (bits.size-1)/8 + 1
-            val data = ByteArray(1+numBytes)
+            val paddingBits = 7 - ((bits.size - 1) % 8)
+            val numBytes = (bits.size - 1) / 8 + 1
+            val data = ByteArray(1 + numBytes)
             data[0] = paddingBits.toByte()
             bits.forEachIndexed { i, state ->
                 if (!state) return@forEachIndexed
-                val byteIndex = 1+(i/8)
-                data[byteIndex] = data[byteIndex] or (0x80 shr i%8).toByte()
+                val byteIndex = 1 + (i / 8)
+                data[byteIndex] = data[byteIndex] or (0x80 shr i % 8).toByte()
             }
             return Asn1BitString(data)
         }
-        @Deprecated("Since BitSet trims trailing zeroes, this actually constructs an Asn1NamedBitList", replaceWith = ReplaceWith("Asn1NamedBitList(bits)"))
+
+        @Deprecated(
+            "Since BitSet trims trailing zeroes, this actually constructs an Asn1NamedBitList",
+            replaceWith = ReplaceWith("Asn1NamedBitList(bits)")
+        )
         operator fun invoke(bits: BitSet) = Asn1NamedBitList(bits)
     }
 }
@@ -170,6 +181,7 @@ class Asn1NamedBitList private constructor(rawBytes: ByteArray) : Asn1AbstractBi
     /** The number of bytes that are needed to express the `true` bits */
     private val neededBytes: Int
     override val numPaddingBits: Int
+
     init {
         var _neededBytes: Int = 0
         var _numPaddingBits: Int = 0
@@ -235,7 +247,7 @@ class Asn1NamedBitList private constructor(rawBytes: ByteArray) : Asn1AbstractBi
         operator fun invoke(bits: BitSet): Asn1NamedBitList {
             if (bits.isEmpty()) return Asn1NamedBitList(byteArrayOf(0x00))
             val bytes = bits.bytes
-            return Asn1NamedBitList(ByteArray(bytes.size+1) { i ->
+            return Asn1NamedBitList(ByteArray(bytes.size + 1) { i ->
                 if (i == 0) bytes.last().countLeadingZeroBits().toByte()
                 else bytes[i-1].reverseBits()
             })
