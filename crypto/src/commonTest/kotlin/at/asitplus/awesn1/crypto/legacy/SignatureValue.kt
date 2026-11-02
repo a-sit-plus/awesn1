@@ -41,12 +41,12 @@ private constructor(val rawBitString: Asn1BitString) : Asn1Encodable<Asn1Primiti
     override fun encodeToTlv(): Asn1Primitive = rawBitString.encodeToTlv()
 
     companion object : Asn1Serializable<Asn1Primitive, SignatureValue> {
-        override val leadingTags = Asn1AbstractBitString.leadingTags
+        override val leadingTags = Asn1BitString.leadingTags
         override fun doDecode(src: Asn1Primitive): SignatureValue {
             return SignatureValue(src.asAsn1BitString())
         }
 
-        operator fun invoke(rawBitString: Asn1AbstractBitString) : SignatureValue = SignatureValue(rawBitString)
+        operator fun invoke(rawBitString: Asn1BitString) : SignatureValue = SignatureValue(rawBitString)
         /**
          * Constructs a Signature value from [r] and [s] coordinates (as used by ECDSA, and DSA, for example)
          */

@@ -8,7 +8,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.*
 import kotlin.jvm.JvmInline
-import at.asitplus.awesn1.Asn1AbstractBitString as Asn1BitStringValue
+import at.asitplus.awesn1.Asn1BitString as Asn1BitStringT
+import at.asitplus.awesn1.serialization.Asn1BitString as Asn1BitStringA
 
 @OptIn(ExperimentalStdlibApi::class)
 val SerializationTestBitsAndBytes by matrixSuite(
@@ -33,7 +34,7 @@ val SerializationTestBitsAndBytes by matrixSuite(
                 DER.decodeFromHexString<BitSetValue>("030401010202" )
             }.message shouldContain "must not have padding bits"
 
-            DER.decodeFromHexString<Asn1BitStringValue>("03020105").bitCarryingBytes shouldBe byteArrayOf(0x04)
+            DER.decodeFromHexString<Asn1BitStringT>("03020105").bitCarryingBytes shouldBe byteArrayOf(0x04)
 
             val tagged = BitSetValueTagged(byteArrayOf(0x01, 0x02))
             DER.decodeFromByteArray<BitSetValueTagged>(
@@ -59,7 +60,7 @@ val SerializationTestBitsAndBytes by matrixSuite(
 @JvmInline
 @Serializable
 value class BitSetValue(
-    @Asn1BitString
+    @Asn1BitStringA
     val bytes: ByteArray
 )
 
@@ -67,6 +68,6 @@ value class BitSetValue(
 @Serializable
 @Asn1Tag(tagNumber = 1336u)
 value class BitSetValueTagged(
-    @Asn1BitString
+    @Asn1BitStringA
     val bytes: ByteArray
 )

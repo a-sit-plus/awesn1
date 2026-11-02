@@ -314,7 +314,7 @@ object Asn1 {
 
     /**
      * Creates an BIT STRING [Asn1Primitive] from [bitSet].
-     * **Left-Aligned and right-padded (see [Asn1AbstractBitString])**
+     * **Left-Aligned and right-padded (see [Asn1NamedBitList])**
      */
     fun NamedBitList(bitSet: BitSet) = Asn1NamedBitList(bitSet).encodeToTlv()
 

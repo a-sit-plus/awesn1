@@ -17,6 +17,7 @@ import kotlin.experimental.or
 import kotlin.io.encoding.Base64
 
 private fun lastByteMask(numPaddingBits: Int) = when (numPaddingBits) {
+    0 -> 0xff.toByte()
     1 -> 0xfe.toByte()
     2 -> 0xfc.toByte()
     3 -> 0xf8.toByte()
@@ -24,7 +25,7 @@ private fun lastByteMask(numPaddingBits: Int) = when (numPaddingBits) {
     5 -> 0xe0.toByte()
     6 -> 0xc0.toByte()
     7 -> 0x80.toByte()
-    else -> 0xff.toByte()
+    else -> throw ImplementationError("numPaddingBits !in 0..7")
 }
 
 private fun Byte.reverseBits(): Byte {
@@ -36,7 +37,6 @@ private fun Byte.reverseBits(): Byte {
 
 /** ASN.1 BIT STRING. When serialized to a non-DER format, uses: `base64Strict(content octets)`.
  * Different encoding rules apply for general bit strings ([Asn1BitString]), and named bit lists ([Asn1NamedBitList]). */
-@Serializable(with=Asn1AbstractBitString.Companion::class)
 sealed class Asn1AbstractBitString(
     /** the encoded raw bytes (lenient, if decoded from DER); number of padding bits followed by raw bytes */
     protected val rawBytes: ByteArray,
@@ -80,16 +80,9 @@ sealed class Asn1AbstractBitString(
     }
 
     override fun encodeToTlv() = Asn1Primitive(Asn1Element.Tag.BIT_STRING, rawBytes)
-
-    companion object : Asn1Serializable<Asn1Primitive, Asn1AbstractBitString> by Serializer({ Asn1BitString.adoptingTLVContentBytes(it) })
 }
 
-/**
- * Convenience faux ctor taking a [Byte] of [numPaddingBits].
- */
-operator fun Asn1BitString.Companion.invoke(bytes: ByteArray, numPaddingBits: Byte = 0.toByte()) = invoke(bytes, numPaddingBits.toInt())
-
-/** A general [Asn1AbstractBitString]. It has a concrete size ([sizeBits]/[sizeBytes]), and can be indexed accordingly. */
+/** A general ASN.1 BIT STRING. It has a concrete size ([sizeBits]/[sizeBytes]), and can be indexed accordingly. */
 @Serializable(with = Asn1BitString.Companion::class)
 class Asn1BitString private constructor(rawBytes: ByteArray) : Asn1AbstractBitString(rawBytes) {
     override val numPaddingBits: Int = if (rawBytes.size == 1) 0 else rawNumPaddingBits
@@ -146,6 +139,10 @@ class Asn1BitString private constructor(rawBytes: ByteArray) : Asn1AbstractBitSt
             }
             return Asn1BitString(ByteArray(bytes.size+1) { if (it == 0) numPaddingBits.toByte() else bytes[it - 1] })
         }
+        /** Constructs a generalized ASN.1 BIT STRING from its logical byte content.
+         * The string's length is `bytes.size / 8 - numPaddingBits`. [bytes] is copied.
+         * If [numPaddingBits] is specified, the trailing bits must already be zeroed out in [bytes]. */
+        operator fun invoke(bytes: ByteArray, numPaddingBits: Byte) = invoke(bytes, numPaddingBits.toInt())
         /** Constructs a generalized ASN.1 BIT STRING containing the specified bytes. */
         operator fun invoke(vararg bits: Boolean): Asn1BitString {
             if (bits.isEmpty()) return Asn1BitString(byteArrayOf(0x00))
@@ -160,10 +157,8 @@ class Asn1BitString private constructor(rawBytes: ByteArray) : Asn1AbstractBitSt
             }
             return Asn1BitString(data)
         }
-        @Deprecated("Since BitSet trims trailing zeroes, this actually constructs an Asn1NamedBitList", replaceWith = ReplaceWith("Asn1NamedBitList"))
+        @Deprecated("Since BitSet trims trailing zeroes, this actually constructs an Asn1NamedBitList", replaceWith = ReplaceWith("Asn1NamedBitList(bits)"))
         operator fun invoke(bits: BitSet) = Asn1NamedBitList(bits)
-        @InternalAwesn1Api
-        internal fun adoptingTLVContentBytes(bytes: ByteArray) = Asn1BitString(bytes)
     }
 }
 

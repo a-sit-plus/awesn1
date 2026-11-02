@@ -70,7 +70,7 @@ val Asn1BitStringTest by matrixSuite {
 
     "Malformed DER round-trips" {
         val valid = Asn1BitString(byteArrayOf(0x10), numPaddingBits = 4)
-        val invalid = valid.encodeToDer().also { it[it.lastIndex] = 0x11 }.let { Asn1AbstractBitString.decodeFromDer(it) }
+        val invalid = valid.encodeToDer().also { it[it.lastIndex] = 0x11 }.let { Asn1BitString.decodeFromDer(it) }
         valid shouldBe invalid
         valid.encodeToDer() shouldNotBe invalid.encodeToDer()
         shouldThrow<IndexOutOfBoundsException> { valid[7] }
