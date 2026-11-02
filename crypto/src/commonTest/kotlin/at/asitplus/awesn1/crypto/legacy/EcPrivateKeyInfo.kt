@@ -3,13 +3,7 @@
 
 package at.asitplus.awesn1.crypto.legacy
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Encodable
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Sequence
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.decodeRethrowing
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.encoding.asAsn1BitString
 import at.asitplus.awesn1.encoding.decodeToInt

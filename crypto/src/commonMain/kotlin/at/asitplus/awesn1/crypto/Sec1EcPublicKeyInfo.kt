@@ -3,11 +3,7 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.readOid
-import at.asitplus.awesn1.runRethrowing
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.Der
 
@@ -75,7 +71,7 @@ sealed class Sec1EcPublicKeyInfo(val curveOid: ObjectIdentifier, val x: ByteArra
                 { "SubjectPublicKeyInfo is not an ECDSA public key" }
             val curveOid = publicKeyInfo.algorithmParameters?.asPrimitive()?.readOid() ?:
                 throw IllegalArgumentException("ECDSA SubjectPublicKeyInfo must not contain NULL params")
-            require(publicKeyInfo.subjectPublicKey.numPaddingBits == 0.toByte())
+            require(publicKeyInfo.subjectPublicKey.numPaddingBits == 0)
                 { "ECDSA subjectPublicKey must only have full octets" }
             val contentBytes = publicKeyInfo.subjectPublicKey.bitCarryingBytes
             invoke(curveOid, contentBytes)
@@ -90,7 +86,7 @@ sealed class Sec1EcPublicKeyInfo(val curveOid: ObjectIdentifier, val x: ByteArra
                         false -> byteArrayOf(COMPRESSED_MINUS_PREFIX, *publicKey.x)
                     }
                     is Uncompressed -> byteArrayOf(UNCOMPRESSED_PREFIX, *publicKey.x, *publicKey.y)
-                }.let(::Asn1BitString)
+                }.let(Asn1BitString::invoke)
             )
         }
 

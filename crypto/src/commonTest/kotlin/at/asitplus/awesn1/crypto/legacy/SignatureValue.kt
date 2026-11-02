@@ -19,7 +19,7 @@ value class SignatureValue
 private constructor(val rawBitString: Asn1BitString) : Asn1Encodable<Asn1Primitive> {
 
     init {
-        if (rawBitString.numPaddingBits != 0.toByte()) throw Asn1Exception("The signature value must have padding bits")
+        if (rawBitString.numPaddingBits != 0) throw Asn1Exception("The signature value must have padding bits")
     }
 
     constructor(rawBytes: ByteArray) : this(Asn1BitString(rawBytes))

@@ -88,7 +88,8 @@ The core module includes rich semantic types beyond raw TLV primitives:
 - `Asn1Real`: ASN.1 REAL with arbitrary precision model and IEEE-754 bridges.
 - `Asn1String` hierarchy: UTF8, Printable, IA5, BMP, Numeric, etc. See [ASN.1 String Types and Validation](#asn1-string-types-and-validation).
 - `Asn1Time`: bridges `Instant` to UTC/Generalized Time.
-- `Asn1BitString`: bit-level representation with padding-bit tracking.
+- `Asn1BitString`: fixed-size bit strings
+- `Asn1NamedBitSet`: compact-encoded bit flags
 - `BitSet`: pure-Kotlin bitset implementation.
 - `ObjectIdentifier`: OID support (string/components/bytes/UUID-based constructors). See [Object Identifiers (OID) Deep Dive](#object-identifiers-oid-deep-dive).
 

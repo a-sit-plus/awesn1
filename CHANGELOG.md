@@ -23,6 +23,14 @@
     * Normalize failures from non-DER ASN.1 serializers to `SerializationException`, including Base64 fallback, numeric, string, OID, and time serializers.
     * Corrected integer text/magnitude and varint edge cases and lenient empty INTEGER decoding.
     * Corrected REAL base/factor and lenient exponent decoding, and finite REAL-to-`Double` conversion with IEEE rounding.
+    * `BitSet`'s index range operations (`set(from, to)`, `flip(from, to)`, `clear(from, to)`) now exclude `to`; this matches Java's `BitSet`.
+    * `Asn1BitString`'s abstract functionality has been moved into `Asn1AbstractBitString`.
+      * `Asn1NamedBitSet` has been added, which models named-bit-set semantics.
+      * Both decode permissively. Both round-trip non-canonical bytes. Both are DER canonical if constructed programmatically.
+      * `Asn1BitString` is a generalized BIT STRING. It has a fixed length, and encodes trailing zeroes. This is the same as the old behavior.
+      * `Asn1NamedBitSet` is a named bit set. It has infinite logical length, and omits trailing zeroes.
+      * The primary behavioral change is that the `BitSet`-taking constructor now constructs an `Asn1NamedBitSet`.
+    * `Asn1BitString.paddingBits` is now of type `Int`, not `Byte`. Semantics are unchanged. Kotlin's numeric type system is an utter mess.
 * **Known limitations:**
     * `DefaultDer` is a startup-only, unsynchronised registry. Configure it serially before first access to `DER`, or use an application-owned `Der` instance.
 * **Security Hardening:**

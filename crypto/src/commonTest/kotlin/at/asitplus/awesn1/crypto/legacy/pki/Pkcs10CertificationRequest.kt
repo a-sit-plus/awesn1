@@ -3,16 +3,10 @@
 
 package at.asitplus.awesn1.crypto.legacy.pki
 
-import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1PemDecodable
-import at.asitplus.awesn1.Asn1PemEncodable
-import at.asitplus.awesn1.Asn1Sequence
-import at.asitplus.awesn1.decodeRethrowing
-import at.asitplus.awesn1.encoding.Asn1
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.legacy.SignatureAlgorithmIdentifier
 import at.asitplus.awesn1.crypto.legacy.SignatureValue
+import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Serializable
 import kotlinx.serialization.Serializable
 

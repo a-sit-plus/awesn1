@@ -543,18 +543,24 @@ fun Asn1Primitive.decodeToInstant() =
         else -> throw Asn1StructuralException("Unsupported ASN.1 time tag $tag")
     }
 
-/**
- * Exception-free version of [decodeToInstant]
- */
+/** Exception-free version of [decodeToInstant] */
 fun Asn1Primitive.decodeToInstantOrNull() = catchingUnwrapped { decodeToInstant() }.getOrNull()
 
 /**
- * Transforms this [Asn1Primitive]' into an [Asn1BitString], assuming it was encoded as BIT STRING
+ * Transforms this [Asn1Primitive] into an [Asn1BitString], assuming it was encoded as BIT STRING
  * @throws Asn1Exception  on invalid input
  */
 @Throws(Asn1Exception::class)
 fun Asn1Primitive.asAsn1BitString(assertTag: Asn1Element.Tag = Asn1Element.Tag.BIT_STRING) =
     Asn1BitString.decodeFromTlv(this, assertTag)
+
+/**
+ * Transforms this [Asn1Primitive] into an [Asn1NamedBitList], assuming it was encoded as BIT STRING
+ * @throws Asn1Exception  on invalid input
+ */
+@Throws(Asn1Exception::class)
+fun Asn1Primitive.asAsn1NamedBitList(assertTag: Asn1Element.Tag = Asn1Element.Tag.BIT_STRING) =
+    Asn1NamedBitList.decodeFromTlv(this, assertTag)
 
 /**
  * decodes this [Asn1Primitive] to null (i.e. verifies the tag to be [BERTags.ASN1_NULL] and the content to be empty

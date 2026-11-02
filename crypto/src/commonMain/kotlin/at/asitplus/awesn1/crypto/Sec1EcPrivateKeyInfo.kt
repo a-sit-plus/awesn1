@@ -3,21 +3,9 @@
 
 package at.asitplus.awesn1.crypto
 
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.Asn1BitString
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1OctetString
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.PemLabelSpec
-import at.asitplus.awesn1.WithPemLabel
-import at.asitplus.awesn1.runRethrowing
-import at.asitplus.awesn1.serialization.Asn1Tag
-import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.serialization.Der
-import at.asitplus.awesn1.serialization.ExplicitlyTagged
-import at.asitplus.awesn1.serialization.decodeFromDer
-import at.asitplus.awesn1.serialization.decodeFromTlv
-import at.asitplus.awesn1.serialization.getValue
+import at.asitplus.awesn1.serialization.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -26,6 +14,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encodeToByteArray
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+
 /**
  *
  * As per [RFC5915](https://www.rfc-editor.org/rfc/rfc5915.html#section-3):
@@ -56,7 +45,7 @@ data class Sec1EcPrivateKeyInfo internal constructor(
         version: Version = Version.V1,
         privateKey: ByteArray,
         parameters: ObjectIdentifier?,
-        publicKey: Asn1BitString?,
+        publicKey: Asn1BitString? = null,
     ) : this(
         version = Version.V1,
         privateKey = privateKey,
@@ -67,7 +56,7 @@ data class Sec1EcPrivateKeyInfo internal constructor(
 
     init {
         taggedPublicKey?.value?.let {
-            if (it.numPaddingBits != 0.toByte()) {
+            if (it.numPaddingBits != 0) {
                 throw Asn1Exception("Public key value must not have padding bits")
             }
         }

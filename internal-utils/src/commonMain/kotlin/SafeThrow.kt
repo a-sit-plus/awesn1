@@ -7,6 +7,7 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
+@IgnorableReturnValue
 expect inline fun Throwable.nonFatalOrThrow(): Throwable
 
 /**
