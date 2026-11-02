@@ -84,6 +84,11 @@ sealed class Asn1AbstractBitString(
     companion object : Asn1Serializable<Asn1Primitive, Asn1AbstractBitString> by Serializer({ Asn1BitString.adoptingTLVContentBytes(it) })
 }
 
+/**
+ * Convenience faux ctor taking a [Byte] of [numPaddingBits].
+ */
+operator fun Asn1BitString.Companion.invoke(bytes: ByteArray, numPaddingBits: Byte = 0.toByte()) = invoke(bytes, numPaddingBits.toInt())
+
 /** A general [Asn1AbstractBitString]. It has a concrete size ([sizeBits]/[sizeBytes]), and can be indexed accordingly. */
 @Serializable(with = Asn1BitString.Companion::class)
 class Asn1BitString private constructor(rawBytes: ByteArray) : Asn1AbstractBitString(rawBytes) {
