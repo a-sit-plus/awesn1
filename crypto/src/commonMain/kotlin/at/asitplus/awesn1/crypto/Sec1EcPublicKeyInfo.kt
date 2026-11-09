@@ -6,15 +6,9 @@ package at.asitplus.awesn1.crypto
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.Der
-import kotlinx.serialization.Serializable
 
-@Serializable
-sealed class Sec1EcPublicKeyInfo {
-    abstract val curveOid: ObjectIdentifier
-    abstract val x: ByteArray
-
-    @Serializable
-    class Uncompressed(override val curveOid: ObjectIdentifier, override val x: ByteArray, val y: ByteArray) : Sec1EcPublicKeyInfo() {
+sealed class Sec1EcPublicKeyInfo(val curveOid: ObjectIdentifier, val x: ByteArray) {
+    class Uncompressed(curveOid: ObjectIdentifier, x: ByteArray, val y: ByteArray) : Sec1EcPublicKeyInfo(curveOid, x) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Uncompressed) return false
@@ -29,8 +23,7 @@ sealed class Sec1EcPublicKeyInfo {
         override fun hashCode() = 31 * (31 * curveOid.hashCode() + x.contentHashCode()) + y.contentHashCode()
     }
 
-    @Serializable
-    class Compressed(override val curveOid: ObjectIdentifier, override val x: ByteArray, val positiveY: Boolean) : Sec1EcPublicKeyInfo() {
+    class Compressed(curveOid: ObjectIdentifier, x: ByteArray, val positiveY: Boolean) : Sec1EcPublicKeyInfo(curveOid, x) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (other !is Compressed) return false
