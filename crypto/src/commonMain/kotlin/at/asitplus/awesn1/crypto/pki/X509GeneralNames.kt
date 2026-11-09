@@ -24,6 +24,19 @@ import kotlin.native.HiddenFromObjC
 @Serializable
 sealed interface X509GeneralName {
 
+    /** The context-specific [Asn1Element.Tag] of this `GeneralName` CHOICE alternative. */
+    val tag get() =
+        when (this) {
+            is Other -> Tags.otherName
+            is Rfc822 -> Tags.rfc822Name
+            is Dns -> Tags.dnsName
+            is X400Address -> Tags.x400Address
+            is Directory -> Tags.directoryName
+            is EdiParty -> Tags.ediPartyName
+            is UniformResourceIdentifier -> Tags.uniformResourceIdentifier
+            is IpAddress -> Tags.ipAddress
+            is RegisteredId -> Tags.registeredID
+        }
 
     /** The `[0]` GeneralName arm containing an open [SemanticValue] value.
      * Trying to parse a structurally malformed input will fail.

@@ -8,8 +8,8 @@ package at.asitplus.awesn1.serialization
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.serialization.internal.DerDecoder
-import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerDepthGuard
+import at.asitplus.awesn1.serialization.internal.DerEncoder
 import at.asitplus.awesn1.serialization.internal.DerLayoutPlanContext
 import kotlinx.serialization.*
 import kotlinx.serialization.encoding.Decoder
@@ -251,6 +251,16 @@ inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
     decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source) as T
 
 @ExperimentalSerializationApi
+fun <T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
+    serializer: KSerializer<T>,
+    source: PemBlock,
+    der: Der = DER
+): T {
+    validate(source)
+    return der.decodeFromByteArray(serializer, source.payload)
+}
+
+@ExperimentalSerializationApi
 inline fun <reified T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
     source: PemBlock,
     der: Der = DER
@@ -259,13 +269,57 @@ inline fun <reified T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
     return der.decodeFromDer(source.payload)
 }
 
+@ExperimentalSerializationApi
+fun <T: WithPemLabel> PemLabelSpec<T>.decodeFromPem(
+    serializer: KSerializer<T>,
+    pemEncoded: String,
+    der: Der = DER
+) = decodeFromPem(serializer, PemBlock.decodeFromPem(pemEncoded), der)
+
+/** Decodes [pemEncoded], which must consist of a single PEM block. */
+@ExperimentalSerializationApi
+inline fun <reified T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
+    pemEncoded: String,
+    der: Der = DER
+): T = decodeFromPem(PemBlock.decodeFromPem(pemEncoded), der)
+
+@ExperimentalSerializationApi
+fun <T: WithPemLabel> PemLabelSpec<T>.decodeAllFromPem(
+    serializer: KSerializer<T>,
+    pemEncoded: String,
+    der: Der = DER
+): Iterable<T> = PemBlock.decodeAllFromPem(pemEncoded).map { decodeFromPem(serializer, it, der) }
+
+/** Decodes [pemEncoded], which must consist of one or more PEM blocks. */
+@ExperimentalSerializationApi
+inline fun <reified T: WithPemLabel> PemLabelSpec<T>.decodeAllFromPem(
+    pemEncoded: String,
+    der: Der = DER
+): Iterable<T> = PemBlock.decodeAllFromPem(pemEncoded).map { decodeFromPem(it, der) }
+
+@ExperimentalSerializationApi
+fun <T: WithPemLabel> T.encodeToPemBlock(serializer: KSerializer<T>, der: Der = DER): PemBlock =
+    PemBlock(pemLabel, payload = der.encodeToByteArray(serializer, this))
 
 @ExperimentalSerializationApi
 inline fun <reified T : WithPemLabel> T.encodeToPemBlock(der: Der = DER): PemBlock =
     PemBlock(pemLabel, payload = der.encodeToByteArray(this))
 
 @ExperimentalSerializationApi
-inline fun <reified T : WithPemLabel> T.encodeToPem(der: Der = DER): String = encodeToPemBlock(der).encodeToPem()
+fun <T: WithPemLabel> T.encodeToPem(serializer: KSerializer<T>, der: Der = DER): String =
+    encodeToPemBlock(serializer, der).encodeToPem()
+
+@ExperimentalSerializationApi
+inline fun <reified T : WithPemLabel> T.encodeToPem(der: Der = DER): String =
+    encodeToPemBlock(der).encodeToPem()
+
+@ExperimentalSerializationApi
+fun <T: WithPemLabel> Iterable<T>.encodeAllToPem(serializer: KSerializer<T>, der: Der = DER): String =
+    this.joinToString("\n") { it.encodeToPem(serializer, der) }
+
+@ExperimentalSerializationApi
+inline fun <reified T: WithPemLabel> Iterable<T>.encodeAllToPem(der: Der = DER): String =
+    this.joinToString("\n") { it.encodeToPem(der) }
 
 interface DerEncoder : Encoder, Asn1DerEncoder {
     val der: Der

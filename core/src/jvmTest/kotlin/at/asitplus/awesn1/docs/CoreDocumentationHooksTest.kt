@@ -240,22 +240,24 @@ private fun coreHookPemGeneric() {
 // --8<-- [end:core-hook-pem-generic]
 }
 
-private fun coreHookPemAsn1() {
 // --8<-- [start:core-hook-pem-asn1]
-    val source = object : Asn1PemEncodable<Asn1Primitive> {
-        override val pemLabel: String = "ASN1 INTEGER"
-        override fun encodeToTlv(): Asn1Primitive = Asn1Integer(42).encodeToTlv()
+@Serializable
+@JvmInline
+private value class PemInteger(val value: Int) : WithPemLabel {
+    override val pemLabel: String get() = canonicalPemLabel
+
+    companion object : PemLabelSpec<PemInteger> {
+        override val canonicalPemLabel: String = "ASN1 INTEGER"
     }
-
-    val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
-        Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
-            override val canonicalPemLabel: String = "ASN1 INTEGER"
-        }
-
-    val pem = source.encodeToPem()
-    decoder.decodeFromPem(pem) shouldBe Asn1Integer(42)
-// --8<-- [end:core-hook-pem-asn1]
 }
+
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+private fun coreHookPemAsn1() {
+    val source = PemInteger(42)
+    val pem = source.encodeToPem()
+    PemInteger.decodeFromPem(pem) shouldBe source
+}
+// --8<-- [end:core-hook-pem-asn1]
 
 @OptIn(ExperimentalStdlibApi::class)
 val CoreDocumentationHooks by matrixSuite {

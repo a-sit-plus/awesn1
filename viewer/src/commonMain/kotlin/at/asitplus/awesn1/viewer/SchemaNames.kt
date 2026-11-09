@@ -3,27 +3,14 @@
 
 package at.asitplus.awesn1.viewer
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1EncapsulatingOctetString
-import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.Asn1Structure
-import at.asitplus.awesn1.KnownOIDs
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.TagClass
-import at.asitplus.awesn1.crypto.EncryptedPrivateKeyInfo
-import at.asitplus.awesn1.crypto.Pkcs1RsaPrivateKeyInfo
-import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo
-import at.asitplus.awesn1.crypto.Pkcs8PrivateKeyInfo
-import at.asitplus.awesn1.crypto.Sec1EcPrivateKeyInfo
-import at.asitplus.awesn1.crypto.SubjectPublicKeyInfo
+import at.asitplus.awesn1.*
+import at.asitplus.awesn1.crypto.*
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
 import at.asitplus.awesn1.crypto.pki.X509Certificate
-import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.encoding.decodeToLongOrNull
 import at.asitplus.awesn1.serialization.DER
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.decodeFromByteArray
 import kotlin.time.Instant
 
 internal val ANDROID_KEY_ATTESTATION_OID = ObjectIdentifier("1.3.6.1.4.1.11129.2.1.17")

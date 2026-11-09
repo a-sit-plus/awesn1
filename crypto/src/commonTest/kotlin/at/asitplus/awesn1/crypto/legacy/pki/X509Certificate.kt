@@ -15,7 +15,7 @@ open class X509Certificate(
     val tbsCertificate: TbsCertificate,
     val signatureAlgorithm: SignatureAlgorithmIdentifier,
     val signatureValue: SignatureValue,
-) : Asn1PemEncodable<Asn1Sequence> {
+) : Asn1Encodable<Asn1Sequence>, WithPemLabel {
 
     override val pemLabel get() = PEM_LABEL
 
@@ -42,7 +42,7 @@ open class X509Certificate(
 
     companion object :
         Asn1Serializable<Asn1Sequence, X509Certificate>,
-        Asn1PemDecodable<Asn1Sequence, X509Certificate>
+        PemLabelSpec<X509Certificate>
     {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
         const val PEM_LABEL = "CERTIFICATE"

@@ -15,7 +15,7 @@ open class Pkcs10CertificationRequest(
     val certificationRequestInfo: Pkcs10CertificationRequestInfo,
     val signatureAlgorithm: SignatureAlgorithmIdentifier,
     val signatureValue: SignatureValue,
-) : Asn1PemEncodable<Asn1Sequence> {
+) : Asn1Encodable<Asn1Sequence>, WithPemLabel {
 
     override val pemLabel get() = PEM_LABEL
 
@@ -42,7 +42,7 @@ open class Pkcs10CertificationRequest(
 
     companion object :
         Asn1Serializable<Asn1Sequence, Pkcs10CertificationRequest>,
-        Asn1PemDecodable<Asn1Sequence, Pkcs10CertificationRequest>
+        PemLabelSpec<Pkcs10CertificationRequest>
     {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
 

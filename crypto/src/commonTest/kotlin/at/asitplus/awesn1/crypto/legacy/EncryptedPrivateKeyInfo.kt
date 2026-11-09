@@ -4,11 +4,12 @@
 package at.asitplus.awesn1.crypto.legacy
 
 import at.asitplus.awesn1.Asn1Element
+import at.asitplus.awesn1.Asn1Encodable
 import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.Asn1OctetString
-import at.asitplus.awesn1.Asn1PemDecodable
-import at.asitplus.awesn1.Asn1PemEncodable
 import at.asitplus.awesn1.Asn1Sequence
+import at.asitplus.awesn1.PemLabelSpec
+import at.asitplus.awesn1.WithPemLabel
 import at.asitplus.awesn1.decodeRethrowing
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Serializable
@@ -18,7 +19,7 @@ import kotlinx.serialization.Serializable
 open class EncryptedPrivateKeyInfo(
     val encryptionAlgorithm: Asn1Sequence,
     val encryptedData: Asn1OctetString,
-) : Asn1PemEncodable<Asn1Sequence> {
+) : Asn1Encodable<Asn1Sequence>, WithPemLabel {
 
     override val pemLabel get() = PEM_LABEL
 
@@ -35,7 +36,7 @@ open class EncryptedPrivateKeyInfo(
 
     override fun hashCode(): Int = 31 * encryptionAlgorithm.hashCode() + encryptedData.hashCode()
 
-    companion object : Asn1PemDecodable<Asn1Sequence, EncryptedPrivateKeyInfo>, Asn1Serializable<Asn1Sequence, EncryptedPrivateKeyInfo> {
+    companion object : PemLabelSpec<EncryptedPrivateKeyInfo>, Asn1Serializable<Asn1Sequence, EncryptedPrivateKeyInfo> {
         const val PEM_LABEL = "ENCRYPTED PRIVATE KEY"
         override val canonicalPemLabel: String get() = PEM_LABEL
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)

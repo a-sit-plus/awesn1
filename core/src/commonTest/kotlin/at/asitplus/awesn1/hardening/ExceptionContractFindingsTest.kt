@@ -5,14 +5,9 @@
 
 package at.asitplus.awesn1.hardening
 
-import at.asitplus.awesn1.Asn1Decodable
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Exception
-import at.asitplus.awesn1.Asn1Integer
 import at.asitplus.awesn1.Asn1OctetString
-import at.asitplus.awesn1.Asn1PemDecodable
-import at.asitplus.awesn1.Asn1Primitive
-import at.asitplus.awesn1.decodeFromDerWithPemHeaders
 import at.asitplus.awesn1.encoding.parse
 import at.asitplus.awesn1.encoding.parseAll
 import at.asitplus.awesn1.wrapInUnsafeSource
@@ -27,23 +22,6 @@ val parse_limit_violation_throws_iae_not_asn1exception by matrixSuite {
 
     "Parsing all elements beyond the byte-array cap throws Asn1Exception" {
         shouldThrow<Asn1Exception> { Asn1Element.parseAll("020101".hexToByteArray(), limit = 2) }
-    }
-}
-
-val pem_decodefromderwithpemheaders_leaks_raw_cce by matrixSuite {
-    val decoder = object : Asn1PemDecodable<Asn1Primitive, Asn1Integer>,
-        Asn1Decodable<Asn1Primitive, Asn1Integer> by Asn1Integer.Companion {
-        override val canonicalPemLabel = "ASN1 INTEGER"
-    }
-
-    "The direct PEM bridge decodes an INTEGER" {
-        decoder.decodeFromDerWithPemHeaders(emptyList(), "020107".hexToByteArray()) shouldBe Asn1Integer(7)
-    }
-
-    "The direct PEM bridge wraps a wrong structural type as IllegalArgumentException" {
-        shouldThrow<IllegalArgumentException> {
-            decoder.decodeFromDerWithPemHeaders(emptyList(), "3003020101".hexToByteArray())
-        }
     }
 }
 

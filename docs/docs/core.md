@@ -177,7 +177,6 @@ If you want it to be serializable in DER, make the companion also implement `Asn
 - `decodeFromPem` / `encodeToPem` for single blocks
 - `decodeAllFromPem` / `encodeAllToPem` for PEM documents with multiple blocks
 - independent `PemEncodable` / `PemDecodable` contracts
-- `Asn1PemEncodable` / `Asn1PemDecodable` bridge contracts for ASN.1 DER payloads
 
 ### Generic PEM (opaque payload bytes)
 
@@ -189,7 +188,8 @@ Use this when you want to parse or emit PEM without caring what the payload is:
 
 ### ASN.1 Payloads Inside PEM
 
-If your PEM payload is ASN.1 DER, implement both ASN.1 and PEM bridge contracts:
+If your PEM payload is ASN.1 DER, implement `WithPemLabel` on the class itself,
+and `PemLabelSpec<T>` on its companion. 
 
 ```kotlin
 --8<-- "at/asitplus/awesn1/docs/CoreDocumentationHooksTest.kt:core-hook-pem-asn1"

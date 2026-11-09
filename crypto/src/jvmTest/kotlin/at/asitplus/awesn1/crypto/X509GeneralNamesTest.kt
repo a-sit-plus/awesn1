@@ -1,20 +1,10 @@
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1String
-import at.asitplus.awesn1.PemBlock
-import at.asitplus.awesn1.ObjectIdentifier
-import at.asitplus.awesn1.crypto.pki.X509Certificate
-import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
+import at.asitplus.awesn1.*
+import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.crypto.pki.X509GeneralName.Tags
-import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
-import at.asitplus.awesn1.crypto.pki.X500Name
-import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
-import at.asitplus.awesn1.crypto.pki.X509GeneralName
-import at.asitplus.awesn1.crypto.pki.X509GeneralNames
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findIssuerAltNames
 import at.asitplus.awesn1.crypto.pki.X509GeneralNames.Companion.findSubjectAltNames
-import at.asitplus.awesn1.decodeAllFromPem
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow

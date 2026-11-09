@@ -1,11 +1,15 @@
 package at.asitplus.awesn1.crypto
-import at.asitplus.awesn1.Asn1Time
 
 import at.asitplus.awesn1.Asn1Element
 import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.Asn1Integer.Sign
-import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
+import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.parse
+import at.asitplus.awesn1.runWrappingAs
+import at.asitplus.awesn1.serialization.DER
+import at.asitplus.awesn1.serialization.ExplicitlyTagged
+import at.asitplus.awesn1.serialization.decodeFromTlv
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.decodeFromByteArray
 import at.asitplus.awesn1.crypto.legacy.EcPrivateKeyInfo as LegacyEcPrivateKeyInfo
 import at.asitplus.awesn1.crypto.legacy.EncryptedPrivateKeyInfo as LegacyEncryptedPrivateKeyInfo
 import at.asitplus.awesn1.crypto.legacy.Pkcs8PrivateKeyInfo as LegacyPkcs8PrivateKeyInfo
@@ -23,21 +27,6 @@ import at.asitplus.awesn1.crypto.legacy.pki.RelativeDistinguishedName as LegacyR
 import at.asitplus.awesn1.crypto.legacy.pki.TbsCertificate as LegacyTbsCertificate
 import at.asitplus.awesn1.crypto.legacy.pki.X509Certificate as LegacyX509Certificate
 import at.asitplus.awesn1.crypto.legacy.pki.X509CertificateExtension as LegacyX509CertificateExtension
-import at.asitplus.awesn1.crypto.pki.Pkcs10CsrAttribute
-import at.asitplus.awesn1.crypto.pki.X500AttributeTypeAndValue
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
-import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequestInfo
-import at.asitplus.awesn1.crypto.pki.X500Name
-import at.asitplus.awesn1.crypto.pki.X500RelativeDistinguishedName
-import at.asitplus.awesn1.crypto.pki.X509TbsCertificate
-import at.asitplus.awesn1.crypto.pki.X509Certificate
-import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
-import at.asitplus.awesn1.serialization.ExplicitlyTagged
-import at.asitplus.awesn1.runWrappingAs
-import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.serialization.decodeFromTlv
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.decodeFromByteArray
 
 internal fun decodeLegacyAsCurrent(value: Any, encoded: ByteArray): Any {
     val element = Asn1Element.parse(encoded)
