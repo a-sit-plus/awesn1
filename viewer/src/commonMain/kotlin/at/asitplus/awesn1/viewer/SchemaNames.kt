@@ -7,6 +7,7 @@ import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.*
 import at.asitplus.awesn1.crypto.pki.Pkcs10CertificationRequest
 import at.asitplus.awesn1.crypto.pki.X509Certificate
+import at.asitplus.awesn1.crypto.pki.X509CertificateExtension
 import at.asitplus.awesn1.encoding.decodeToLongOrNull
 import at.asitplus.awesn1.serialization.DER
 import kotlinx.serialization.ExperimentalSerializationApi
