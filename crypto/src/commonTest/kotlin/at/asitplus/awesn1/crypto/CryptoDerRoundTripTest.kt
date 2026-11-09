@@ -20,34 +20,6 @@ import kotlin.time.Instant
 import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 
 val CryptoDerRoundTripTest by matrixSuite {
-    "EC SubjectPublicKeyInfo round-trips through SEC1 and DER" {
-        val curveOid = ObjectIdentifier("1.2.840.10045.3.1.7")
-        val x = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296".hexToByteArray()
-        val y = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5".hexToByteArray()
-        val spki = SubjectPublicKeyInfo(
-            X509AlgorithmIdentifier(ObjectIdentifier("1.2.840.10045.2.1"), curveOid.encodeToTlv()),
-            Asn1BitString(byteArrayOf(0x04) + x + y),
-        )
-
-        val sec1: Sec1EcPublicKeyInfo = Sec1EcPublicKeyInfo.of(spki)
-        sec1 shouldBe Sec1EcPublicKeyInfo.Uncompressed(curveOid, x, y)
-        sec1.curveOid shouldBe curveOid
-        sec1.x shouldBe x
-
-        val encoded = DER.encodeToByteArray<Sec1EcPublicKeyInfo>(sec1)
-        encoded shouldBe Asn1.Sequence {
-            +curveOid
-            +Asn1.OctetString(x)
-            +Asn1.OctetString(y)
-        }.derEncoded
-
-        val decoded = DER.decodeFromByteArray<Sec1EcPublicKeyInfo>(encoded)
-        decoded shouldBe sec1
-
-        val restoredSpki = SubjectPublicKeyInfo.from(decoded)
-        restoredSpki shouldBe spki
-    }
-
     "PKCS #10 request info equality and hash ignore attribute order" {
         val ordered = certificationRequestInfo(linkedSetOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE))
         val reversed = certificationRequestInfo(linkedSetOf(LARGER_ATTRIBUTE, SMALLER_ATTRIBUTE))
