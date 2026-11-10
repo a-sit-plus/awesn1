@@ -187,6 +187,8 @@ Use this when you want to parse or emit PEM without caring what the payload is:
 
 ### ASN.1 Payloads Inside PEM
 
+Typed ASN.1 PEM support requires the [`kxs` module](kxs.md#maven-coordinates).
+
 If your PEM payload is ASN.1 DER, implement `WithPemLabel` on the class itself,
 and `PemDeserializable<T>` on its companion. 
 
