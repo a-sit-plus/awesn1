@@ -229,7 +229,7 @@ inline fun <reified T : Any> Der.encodeToTlv(value: T): Asn1Element =
  * Encodes [value] into a single ASN.1 TLV element using the inferred serializer for [T].
  */
 @ExperimentalSerializationApi
-inline fun <reified T> Der.encodeToTlv(value: T) =
+inline fun <reified T> Der.encodeToTlv(value: T): Asn1Element? =
     encodeToTlv(configuration.serializersModule.serializer(typeOf<T>()), value)
 
 
@@ -250,27 +250,52 @@ inline fun <reified T> Der.decodeFromTlv(source: Asn1Element): T =
 inline fun <reified T> Der.decodeFromDer(source: ByteArray): T =
     decodeFromByteArray(configuration.serializersModule.serializer(typeOf<T>()), source) as T
 
+interface WithPemLabel {
+    val pemLabel: String
+}
+
+interface PemDeserializable<T> {
+
+    fun applyHeaders(label: String, headers: Iterable<PemHeader>, decoded: T): T =
+        if (headers.none()) decoded
+        else throw Asn1Exception("Expected empty PEM headers, but received nonempty ($headers) for $label.")
+
+    /** The standard or commonly agreed-upon PEM label for this data type. */
+    val canonicalPemLabel: String
+
+    /** Alternate PEM labels accepted for this data type when decoding */
+    val alternativePemLabels: Iterable<String> get() = emptySet()
+}
+/** All PEM labels accepted for this data type when decoding */
+val PemDeserializable<*>.validPemLabels get() = alternativePemLabels.asSequence() + canonicalPemLabel
+
 @ExperimentalSerializationApi
-fun <T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
+fun <T : WithPemLabel> PemDeserializable<T>.decodeFromPem(
     serializer: KSerializer<T>,
     source: PemBlock,
     der: Der = DER
 ): T {
-    validate(source)
-    return der.decodeFromByteArray(serializer, source.payload)
+    require(source.pemLabel in validPemLabels) {
+        "Unexpected PEM label ${source.pemLabel}, expected one of $validPemLabels."
+    }
+    return applyHeaders(source.pemLabel, source.headers,
+        der.decodeFromByteArray(serializer, source.payload))
 }
 
 @ExperimentalSerializationApi
-inline fun <reified T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
+inline fun <reified T : WithPemLabel> PemDeserializable<T>.decodeFromPem(
     source: PemBlock,
     der: Der = DER
 ): T {
-    validate(source)
-    return der.decodeFromDer(source.payload)
+    require(source.pemLabel in validPemLabels) {
+        "Unexpected PEM label ${source.pemLabel}, expected one of $validPemLabels."
+    }
+    return applyHeaders(source.pemLabel, source.headers,
+        der.decodeFromDer(source.payload))
 }
 
 @ExperimentalSerializationApi
-fun <T: WithPemLabel> PemLabelSpec<T>.decodeFromPem(
+fun <T: WithPemLabel> PemDeserializable<T>.decodeFromPem(
     serializer: KSerializer<T>,
     pemEncoded: String,
     der: Der = DER
@@ -278,13 +303,13 @@ fun <T: WithPemLabel> PemLabelSpec<T>.decodeFromPem(
 
 /** Decodes [pemEncoded], which must consist of a single PEM block. */
 @ExperimentalSerializationApi
-inline fun <reified T : WithPemLabel> PemLabelSpec<T>.decodeFromPem(
+inline fun <reified T : WithPemLabel> PemDeserializable<T>.decodeFromPem(
     pemEncoded: String,
     der: Der = DER
 ): T = decodeFromPem(PemBlock.decodeFromPem(pemEncoded), der)
 
 @ExperimentalSerializationApi
-fun <T: WithPemLabel> PemLabelSpec<T>.decodeAllFromPem(
+fun <T: WithPemLabel> PemDeserializable<T>.decodeAllFromPem(
     serializer: KSerializer<T>,
     pemEncoded: String,
     der: Der = DER
@@ -292,7 +317,7 @@ fun <T: WithPemLabel> PemLabelSpec<T>.decodeAllFromPem(
 
 /** Decodes [pemEncoded], which must consist of one or more PEM blocks. */
 @ExperimentalSerializationApi
-inline fun <reified T: WithPemLabel> PemLabelSpec<T>.decodeAllFromPem(
+inline fun <reified T: WithPemLabel> PemDeserializable<T>.decodeAllFromPem(
     pemEncoded: String,
     der: Der = DER
 ): Iterable<T> = PemBlock.decodeAllFromPem(pemEncoded).map { decodeFromPem(it, der) }

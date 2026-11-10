@@ -3,10 +3,10 @@
 
 package at.asitplus.awesn1.crypto.pki
 
-import at.asitplus.awesn1.PemLabelSpec
-import at.asitplus.awesn1.WithPemLabel
 import at.asitplus.awesn1.crypto.X509AlgorithmIdentifier
 import at.asitplus.awesn1.crypto.X509SignatureValue
+import at.asitplus.awesn1.serialization.PemDeserializable
+import at.asitplus.awesn1.serialization.WithPemLabel
 import kotlinx.serialization.Serializable
 
 /**
@@ -28,7 +28,7 @@ data class X509Certificate(
 ) : WithPemLabel {
     override val pemLabel: String get() = PEM_LABEL
 
-    companion object : PemLabelSpec<X509Certificate> {
+    companion object : PemDeserializable<X509Certificate> {
         const val PEM_LABEL = "CERTIFICATE"
         override val canonicalPemLabel: String get() = PEM_LABEL
         override val alternativePemLabels get() = setOf("TRUSTED CERTIFICATE")

@@ -5,7 +5,6 @@ import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.withClass
 import at.asitplus.awesn1.Asn1Element.Tag.Template.Companion.without
 import at.asitplus.awesn1.encoding.*
 import at.asitplus.awesn1.serialization.*
-import de.infix.testBalloon.framework.core.TestSession.Companion.DefaultConfiguration
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.Serializable
@@ -246,7 +245,7 @@ private fun coreHookPemGeneric() {
 private value class PemInteger(val value: Int) : WithPemLabel {
     override val pemLabel: String get() = canonicalPemLabel
 
-    companion object : PemLabelSpec<PemInteger> {
+    companion object : PemDeserializable<PemInteger> {
         override val canonicalPemLabel: String = "ASN1 INTEGER"
     }
 }

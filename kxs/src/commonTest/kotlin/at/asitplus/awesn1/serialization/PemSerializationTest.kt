@@ -5,9 +5,9 @@
 
 package at.asitplus.awesn1.serialization
 
+import at.asitplus.awesn1.Asn1Exception
 import at.asitplus.awesn1.PemBlock
-import at.asitplus.awesn1.PemLabelSpec
-import at.asitplus.awesn1.WithPemLabel
+import at.asitplus.awesn1.PemHeader
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.matchers.shouldBe
@@ -21,7 +21,7 @@ import kotlin.jvm.JvmInline
 private value class PemInteger(val value: Int) : WithPemLabel {
     override val pemLabel: String get() = canonicalPemLabel
 
-    companion object : PemLabelSpec<PemInteger> {
+    companion object : PemDeserializable<PemInteger> {
         override val canonicalPemLabel: String = "ASN1 INTEGER"
         override val alternativePemLabels: Set<String> = setOf("INTEGER ALIAS")
     }
@@ -53,6 +53,43 @@ val PemSerializationTest by matrixSuite {
 
         PemInteger.decodeFromPem(block) shouldBe PemInteger(7)
         PemInteger.decodeFromPem(block.encodeToPem()) shouldBe PemInteger(7)
+    }
+
+    "typed PEM rejects headers by default through every decoding entry point" {
+        val block = PemInteger(7).encodeToPemBlock().copy(headers = listOf(PemHeader("X-Test", "value")))
+        val pem = block.encodeToPem()
+        val bundle = "${PemInteger(7).encodeToPem()}\n$pem"
+        val serializer = PemInteger.serializer()
+
+        shouldThrow<Asn1Exception> { PemInteger.decodeFromPem(block) }
+        shouldThrow<Asn1Exception> { PemInteger.decodeFromPem(serializer, block) }
+        shouldThrow<Asn1Exception> { PemInteger.decodeFromPem(pem) }
+        shouldThrow<Asn1Exception> { PemInteger.decodeFromPem(serializer, pem) }
+        shouldThrow<Asn1Exception> { PemInteger.decodeAllFromPem(bundle).toList() }
+        shouldThrow<Asn1Exception> { PemInteger.decodeAllFromPem(serializer, bundle).toList() }
+    }
+
+    "typed PEM applies custom headers through every decoding entry point" {
+        val headers = listOf(PemHeader("X-Test", "value"))
+        val decoder = object : PemDeserializable<PemInteger> by PemInteger {
+            override fun applyHeaders(label: String, headers: Iterable<PemHeader>, decoded: PemInteger): PemInteger {
+                label shouldBe "INTEGER ALIAS"
+                headers.toList() shouldBe listOf(PemHeader("X-Test", "value"))
+                decoded shouldBe PemInteger(7)
+                return PemInteger(decoded.value + 1)
+            }
+        }
+        val block = PemInteger(7).encodeToPemBlock().copy(pemLabel = "INTEGER ALIAS", headers = headers)
+        val pem = block.encodeToPem()
+        val bundle = "$pem\n$pem"
+        val serializer = PemInteger.serializer()
+
+        decoder.decodeFromPem(block) shouldBe PemInteger(8)
+        decoder.decodeFromPem(serializer, block) shouldBe PemInteger(8)
+        decoder.decodeFromPem(pem) shouldBe PemInteger(8)
+        decoder.decodeFromPem(serializer, pem) shouldBe PemInteger(8)
+        decoder.decodeAllFromPem(bundle).toList() shouldBe listOf(PemInteger(8), PemInteger(8))
+        decoder.decodeAllFromPem(serializer, bundle).toList() shouldBe listOf(PemInteger(8), PemInteger(8))
     }
 
     "typed PEM reports a wrong structural type as SerializationException" {

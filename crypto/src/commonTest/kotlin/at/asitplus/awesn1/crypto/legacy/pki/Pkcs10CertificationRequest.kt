@@ -8,6 +8,8 @@ import at.asitplus.awesn1.crypto.legacy.SignatureAlgorithmIdentifier
 import at.asitplus.awesn1.crypto.legacy.SignatureValue
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Serializable
+import at.asitplus.awesn1.serialization.PemDeserializable
+import at.asitplus.awesn1.serialization.WithPemLabel
 import kotlinx.serialization.Serializable
 
 @Serializable(with = Pkcs10CertificationRequest.Companion::class)
@@ -42,7 +44,7 @@ open class Pkcs10CertificationRequest(
 
     companion object :
         Asn1Serializable<Asn1Sequence, Pkcs10CertificationRequest>,
-        PemLabelSpec<Pkcs10CertificationRequest>
+        PemDeserializable<Pkcs10CertificationRequest>
     {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
 

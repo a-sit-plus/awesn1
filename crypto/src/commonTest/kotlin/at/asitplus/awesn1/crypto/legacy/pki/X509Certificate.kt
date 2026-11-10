@@ -8,6 +8,8 @@ import at.asitplus.awesn1.crypto.legacy.SignatureAlgorithmIdentifier
 import at.asitplus.awesn1.crypto.legacy.SignatureValue
 import at.asitplus.awesn1.encoding.Asn1
 import at.asitplus.awesn1.serialization.Asn1Serializable
+import at.asitplus.awesn1.serialization.PemDeserializable
+import at.asitplus.awesn1.serialization.WithPemLabel
 import kotlinx.serialization.Serializable
 
 @Serializable(with = X509Certificate.Companion::class)
@@ -42,7 +44,7 @@ open class X509Certificate(
 
     companion object :
         Asn1Serializable<Asn1Sequence, X509Certificate>,
-        PemLabelSpec<X509Certificate>
+        PemDeserializable<X509Certificate>
     {
         override val leadingTags = setOf(Asn1Element.Tag.SEQUENCE)
         const val PEM_LABEL = "CERTIFICATE"

@@ -22,26 +22,11 @@ data class PemHeader(val name: String, val value: String) {
     }
 }
 
-interface WithPemLabel {
-    val pemLabel: String
-}
-
-interface PemLabelSpec<out T> {
-
-    /** The standard or commonly agreed-upon PEM label for this data type. */
-    val canonicalPemLabel: String
-
-    /** Alternate PEM labels accepted for this data type when decoding */
-    val alternativePemLabels: Iterable<String> get() = emptySet()
-}
-/** All PEM labels accepted for this data type when decoding */
-val PemLabelSpec<*>.validPemLabels get() = alternativePemLabels.asSequence() + canonicalPemLabel
-
 data class PemBlock(
-    override val pemLabel: String,
+    val pemLabel: String,
     val headers: Iterable<PemHeader> = emptyList(),
     val payload: ByteArray
-) : WithPemLabel {
+) {
 
     init {
         require(pemLabel.isNotBlank()) { "PEM label must not be blank" }
@@ -92,12 +77,6 @@ data class PemBlock(
     }
 
     companion object
-}
-
-fun PemLabelSpec<*>.validate(src: WithPemLabel) {
-    require(src.pemLabel in validPemLabels) {
-        "PEM label is ${src.pemLabel}, expected one of ${validPemLabels.joinToString()}"
-    }
 }
 
 @JvmName("encodeAllPemBlocksToPem")

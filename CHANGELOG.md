@@ -1,6 +1,9 @@
 # Changelog
 
 ## NEXT
+* **Fixes:**
+    * Fixed DER decoding path using kxs
+    * Re-added ability to process DER headers
 
 ## 0.9.0
 * **Fixes:**
