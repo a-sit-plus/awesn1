@@ -156,7 +156,7 @@ sealed interface X509GeneralName {
     @Serializable
     @JvmInline
     @Asn1Tag(tagNumber = 5u, constructed = Asn1Tag.ConstructedBit.CONSTRUCTED)
-    value class EdiParty(private val elements: List<Asn1Element>) : X509GeneralName {
+    value class EdiParty(val elements: List<Asn1Element>) : X509GeneralName {
 
         /**
          * convenience constructor
