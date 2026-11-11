@@ -91,7 +91,7 @@ data class Sec1EcPrivateKeyInfo internal constructor(
                 ")"
     }
 
-    companion object : PemLabelSpec<Sec1EcPrivateKeyInfo> {
+    companion object : PemDeserializable<Sec1EcPrivateKeyInfo> {
         const val PEM_LABEL = "EC PRIVATE KEY"
         override val canonicalPemLabel: String get() = PEM_LABEL
 

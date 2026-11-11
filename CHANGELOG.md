@@ -1,6 +1,10 @@
 # Changelog
 
 ## NEXT
+* **Fixes:**
+    * **Breaking:** Moved typed PEM support to `kxs` (`at.asitplus.awesn1.serialization`): update `WithPemLabel` imports and replace `PemLabelSpec<T>` with `PemDeserializable<T>`.
+    * Fixed DER decoding path using kxs
+    * Re-added ability to process PEM headers
 
 ## 0.9.0
 * **Fixes:**

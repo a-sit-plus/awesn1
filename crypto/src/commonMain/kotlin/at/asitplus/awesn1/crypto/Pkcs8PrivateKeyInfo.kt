@@ -7,9 +7,8 @@ import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.Pkcs1RsaPrivateKeyInfo.Companion.invoke
 import at.asitplus.awesn1.crypto.Sec1EcPrivateKeyInfo.Companion.invoke
 import at.asitplus.awesn1.serialization.Asn1Tag
-import at.asitplus.awesn1.serialization.DER
-import at.asitplus.awesn1.serialization.decodeFromTlv
-import at.asitplus.awesn1.serialization.encodeToTlv
+import at.asitplus.awesn1.serialization.PemDeserializable
+import at.asitplus.awesn1.serialization.WithPemLabel
 import kotlinx.serialization.Serializable
 
 /**
@@ -57,7 +56,7 @@ data class Pkcs8PrivateKeyInfo(
     fun decodeEcPrivateKey(): Sec1EcPrivateKeyInfo =
         Sec1EcPrivateKeyInfo.of(this)
 
-    companion object : PemLabelSpec<Pkcs8PrivateKeyInfo> {
+    companion object : PemDeserializable<Pkcs8PrivateKeyInfo> {
 
         const val PEM_LABEL_PRIVATE_KEY = "PRIVATE KEY"
         const val PEM_LABEL_RSA_PRIVATE_KEY = Pkcs1RsaPrivateKeyInfo.PEM_LABEL

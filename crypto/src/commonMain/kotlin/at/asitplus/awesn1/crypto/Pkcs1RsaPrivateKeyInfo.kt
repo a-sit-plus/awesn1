@@ -3,21 +3,13 @@
 
 package at.asitplus.awesn1.crypto
 
-import at.asitplus.awesn1.Asn1Element
-import at.asitplus.awesn1.Asn1Integer
-import at.asitplus.awesn1.Asn1Null
-import at.asitplus.awesn1.Asn1OctetString
-import at.asitplus.awesn1.ObjectIdentifier
+import at.asitplus.awesn1.*
 import at.asitplus.awesn1.serialization.Asn1Tag
-import at.asitplus.awesn1.WithPemLabel
-import at.asitplus.awesn1.PemLabelSpec
-import at.asitplus.awesn1.encoding.Asn1
-import at.asitplus.awesn1.runRethrowing
 import at.asitplus.awesn1.serialization.DER
 import at.asitplus.awesn1.serialization.Der
-import at.asitplus.awesn1.serialization.decodeFromDer
+import at.asitplus.awesn1.serialization.PemDeserializable
+import at.asitplus.awesn1.serialization.WithPemLabel
 import at.asitplus.awesn1.serialization.decodeFromTlv
-import at.asitplus.awesn1.serialization.encodeToTlv
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToByteArray
 
@@ -70,7 +62,7 @@ data class Pkcs1RsaPrivateKeyInfo(
     }
 
     override val pemLabel: String get() = PEM_LABEL
-    companion object : PemLabelSpec<Pkcs1RsaPrivateKeyInfo> {
+    companion object : PemDeserializable<Pkcs1RsaPrivateKeyInfo> {
         const val PEM_LABEL = "RSA PRIVATE KEY"
         override val canonicalPemLabel: String get() = PEM_LABEL
         private val RSA_ENCRYPTION_OID = ObjectIdentifier("1.2.840.113549.1.1.1")

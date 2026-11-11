@@ -6,6 +6,8 @@ package at.asitplus.awesn1.crypto
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo.Companion.from
 import at.asitplus.awesn1.crypto.Sec1EcPublicKeyInfo.Companion.from
+import at.asitplus.awesn1.serialization.PemDeserializable
+import at.asitplus.awesn1.serialization.WithPemLabel
 import kotlinx.serialization.Serializable
 
 /**
@@ -34,7 +36,7 @@ data class SubjectPublicKeyInfo(
     @Deprecated("Moved to a more suitable location", ReplaceWith("Pkcs1RsaPublicKeyInfo.of(this)"))
     fun decodeRsaPublicKey() = Pkcs1RsaPublicKeyInfo.of(this)
 
-    companion object : PemLabelSpec<SubjectPublicKeyInfo> {
+    companion object : PemDeserializable<SubjectPublicKeyInfo> {
         const val PEM_LABEL_PUBLIC_KEY = "PUBLIC KEY"
         const val PEM_LABEL_RSA_PUBLIC_KEY = "RSA PUBLIC KEY"
 
