@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.1
+* **Fixes:**
+    * RSA key decoding is now more lenient.
+* **Dependency Updates:**
+    * Kotlin 2.4.21
+    * serialization 1.13.0
+    * kotlinx.io 0.9.3
+
 ## 0.10.0
 * **Fixes:**
     * **Breaking:** Moved typed PEM support to `kxs` (`at.asitplus.awesn1.serialization`): update `WithPemLabel` imports and replace `PemLabelSpec<T>` with `PemDeserializable<T>`.
