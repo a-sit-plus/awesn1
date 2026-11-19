@@ -70,8 +70,8 @@ data class Pkcs1RsaPrivateKeyInfo(
         fun of(privateKeyInfo: Pkcs8PrivateKeyInfo, der: Der = DER) = runRethrowing {
             require(privateKeyInfo.algorithmOid == RSA_ENCRYPTION_OID)
                 { "Pkcs8PrivateKeyInfo is not an RSA private key" }
-            require(privateKeyInfo.algorithmParameters == Asn1Null)
-                { "RSA SubjectPublicKeyInfo must contain NULL params" }
+            require(privateKeyInfo.algorithmParameters == null || privateKeyInfo.algorithmParameters == Asn1Null)
+                { "RSA Pkcs8PrivateKeyInfo parameters must be absent or NULL" }
             der.decodeFromTlv<Pkcs1RsaPrivateKeyInfo>(
                 privateKeyInfo.privateKey.asEncapsulatingOctetString().element)
         }

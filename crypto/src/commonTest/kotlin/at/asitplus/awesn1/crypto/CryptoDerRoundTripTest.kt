@@ -2,6 +2,7 @@ package at.asitplus.awesn1.crypto
 
 import at.asitplus.awesn1.*
 import at.asitplus.awesn1.crypto.Pkcs1RsaPublicKeyInfo.Companion.from
+import at.asitplus.awesn1.crypto.Pkcs1RsaPrivateKeyInfo.Companion.invoke
 import at.asitplus.awesn1.crypto.Sec1EcPublicKeyInfo.Companion.from
 import at.asitplus.awesn1.crypto.pki.*
 import at.asitplus.awesn1.encoding.Asn1
@@ -11,6 +12,7 @@ import at.asitplus.awesn1.serialization.encodeToTlv
 import at.asitplus.testballoon.matrix.CompactScope
 import at.asitplus.testballoon.matrix.matrixSuite
 import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.assertions.throwables.shouldThrowAny
 import io.kotest.matchers.shouldBe
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -20,6 +22,39 @@ import kotlin.time.Instant
 import io.kotest.property.arbitrary.arbitrary as kotestArbitrary
 
 val CryptoDerRoundTripTest by matrixSuite {
+    "RSA wrapper interpretation accepts absent or NULL parameters without changing the source" {
+        val publicKey = randomRsaPublicKey(Random(1))
+        val privateKey = randomRsaPrivateKey(Random(2))
+        val spki = SubjectPublicKeyInfo.from(publicKey)
+        val pkcs8 = Pkcs8PrivateKeyInfo(privateKey)
+        spki.algorithmParameters shouldBe Asn1Null
+        pkcs8.algorithmParameters shouldBe Asn1Null
+
+        for (parameters in listOf(null, Asn1Null)) {
+            val publicSource = spki.copy(algorithmIdentifier = X509AlgorithmIdentifier(spki.algorithmOid, parameters))
+            val privateSource = pkcs8.copy(privateKeyAlgorithm = X509AlgorithmIdentifier(pkcs8.algorithmOid, parameters))
+            val publicBytes = DER.encodeToByteArray(publicSource)
+            val privateBytes = DER.encodeToByteArray(privateSource)
+            val decodedPublic = DER.decodeFromByteArray<SubjectPublicKeyInfo>(publicBytes)
+            val decodedPrivate = DER.decodeFromByteArray<Pkcs8PrivateKeyInfo>(privateBytes)
+
+            Pkcs1RsaPublicKeyInfo.of(decodedPublic) shouldBe publicKey
+            Pkcs1RsaPrivateKeyInfo.of(decodedPrivate) shouldBe privateKey
+            decodedPublic.algorithmParameters shouldBe parameters
+            decodedPrivate.algorithmParameters shouldBe parameters
+            DER.encodeToByteArray(decodedPublic) shouldBe publicBytes
+            DER.encodeToByteArray(decodedPrivate) shouldBe privateBytes
+        }
+
+        val invalidParameters = Asn1OctetString(byteArrayOf(1))
+        shouldThrowAny {
+            Pkcs1RsaPublicKeyInfo.of(spki.copy(algorithmIdentifier = X509AlgorithmIdentifier(spki.algorithmOid, invalidParameters)))
+        }
+        shouldThrowAny {
+            Pkcs1RsaPrivateKeyInfo.of(pkcs8.copy(privateKeyAlgorithm = X509AlgorithmIdentifier(pkcs8.algorithmOid, invalidParameters)))
+        }
+    }
+
     "PKCS #10 request info equality and hash ignore attribute order" {
         val ordered = certificationRequestInfo(linkedSetOf(SMALLER_ATTRIBUTE, LARGER_ATTRIBUTE))
         val reversed = certificationRequestInfo(linkedSetOf(LARGER_ATTRIBUTE, SMALLER_ATTRIBUTE))

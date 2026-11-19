@@ -38,8 +38,8 @@ data class Pkcs1RsaPublicKeyInfo(
         fun of(publicKeyInfo: SubjectPublicKeyInfo, der: Der = DER) = runRethrowing {
             require(publicKeyInfo.algorithmOid == RSA_ENCRYPTION_OID)
                 { "SubjectPublicKeyInfo is not an RSA public key" }
-            require(publicKeyInfo.algorithmParameters == Asn1Null)
-                { "RSA SubjectPublicKeyInfo must contain NULL params" }
+            require(publicKeyInfo.algorithmParameters == null || publicKeyInfo.algorithmParameters == Asn1Null)
+                { "RSA SubjectPublicKeyInfo parameters must be absent or NULL" }
             require (publicKeyInfo.subjectPublicKey.numPaddingBits == 0)
                 { "RSA SubjectPublicKeyInfo must have full octets (no padding bits)" }
             der.decodeFromDer<Pkcs1RsaPublicKeyInfo>(publicKeyInfo.subjectPublicKey.bitCarryingBytes)
