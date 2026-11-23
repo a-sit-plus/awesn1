@@ -1195,6 +1195,11 @@ h6,
 .asn1-viewer #hex-context-menu {
   position: fixed;
   z-index: 10;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
   padding: 0.25rem;
   border: 1px solid var(--awesn-line);
   border-radius: 0.35rem;
@@ -1203,8 +1208,20 @@ h6,
 }
 
 .asn1-viewer #hex-context-menu button {
+  display: block;
+  width: 100%;
   border: 0;
   background: transparent;
+  text-align: left;
+}
+
+.asn1-viewer .asn1-copy-preview {
+  display: block;
+  overflow: hidden;
+  opacity: 0.8;
+  font-size: 0.8em;
+  text-overflow: ellipsis;
+  white-space: pre;
 }
 
 .asn1-viewer [data-hover-detail]:hover::after {

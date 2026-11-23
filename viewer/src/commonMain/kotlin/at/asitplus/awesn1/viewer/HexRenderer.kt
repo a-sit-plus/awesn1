@@ -22,6 +22,8 @@ data class GenericAsn1Line(
     val hasPrimitiveContent: Boolean = false,
     val hasChildren: Boolean = false,
     val isRoot: Boolean = false,
+    val contentOffset: Int? = null,
+    val lengthOffset: Int? = null,
 )
 
 private const val MAX_RENDERED_HEX_BYTES = 64 * 1024
@@ -71,12 +73,15 @@ fun genericAsn1Lines(
             if (!isRoot || elements.size == 1) name
             else listOfNotNull(name, "(${path.single() + 1}/${elements.size})").joinToString(" ")
         }
+        val lengthOffset = offset + current.tag.encodedTag.size
+        val contentOffset = lengthOffset + current.encodedLength.size
         add(GenericAsn1Line(
             current.friendlyHeader(valueNames[path]), depth, path, offset, current.overallLength, memberName,
             current.childrenOrNull() == null, current.childrenOrNull()?.isNotEmpty() == true, isRoot,
+            contentOffset = contentOffset, lengthOffset = lengthOffset,
         ))
         current.childrenOrNull()?.let { children ->
-            var childOffset = offset + current.tag.encodedTag.size + current.encodedLength.size
+            var childOffset = contentOffset
             val offsets = children.map { child -> childOffset.also { childOffset += child.overallLength } }
             for (index in children.indices.reversed()) {
                 stack.addLast(Pending(children[index], depth + 2, path + index, offsets[index]))
