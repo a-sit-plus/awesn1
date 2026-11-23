@@ -50,9 +50,11 @@
     #hex-context-menu {
       position: fixed; z-index: 2; padding: .25rem; border: 1px solid #8886;
       border-radius: .35rem; background: Canvas; box-shadow: 0 .2rem 1rem #0004;
+      box-sizing: border-box; width: max-content; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto;
     }
-    #hex-context-menu button { border: 0; padding: .4rem .6rem; background: transparent; color: CanvasText; cursor: pointer; }
+    #hex-context-menu button { display: block; width: 100%; border: 0; padding: .4rem .6rem; background: transparent; color: CanvasText; text-align: left; cursor: pointer; }
     #hex-context-menu button:hover { background: #8882; }
+    .asn1-copy-preview { display: block; overflow: hidden; opacity: .8; font-size: .8em; text-overflow: ellipsis; white-space: pre; }
     [data-hover-detail]:hover::after {
       content: attr(data-hover-detail); position: fixed; right: 1rem; bottom: 1rem; z-index: 1;
       max-width: min(48rem, calc(100vw - 3rem)); padding: .55rem .7rem; border: 1px solid #8886;
@@ -83,7 +85,12 @@
       <div id="hex-output"></div>
     </section>
   </div>
-  <div id="hex-context-menu" role="menu" hidden><button type="button" role="menuitem">Copy segment as hex</button></div>
+  <div id="hex-context-menu" role="group" aria-label="Copy ASN.1 element" hidden>
+    <button id="copy-tag" type="button">Copy Tag</button>
+    <button id="copy-content" type="button">Copy Content</button>
+    <button id="copy-tlv" type="button">Copy TLV</button>
+    <button id="copy-diagnostic" type="button">Copy Diagnostic</button>
+  </div>
   <script src="viewer.js"></script>
 </body>
 </html>

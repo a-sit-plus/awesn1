@@ -14,8 +14,14 @@ import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLSelectElement
 import org.w3c.dom.HTMLTextAreaElement
+import org.w3c.dom.Node
+import org.w3c.dom.events.KeyboardEvent
 import org.w3c.dom.events.MouseEvent
 import org.w3c.files.FileReader
+
+private enum class CopyPart(val buttonId: String) {
+    TAG("copy-tag"), CONTENT("copy-content"), TLV("copy-tlv"), DIAGNOSTIC("copy-diagnostic"),
+}
 
 fun main() {
     KnownOIDs.describeAll()
@@ -26,13 +32,30 @@ fun main() {
     val output = document.getElementById("output")!!
     val hexOutput = document.getElementById("hex-output") as HTMLElement
     val hexMenu = document.getElementById("hex-context-menu") as HTMLElement
-    val hexCopy = hexMenu.querySelector("button") as HTMLButtonElement
+    val copyButtons = CopyPart.entries.associateWith { document.getElementById(it.buttonId) as HTMLButtonElement }
+    val copyPreviews = copyButtons.mapValues { (_, button) ->
+        document.createElement("span").apply {
+            className = "asn1-copy-preview"
+            id = "${button.id}-preview"
+            setAttribute("aria-hidden", "true")
+            button.setAttribute("aria-describedby", id)
+            button.appendChild(this)
+        }
+    }
     val status = document.getElementById("status")!!
     val shareControl = document.getElementById("share-control") as HTMLElement
     val shareButton = document.getElementById("share") as HTMLButtonElement
     val sharePopup = document.getElementById("share-popup") as HTMLElement
     var sharePopupTimeout: Int? = null
-    var pendingHex = ""
+    var copySelection: ((CopyPart) -> Unit)? = null
+    var menuOrigin: HTMLElement? = null
+    fun closeHexMenu(restoreFocus: Boolean = false) {
+        if (hexMenu.hidden) return
+        hexMenu.hidden = true
+        copySelection = null
+        if (restoreFocus) menuOrigin?.focus()
+        menuOrigin = null
+    }
     shareButton.onclick = {
         copyText(window.location.href) { copied ->
             if (copied) {
@@ -43,16 +66,30 @@ fun main() {
         }
         null
     }
-    hexCopy.onclick = {
-        copyText(pendingHex) { copied ->
-            status.textContent = if (copied) "Copied ${pendingHex.count { it == ' ' } + 1} DER bytes as hex."
-            else "Could not copy DER bytes."
+    copyButtons.forEach { (part, button) ->
+        button.onclick = {
+            val copy = copySelection
+            closeHexMenu(restoreFocus = true)
+            copy?.invoke(part)
+            null
         }
-        hexMenu.hidden = true
+    }
+    document.addEventListener("click", { event ->
+        if (!hexMenu.contains(event.target as? Node)) closeHexMenu()
+    }, true)
+    hexMenu.onkeydown = { event: KeyboardEvent ->
+        if (event.key == "Escape") {
+            event.preventDefault()
+            closeHexMenu(restoreFocus = true)
+        }
         null
     }
-    document.addEventListener("click", { hexMenu.hidden = true })
+    hexMenu.addEventListener("focusout", { event ->
+        val next = event.asDynamic().relatedTarget as? Node
+        if (next != null && !hexMenu.contains(next)) closeHexMenu()
+    })
     fun decode() {
+        closeHexMenu()
         shareControl.hidden = true
         sharePopup.hidden = true
         output.textContent = ""
@@ -79,13 +116,23 @@ fun main() {
                 }
             }
             val genericLines = genericAsn1Lines(decoded.elements, memberNames, valueNames)
-            renderPrettyPrint(genericLines, decoded.bytes, output as HTMLElement)
-            renderHex(decoded.elements, decoded.bytes, genericLines, hexOutput) { event, hex ->
-                pendingHex = hex
+            fun showContextMenu(event: MouseEvent, line: GenericAsn1Line) {
+                event.preventDefault()
+                val row = (event.currentTarget as? HTMLElement)?.takeIf { it.tabIndex >= 0 }
+                menuOrigin = row ?: if (hexMenu.hidden) document.activeElement as? HTMLElement else menuOrigin
+                copySelection = { part ->
+                    copyElementPart(part, line, decoded.bytes) { status.textContent = it }
+                }
+                copyPreviews.forEach { (part, preview) ->
+                    preview.textContent = previewElementPart(part, line, decoded.bytes)
+                }
                 hexMenu.hidden = false
-                hexMenu.style.left = "${minOf(event.clientX, window.innerWidth - hexMenu.offsetWidth - 8)}px"
-                hexMenu.style.top = "${minOf(event.clientY, window.innerHeight - hexMenu.offsetHeight - 8)}px"
+                hexMenu.style.left = "${minOf(event.clientX, window.innerWidth - hexMenu.offsetWidth - 8).coerceAtLeast(0)}px"
+                hexMenu.style.top = "${minOf(event.clientY, window.innerHeight - hexMenu.offsetHeight - 8).coerceAtLeast(0)}px"
+                copyButtons.getValue(CopyPart.TAG).focus()
             }
+            renderPrettyPrint(genericLines, decoded.bytes, output as HTMLElement, ::showContextMenu)
+            renderHex(decoded.elements, genericLines, hexOutput, ::showContextMenu)
         } catch (e: Throwable) {
             // Anything that parsed as ASN.1 renders, even if the interactive renderer trips over it.
             renderFallback(decoded, output as HTMLElement, hexOutput)
@@ -126,6 +173,7 @@ fun main() {
         null
     }
     (document.getElementById("clear") as HTMLButtonElement).onclick = {
+        closeHexMenu()
         input.value = ""
         output.textContent = ""
         hexOutput.textContent = ""
@@ -185,8 +233,65 @@ private fun renderFallback(decoded: DecodedInput, output: HTMLElement, hexOutput
 }
 
 private const val MAX_FALLBACK_HEX_BYTES = 64 * 1024
+private const val HEX_PREVIEW_BYTES = 8
+private const val DIAGNOSTIC_PREVIEW_CHARS = 48
 
-private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, output: HTMLElement) {
+private val spacedUppercaseHex = HexFormat {
+    upperCase = true
+    bytes.byteSeparator = " "
+}
+
+private val GenericAsn1Line.diagnosticPrefix get() = memberName?.let { "$it  " }.orEmpty()
+private val GenericAsn1Line.diagnosticText get() = diagnosticPrefix + text
+
+private fun elementPartRange(part: CopyPart, line: GenericAsn1Line, size: Int): IntRange? {
+    val offset = line.byteOffset!!
+    val elementEnd = offset + line.byteLength!!
+    val range = when (part) {
+        CopyPart.TAG -> offset until line.lengthOffset!!
+        CopyPart.CONTENT -> line.contentOffset!! until elementEnd
+        CopyPart.TLV -> offset until elementEnd
+        CopyPart.DIAGNOSTIC -> return null
+    }
+    val start = range.first.coerceIn(0, size)
+    return start until (range.last + 1).coerceIn(start, size)
+}
+
+private fun previewElementPart(part: CopyPart, line: GenericAsn1Line, der: ByteArray): String {
+    val range = elementPartRange(part, line, der.size)
+    if (range == null) {
+        val diagnostic = line.diagnosticText
+        if (diagnostic.length <= DIAGNOSTIC_PREVIEW_CHARS) return diagnostic
+        val prefix = diagnostic.take(DIAGNOSTIC_PREVIEW_CHARS)
+        return (if (prefix.last().isHighSurrogate()) prefix.dropLast(1) else prefix) + " …"
+    }
+    if (range.isEmpty()) return "(empty)"
+    val end = minOf(range.last + 1, range.first + HEX_PREVIEW_BYTES)
+    val hex = der.toHexString(range.first, end, spacedUppercaseHex)
+    return if (end <= range.last) "$hex …" else hex
+}
+
+private fun copyElementPart(part: CopyPart, line: GenericAsn1Line, der: ByteArray, report: (String) -> Unit) {
+    val range = elementPartRange(part, line, der.size)
+    if (range == null) {
+        copyText(line.diagnosticText) { copied ->
+            report(if (copied) "Copied diagnostic." else "Could not copy diagnostic.")
+        }
+        return
+    }
+    val start = range.first
+    val end = range.last + 1
+    copyText(der.toHexString(start, end, spacedUppercaseHex)) { copied ->
+        report(if (copied) "Copied ${end - start} DER bytes as hex." else "Could not copy DER bytes.")
+    }
+}
+
+private fun renderPrettyPrint(
+    lines: List<GenericAsn1Line>,
+    der: ByteArray,
+    output: HTMLElement,
+    showContextMenu: (MouseEvent, GenericAsn1Line) -> Unit,
+) {
     val collapsedPaths = mutableSetOf<String>()
     val renderedLines = mutableListOf<Pair<String, HTMLElement>>()
     val toggles = mutableMapOf<String, HTMLButtonElement>()
@@ -210,7 +315,7 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
     }
     lines.forEach { rendered ->
         val line = rendered.text
-        val span = document.createElement("span")
+        val span = document.createElement("span") as HTMLElement
         span.className = "asn1-line" + (if (rendered.isRoot) " asn1-root" else "") +
                 (if (rendered.hasChildren) " asn1-has-toggle" else "")
         rendered.path?.let { path ->
@@ -247,10 +352,10 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
         val content = document.createElement("span")
         content.className = "asn1-line-content"
         span.appendChild(content)
-        rendered.memberName?.let { name ->
+        if (rendered.memberName != null) {
             document.createElement("span").also {
                 it.className = "asn1-member"
-                it.textContent = "$name  "
+                it.textContent = rendered.diagnosticPrefix
                 content.appendChild(it)
             }
         }
@@ -281,6 +386,10 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
         rendered.path?.let { path ->
             val offset = rendered.byteOffset!!
             val length = rendered.byteLength!!
+            span.tabIndex = 0
+            span.addEventListener("contextmenu", { event ->
+                showContextMenu(event as MouseEvent, rendered)
+            })
             // Clamped: a re-encoded element can report a range the raw input does not cover.
             val start = offset.coerceIn(0, der.size)
             val end = minOf(offset + length, offset + 48).coerceIn(start, der.size)
@@ -288,7 +397,7 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
             val suffix = if (length > 48) " …" else ""
             span.linkToAsn1Path(path, includeDescendants = true, view = "generic",
                 detail = "DER bytes $offset..${offset + length - 1} ($length bytes)\n$shown$suffix")
-            renderedLines += path.joinToString(".") to (span as HTMLElement)
+            renderedLines += path.joinToString(".") to span
         }
         output.appendChild(span)
     }
@@ -297,15 +406,14 @@ private fun renderPrettyPrint(lines: List<GenericAsn1Line>, der: ByteArray, outp
 
 private fun renderHex(
     elements: List<at.asitplus.awesn1.Asn1Element>,
-    der: ByteArray,
     lines: List<GenericAsn1Line>,
     output: HTMLElement,
-    showContextMenu: (MouseEvent, String) -> Unit,
+    showContextMenu: (MouseEvent, GenericAsn1Line) -> Unit,
 ) {
     val (bytes, truncated) = coloredHex(elements)
-    val descriptions = lines.mapNotNull { line -> line.path?.let { it to line.text.trim() } }.toMap()
-    val ranges = lines.mapNotNull { line -> line.path?.let { it to (line.byteOffset!! until line.byteOffset + line.byteLength!!) } }.toMap()
+    val linesByPath = lines.associateBy { it.path }
     bytes.forEachIndexed { index, byte ->
+        val line = linesByPath[byte.path]
         val span = document.createElement("span")
         span.className = when (byte.kind) {
             HexByteKind.TAG -> "hex-tag"
@@ -314,15 +422,9 @@ private fun renderHex(
         }
         span.textContent = byte.value.toUByte().toString(16).uppercase().padStart(2, '0')
         span.linkToAsn1Path(byte.path, includeDescendants = true, view = "hex",
-            detail = "DER byte $index\n${descriptions[byte.path].orEmpty()}")
+            detail = "DER byte $index\n${line?.text?.trim().orEmpty()}")
         span.addEventListener("contextmenu", { event ->
-            event.preventDefault()
-            ranges[byte.path]?.let { range ->
-                val clamped = range.first.coerceIn(0, der.size) until (range.last + 1).coerceIn(0, der.size)
-                showContextMenu(event as MouseEvent, der.sliceArray(clamped).joinToString(" ") {
-                    it.toUByte().toString(16).uppercase().padStart(2, '0')
-                })
-            }
+            line?.let { showContextMenu(event as MouseEvent, it) }
         })
         output.appendChild(span)
     }
